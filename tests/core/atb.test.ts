@@ -13,7 +13,7 @@ type Seed = Omit<Combatant, "gauge" | "guarding">;
 function hero(overrides: Partial<Seed["stats"]> = {}): Seed {
   return {
     id: "hero",
-    name: "Wanderer",
+    name: "Joseph",
     side: "party",
     stats: { maxHp: 30, hp: 30, attack: 8, defense: 4, speed: 10, ...overrides },
   };

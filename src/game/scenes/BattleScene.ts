@@ -62,7 +62,7 @@ export class BattleScene extends Phaser.Scene {
       [
         {
           id: "hero",
-          name: "Wanderer",
+          name: "Joseph",
           side: "party",
           stats: { maxHp: 32, hp: 32, attack: 9, defense: 3, speed: 12 }
         },
