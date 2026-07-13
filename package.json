@@ -1,0 +1,31 @@
+{
+  "name": "desert-secrets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desert Secrets — an active time battle RPG for Android (Phaser 3 + Capacitor) with a procedural pixel-art pipeline.",
+  "type": "module",
+  "scripts": {
+    "art": "tsx tools/pipeline/src/index.ts",
+    "dev": "vite",
+    "build": "npm run art && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node tools/smoke/e2e.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "3.87.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pngjs": "^6.0.5",
+    "playwright-core": "^1.61.1",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vite-plugin-singlefile": "^2.1.0",
+    "vitest": "^2.1.8"
+  }
+}
