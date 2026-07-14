@@ -27,8 +27,16 @@ const sheets = [
   ["gila.png", assets.gila],
   ["foreman.png", assets.foreman],
   ["queen.png", assets.queen],
+  ["slither.png", assets.slither],
+  ["miner.png", assets.miner],
+  ["fluffball.png", assets.fluffball],
+  ["icebat.png", assets.icebat],
+  ["crystalcrawler.png", assets.crystalcrawler],
+  ["frostscarab.png", assets.frostscarab],
+  ["warden.png", assets.warden],
   ["tiles.png", assets.tiles],
-  ["tiles2.png", assets.tiles2]
+  ["tiles2.png", assets.tiles2],
+  ["tiles3.png", assets.tiles3]
 ] as const;
 
 for (const [name, grid] of sheets) {

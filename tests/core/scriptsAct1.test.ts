@@ -203,9 +203,13 @@ describe("radioLines", () => {
   it("covers every zone", () => {
     expect(Object.keys(radioLines).sort()).toEqual([
       "crash",
+      "crevasse",
       "depths",
+      "galleries",
+      "maze",
       "mine",
       "oasis",
+      "sanctum",
       "trail",
     ]);
   });

@@ -13,7 +13,13 @@ export interface Stats {
 
 export type Side = "party" | "enemy";
 
-export type ActionId = "attack" | "guard" | "focus" | "second-wind" | "sandstep";
+export type ActionId =
+  | "attack"
+  | "guard"
+  | "focus"
+  | "second-wind"
+  | "sandstep"
+  | "venom";
 
 export interface Combatant {
   id: string;
@@ -32,6 +38,11 @@ export interface Combatant {
   sandstepUsed?: boolean; // once per battle
   /** Passive: attackers hitting this combatant while it guards take 2 damage. */
   cactusGuard?: boolean;
+  /**
+   * The speed this combatant entered battle with, captured at
+   * construction. Venom debuffs floor current speed at 50% of this.
+   */
+  baseSpeed?: number;
 }
 
 export type BattleEvent =
@@ -45,6 +56,7 @@ export type BattleEvent =
       targetHp: number;
     }
   | { type: "heal"; id: string; amount: number; hp: number }
+  | { type: "debuff"; targetId: string; stat: "speed"; speed: number }
   | { type: "thorns"; targetId: string /* the attacker */; damage: 2; targetHp: number }
   | { type: "defeated"; id: string }
   | { type: "victory"; winner: Side };
@@ -85,6 +97,7 @@ export class AtbBattle {
       secondWindUsed: false,
       sandstepUsed: false,
       cactusGuard: c.cactusGuard ?? false,
+      baseSpeed: c.stats.speed, // entry speed: venom's slow floors at half this
     }));
     this.byId = new Map();
     for (const c of this.combatants) {
@@ -176,6 +189,8 @@ export class AtbBattle {
         return this.actSandstep(actor);
       case "attack":
         return this.actAttack(actor, targetId);
+      case "venom":
+        return this.actVenom(actor, targetId);
     }
   }
 
@@ -241,9 +256,14 @@ export class AtbBattle {
     return [event];
   }
 
-  private actAttack(actor: LiveCombatant, targetId?: string): BattleEvent[] {
+  /** Validate and resolve a targeted offensive action's target. */
+  private resolveOpposingTarget(
+    actor: LiveCombatant,
+    targetId: string | undefined,
+    action: ActionId,
+  ): LiveCombatant {
     if (targetId === undefined) {
-      throw new Error("AtbBattle: attack requires a targetId");
+      throw new Error(`AtbBattle: ${action} requires a targetId`);
     }
     const target = this.getLive(targetId);
     if (target.stats.hp <= 0) {
@@ -251,9 +271,15 @@ export class AtbBattle {
     }
     if (target.side === actor.side) {
       throw new Error(
-        `AtbBattle: cannot attack "${targetId}" on the same side`,
+        `AtbBattle: cannot ${action} "${targetId}" on the same side`,
       );
     }
+    return target;
+  }
+
+  private actAttack(actor: LiveCombatant, targetId?: string): BattleEvent[] {
+    const target = this.resolveOpposingTarget(actor, targetId, "attack");
+    targetId = target.id;
 
     const events: BattleEvent[] = [];
     let damage = Math.max(
@@ -298,6 +324,56 @@ export class AtbBattle {
       events.push(...this.deathEvents(actor));
     }
 
+    return events;
+  }
+
+  /**
+   * Venom (Slither): a weaker strike that slows the target. Damage is the
+   * base attack formula with variance, ×0.75 (round, min 1), with guard
+   * halving applied after. The target's CURRENT speed is then multiplied
+   * by 0.75, floored at 50% of the speed it entered battle with
+   * (baseSpeed). Emits the action event, then the speed debuff, then any
+   * defeated/victory events.
+   */
+  private actVenom(actor: LiveCombatant, targetId?: string): BattleEvent[] {
+    const target = this.resolveOpposingTarget(actor, targetId, "venom");
+
+    let damage = Math.max(
+      1,
+      Math.round(
+        (actor.stats.attack * 2 - target.stats.defense) *
+          (0.9 + this.rng() * 0.2),
+      ),
+    );
+    damage = Math.max(1, Math.round(damage * 0.75));
+    if (target.guarding) {
+      damage = Math.max(1, Math.floor(damage / 2));
+    }
+
+    target.stats.hp = Math.max(0, target.stats.hp - damage);
+    target.stats.speed = Math.max(
+      target.baseSpeed * 0.5,
+      target.stats.speed * 0.75,
+    );
+    actor.gauge = 0;
+
+    const events: BattleEvent[] = [
+      {
+        type: "action",
+        actorId: actor.id,
+        targetId: target.id,
+        action: "venom",
+        damage,
+        targetHp: target.stats.hp,
+      },
+      {
+        type: "debuff",
+        targetId: target.id,
+        stat: "speed",
+        speed: target.stats.speed,
+      },
+    ];
+    events.push(...this.deathEvents(target));
     return events;
   }
 

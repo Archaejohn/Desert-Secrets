@@ -11,8 +11,15 @@ import { BUZZARD_FRAME } from "./sprites/buzzard";
 import { GILA_FRAME } from "./sprites/gila";
 import { FOREMAN_FRAME } from "./sprites/foreman";
 import { QUEEN_FRAME } from "./sprites/queen";
+import { SLITHER_FRAME } from "./sprites/slither";
+import { FLUFFBALL_FRAME } from "./sprites/fluffball";
+import { ICEBAT_FRAME } from "./sprites/icebat";
+import { CRYSTALCRAWLER_FRAME } from "./sprites/crystalcrawler";
+import { FROSTSCARAB_FRAME } from "./sprites/frostscarab";
+import { WARDEN_FRAME } from "./sprites/warden";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
+import { TILE3_NAMES } from "./tileset3";
 
 export interface AnimationDef {
   frames: number[];
@@ -49,16 +56,24 @@ export interface Manifest {
     gila: SheetDef;
     foreman: SheetDef;
     queen: SheetDef;
+    slither: SheetDef;
+    miner: SheetDef;
+    fluffball: SheetDef;
+    icebat: SheetDef;
+    crystalcrawler: SheetDef;
+    frostscarab: SheetDef;
+    warden: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
+  tiles3: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
 
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
-function characterSheet(prefix: "hero" | "npc" | "rosa"): SheetDef {
+function characterSheet(prefix: "hero" | "npc" | "rosa" | "miner"): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
     const base = row * 6;
@@ -121,9 +136,17 @@ export function buildManifest(): Manifest {
       buzzard: creatureSheet("buzzard", BUZZARD_FRAME, "move", 3, 8),
       gila: creatureSheet("gila", GILA_FRAME, "move", 3, 8),
       foreman: creatureSheet("foreman", FOREMAN_FRAME, "move", 3, 10),
-      queen: creatureSheet("queen", QUEEN_FRAME, "move", 2, 8)
+      queen: creatureSheet("queen", QUEEN_FRAME, "move", 2, 8),
+      slither: creatureSheet("slither", SLITHER_FRAME, "move", 3, 10),
+      miner: characterSheet("miner"),
+      fluffball: creatureSheet("fluffball", FLUFFBALL_FRAME, "walk", 3, 8),
+      icebat: creatureSheet("icebat", ICEBAT_FRAME, "move", 3, 10),
+      crystalcrawler: creatureSheet("crystalcrawler", CRYSTALCRAWLER_FRAME, "move", 3, 8),
+      frostscarab: creatureSheet("frostscarab", FROSTSCARAB_FRAME, "move", 3, 10),
+      warden: creatureSheet("warden", WARDEN_FRAME, "move", 2, 8)
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
-    tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) }
+    tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },
+    tiles3: { file: "tiles3.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE3_NAMES) }
   };
 }

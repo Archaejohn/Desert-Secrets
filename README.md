@@ -6,6 +6,26 @@ TypeScript, with a fully procedural pixel-art pipeline.
 A wanderer crosses a dusk-lit desert valley: an oasis, half-buried ruins, and
 the scarabs that guard whatever sleeps beneath the dunes.
 
+## Act 2 — The Ice Below (~35 min)
+
+Continues straight from Act 1's cliffhanger (progress carries over, and a
+checkpoint save lets you continue after closing the browser):
+
+- **A true maze act** — seven rooms of winding ice tunnels with multiple
+  doorways, two independent routes through, loops that dump you back where
+  you started, and false-lead dead ends that pay off: heal shards, an
+  ambush, and **lost miners** (Mo, Edda and Gus — rescue all three for a
+  bonus perk).
+- **Slither** — a jade whipsnake who scouts shortcuts no human fits
+  through and **joins the party** at the rime door. In battle he has his
+  own ATB gauge and commands: Bite, Coil, and **Venom** (damage + slows
+  the target's gauge).
+- **The Rime Warden** — a two-member-party boss on the frozen lake, and
+  an ending that reveals Piggy isn't alone down here.
+- Leveling extends to Level 8; story plans for Acts 3–5 (Fluffball's
+  secret, the gathering, and a certain underground pizzeria) live in
+  `docs/STORY_ACTS3-5.md`.
+
 ## Act 1 — The Coldest Cargo (~30 min)
 
 Playable in the browser, start to cliffhanger (full outline in

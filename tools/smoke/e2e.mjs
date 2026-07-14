@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash", "oasis", "trail", "mine", "depths"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash", "oasis", "trail", "mine", "depths"].includes(k)
+        ["crash","oasis","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -160,11 +160,22 @@ page.on("pageerror", (e) => pageErrors.push(e.message));
 await page.goto("file://" + path.join(root, "dist/index.html"));
 await page.waitForTimeout(2600);
 
+// ---------- Title menu ----------
+await page.evaluate(() => localStorage.clear()); // deterministic: no save yet
+const titleUp = await page.evaluate(() => {
+  const boot = window.__game.scene.getScene("boot");
+  return boot.scene.isActive();
+});
+check("title menu shows on boot", titleUp === true);
+await tap(page, "Space"); // NEW GAME
+let s = await waitFor(page, (x) => x.zoneKey === "crash", 8000);
+
 // ---------- Beat 1: crash site ----------
-let s = await snapshot(page);
-check("boots into the crash site", s.zoneKey === "crash", JSON.stringify(s.active));
+check("New Game starts the crash site", s.zoneKey === "crash", JSON.stringify(s.active));
 
 // Movement + walk animation still work.
+await page.waitForTimeout(600);
+s = await snapshot(page);
 const px0 = s.px;
 await page.keyboard.down("ArrowRight");
 await page.waitForTimeout(500);
@@ -257,15 +268,16 @@ check("reaches the trail", s.zoneKey === "trail");
 await talkThrough(page); // radio check-in
 s = await snapshot(page);
 
-// Random encounter: pace back and forth until one triggers (9%/s of
-// movement after a 5s grace). Close any stray dialogue that interrupts.
+// Random encounter: pace in the open lakebed (away from all triggers)
+// until one fires (9%/s of movement after a 5s grace).
 await healUp(page);
+await teleport(page, 8, 10); // open dry-lake area, no triggers nearby
 let enc = await snapshot(page);
-const encDeadline = Date.now() + 120_000;
+const encDeadline = Date.now() + 150_000;
 while (!enc.battle && Date.now() < encDeadline) {
-  const dir = Math.floor(Date.now() / 4000) % 2 ? "ArrowRight" : "ArrowLeft";
+  const dir = Math.floor(Date.now() / 3000) % 2 ? "ArrowUp" : "ArrowDown";
   await page.keyboard.down(dir);
-  enc = await waitFor(page, (x) => x.battle || x.dialogueOpen, 4200);
+  enc = await waitFor(page, (x) => x.battle || x.dialogueOpen, 3200);
   await page.keyboard.up(dir);
   if (enc.dialogueOpen) await talkThrough(page);
 }
@@ -410,10 +422,150 @@ s = await snapshot(page);
 check("act completes (cliffhanger played)", s.state.flags.actComplete === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../end-card.png") }).catch(() => {});
 
-// End card → SPACE restarts a fresh run at the crash site.
+// End card → SPACE descends into Act 2 keeping all progress.
+const xpBeforeAct2 = s.state.hero.xp;
 await tap(page, "Space");
-s = await waitFor(page, (x) => x.zoneKey === "crash", 8000);
-check("end card restarts Act 1 fresh", s.zoneKey === "crash" && s.state.hero.xp === 0, `xp=${s.state?.hero?.xp}`);
+s = await waitFor(page, (x) => x.zoneKey === "crevasse", 8000);
+check(
+  "act 1 end card hands off to the crevasse with progress kept",
+  s.zoneKey === "crevasse" && s.state.flags.act2Started === true && s.state.hero.xp === xpBeforeAct2,
+  `zone=${s.zoneKey} xp=${s.state?.hero?.xp}`
+);
+
+// ---------- Save / Continue: reload mid-run ----------
+await page.reload();
+await page.waitForTimeout(2600);
+await tap(page, "Space"); // CONTINUE is first when a save exists
+s = await waitFor(page, (x) => x.zoneKey !== null, 8000);
+check(
+  "reload + Continue restores the checkpoint save",
+  s.zoneKey === "crevasse" && s.state.hero.xp === xpBeforeAct2,
+  `zone=${s.zoneKey} xp=${s.state?.hero?.xp}`
+);
+
+// ---------- Act 2, zone by zone ----------
+// Generic driver: talk to every NPC, then visit triggers/exits to advance.
+async function talkAllNpcs(zone) {
+  for (let pass = 0; pass < 2; pass++) {
+    const count = await page.evaluate(
+      (z) => window.__game.scene.getScene(z)["npcs"].length,
+      zone
+    );
+    for (let i = 0; i < count; i++) {
+      await healUp(page);
+      const opened = await talkToNpc(page, zone, i);
+      if (!opened) continue;
+      await talkThrough(page, { pickIndex: 0 });
+      await fightIfBattle(page, zone);
+    }
+  }
+}
+/** Visit TRIGGER rects only (never exits) until pred holds. */
+async function driveTriggersUntil(zone, pred, maxRounds = 3) {
+  for (let round = 0; round < maxRounds; round++) {
+    const rects = await page.evaluate((z) => {
+      const w = window.__game.scene.getScene(z);
+      return w["triggers"].map((t) => t.rect);
+    }, zone);
+    for (const r of rects) {
+      let cur = await snapshot(page);
+      if (pred(cur)) return cur;
+      if (cur.zoneKey !== zone) return cur;
+      await healUp(page);
+      await teleport(page, r.x1, r.y1);
+      await page.waitForTimeout(500);
+      cur = await snapshot(page);
+      if (cur.dialogueOpen) await talkThrough(page, { pickIndex: 0 });
+      await fightIfBattle(page, zone);
+      cur = await snapshot(page);
+      if (pred(cur)) return cur;
+      if (cur.zoneKey !== zone) return cur;
+    }
+  }
+  return snapshot(page);
+}
+
+/** Leave `zone` for `target` via a declared exit (or gated trigger fallback). */
+async function exitTo(zone, target) {
+  const exits = await page.evaluate((z) => {
+    const w = window.__game.scene.getScene(z);
+    return w["exits"].map((e) => ({ rect: e.rect, target: e.target }));
+  }, zone);
+  const match = exits.find((e) => e.target === target);
+  if (match) {
+    await teleport(page, match.rect.x1, match.rect.y1);
+    return waitFor(page, (x) => x.zoneKey === target, 8000);
+  }
+  // Gated exits live in triggers; visit them until the zone flips.
+  return driveTriggersUntil(zone, (x) => x.zoneKey === target);
+}
+
+// Crevasse: rescue Mo, move on to the maze.
+await talkAllNpcs("crevasse");
+s = await snapshot(page);
+check("Mo rescued in the crevasse", s.state.flags.minerMo === true, JSON.stringify(s.state.flags));
+s = await exitTo("crevasse", "maze");
+check("crevasse leads to the ice maze", s.zoneKey === "maze");
+
+// Maze: Edda, Slither's crack, shards, then out to the galleries.
+await talkAllNpcs("maze");
+s = await driveTriggersUntil("maze", (x) => x.state.flags.metSlither && x.state.flags.minerEdda);
+s = await snapshot(page);
+check("Edda rescued in the maze", s.state.flags.minerEdda === true, JSON.stringify(s.state.flags));
+check("Slither opens the maze shortcut", s.state.flags.metSlither === true && s.state.flags.mazeShortcutOpen === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "maze") {
+  // A trigger bounced us to a neighbouring zone; walk back in.
+  s = await exitTo(s.zoneKey, "maze");
+}
+s = await exitTo("maze", "galleries");
+check("maze exits reach the galleries", s.zoneKey === "galleries");
+
+// Galleries: Gus, miners bonus, rime door -> Slither joins.
+await talkAllNpcs("galleries");
+s = await snapshot(page);
+check("Gus rescued in the galleries", s.state.flags.minerGus === true, JSON.stringify(s.state.flags));
+check("all-miners bonus perk granted", s.state.flags.minersBonusGiven === true, `pendingPerks=${s.state.pendingPerks}`);
+s = await driveTriggersUntil("galleries", (x) => x.state.flags.slitherJoined);
+s = await snapshot(page);
+check("Slither joins the party at the rime door", s.state.flags.slitherJoined === true && s.state.flags.rimeDoorOpen === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "galleries") s = await exitTo(s.zoneKey, "galleries");
+s = await exitTo("galleries", "sanctum");
+check("rime door opens the sanctum", s.zoneKey === "sanctum");
+
+// Sanctum: Warden boss with the two-member party.
+await healUp(page);
+// The trigger driver plays the intro dialogue and fights the boss itself.
+s = await driveTriggersUntil("sanctum", (x) => x.state.flags.wardenDefeated === true);
+if (s.battle) {
+  s = await fightThrough(page, { timeoutMs: 180_000 });
+  s = await waitFor(page, (x) => x.zoneKey === "sanctum", 12_000);
+}
+check("Rime Warden defeated", s.state.flags.wardenDefeated === true, JSON.stringify(s.state.flags));
+// The battle scene retains its last battle: confirm the party was two-strong.
+const partySize = await page.evaluate(() => {
+  const b = window.__game.scene.getScene("battle");
+  return b["battle"] ? b["battle"].livingOn("party").length + (b["battle"].getCombatant("slither") ? 0 : 0) : 0;
+});
+const hadSlither = await page.evaluate(() => {
+  const b = window.__game.scene.getScene("battle");
+  try {
+    return !!b["battle"]?.getCombatant("slither");
+  } catch {
+    return false;
+  }
+});
+check("Warden battle included Slither in the party", hadSlither === true, `living=${partySize}`);
+
+// Ending: the crack-and-crossing cutscene runs long — wait for its
+// dialogue, play it through, then wait for the completion flag.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 30_000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act2Complete === true, 10_000);
+check("Act 2 completes (two penguins seen)", s.state.flags.act2Complete === true, JSON.stringify(s.state.flags));
+await page.waitForTimeout(800);
+await tap(page, "Space");
+const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
+check("act 2 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -422,4 +574,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 smoke checks passed");
+console.log("\nAll Act 1 + Act 2 smoke checks passed");

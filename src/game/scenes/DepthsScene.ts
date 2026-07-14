@@ -18,10 +18,11 @@ import {
   DEPTHS_SPAWN
 } from "../maps/depthsMap";
 import { MINE_ELEVATOR_SPAWN } from "../maps/mineMap";
+import { CREVASSE_SPAWN } from "../maps/crevasseMap";
 import { queenFightScript } from "../../core/scripts/queenFight";
 import { queenParleyScript } from "../../core/scripts/queenParley";
 import { cliffhangerScript } from "../../core/scripts/cliffhanger";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
 
 /** Piggy's final spot: centered beneath the two cracked ice tiles. */
@@ -82,6 +83,13 @@ export class DepthsScene extends ZoneScene {
       // Epilogue state: the wall is cracked, Piggy waits beneath it.
       this.crackWall();
       piggy.setPosition(PIGGY_END_PX.x, PIGGY_END_PX.y).setDepth(PIGGY_END_PX.y);
+      // A reload at the end card must not soft-lock Act 2: walking up to
+      // the crack descends into the crevasse.
+      this.addTrigger({ x1: 16, y1: 2, x2: 19, y2: 2 }, () => {
+        const st = getState(this);
+        setState(this, { ...st, flags: { ...st.flags, act2Started: true } });
+        this.goToZone("crevasse", CREVASSE_SPAWN);
+      });
     }
   }
 
@@ -146,7 +154,7 @@ export class DepthsScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     this.add
-      .text(w / 2, h / 2 + 26, "SPACE — play again", {
+      .text(w / 2, h / 2 + 26, "SPACE to descend", {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone
@@ -155,14 +163,16 @@ export class DepthsScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
 
-    let restarted = false;
-    const restart = (): void => {
-      if (restarted) return;
-      restarted = true;
-      resetGame(this);
-      this.scene.start("crash");
+    // The Act 2 hand-off: descend into the crevasse, keeping all progress.
+    let descended = false;
+    const descend = (): void => {
+      if (descended) return;
+      descended = true;
+      const st = getState(this);
+      setState(this, { ...st, flags: { ...st.flags, act2Started: true } });
+      this.scene.start("crevasse");
     };
-    this.input.keyboard?.once("keydown-SPACE", restart);
-    this.input.once("pointerdown", restart);
+    this.input.keyboard?.once("keydown-SPACE", descend);
+    this.input.once("pointerdown", descend);
   }
 }

@@ -15,8 +15,8 @@ import {
 
 describe("levelForXp", () => {
   it("exposes the contract thresholds and max level", () => {
-    expect(LEVEL_THRESHOLDS).toEqual([0, 20, 45, 75, 110]);
-    expect(MAX_LEVEL).toBe(5);
+    expect(LEVEL_THRESHOLDS).toEqual([0, 20, 45, 75, 110, 150, 195, 245]);
+    expect(MAX_LEVEL).toBe(8);
   });
 
   it("maps XP to levels exactly at the boundaries", () => {
@@ -29,16 +29,22 @@ describe("levelForXp", () => {
     expect(levelForXp(75)).toBe(4);
     expect(levelForXp(109)).toBe(4);
     expect(levelForXp(110)).toBe(5);
+    expect(levelForXp(149)).toBe(5);
+    expect(levelForXp(150)).toBe(6);
+    expect(levelForXp(194)).toBe(6);
+    expect(levelForXp(195)).toBe(7);
+    expect(levelForXp(244)).toBe(7);
+    expect(levelForXp(245)).toBe(8);
   });
 
   it("caps at MAX_LEVEL for any surplus XP", () => {
-    expect(levelForXp(111)).toBe(5);
-    expect(levelForXp(10_000)).toBe(5);
+    expect(levelForXp(246)).toBe(8);
+    expect(levelForXp(10_000)).toBe(8);
   });
 
   it("is monotonically non-decreasing", () => {
     let prev = 1;
-    for (let xp = 0; xp <= 200; xp++) {
+    for (let xp = 0; xp <= 400; xp++) {
       const level = levelForXp(xp);
       expect(level).toBeGreaterThanOrEqual(prev);
       prev = level;
@@ -53,10 +59,13 @@ describe("xpToNext", () => {
     expect(xpToNext(20)).toBe(25);
     expect(xpToNext(50)).toBe(25);
     expect(xpToNext(109)).toBe(1);
+    expect(xpToNext(110)).toBe(40);
+    expect(xpToNext(150)).toBe(45);
+    expect(xpToNext(244)).toBe(1);
   });
 
   it("is null at max level", () => {
-    expect(xpToNext(110)).toBeNull();
+    expect(xpToNext(245)).toBeNull();
     expect(xpToNext(9999)).toBeNull();
   });
 });
@@ -97,9 +106,19 @@ describe("baseStatsForLevel", () => {
     }
   });
 
+  it("reaches 74/23/10/19 at the new level cap of 8", () => {
+    expect(baseStatsForLevel(8)).toEqual({
+      maxHp: 74,
+      hp: 74,
+      attack: 23,
+      defense: 10,
+      speed: 19,
+    });
+  });
+
   it("throws on levels outside 1..MAX_LEVEL", () => {
     expect(() => baseStatsForLevel(0)).toThrow(/out of range/);
-    expect(() => baseStatsForLevel(6)).toThrow(/out of range/);
+    expect(() => baseStatsForLevel(9)).toThrow(/out of range/);
     expect(() => baseStatsForLevel(2.5)).toThrow(/out of range/);
   });
 });
@@ -189,7 +208,7 @@ describe("grantXp", () => {
   });
 
   it("gains no levels past max level", () => {
-    expect(grantXp({ xp: 110, perks: [] }, 500).levelsGained).toBe(0);
+    expect(grantXp({ xp: 245, perks: [] }, 500).levelsGained).toBe(0);
   });
 
   it("is pure: returns a new build and keeps perks", () => {
@@ -213,6 +232,8 @@ describe("grantXp", () => {
     for (const xp of beforeQueen) build = grantXp(build, xp).build;
     expect(levelForXp(build.xp)).toBeGreaterThanOrEqual(4);
     build = grantXp(build, 60).build; // the Dust Queen
-    expect(levelForXp(build.xp)).toBe(5);
+    // With the Act 2 thresholds extended past 110, the Queen's XP now
+    // carries a full Act 1 clear into level 6 (162 xp >= 150).
+    expect(levelForXp(build.xp)).toBe(6);
   });
 });

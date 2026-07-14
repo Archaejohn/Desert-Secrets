@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ACT1_FLAGS,
+  ACT2_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
@@ -28,10 +29,12 @@ describe("newGame", () => {
   it("initialises every scene flag to false", () => {
     const s = newGame();
     expect(ACT1_FLAGS.length).toBe(16);
-    for (const flag of ACT1_FLAGS) {
+    for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS]) {
       expect(s.flags[flag]).toBe(false);
     }
-    expect(Object.keys(s.flags).sort()).toEqual([...ACT1_FLAGS].sort());
+    expect(Object.keys(s.flags).sort()).toEqual(
+      [...ACT1_FLAGS, ...ACT2_FLAGS].sort(),
+    );
   });
 });
 

@@ -333,3 +333,160 @@ Each script's terminal node ids are part of the contract:
   default spawn. Victory returns to `returnTo` position.
 - Global state lives in `this.registry.get("act1")` (a single
   `Act1State`), written back after every mutation.
+
+---
+
+# Act 2 contracts (v3)
+
+## 7. New generated assets
+
+Same rules as §1/§4. New sheets:
+
+| File | Frame | Grid | Animations (exact keys) | Design |
+|---|---|---|---|---|
+| `slither.png` | 16×16 | 6×1 | `slither-idle` [0,1] fr 3, `slither-move` [2..5] fr 10 | Jade whipsnake: jade/teal body, mint belly, amber eyes, ink outline; idle = coiled tongue-flick, move = S-curve undulation. Faces RIGHT (world code flips) |
+| `miner.png` | 16×24 | 6×4 (rows down/left/right/up) | `miner-idle-*`, `miner-walk-*` (8 keys, hero pattern) | Lost miner: slate overalls, clay skin, bone beard, amber lantern glow pixel on helmet |
+| `fluffball.png` | 16×16 | 6×1 | `fluffball-idle` [0,1] fr 3, `fluffball-walk` [2..5] fr 8 | Round GRAY chick penguin: mauve/plum down, bone face, amber beak; even rounder than Piggy; idle = fluff-shake |
+| `icebat.png` | 24×24 | 6×1 | `icebat-idle` [0,1] fr 3, `icebat-move` [2..5] fr 10 | Indigo/skyBlue cave bat, mint eye glints; idle = hang-twitch, move = flap |
+| `crystalcrawler.png` | 24×24 | 6×1 | `crystalcrawler-idle` [0,1] fr 3, `crystalcrawler-move` [2..5] fr 8 | Gila-like crawler grown over with jade/skyBlue crystals; move = heavy crawl, crystal glint alternates |
+| `frostscarab.png` | 24×24 | 6×1 | `frostscarab-idle` [0,1] fr 3, `frostscarab-move` [2..5] fr 10 | The scarab silhouette re-dressed in frost: skyBlue/slate shell, mint gem, bone rime edge |
+| `warden.png` | 32×32 | 6×1 | `warden-idle` [0,1] fr 2, `warden-move` [2..5] fr 8 | Rime Warden boss: ancient beetle-construct, slate/indigo plates under bone ice sheath, single amber core glint; slow heavy churn |
+
+New tile sheet `tiles3.png`: 16×16, **8 columns × 2 rows**; manifest entry
+`"tiles3"` shaped like `"tiles"`. Names/indices (row-major):
+
+```
+iceFloor:0 iceFloor2:1 iceWallDeep:2 crystalSmall:3 crystalBig:4 icicle:5 chasm:6 snowdrift:7
+lanternPost:8 lakeIce:9 lakeCrack:10 bridgePlank:11 doorRime:12 doorOpen:13 shard:14 mossGlow:15
+```
+
+Design: iceFloor tealDeep/indigo walkable ground (clearly darker than
+iceWallDeep, which is skyBlue/bone solid wall); chasm = near-black pit
+(solid); crystalBig/Small jade-skyBlue; icicle is an OVERHEAD tile;
+lanternPost amber glow (landmark for maze wayfinding); lakeIce vs
+lakeCrack clearly differ; doorRime (solid, sealed) vs doorOpen (walkable
+frame) clearly differ; shard = mint pickup sparkle; mossGlow = mint-lit
+floor variant.
+
+Solidity additions to `SOLID_TILE_NAMES` (scene layer, orchestrator):
+`iceWallDeep, crystalBig, chasm, lanternPost, doorRime`.
+
+## 8. Core v3 (`src/core/`)
+
+### progression.ts
+- `LEVEL_THRESHOLDS` extends to `[0,20,45,75,110,150,195,245]`, `MAX_LEVEL = 8`.
+  `commandsForLevel` unchanged above 5. Perk per level as before.
+- New: `slitherStatsForLevel(level): Stats` = maxHp 22+4·(level−1),
+  attack 6+2·(level−1), defense 2+⌊(level−1)/2⌋, speed 14+(level−1); hp = maxHp.
+- New: `SLITHER_COMMANDS: CommandId[]` (see atb: `["attack","guard","venom"]`,
+  displayed by the scene as Bite/Coil/Venom).
+
+### atb.ts
+- Action union adds `"venom"`: requires a living opposing target. Damage =
+  `max(1, round(base * 0.75))` where base is the §2 formula w/ variance
+  (guard halving applies after). Then the target's CURRENT speed is
+  multiplied by 0.75, floored at 50% of the speed it entered battle with.
+  Events: standard `action` (action:"venom", damage, targetHp) followed by
+  `{ type: "debuff"; targetId: string; stat: "speed"; speed: number }`
+  (the new current speed), then defeated/victory as usual if it kills.
+- Combatant gains `baseSpeed` (captured at construction) so the floor is
+  computable. Everything existing stays backwards compatible.
+
+### bestiary.ts additions
+```
+frostscarab    { sheet "frostscarab",   scale 2.5, 24/9/3/11,  xp 14 }
+icebat         { sheet "icebat",        scale 2.5, 20/10/2/16, xp 16 }
+crystalcrawler { sheet "crystalcrawler",scale 2.5, 38/11/6/8,  xp 20 }
+warden         { sheet "warden",        scale 3,  130/13/6/9,  xp 80 }
+```
+
+### encounters.ts additions
+```
+maze:      groups [["frostscarab"],["icebat"],["frostscarab","frostscarab"],["icebat","frostscarab"]] weights [3,3,2,2]
+galleries: groups [["icebat"],["crystalcrawler"],["icebat","icebat"],["crystalcrawler","icebat"]]     weights [3,2,2,1]
+```
+`ENCOUNTERS` keys become `"trail" | "mine" | "maze" | "galleries"`.
+
+### gameState.ts
+- `ZoneId` adds `"crevasse" | "maze" | "galleries" | "sanctum"`.
+- New flags (init false in `newGame`): `act2Started, minerMo, minerEdda,
+  minerGus, minersBonusGiven, metSlither, mazeShortcutOpen, rimeDoorOpen,
+  slitherJoined, wardenDefeated, act2Complete, shard1, shard2`.
+- Party helper: `partyFor(state): Array<{id:"hero"|"slither"; name:string;
+  stats:Stats; commands:CommandId[]; cactusGuard:boolean}>` — hero always
+  (as today); plus Slither when `flags.slitherJoined`
+  (`slitherStatsForLevel(levelForXp(xp))`, full hp each battle, commands
+  `SLITHER_COMMANDS`, no cactusGuard).
+
+### objective.ts — extend the chain
+crash/oasis/trail/mine/depths as today; then (once `actComplete`):
+descend (crevasse) → "Find a way through the ice maze" → miners counter
+("Lost miner found! (N/3)" moments handled by scenes; objective shows
+maze/door/boss steps) → "Open the rime door" → "Cross the frozen lake" →
+after `act2Complete`: "Act 2 complete!". Keep each ≤ 40 chars.
+
+### scripts/ (new, all validated; hissing esses for Slither)
+`minerMo.ts`, `minerEdda.ts`, `minerGus.ts` (each: relief + a maze hint +
+one smells-tomato-pie / hears-waves seed line), `slitherMeet.ts` (shy →
+offers to open the crack; terminal id `scout-end`), `slitherDoor.ts`
+(opens the rime door, then JOINS: "Sssomebody has to keep you alive.";
+terminal id `join-end`), `wardenIntro.ts` (2 lines, construct voice),
+`act2Ending.ts` (lake cracks; TWO penguin silhouettes; Slither: "...Two?
+There are TWO?"; final line exactly "ACT 3: THE SUNLESS SEA").
+
+## 9. Scenes v3 (`src/game/`)
+
+- Zone scene keys = zone ids. `DepthsScene` end card becomes the ACT 2
+  hand-off: "SPACE — descend" → `scene.start("crevasse")` WITHOUT reset
+  (sets `act2Started`).
+- **crevasse** (~20×16, battleBg "ice", no random encounters): entry from
+  depths; 3 exits from the entry room — one loops back into the room
+  (false lead), one dead-end pocket with **Mo** (flag minerMo, +30 XP),
+  one true path to `maze`. Miner camp corner where rescued miners gather
+  (sprites appear per flag).
+- **maze** (~44×28, encounterZone "maze", battleBg "ice"): ≥6 rooms,
+  corridors with multiple doorways; ≥2 disjoint routes entry→far side;
+  ≥3 false leads (dead-end shard cache → flag shard1, +heal & +10 XP;
+  dead-end with **Edda** (minerEdda, +30 XP); dead-end ambush → forced
+  frostscarab×2 battle + shard2). One loop corridor returns to the entry
+  room. A crack passage (doorRime tile) on the shorter route: trigger →
+  `slitherMeet` → metSlither + mazeShortcutOpen → replace with doorOpen.
+  TWO exits to `galleries` (different edges → different galleries spawns).
+  Lantern posts mark junctions (wayfinding).
+- **galleries** (~36×20, encounterZone "galleries", battleBg "ice"): Gus
+  down a side gallery (minerGus, +30 XP). When all three miner flags set
+  and !minersBonusGiven: award +1 pendingPerk (use a state mutator, e.g.
+  spread `pendingPerks + 1`) + flavor line, set minersBonusGiven. Far
+  door = doorRime gate: trigger → requires metSlither → `slitherDoor` →
+  rimeDoorOpen + slitherJoined; Slither becomes a world FOLLOWER (trails
+  the player's position history ~20 frames back, plays slither-move,
+  flips by direction) from here on. Exit to `sanctum` through the door.
+- **sanctum** (~26×18, battleBg "ice", no random encounters): frozen lake
+  (lakeIce), Warden sprite center. Approach trigger → `wardenIntro` →
+  boss battle `["warden"]` (party = hero + slither). After wardenDefeated:
+  ending cutscene — lake tiles along a line flip to lakeCrack with camera
+  shake; Piggy AND Fluffball sprites (piggy-walk / fluffball-walk) cross
+  the lake and exit; `act2Ending` script; then end card "END OF ACT 2 ·
+  ACT 3: THE SUNLESS SEA — coming soon", SPACE/tap → `resetGame` →
+  "crash". Set act2Complete before the card.
+- **BattleScene party support**: build combatants from `partyFor(state)`.
+  Party sprites column on the right (hero 370,140; slither 380,205, scale
+  2.5, slither-idle). One gauge+HP bar per combatant. When a PARTY member
+  is ready and the menu is hidden, open the menu for that member (label
+  the panel with their name; hero commands as today; slither shows
+  Bite/Coil/Venom → attack/guard/venom). If both are ready, hero first,
+  the other right after the first acts. Venom float: "VENOM" in jade on
+  actor, debuff event floats "SLOW" on target. Victory/defeat flows
+  unchanged (defeat = whole party wiped; hero hp persistence as today;
+  slither always enters at full hp).
+
+## 10. Map tests v3
+Same guarantees as v2 (dimensions, manifest names incl. tiles3,
+determinism, enclosure-with-gates, BFS spawn→landmarks) plus maze-specific:
+- ≥2 vertex-disjoint routes entry→exit-room doorway (verify by BFS after
+  blocking each single corridor junction... acceptable simplification:
+  BFS still reaches the exit after solidifying ANY ONE of the two named
+  "route pinch" tiles the map module exports).
+- Each declared false-lead dead end is reachable, and removing its single
+  entrance tile makes it unreachable (proves it's a true cul-de-sac).
+- Both maze→galleries exits reachable; loop corridor returns to entry.

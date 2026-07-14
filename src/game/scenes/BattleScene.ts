@@ -14,12 +14,12 @@ import {
 } from "../../core/atb";
 import { makeRng } from "../../core/rng";
 import { BESTIARY, makeEnemyParty, xpForParty } from "../../core/bestiary";
-import { commandsForLevel, levelForXp, type CommandId } from "../../core/progression";
+import type { CommandId } from "../../core/progression";
 import {
   applyBattleResult,
   awardXp,
   choosePerk,
-  heroStats,
+  partyFor,
   respawn,
   type Act1State,
   type ZoneId
@@ -53,6 +53,40 @@ interface Fighter {
 type MenuMode = "hidden" | "actions" | "targets";
 
 const HERO_ID = "hero";
+const SLITHER_ID = "slither";
+/** Vertical space reserved for the actor-name title inside the menu panel. */
+const MENU_TITLE_H = 13;
+/** Sprite placement per party member id (party column on the right). */
+const PARTY_SLOTS: Record<
+  string,
+  {
+    sheet: string;
+    x: number;
+    y: number;
+    anim: string;
+    fallback?: string;
+    scale: number;
+    flipX: boolean;
+  }
+> = {
+  [HERO_ID]: {
+    sheet: "hero",
+    x: 370,
+    y: 140,
+    anim: "hero-idle-left",
+    scale: 2.5,
+    flipX: false
+  },
+  [SLITHER_ID]: {
+    sheet: "slither",
+    x: 385,
+    y: 205,
+    anim: "slither-idle",
+    fallback: "slither-move",
+    scale: 2.5,
+    flipX: true // sheet faces right; enemies stand on the left
+  }
+};
 /** Enemy slots by party size: y rows on the left side of the field. */
 const ENEMY_ROWS: Record<number, Array<{ x: number; y: number }>> = {
   1: [{ x: 105, y: 150 }],
@@ -71,13 +105,21 @@ export class BattleScene extends Phaser.Scene {
   private battle!: AtbBattle;
   private rng = makeRng(1);
   private fighters = new Map<string, Fighter>();
-  private commands: CommandId[] = ["attack", "guard"];
+  /** Command list per party member id (from partyFor). */
+  private partyCommands = new Map<string, CommandId[]>();
   private menuMode: MenuMode = "hidden";
+  /** The party member the open menu belongs to (null while hidden). */
+  private menuActorId: string | null = null;
+  /** Party members that became ready while another member's menu was open. */
+  private readyQueue: string[] = [];
+  /** Targeted action chosen in the actions menu, resolved in the target submenu. */
+  private pendingAction: "attack" | "venom" = "attack";
   private menuItems: { label: string; value: string }[] = [];
   private menuTexts: Phaser.GameObjects.Text[] = [];
   private menuSel = 0;
   private menuPanel!: Phaser.GameObjects.Container;
   private menuBg!: Phaser.GameObjects.Graphics;
+  private menuTitle!: Phaser.GameObjects.Text;
   private ending = false;
   private sceneData!: BattleSceneData;
 
@@ -88,7 +130,11 @@ export class BattleScene extends Phaser.Scene {
   init(data: BattleSceneData): void {
     this.sceneData = data;
     this.fighters = new Map();
+    this.partyCommands = new Map();
     this.menuMode = "hidden";
+    this.menuActorId = null;
+    this.readyQueue = [];
+    this.pendingAction = "attack";
     this.menuTexts = [];
     this.ending = false;
     this.rng = makeRng(Math.floor(Math.random() * 0xffffffff));
@@ -98,26 +144,32 @@ export class BattleScene extends Phaser.Scene {
     this.drawBackdrop();
 
     const state = getState(this);
-    const stats = heroStats(state); // hp already clamped to current hp
-    const level = levelForXp(state.hero.xp);
-    this.commands = commandsForLevel(level);
+    // Joseph always; Slither once flags.slitherJoined. Stats/commands/hp
+    // rules (hero hp clamp, cactusGuard at level 3, Slither full hp) all
+    // live in the tested core helper.
+    const party = partyFor(state);
+    this.partyCommands = new Map(party.map((m) => [m.id, m.commands]));
 
     const enemySeeds = makeEnemyParty(this.sceneData.group);
     this.battle = new AtbBattle(
       [
-        {
-          id: HERO_ID,
-          name: "Joseph",
-          side: "party",
-          stats,
-          cactusGuard: level >= 3
-        },
+        ...party.map((m) => ({
+          id: m.id,
+          name: m.name,
+          side: "party" as Side,
+          stats: m.stats,
+          cactusGuard: m.cactusGuard
+        })),
         ...enemySeeds
       ],
       { rng: this.rng }
     );
 
-    this.addFighter(HERO_ID, "hero", 370, 160, "hero-idle-left", 2.5, false, false);
+    for (const m of party) {
+      const slot = PARTY_SLOTS[m.id];
+      const anim = this.anims.exists(slot.anim) ? slot.anim : slot.fallback ?? slot.anim;
+      this.addFighter(m.id, slot.sheet, slot.x, slot.y, anim, slot.scale, slot.flipX, false);
+    }
     const rows = ENEMY_ROWS[Math.min(3, Math.max(1, enemySeeds.length))];
     enemySeeds.forEach((seed, i) => {
       const def = BESTIARY[this.sceneData.group[i]];
@@ -348,7 +400,12 @@ export class BattleScene extends Phaser.Scene {
 
   private buildMenuPanel(): void {
     this.menuBg = this.add.graphics();
-    this.menuPanel = this.add.container(0, 0, [this.menuBg]);
+    this.menuTitle = this.add.text(8, 4, "", {
+      fontFamily: "monospace",
+      fontSize: "8px",
+      color: PALETTE.sand
+    });
+    this.menuPanel = this.add.container(0, 0, [this.menuBg, this.menuTitle]);
     this.menuPanel.setDepth(1000).setVisible(false);
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       if (inFullscreenButtonZone(this, p)) return; // handled by the button
@@ -357,31 +414,89 @@ export class BattleScene extends Phaser.Scene {
     addFullscreenButton(this, 4);
   }
 
-  private actionMenuItems(): { label: string; value: string }[] {
-    const hero = this.battle.getCombatant(HERO_ID);
-    const items = [
-      { label: "Attack", value: "attack" },
-      { label: "Guard", value: "guard" }
-    ];
-    if (this.commands.includes("focus") && !hero.focused) {
-      items.push({ label: "Focus", value: "focus" });
-    }
-    if (this.commands.includes("second-wind") && !hero.secondWindUsed) {
-      items.push({ label: "2nd Wind", value: "second-wind" });
-    }
-    if (this.commands.includes("sandstep") && !hero.sandstepUsed) {
-      items.push({ label: "Sandstep", value: "sandstep" });
+  /**
+   * Commands for one party member, in their partyFor order. The hero shows
+   * Attack/Guard plus level-gated extras with their availability rules;
+   * Slither's attack/guard/venom read as Bite/Coil/Venom.
+   */
+  private actionMenuItems(actorId: string): { label: string; value: string }[] {
+    const actor = this.battle.getCombatant(actorId);
+    const commands = this.partyCommands.get(actorId) ?? ["attack", "guard"];
+    const slither = actorId === SLITHER_ID;
+    const items: { label: string; value: string }[] = [];
+    for (const cmd of commands) {
+      switch (cmd) {
+        case "attack":
+          items.push({ label: slither ? "Bite" : "Attack", value: "attack" });
+          break;
+        case "guard":
+          items.push({ label: slither ? "Coil" : "Guard", value: "guard" });
+          break;
+        case "focus":
+          if (!actor.focused) items.push({ label: "Focus", value: "focus" });
+          break;
+        case "second-wind":
+          if (!actor.secondWindUsed) {
+            items.push({ label: "2nd Wind", value: "second-wind" });
+          }
+          break;
+        case "sandstep":
+          if (!actor.sandstepUsed) {
+            items.push({ label: "Sandstep", value: "sandstep" });
+          }
+          break;
+        case "venom":
+          items.push({ label: "Venom", value: "venom" });
+          break;
+      }
     }
     return items;
   }
 
+  /** Open the action menu for a ready party member. */
+  private openMenuFor(actorId: string): void {
+    this.menuActorId = actorId;
+    this.pendingAction = "attack";
+    this.showMenu("actions");
+  }
+
+  /**
+   * A party member's "ready": take the menu if it's free, otherwise wait in
+   * line behind the member currently choosing.
+   */
+  private onPartyReady(id: string): void {
+    if (this.ending) return;
+    if (this.menuMode === "hidden") {
+      this.openMenuFor(id);
+    } else if (id !== this.menuActorId && !this.readyQueue.includes(id)) {
+      this.readyQueue.push(id);
+    }
+  }
+
+  /**
+   * After the menu frees up (actor acted, died, or battle interrupted),
+   * hand it to the next queued member who is still alive and ready.
+   */
+  private pumpReadyQueue(): void {
+    if (this.ending || this.battle.over || this.menuMode !== "hidden") return;
+    while (this.readyQueue.length > 0) {
+      const id = this.readyQueue.shift()!;
+      if (this.battle.isReady(id)) {
+        this.openMenuFor(id);
+        return;
+      }
+    }
+  }
+
   private showMenu(mode: Exclude<MenuMode, "hidden">): void {
+    const actorId = this.menuActorId ?? HERO_ID;
     this.menuMode = mode;
     this.menuSel = 0;
     this.menuItems =
       mode === "actions"
-        ? this.actionMenuItems()
+        ? this.actionMenuItems(actorId)
         : this.battle.livingOn("enemy").map((c) => ({ label: c.name, value: c.id }));
+    this.menuTitle.setText(this.battle.getCombatant(actorId).name);
     this.layoutMenuPanel();
     this.renderMenu();
     this.menuPanel.setVisible(true);
@@ -389,11 +504,12 @@ export class BattleScene extends Phaser.Scene {
 
   private hideMenu(): void {
     this.menuMode = "hidden";
+    this.menuActorId = null;
     this.menuPanel.setVisible(false);
   }
 
   private layoutMenuPanel(): void {
-    const height = this.menuItems.length * 14 + 12;
+    const height = MENU_TITLE_H + this.menuItems.length * 14 + 10;
     this.menuBg.clear();
     this.menuBg.fillStyle(hexToInt(PALETTE.ink), 0.94);
     this.menuBg.fillRect(0, 0, 130, height);
@@ -407,7 +523,7 @@ export class BattleScene extends Phaser.Scene {
     this.menuTexts = this.menuItems.map((item, i) => {
       const t = this.add.text(
         8,
-        7 + i * 14,
+        MENU_TITLE_H + 5 + i * 14,
         `${i === this.menuSel ? "▸ " : "  "}${item.label}`,
         {
           fontFamily: "monospace",
@@ -429,7 +545,7 @@ export class BattleScene extends Phaser.Scene {
 
   private tapMenu(p: Phaser.Input.Pointer): void {
     if (this.menuMode === "hidden") return;
-    const localY = p.y - this.menuPanel.y - 7;
+    const localY = p.y - this.menuPanel.y - (MENU_TITLE_H + 5);
     const row = Math.floor(localY / 14);
     if (p.x >= this.menuPanel.x && row >= 0 && row < this.menuItems.length) {
       this.menuSel = row;
@@ -439,17 +555,30 @@ export class BattleScene extends Phaser.Scene {
 
   private confirmMenu(): void {
     if (this.menuMode === "hidden" || this.ending) return;
+    const actorId = this.menuActorId;
+    if (actorId === null) return;
+    if (!this.battle.isReady(actorId)) {
+      // The actor fell (or lost readiness) while the menu was open.
+      this.hideMenu();
+      this.pumpReadyQueue();
+      return;
+    }
     const item = this.menuItems[this.menuSel];
     if (this.menuMode === "actions") {
-      if (item.value === "attack") {
+      if (item.value === "attack" || item.value === "venom") {
+        // Targeted actions pick a living enemy in the submenu.
+        this.pendingAction = item.value;
         this.showMenu("targets");
       } else {
         this.hideMenu();
-        this.handleEvents(this.battle.act(HERO_ID, item.value as ActionId));
+        this.handleEvents(this.battle.act(actorId, item.value as ActionId));
+        this.pumpReadyQueue();
       }
     } else {
+      const action = this.pendingAction;
       this.hideMenu();
-      this.handleEvents(this.battle.act(HERO_ID, "attack", item.value));
+      this.handleEvents(this.battle.act(actorId, action, item.value));
+      this.pumpReadyQueue();
     }
   }
 
@@ -465,8 +594,8 @@ export class BattleScene extends Phaser.Scene {
     for (const ev of events) {
       switch (ev.type) {
         case "ready":
-          if (ev.id === HERO_ID) {
-            if (this.menuMode === "hidden" && !this.ending) this.showMenu("actions");
+          if (this.battle.getCombatant(ev.id).side === "party") {
+            this.onPartyReady(ev.id);
           } else {
             this.time.delayedCall(400 + Math.floor(this.rng() * 100), () =>
               this.enemyAct(ev.id)
@@ -488,7 +617,21 @@ export class BattleScene extends Phaser.Scene {
           this.floatText(f.homeX, f.homeY - 26, `${ev.damage}`, PALETTE.jade);
           break;
         }
+        case "debuff": {
+          const f = this.fighters.get(ev.targetId)!;
+          f.sprite.setTintFill(hexToInt(PALETTE.skyBlue));
+          this.time.delayedCall(90, () => f.sprite.clearTint());
+          this.floatText(f.homeX, f.homeY - 38, "SLOW", PALETTE.skyBlue);
+          break;
+        }
         case "defeated":
+          // A queued member who died before acting never gets the menu;
+          // if it was the menu owner's death, free the menu for the line.
+          this.readyQueue = this.readyQueue.filter((id) => id !== ev.id);
+          if (ev.id === this.menuActorId && this.menuMode !== "hidden") {
+            this.hideMenu();
+            this.pumpReadyQueue();
+          }
           this.animateDefeat(ev.id);
           break;
         case "victory":
@@ -521,6 +664,11 @@ export class BattleScene extends Phaser.Scene {
       case "sandstep":
         this.floatText(actor.homeX, actor.homeY - 20, "SANDSTEP", PALETTE.sandLight);
         return;
+      case "venom":
+        // Callout on the actor; the strike still lunges and floats damage
+        // below, and the follow-up "debuff" event floats SLOW on the target.
+        this.floatText(actor.homeX, actor.homeY - 20, "VENOM", PALETTE.jade);
+        break;
     }
     const target = this.fighters.get(ev.targetId)!;
     const dirX = target.homeX > actor.homeX ? 1 : -1;

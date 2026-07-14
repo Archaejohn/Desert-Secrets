@@ -37,7 +37,13 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "leverOn",
   "iceWall",
   "iceWallCrack",
-  "eggCluster"
+  "eggCluster",
+  // tiles3.png (Act 2)
+  "iceWallDeep",
+  "crystalBig",
+  "chasm",
+  "lanternPost",
+  "doorRime"
 ];
 
 export function isSolidName(name: string | null): boolean {

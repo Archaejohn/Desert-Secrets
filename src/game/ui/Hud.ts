@@ -55,7 +55,7 @@ export class Hud {
     g.fillStyle(hexToInt(PALETTE.ink), 0.85);
     g.fillRect(5, 19, 62, 6);
     g.fillStyle(hexToInt(PALETTE.hpRed), 1);
-    g.fillRect(6, 20, Math.max(0, Math.round((state.hp / stats.maxHp) * 60)), 4);
+    g.fillRect(6, 20, Math.min(60, Math.max(0, Math.round((state.hp / stats.maxHp) * 60))), 4);
     // XP progress within current level
     const lo = LEVEL_THRESHOLDS[level - 1];
     const hi = LEVEL_THRESHOLDS[level] ?? lo;

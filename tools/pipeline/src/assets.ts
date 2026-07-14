@@ -14,8 +14,16 @@ import { buzzardFrames } from "./sprites/buzzard";
 import { gilaFrames } from "./sprites/gila";
 import { foremanFrames } from "./sprites/foreman";
 import { queenFrames } from "./sprites/queen";
+import { slitherFrames } from "./sprites/slither";
+import { minerFrames } from "./sprites/miner";
+import { fluffballFrames } from "./sprites/fluffball";
+import { icebatFrames } from "./sprites/icebat";
+import { crystalcrawlerFrames } from "./sprites/crystalcrawler";
+import { frostscarabFrames } from "./sprites/frostscarab";
+import { wardenFrames } from "./sprites/warden";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
+import { tile3Frames } from "./tileset3";
 import { buildManifest, type Manifest } from "./manifest";
 
 export interface BuiltAssets {
@@ -29,8 +37,16 @@ export interface BuiltAssets {
   gila: PixelGrid;
   foreman: PixelGrid;
   queen: PixelGrid;
+  slither: PixelGrid;
+  miner: PixelGrid;
+  fluffball: PixelGrid;
+  icebat: PixelGrid;
+  crystalcrawler: PixelGrid;
+  frostscarab: PixelGrid;
+  warden: PixelGrid;
   tiles: PixelGrid;
   tiles2: PixelGrid;
+  tiles3: PixelGrid;
   manifest: Manifest;
 }
 
@@ -46,8 +62,16 @@ export const SHEET_KEYS = [
   "gila",
   "foreman",
   "queen",
+  "slither",
+  "miner",
+  "fluffball",
+  "icebat",
+  "crystalcrawler",
+  "frostscarab",
+  "warden",
   "tiles",
-  "tiles2"
+  "tiles2",
+  "tiles3"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -62,8 +86,16 @@ export function buildAssets(): BuiltAssets {
     gila: composeSheet(gilaFrames(), 6),
     foreman: composeSheet(foremanFrames(), 6),
     queen: composeSheet(queenFrames(), 6),
+    slither: composeSheet(slitherFrames(), 6),
+    miner: composeSheet(minerFrames(), 6),
+    fluffball: composeSheet(fluffballFrames(), 6),
+    icebat: composeSheet(icebatFrames(), 6),
+    crystalcrawler: composeSheet(crystalcrawlerFrames(), 6),
+    frostscarab: composeSheet(frostscarabFrames(), 6),
+    warden: composeSheet(wardenFrames(), 6),
     tiles: composeSheet(tileFrames(), 8),
     tiles2: composeSheet(tile2Frames(), 8),
+    tiles3: composeSheet(tile3Frames(), 8),
     manifest: buildManifest()
   };
 }

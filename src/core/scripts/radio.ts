@@ -15,6 +15,8 @@ function checkIn(lines: string[]): DialogueScript {
 
 /**
  * Rosa's radio check-ins — the act's clock, one short script per zone.
+ * Below the depths the radio is dead: the Act 2 zones carry only static
+ * (the objective line does the wayfinding down there).
  */
 export const radioLines: Record<ZoneId, DialogueScript> = {
   crash: checkIn(["Radio check. Loud and clear. Now scoot."]),
@@ -28,4 +30,10 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   depths: checkIn([
     "You're breaking up... frost? Say again—",
   ]),
+  crevasse: checkIn([
+    "—shhhk— ...Joseph? ...if you hear— shhhk—",
+  ]),
+  maze: checkIn(["...static..."]),
+  galleries: checkIn(["...static..."]),
+  sanctum: checkIn(["...static..."]),
 };

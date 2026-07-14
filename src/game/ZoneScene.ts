@@ -37,7 +37,7 @@ export interface ZoneConfig {
   map: ZoneMap;
   /** Default spawn in tile coords (used on zone entry and respawn). */
   defaultSpawn: { x: number; y: number };
-  encounterZone?: "trail" | "mine";
+  encounterZone?: keyof typeof ENCOUNTERS;
   battleBg: BattleBg;
 }
 
@@ -187,12 +187,17 @@ export abstract class ZoneScene extends Phaser.Scene {
 
   // ---------- construction helpers ----------
 
-  /** Resolve a tile name to a global index across both tilesets. */
+  /**
+   * Resolve a tile name to a global index across the three tilesets
+   * (firstgids: tiles 0, tiles2 16, tiles3 40).
+   */
   protected tileGid(name: string): number {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return t1;
     const t2 = MANIFEST.tiles2.names[name];
     if (t2 !== undefined) return 16 + t2;
+    const t3 = MANIFEST.tiles3.names[name];
+    if (t3 !== undefined) return 40 + t3;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -200,14 +205,17 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected tileFrame(name: string): { key: string; frame: number } {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return { key: "tiles", frame: t1 };
-    return { key: "tiles2", frame: MANIFEST.tiles2.names[name] };
+    const t2 = MANIFEST.tiles2.names[name];
+    if (t2 !== undefined) return { key: "tiles2", frame: t2 };
+    return { key: "tiles3", frame: MANIFEST.tiles3.names[name] };
   }
 
   private buildMap(width: number, height: number): void {
     const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width, height });
     const ts1 = map.addTilesetImage("t1", "tiles-img", TILE, TILE, 0, 0, 0)!;
     const ts2 = map.addTilesetImage("t2", "tiles2-img", TILE, TILE, 0, 0, 16)!;
-    const sets = [ts1, ts2];
+    const ts3 = map.addTilesetImage("t3", "tiles3-img", TILE, TILE, 0, 0, 40)!;
+    const sets = [ts1, ts2, ts3];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;
     const overhead = map.createBlankLayer("overhead", sets)!;

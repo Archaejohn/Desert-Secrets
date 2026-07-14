@@ -270,8 +270,19 @@ describe("act1 manifest", () => {
   });
 
   it("unchanged v1 entries are still present alongside tiles2", () => {
-    expect(Object.keys(manifest.sheets).sort()).toEqual(
-      ["hero", "npc", "scarab", "rosa", "piggy", "jackrabbit", "buzzard", "gila", "foreman", "queen"].sort()
+    expect(Object.keys(manifest.sheets)).toEqual(
+      expect.arrayContaining([
+        "hero",
+        "npc",
+        "scarab",
+        "rosa",
+        "piggy",
+        "jackrabbit",
+        "buzzard",
+        "gila",
+        "foreman",
+        "queen"
+      ])
     );
     expect(manifest.tiles.names.sand).toBe(0);
     expect(manifest.tiles.names.sandSparkle).toBe(15);

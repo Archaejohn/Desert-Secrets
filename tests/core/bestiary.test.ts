@@ -16,6 +16,11 @@ describe("BESTIARY", () => {
       ["foreman", 3, 55, 9, 5, 8, 30],
       ["queen", 3, 90, 11, 4, 9, 60],
       ["queenWeakened", 3, 45, 11, 4, 9, 60],
+      // Act 2
+      ["frostscarab", 2.5, 24, 9, 3, 11, 14],
+      ["icebat", 2.5, 20, 10, 2, 16, 16],
+      ["crystalcrawler", 2.5, 38, 11, 6, 8, 20],
+      ["warden", 3, 130, 13, 6, 9, 80],
     ];
     expect(Object.keys(BESTIARY).sort()).toEqual(
       rows.map(([id]) => id).sort(),
@@ -37,6 +42,17 @@ describe("BESTIARY", () => {
     expect(BESTIARY.foreman.sheet).toBe("foreman");
     expect(BESTIARY.queen.sheet).toBe("queen");
     expect(BESTIARY.queenWeakened.sheet).toBe("queen"); // same art, fewer hp
+    expect(BESTIARY.frostscarab.sheet).toBe("frostscarab");
+    expect(BESTIARY.icebat.sheet).toBe("icebat");
+    expect(BESTIARY.crystalcrawler.sheet).toBe("crystalcrawler");
+    expect(BESTIARY.warden.sheet).toBe("warden");
+  });
+
+  it("names the Act 2 enemies for the battle HUD", () => {
+    expect(BESTIARY.frostscarab.name).toBe("Frost Scarab");
+    expect(BESTIARY.icebat.name).toBe("Ice Bat");
+    expect(BESTIARY.crystalcrawler.name).toBe("Crystal Crawler");
+    expect(BESTIARY.warden.name).toBe("Rime Warden");
   });
 
   it("queenWeakened is the queen at 45 maxHp with the same xp", () => {
@@ -99,6 +115,11 @@ describe("makeEnemyParty", () => {
       ["foreman"],
       ["queen"],
       ["queenWeakened"],
+      ["frostscarab", "frostscarab"],
+      ["icebat", "frostscarab"],
+      ["icebat", "icebat"],
+      ["crystalcrawler", "icebat"],
+      ["warden"],
     ];
     for (const group of groups) {
       const ids = makeEnemyParty(group).map((c) => c.id);
@@ -127,6 +148,13 @@ describe("xpForParty", () => {
     expect(xpForParty(["buzzard", "scarab"])).toBe(18);
     expect(xpForParty(["scarab", "gila"])).toBe(22);
     expect(xpForParty(["queenWeakened"])).toBe(60);
+  });
+
+  it("sums the Act 2 groups", () => {
+    expect(xpForParty(["frostscarab", "frostscarab"])).toBe(28);
+    expect(xpForParty(["icebat", "frostscarab"])).toBe(30);
+    expect(xpForParty(["crystalcrawler", "icebat"])).toBe(36);
+    expect(xpForParty(["warden"])).toBe(80);
   });
 
   it("is 0 for an empty group and throws on unknown ids", () => {

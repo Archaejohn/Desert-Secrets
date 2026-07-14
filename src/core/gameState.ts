@@ -5,15 +5,29 @@
  */
 
 import {
+  SLITHER_COMMANDS,
   baseStatsForLevel,
+  commandsForLevel,
   grantXp,
+  levelForXp,
+  slitherStatsForLevel,
   statsForBuild,
+  type CommandId,
   type HeroBuild,
   type PerkId,
 } from "./progression";
 import type { Stats } from "./atb";
 
-export type ZoneId = "crash" | "oasis" | "trail" | "mine" | "depths";
+export type ZoneId =
+  | "crash"
+  | "oasis"
+  | "trail"
+  | "mine"
+  | "depths"
+  | "crevasse"
+  | "maze"
+  | "galleries"
+  | "sanctum";
 
 /** Quest flags used by scenes, all false at newGame(). */
 export const ACT1_FLAGS = [
@@ -35,6 +49,23 @@ export const ACT1_FLAGS = [
   "actComplete",
 ] as const;
 
+/** Act 2 quest flags, also all false at newGame(). */
+export const ACT2_FLAGS = [
+  "act2Started",
+  "minerMo",
+  "minerEdda",
+  "minerGus",
+  "minersBonusGiven",
+  "metSlither",
+  "mazeShortcutOpen",
+  "rimeDoorOpen",
+  "slitherJoined",
+  "wardenDefeated",
+  "act2Complete",
+  "shard1",
+  "shard2",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -50,6 +81,7 @@ export interface Act1State {
 export function newGame(): Act1State {
   const flags: Record<string, boolean> = {};
   for (const f of ACT1_FLAGS) flags[f] = false;
+  for (const f of ACT2_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },
@@ -75,6 +107,44 @@ function clone(s: Act1State): Act1State {
 export function heroStats(s: Act1State): Stats {
   const stats = statsForBuild(s.hero);
   return { ...stats, hp: Math.min(s.hp, stats.maxHp) };
+}
+
+/** A party-side combatant seed plus its command list, for BattleScene. */
+export interface PartyMember {
+  id: "hero" | "slither";
+  name: string;
+  stats: Stats;
+  commands: CommandId[];
+  cactusGuard: boolean;
+}
+
+/**
+ * The battle party for the current state. The hero always leads (stats
+ * clamped to current hp, commands by level, cactusGuard from level 3).
+ * Slither joins once flags.slitherJoined: level-matched stats at full hp
+ * every battle, Bite/Coil/Venom, no cactus guard.
+ */
+export function partyFor(s: Act1State): PartyMember[] {
+  const level = levelForXp(s.hero.xp);
+  const party: PartyMember[] = [
+    {
+      id: "hero",
+      name: "Joseph",
+      stats: heroStats(s),
+      commands: commandsForLevel(level),
+      cactusGuard: level >= 3,
+    },
+  ];
+  if (s.flags.slitherJoined) {
+    party.push({
+      id: "slither",
+      name: "Slither",
+      stats: slitherStatsForLevel(level),
+      commands: [...SLITHER_COMMANDS],
+      cactusGuard: false,
+    });
+  }
+  return party;
 }
 
 /**

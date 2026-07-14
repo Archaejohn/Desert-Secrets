@@ -29,10 +29,12 @@ export const PERKS: readonly Perk[] = [
   { id: "swiftness", label: "Swiftness", description: "+1 speed" },
 ];
 
-export const MAX_LEVEL = 5;
+export const MAX_LEVEL = 8;
 
 /** Cumulative XP required to BE level i+1. */
-export const LEVEL_THRESHOLDS: readonly number[] = [0, 20, 45, 75, 110];
+export const LEVEL_THRESHOLDS: readonly number[] = [
+  0, 20, 45, 75, 110, 150, 195, 245,
+];
 
 /** Level (1..MAX_LEVEL) for a cumulative XP total. */
 export function levelForXp(xp: number): number {
@@ -74,6 +76,31 @@ export function baseStatsForLevel(level: number): Stats {
   };
 }
 
+/** Slither's per-level base stats (party member, Act 2+). */
+const SLITHER_L1: Omit<Stats, "hp"> = { maxHp: 22, attack: 6, defense: 2, speed: 14 };
+
+/**
+ * Slither's stats at a level: maxHp 22+4·(level−1), attack 6+2·(level−1),
+ * defense 2+⌊(level−1)/2⌋, speed 14+(level−1). hp = maxHp (he enters
+ * every battle fresh). Throws on levels outside 1..MAX_LEVEL.
+ */
+export function slitherStatsForLevel(level: number): Stats {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) {
+    throw new Error(
+      `slitherStatsForLevel: level ${level} out of range (1..${MAX_LEVEL})`,
+    );
+  }
+  const steps = level - 1;
+  const maxHp = SLITHER_L1.maxHp + 4 * steps;
+  return {
+    maxHp,
+    hp: maxHp,
+    attack: SLITHER_L1.attack + 2 * steps,
+    defense: SLITHER_L1.defense + Math.floor(steps / 2),
+    speed: SLITHER_L1.speed + steps,
+  };
+}
+
 export interface HeroBuild {
   xp: number;
   perks: PerkId[];
@@ -97,10 +124,16 @@ export function statsForBuild(build: HeroBuild): Stats {
   return stats;
 }
 
-export type CommandId = "attack" | "guard" | "focus" | "second-wind" | "sandstep";
+export type CommandId =
+  | "attack"
+  | "guard"
+  | "focus"
+  | "second-wind"
+  | "sandstep"
+  | "venom";
 
 /** Battle commands available at a level: attack+guard always; focus at 2+;
- *  second-wind at 4+; sandstep at 5. */
+ *  second-wind at 4+; sandstep at 5+ (nothing new above 5). */
 export function commandsForLevel(level: number): CommandId[] {
   const commands: CommandId[] = ["attack", "guard"];
   if (level >= 2) commands.push("focus");
@@ -108,6 +141,9 @@ export function commandsForLevel(level: number): CommandId[] {
   if (level >= 5) commands.push("sandstep");
   return commands;
 }
+
+/** Slither's battle commands (shown by the scene as Bite/Coil/Venom). */
+export const SLITHER_COMMANDS: CommandId[] = ["attack", "guard", "venom"];
 
 /**
  * Add XP to a build. Pure: returns a new build plus the number of levels

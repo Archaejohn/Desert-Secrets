@@ -32,6 +32,7 @@ export interface Manifest {
   sheets: Record<string, SheetDef>;
   tiles: TilesetDef;
   tiles2: TilesetDef;
+  tiles3: TilesetDef;
 }
 
 export const MANIFEST = manifestJson as unknown as Manifest;

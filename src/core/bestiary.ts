@@ -44,6 +44,11 @@ export const BESTIARY: Record<string, EnemyDef> = {
   queen: def("queen", "Dust Queen", "queen", 3, 90, 11, 4, 9, 60),
   /** Parley-route skirmish: the Queen holding back. */
   queenWeakened: def("queenWeakened", "Dust Queen", "queen", 3, 45, 11, 4, 9, 60),
+  // Act 2 — the ice below.
+  frostscarab: def("frostscarab", "Frost Scarab", "frostscarab", 2.5, 24, 9, 3, 11, 14),
+  icebat: def("icebat", "Ice Bat", "icebat", 2.5, 20, 10, 2, 16, 16),
+  crystalcrawler: def("crystalcrawler", "Crystal Crawler", "crystalcrawler", 2.5, 38, 11, 6, 8, 20),
+  warden: def("warden", "Rime Warden", "warden", 3, 130, 13, 6, 9, 80),
 };
 
 function lookup(id: string): EnemyDef {

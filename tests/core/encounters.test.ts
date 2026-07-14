@@ -39,6 +39,37 @@ describe("ENCOUNTERS tables", () => {
     expect(ENCOUNTERS.mine.weights).toEqual([3, 3, 2, 1]);
   });
 
+  it("maze matches the contract groups and weights", () => {
+    expect(ENCOUNTERS.maze.zone).toBe("maze");
+    expect(ENCOUNTERS.maze.groups).toEqual([
+      ["frostscarab"],
+      ["icebat"],
+      ["frostscarab", "frostscarab"],
+      ["icebat", "frostscarab"],
+    ]);
+    expect(ENCOUNTERS.maze.weights).toEqual([3, 3, 2, 2]);
+  });
+
+  it("galleries matches the contract groups and weights", () => {
+    expect(ENCOUNTERS.galleries.zone).toBe("galleries");
+    expect(ENCOUNTERS.galleries.groups).toEqual([
+      ["icebat"],
+      ["crystalcrawler"],
+      ["icebat", "icebat"],
+      ["crystalcrawler", "icebat"],
+    ]);
+    expect(ENCOUNTERS.galleries.weights).toEqual([3, 2, 2, 1]);
+  });
+
+  it("exposes exactly the four contract zones", () => {
+    expect(Object.keys(ENCOUNTERS).sort()).toEqual([
+      "galleries",
+      "maze",
+      "mine",
+      "trail",
+    ]);
+  });
+
   it("keeps groups and weights parallel", () => {
     for (const table of Object.values(ENCOUNTERS)) {
       expect(table.groups.length).toBe(table.weights.length);
@@ -158,6 +189,26 @@ describe("EncounterClock weighted group picks", () => {
   it("picks from the mine table too", () => {
     expect(pick(0, ENCOUNTERS.mine)).toEqual(["scarab"]);
     expect(pick(0.99, ENCOUNTERS.mine)).toEqual(["scarab", "gila"]);
+  });
+
+  it("picks across the maze table (total weight 10)", () => {
+    expect(pick(0, ENCOUNTERS.maze)).toEqual(["frostscarab"]);
+    expect(pick(0.35, ENCOUNTERS.maze)).toEqual(["icebat"]); // 3.5 in [3, 6)
+    expect(pick(0.65, ENCOUNTERS.maze)).toEqual([
+      "frostscarab",
+      "frostscarab",
+    ]); // 6.5 in [6, 8)
+    expect(pick(0.99, ENCOUNTERS.maze)).toEqual(["icebat", "frostscarab"]);
+  });
+
+  it("picks across the galleries table (total weight 8)", () => {
+    expect(pick(0, ENCOUNTERS.galleries)).toEqual(["icebat"]);
+    expect(pick(0.5, ENCOUNTERS.galleries)).toEqual(["crystalcrawler"]); // 4 in [3, 5)
+    expect(pick(0.75, ENCOUNTERS.galleries)).toEqual(["icebat", "icebat"]); // 6 in [5, 7)
+    expect(pick(0.99, ENCOUNTERS.galleries)).toEqual([
+      "crystalcrawler",
+      "icebat",
+    ]);
   });
 
   it("returns a copy — mutating the result leaves the table intact", () => {

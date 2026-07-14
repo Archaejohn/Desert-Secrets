@@ -9,7 +9,10 @@ export interface EncounterTable {
   weights: number[]; // parallel to groups
 }
 
-export const ENCOUNTERS: Record<"trail" | "mine", EncounterTable> = {
+export const ENCOUNTERS: Record<
+  "trail" | "mine" | "maze" | "galleries",
+  EncounterTable
+> = {
   trail: {
     zone: "trail",
     groups: [
@@ -25,6 +28,26 @@ export const ENCOUNTERS: Record<"trail" | "mine", EncounterTable> = {
     zone: "mine",
     groups: [["scarab"], ["scarab", "scarab"], ["gila"], ["scarab", "gila"]],
     weights: [3, 3, 2, 1],
+  },
+  maze: {
+    zone: "maze",
+    groups: [
+      ["frostscarab"],
+      ["icebat"],
+      ["frostscarab", "frostscarab"],
+      ["icebat", "frostscarab"],
+    ],
+    weights: [3, 3, 2, 2],
+  },
+  galleries: {
+    zone: "galleries",
+    groups: [
+      ["icebat"],
+      ["crystalcrawler"],
+      ["icebat", "icebat"],
+      ["crystalcrawler", "icebat"],
+    ],
+    weights: [3, 2, 2, 1],
   },
 };
 

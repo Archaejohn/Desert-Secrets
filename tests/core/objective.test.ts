@@ -77,8 +77,9 @@ describe("objectiveFor", () => {
     }
   });
 
-  it("celebrates when the act is complete", () => {
-    expect(objectiveFor(state("depths", { actComplete: true }))).toMatch(/complete/i);
+  it("hands off to the Act 2 descent once Act 1 is complete", () => {
+    // actComplete now flows straight into the Act 2 chain (contract §8).
+    expect(objectiveFor(state("depths", { actComplete: true }))).toMatch(/descend/i);
   });
 
   it("always returns a short, non-empty string", () => {
