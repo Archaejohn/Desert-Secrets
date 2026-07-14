@@ -105,6 +105,16 @@ export class DialogueRunner {
     return this.node.lines[this.lineIndex];
   }
 
+  /**
+   * Id of the node the runner is currently in — null before start() and
+   * after the script ends. Scenes branch on terminal node ids by reading
+   * this on the last line before the final advance().
+   */
+  get currentNodeId(): string | null {
+    if (!this.active || this.node === null) return null;
+    return this.node.id;
+  }
+
   /** Choices for the current node — only non-null on its last line. */
   get choices(): DialogueChoice[] | null {
     if (!this.active || this.node === null) return null;

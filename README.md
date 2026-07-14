@@ -6,23 +6,31 @@ TypeScript, with a fully procedural pixel-art pipeline.
 A wanderer crosses a dusk-lit desert valley: an oasis, half-buried ruins, and
 the scarabs that guard whatever sleeps beneath the dunes.
 
-## The demo
+## Act 1 — The Coldest Cargo (~30 min)
 
-The browser sample demonstrates:
+Playable in the browser, start to cliffhanger (full outline in
+`docs/STORY_ACT1.md`):
 
-- **Animated character motion** — the hero walks in four directions with a
-  proper limb-swinging walk cycle and breathing idle; the NPC wanders the
-  oasis; a scarab patrols the dunes; the oasis water animates.
-- **Talking to an NPC** — walk up to Sahra the Keeper by the oasis and press
-  `E` (or tap her) for a branching conversation.
-- **Active Time Battle** — touch the patrolling scarab to enter battle. ATB
-  gauges (gold) fill in real time by each combatant's speed; when yours is
-  full, choose *Attack* (then a target) or *Guard*. Enemies act on their own
-  gauges whether you're ready or not — that's the "active" in ATB.
+- **Five zones** — the Highway 95 crash site, Sahra's oasis, the Piggy
+  Trail (dry lake → Joshua grove → Last Chance Fuel), Cinnabar Mine, and
+  the frozen Depths.
+- **Active Time Battle** — gauges fill in real time by speed; enemies act
+  whether you're ready or not. Commands grow with your level: Attack,
+  Guard, Focus (L2), Cactus Guard thorns passive (L3), 2nd Wind (L4),
+  Sandstep (L5).
+- **XP & leveling** — battles, quest steps and discoveries award XP
+  (curve: 20/45/75/110). Each level raises HP/attack/defense/speed, fully
+  heals, and lets you pick a perk: Vigor, Ferocity, Bulwark or Swiftness.
+- **Random encounters** on the trail and in the mine while moving.
+- **Defeat is soft** — you wake at the start of the current area with
+  full HP; XP, perks, items and quest progress are all kept.
+- **Choices matter** — trade the cold pack to the jackrabbit and you
+  can't parley with the Dust Queen; keep it and the boss can be talked
+  down to a shorter skirmish.
 
 Controls: arrows/WASD to move, `E`/`Space` to talk & advance dialogue,
 ↑/↓ + `Space` in menus. Touch: drag on the left half to move, tap on the
-right half to interact.
+right half to interact / tap menu rows.
 
 ## Quick start
 

@@ -20,15 +20,18 @@ export interface SheetDef {
   animations: Record<string, AnimationDef>;
 }
 
+export interface TilesetDef {
+  file: string;
+  tileSize: number;
+  columns: number;
+  names: Record<string, number>;
+}
+
 export interface Manifest {
   palette: Record<string, string>;
   sheets: Record<string, SheetDef>;
-  tiles: {
-    file: string;
-    tileSize: number;
-    columns: number;
-    names: Record<string, number>;
-  };
+  tiles: TilesetDef;
+  tiles2: TilesetDef;
 }
 
 export const MANIFEST = manifestJson as unknown as Manifest;

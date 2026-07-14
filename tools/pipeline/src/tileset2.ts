@@ -1,0 +1,633 @@
+/**
+ * Tileset 2 — twenty-four 16×16 Act 1 tiles in the exact contract order
+ * (docs/CONTRACTS.md §4): the crash-site highway, the gas station, the mine
+ * and the frozen depths.
+ *
+ * Same rules as tileset.ts: every tile fully opaque, props stamped onto an
+ * opaque base via a transparent outlined layer, deterministic speckle from
+ * seeded mulberry32. Composability is deliberate: truckCab+truckBox join
+ * into one crashed box truck, joshuaTrunk sits under joshuaTop, the station
+ * tiles share a wall base, and rail tiles seamlessly repeat horizontally.
+ */
+import { PixelGrid } from "./grid";
+import { mulberry32 } from "./rng";
+import { TILE_SIZE } from "./tileset";
+
+/** Contract tile order (row-major indices 0..23). */
+export const TILE2_NAMES = [
+  "asphalt",
+  "asphaltLine",
+  "truckCab",
+  "truckBox",
+  "crateBroken",
+  "joshuaTrunk",
+  "joshuaTop",
+  "creosote",
+  "stationWall",
+  "stationWindow",
+  "stationSign",
+  "gasPump",
+  "mineWall",
+  "mineFloor",
+  "mineTimber",
+  "rail",
+  "cart",
+  "lever",
+  "leverOn",
+  "iceWall",
+  "iceWallCrack",
+  "frostSand",
+  "iceChip",
+  "eggCluster"
+] as const;
+
+export type Tile2Name = (typeof TILE2_NAMES)[number];
+
+function tile(): PixelGrid {
+  return new PixelGrid(TILE_SIZE, TILE_SIZE);
+}
+
+/** Draw a prop on a transparent layer, ink-outline it, stamp it on `base`. */
+function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
+  const layer = tile();
+  draw(layer);
+  layer.outline("ink");
+  base.blit(layer, 0, 0);
+  return base;
+}
+
+/** Sand base (same recipe as tileset.ts, distinct seeds keep grain fresh). */
+function sandBase(seed: number, speckles = 8): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "sand");
+  const rng = mulberry32(seed);
+  for (let i = 0; i < speckles; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, rng() < 0.5 ? "amber" : "sandLight");
+  }
+  return g;
+}
+
+/** Cracked desert highway: plum base, ink pits, mauve wear. */
+function asphaltBase(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "plum");
+  const rng = mulberry32(seed);
+  for (let i = 0; i < 12; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, rng() < 0.6 ? "mauve" : "ink");
+  }
+  // sun-bleached wear patch
+  g.rect(2, 10, 4, 2, "mauve");
+  g.px(11, 3, "mauve");
+  g.px(12, 3, "mauve");
+  return g;
+}
+
+function asphaltLine(): PixelGrid {
+  const g = asphaltBase(21);
+  // faded dashed centre line, horizontal so the road runs left-right
+  g.rect(1, 7, 5, 2, "sandLight");
+  g.rect(9, 7, 5, 2, "sandLight");
+  g.px(5, 8, "sand"); // worn dash ends
+  g.px(9, 7, "sand");
+  return g;
+}
+
+/** Truck cab (left tile) — nose left, cab body flush to the right edge so
+ *  it joins truckBox. Crashed: buckled hood, cracked windshield, flat tire. */
+function truckCab(): PixelGrid {
+  return stamp(sandBase(22), (l) => {
+    // hood, buckled up at the crash point
+    l.rect(1, 7, 5, 4, "rust");
+    l.px(1, 6, "rust"); // crumpled lip
+    l.px(2, 6, "clay");
+    l.rect(1, 7, 2, 1, "clay"); // lit edge
+    // cab box, flush to the right edge (joins the box tile)
+    l.rect(6, 3, 10, 8, "rust");
+    l.rect(6, 3, 10, 1, "clay"); // roof light
+    // windshield, cracked
+    l.rect(7, 4, 4, 3, "skyBlue");
+    l.px(8, 5, "ink"); // crack
+    l.px(9, 4, "ink");
+    l.px(9, 6, "ink");
+    // door seam + handle
+    l.rect(13, 5, 1, 5, "plum");
+    l.px(14, 6, "clay");
+    // skirt
+    l.rect(2, 11, 14, 2, "plum");
+    // wheels: front one blown flat
+    l.rect(3, 13, 3, 2, "ink");
+    l.px(4, 13, "slate");
+    l.rect(11, 13, 3, 3, "ink");
+    l.px(12, 14, "slate"); // hub
+  });
+}
+
+/** Truck box (right tile) — cargo box flush to the left edge, torn open at
+ *  the back. Composes with truckCab on its left into one crashed truck. */
+function truckBox(): PixelGrid {
+  return stamp(sandBase(23), (l) => {
+    // container spanning from the left edge (continues the cab silhouette)
+    l.rect(0, 2, 14, 11, "bone");
+    l.rect(0, 2, 14, 1, "sandLight"); // roof light
+    l.rect(0, 12, 14, 1, "sand"); // lower shade
+    // corrugation ribs
+    for (const x of [2, 5, 8]) l.rect(x, 3, 1, 9, "sand");
+    // torn-open rear door hanging off the back
+    l.rect(11, 4, 3, 8, "plum");
+    l.px(13, 3, "plum");
+    l.px(14, 5, "plum"); // door flap
+    l.px(14, 6, "plum");
+    l.px(12, 6, "ink"); // dark interior showing
+    l.px(12, 7, "ink");
+    // crash dents
+    l.px(4, 8, "sand");
+    l.px(5, 9, "sand");
+    l.px(1, 10, "sand");
+    // wheel
+    l.rect(3, 13, 3, 3, "ink");
+    l.px(4, 14, "slate");
+  });
+}
+
+function crateBroken(): PixelGrid {
+  return stamp(sandBase(24), (l) => {
+    // crate shell, stove in at the top-right
+    l.rect(3, 5, 10, 8, "clay");
+    l.rect(3, 5, 10, 1, "amber"); // lit top plank
+    l.rect(3, 8, 10, 1, "rust"); // plank seams
+    l.rect(3, 11, 10, 1, "rust");
+    l.rect(4, 6, 1, 6, "rust"); // side grain
+    l.rect(11, 6, 1, 6, "rust");
+    // the break: missing corner + splinters
+    l.px(10, 5, null);
+    l.px(11, 5, null);
+    l.px(12, 5, null);
+    l.px(11, 6, null);
+    l.px(12, 6, null);
+    l.px(12, 7, null);
+    l.px(9, 4, "clay"); // thrown splinters
+    l.px(13, 6, "clay");
+    l.px(14, 8, "amber");
+    l.px(10, 7, "ink"); // dark hollow inside
+    l.px(10, 6, "ink");
+  });
+}
+
+/** Joshua tree trunk — shaggy, fills the column under joshuaTop's stem. */
+function joshuaTrunk(): PixelGrid {
+  return stamp(sandBase(25), (l) => {
+    l.rect(6, 0, 4, 16, "clay");
+    // shaggy dead-leaf thatch
+    for (let y = 1; y < 16; y += 2) {
+      l.px(5, y, "rust");
+      l.px(10, y + 1, "rust");
+      l.px(7 + (y % 3), y, "rust");
+    }
+    for (let y = 0; y < 16; y += 3) l.px(6, y, "amber"); // lit edge
+    l.px(4, 12, "clay"); // low stump arm
+    l.px(4, 11, "clay");
+  });
+}
+
+/** Joshua tree crown — jade/teal spiky rosettes on a forked stem; the stem
+ *  meets the bottom edge where joshuaTrunk continues. */
+function joshuaTop(): PixelGrid {
+  return stamp(sandBase(26), (l) => {
+    // forked stem rising from the trunk line
+    l.rect(7, 10, 2, 6, "clay");
+    l.px(6, 9, "clay");
+    l.px(5, 8, "clay");
+    l.px(10, 9, "clay");
+    l.px(11, 8, "clay");
+    // left rosette: spiky star
+    l.rect(3, 5, 5, 3, "teal");
+    l.px(2, 4, "jade");
+    l.px(4, 3, "jade");
+    l.px(6, 3, "jade");
+    l.px(1, 6, "jade");
+    l.px(2, 8, "jade");
+    l.px(5, 2, "jade");
+    l.px(4, 5, "jade"); // lit core
+    // right rosette
+    l.rect(9, 4, 5, 3, "teal");
+    l.px(9, 2, "jade");
+    l.px(11, 2, "jade");
+    l.px(13, 3, "jade");
+    l.px(14, 5, "jade");
+    l.px(14, 7, "jade");
+    l.px(10, 7, "jade");
+    l.px(11, 5, "jade"); // lit core
+    // mint sun-tips
+    l.px(5, 2, "mint");
+    l.px(11, 2, "mint");
+  });
+}
+
+function creosote(): PixelGrid {
+  return stamp(sandBase(27), (l) => {
+    // scraggly forked stems
+    l.px(7, 12, "rust");
+    l.px(8, 12, "rust");
+    l.px(6, 11, "rust");
+    l.px(9, 11, "rust");
+    l.px(5, 10, "rust");
+    l.px(10, 10, "rust");
+    l.px(7, 10, "rust");
+    // sparse resinous leaf tufts
+    for (const [x, y] of [
+      [4, 8],
+      [5, 9],
+      [6, 8],
+      [7, 9],
+      [8, 8],
+      [10, 8],
+      [11, 9],
+      [3, 9],
+      [9, 9],
+      [12, 8]
+    ] as const) {
+      l.px(x, y, "jade");
+    }
+    l.px(5, 7, "teal");
+    l.px(8, 7, "teal");
+    l.px(11, 7, "teal");
+    l.px(6, 7, "mint"); // tiny yellow-green blossom reads mint
+  });
+}
+
+/** Gas station wall base: clay stucco with rust courses and grime. */
+function stationWallBase(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "clay");
+  g.rect(0, 0, TILE_SIZE, 1, "amber"); // sun-lit cornice
+  g.rect(0, 12, TILE_SIZE, 1, "rust"); // wainscot line
+  g.rect(0, 13, TILE_SIZE, 3, "rust"); // rust skirt
+  g.px(0, 13, "amber");
+  const rng = mulberry32(seed);
+  for (let i = 0; i < 7; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = 1 + Math.floor(rng() * 10);
+    g.px(x, y, rng() < 0.5 ? "amber" : "rust");
+  }
+  return g;
+}
+
+function stationWindow(): PixelGrid {
+  const g = stationWallBase(29);
+  // bone frame around a skyBlue pane
+  g.rect(3, 3, 10, 8, "bone");
+  g.rect(4, 4, 8, 6, "skyBlue");
+  g.rect(4, 4, 8, 1, "white"); // sky reflection
+  g.px(4, 5, "white");
+  g.rect(7, 4, 1, 6, "bone"); // mullion
+  g.px(10, 8, "slate"); // dim interior corner
+  g.px(11, 9, "slate");
+  return g;
+}
+
+function stationSign(): PixelGrid {
+  const g = stationWallBase(30);
+  // weathered board sign with rust lettering strokes
+  g.rect(2, 3, 12, 7, "bone");
+  g.rect(2, 3, 12, 1, "sandLight");
+  g.rect(2, 9, 12, 1, "sand"); // bottom shade
+  // "GAS" as chunky letterform strokes
+  g.rect(3, 5, 2, 3, "rust");
+  g.px(4, 5, "bone");
+  g.px(4, 7, "rust");
+  g.rect(6, 5, 2, 3, "rust");
+  g.px(6, 7, "bone");
+  g.rect(9, 5, 2, 3, "rust");
+  g.px(10, 6, "bone");
+  g.px(9, 6, "bone");
+  g.px(12, 5, "hpRed"); // dying neon dot
+  // rusted mounting bolts
+  g.px(2, 3, "plum");
+  g.px(13, 3, "plum");
+  return g;
+}
+
+function gasPump(): PixelGrid {
+  return stamp(sandBase(31), (l) => {
+    // pump body
+    l.rect(5, 3, 6, 10, "rust");
+    l.rect(5, 3, 6, 1, "clay"); // lit top
+    l.px(5, 4, "clay");
+    // dial window
+    l.rect(6, 5, 4, 3, "bone");
+    l.px(7, 6, "ink"); // needle
+    l.px(8, 6, "ink");
+    // brand stripe
+    l.rect(6, 9, 4, 1, "amber");
+    // base plinth
+    l.rect(4, 13, 8, 2, "plum");
+    // hose looping off the right side to the nozzle
+    l.px(11, 6, "ink");
+    l.px(12, 7, "ink");
+    l.px(12, 8, "ink");
+    l.px(12, 9, "ink");
+    l.px(12, 10, "ink");
+    l.px(11, 11, "ink");
+    l.px(11, 12, "slate"); // nozzle
+  });
+}
+
+/** Mine wall: solid mauve rock face — bright against the dark floor. */
+function mineWall(): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
+  const rng = mulberry32(32);
+  for (let i = 0; i < 10; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, rng() < 0.5 ? "plum" : "clay");
+  }
+  // strata seams
+  g.rect(0, 4, 6, 1, "plum");
+  g.rect(9, 4, 7, 1, "plum");
+  g.rect(3, 9, 8, 1, "plum");
+  g.rect(0, 13, 5, 1, "plum");
+  g.rect(11, 13, 5, 1, "plum");
+  // pick scars catching lamplight
+  g.px(7, 2, "clay");
+  g.px(13, 7, "clay");
+  g.px(2, 11, "clay");
+  // dark undercut at the foot so it reads solid against the floor
+  g.rect(0, 15, TILE_SIZE, 1, "ink");
+  g.rect(0, 14, TILE_SIZE, 1, "plum");
+  return g;
+}
+
+/** Mine floor: walkable dark — ink with faint plum rubble. */
+function mineFloor(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "ink");
+  const rng = mulberry32(seed);
+  for (let i = 0; i < 9; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, "plum");
+  }
+  return g;
+}
+
+function mineTimber(): PixelGrid {
+  const g = mineWall();
+  // clay support beams framing the wall: two posts + header
+  const layer = tile();
+  layer.rect(1, 2, 3, 14, "clay");
+  layer.rect(12, 2, 3, 14, "clay");
+  layer.rect(0, 0, 16, 3, "clay"); // header beam
+  layer.rect(0, 0, 16, 1, "amber"); // lamplit top edge
+  layer.px(1, 2, "amber");
+  layer.px(12, 2, "amber");
+  // grain + iron nails
+  layer.rect(2, 5, 1, 9, "rust");
+  layer.rect(13, 5, 1, 9, "rust");
+  layer.px(2, 3, "ink");
+  layer.px(13, 3, "ink");
+  layer.outline("ink");
+  g.blit(layer, 0, 0);
+  return g;
+}
+
+/** Rail on mine floor — two full-width slate rails so the tile repeats
+ *  seamlessly left-right, clay sleepers underneath. */
+function rail(): PixelGrid {
+  const g = mineFloor(33);
+  // sleepers: vertical clay ties, evenly spaced (pattern repeats across tiles)
+  for (const x of [1, 5, 9, 13]) {
+    g.rect(x, 4, 2, 9, "clay");
+    g.px(x, 4, "rust");
+    g.px(x + 1, 12, "rust");
+  }
+  // rails: unbroken across the full tile width
+  g.rect(0, 5, TILE_SIZE, 1, "slate");
+  g.rect(0, 6, TILE_SIZE, 1, "plum"); // rail web shadow
+  g.rect(0, 10, TILE_SIZE, 1, "slate");
+  g.rect(0, 11, TILE_SIZE, 1, "plum");
+  return g;
+}
+
+function cart(): PixelGrid {
+  const g = mineFloor(34);
+  const layer = tile();
+  // riveted tub, wider at the top
+  layer.rect(2, 5, 12, 2, "slate");
+  layer.rect(3, 7, 10, 5, "indigo");
+  layer.px(3, 7, "slate");
+  layer.px(4, 7, "slate"); // lit rim
+  layer.px(12, 11, "plum");
+  // ore heaped over the rim
+  layer.rect(5, 4, 6, 1, "rust");
+  layer.px(6, 3, "rust");
+  layer.px(9, 3, "rust");
+  layer.px(7, 3, "amber"); // a glinting shiny in the ore
+  layer.px(8, 4, "amber");
+  layer.outline("ink");
+  g.blit(layer, 0, 0);
+  // wheels after the blit so they stay chunky ink
+  g.rect(4, 12, 2, 2, "ink");
+  g.rect(10, 12, 2, 2, "ink");
+  g.px(4, 12, "slate");
+  g.px(10, 12, "slate");
+  return g;
+}
+
+/** Lever on mine floor. `on` throws the handle to the other side and lights
+ *  the indicator jade. */
+function leverBase(on: boolean): PixelGrid {
+  const g = mineFloor(on ? 36 : 35);
+  const layer = tile();
+  // mounting block
+  layer.rect(5, 10, 6, 3, "slate");
+  layer.rect(5, 10, 6, 1, "skyBlue");
+  layer.px(6, 13, "plum");
+  layer.px(9, 13, "plum");
+  // handle: clay shaft with a knob, thrown left (off) or right (on)
+  if (!on) {
+    layer.px(6, 9, "clay");
+    layer.px(5, 8, "clay");
+    layer.px(4, 7, "clay");
+    layer.px(3, 6, "rust"); // worn grip
+    layer.rect(2, 4, 2, 2, "rust"); // knob
+    layer.px(2, 4, "clay");
+  } else {
+    layer.px(9, 9, "clay");
+    layer.px(10, 8, "clay");
+    layer.px(11, 7, "clay");
+    layer.px(12, 6, "rust");
+    layer.rect(12, 4, 2, 2, "amber"); // knob catches the light
+    layer.px(13, 4, "sandLight");
+  }
+  layer.outline("ink");
+  g.blit(layer, 0, 0);
+  // indicator lamp on the block face (after the blit so it stays 1px)
+  g.px(8, 11, on ? "jade" : "rust");
+  if (on) g.px(8, 10, "mint"); // glow
+  return g;
+}
+
+/** Ice wall: skyBlue face with bone facets and white glints. */
+function iceWallBase(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "skyBlue");
+  // facet planes
+  g.rect(1, 1, 5, 4, "bone");
+  g.rect(9, 2, 6, 3, "mint");
+  g.rect(2, 7, 4, 5, "mint");
+  g.rect(8, 8, 6, 4, "bone");
+  g.rect(4, 13, 7, 2, "mint");
+  // facet edges
+  g.px(6, 3, "slate");
+  g.px(7, 6, "slate");
+  g.px(6, 10, "slate");
+  g.px(12, 7, "slate");
+  g.px(3, 12, "slate");
+  const rng = mulberry32(seed);
+  for (let i = 0; i < 5; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, "white"); // glints
+  }
+  g.px(2, 2, "white");
+  g.px(10, 9, "white");
+  return g;
+}
+
+/** Cracked ice wall: same face split by a dark fissure showing indigo. */
+function iceWallCrack(): PixelGrid {
+  const g = iceWallBase(37);
+  // jagged fissure, two pixels of depth: indigo core with slate lips
+  const path: Array<[number, number]> = [
+    [7, 0],
+    [7, 1],
+    [8, 2],
+    [8, 3],
+    [7, 4],
+    [6, 5],
+    [6, 6],
+    [7, 7],
+    [8, 8],
+    [8, 9],
+    [9, 10],
+    [9, 11],
+    [8, 12],
+    [7, 13],
+    [7, 14],
+    [8, 15]
+  ];
+  for (const [x, y] of path) {
+    g.px(x, y, "indigo");
+    g.px(x + 1, y, "slate"); // fractured lip
+  }
+  g.px(6, 2, "indigo"); // branch crack
+  g.px(5, 3, "indigo");
+  g.px(10, 9, "indigo");
+  g.px(11, 8, "indigo");
+  return g;
+}
+
+/** Sand rimed with frost creeping in from the depths. */
+function frostSand(): PixelGrid {
+  const g = sandBase(38, 6);
+  // rime patches
+  g.rect(1, 1, 4, 2, "mint");
+  g.px(5, 2, "mint");
+  g.px(2, 3, "mint");
+  g.rect(10, 5, 4, 2, "mint");
+  g.px(9, 6, "mint");
+  g.rect(3, 11, 3, 2, "mint");
+  g.px(6, 12, "mint");
+  g.px(12, 12, "mint");
+  g.px(13, 11, "mint");
+  // frozen sparkle at the heart of each patch
+  g.px(2, 2, "white");
+  g.px(11, 6, "white");
+  g.px(4, 12, "white");
+  g.px(3, 2, "bone");
+  g.px(12, 6, "bone");
+  return g;
+}
+
+/** A collectible shard of impossible ice, half-buried in sand. */
+function iceChip(): PixelGrid {
+  return stamp(sandBase(39), (l) => {
+    // angular shard leaning right
+    l.px(8, 4, "mint");
+    l.rect(7, 5, 3, 2, "mint");
+    l.rect(6, 7, 4, 3, "skyBlue");
+    l.rect(6, 10, 5, 2, "skyBlue");
+    l.px(6, 7, "mint");
+    l.px(6, 8, "mint");
+    // cold gleam
+    l.px(8, 5, "white");
+    l.px(7, 8, "white");
+    // melt pooling at the base
+    l.px(5, 11, "skyBlue");
+    l.px(11, 11, "skyBlue");
+  });
+}
+
+/** Scarab egg cluster on the dark depths floor. */
+function eggCluster(): PixelGrid {
+  const g = mineFloor(40);
+  const layer = tile();
+  // heaped bone eggs, sandLight where the queen's lamplight hits
+  layer.rect(4, 8, 4, 4, "bone");
+  layer.px(4, 8, "sandLight");
+  layer.px(5, 8, "sandLight");
+  layer.rect(9, 7, 4, 4, "bone");
+  layer.px(9, 7, "sandLight");
+  layer.rect(6, 4, 4, 4, "bone");
+  layer.px(6, 4, "sandLight");
+  layer.px(7, 4, "white"); // wet glint
+  layer.rect(7, 11, 3, 3, "bone");
+  // mauve speckling on the shells
+  layer.px(6, 9, "mauve");
+  layer.px(11, 9, "mauve");
+  layer.px(8, 6, "mauve");
+  layer.px(8, 12, "mauve");
+  layer.outline("ink");
+  g.blit(layer, 0, 0);
+  // jade brood-slime strands (after the blit so they stay thin)
+  g.px(3, 10, "jade");
+  g.px(13, 8, "jade");
+  g.px(10, 14, "jade");
+  g.px(5, 13, "jade");
+  return g;
+}
+
+/** All 24 tiles in contract order (see TILE2_NAMES). */
+export function tile2Frames(): PixelGrid[] {
+  return [
+    asphaltBase(20),
+    asphaltLine(),
+    truckCab(),
+    truckBox(),
+    crateBroken(),
+    joshuaTrunk(),
+    joshuaTop(),
+    creosote(),
+    stationWallBase(28),
+    stationWindow(),
+    stationSign(),
+    gasPump(),
+    mineWall(),
+    mineFloor(1),
+    mineTimber(),
+    rail(),
+    cart(),
+    leverBase(false),
+    leverBase(true),
+    iceWallBase(41),
+    iceWallCrack(),
+    frostSand(),
+    iceChip(),
+    eggCluster()
+  ];
+}

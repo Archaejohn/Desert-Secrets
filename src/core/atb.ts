@@ -1,6 +1,6 @@
 /**
  * Active Time Battle core. Engine-agnostic, no Phaser imports.
- * See docs/CONTRACTS.md section 2.
+ * See docs/CONTRACTS.md sections 2 and 5.
  */
 
 export interface Stats {
@@ -13,6 +13,8 @@ export interface Stats {
 
 export type Side = "party" | "enemy";
 
+export type ActionId = "attack" | "guard" | "focus" | "second-wind" | "sandstep";
+
 export interface Combatant {
   id: string;
   name: string;
@@ -20,6 +22,16 @@ export interface Combatant {
   stats: Stats;
   gauge: number; // 0..1
   guarding: boolean;
+  /**
+   * The three fields below are optional in the constructor seed for
+   * backwards compatibility, but the battle always initializes them —
+   * combatants read back from a battle always carry booleans.
+   */
+  focused?: boolean; // next attack ×1.5 (set by "focus")
+  secondWindUsed?: boolean; // once per battle
+  sandstepUsed?: boolean; // once per battle
+  /** Passive: attackers hitting this combatant while it guards take 2 damage. */
+  cactusGuard?: boolean;
 }
 
 export type BattleEvent =
@@ -28,10 +40,12 @@ export type BattleEvent =
       type: "action";
       actorId: string;
       targetId: string;
-      action: "attack" | "guard";
+      action: ActionId;
       damage: number;
       targetHp: number;
     }
+  | { type: "heal"; id: string; amount: number; hp: number }
+  | { type: "thorns"; targetId: string /* the attacker */; damage: 2; targetHp: number }
   | { type: "defeated"; id: string }
   | { type: "victory"; winner: Side };
 
@@ -42,10 +56,14 @@ export interface AtbOptions {
 }
 
 const DEFAULT_FILL_RATE = 0.35;
+const THORNS_DAMAGE = 2;
+
+/** A Combatant with every optional battle field resolved. */
+type LiveCombatant = Required<Combatant>;
 
 export class AtbBattle {
-  private combatants: Combatant[];
-  private byId: Map<string, Combatant>;
+  private combatants: LiveCombatant[];
+  private byId: Map<string, LiveCombatant>;
   private rng: () => number;
   private fillRate: number;
   private winnerSide: Side | null = null;
@@ -63,6 +81,10 @@ export class AtbBattle {
       stats: { ...c.stats }, // deep copy: never mutate the caller's objects
       gauge: 0,
       guarding: false,
+      focused: false,
+      secondWindUsed: false,
+      sandstepUsed: false,
+      cactusGuard: c.cactusGuard ?? false,
     }));
     this.byId = new Map();
     for (const c of this.combatants) {
@@ -85,6 +107,10 @@ export class AtbBattle {
     const c = this.byId.get(id);
     if (!c) throw new Error(`AtbBattle: unknown combatant id "${id}"`);
     return c;
+  }
+
+  private getLive(id: string): LiveCombatant {
+    return this.getCombatant(id) as LiveCombatant;
   }
 
   livingOn(side: Side): Combatant[] {
@@ -119,18 +145,16 @@ export class AtbBattle {
   }
 
   /**
-   * Consume the actor's full gauge to attack or guard.
-   * attack requires targetId naming a living opponent; guard needs no target.
+   * Consume the actor's full gauge to perform an action.
+   * attack requires targetId naming a living opponent; the other actions
+   * need no target. second-wind and sandstep are once per battle and
+   * throw on reuse.
    */
-  act(
-    actorId: string,
-    action: "attack" | "guard",
-    targetId?: string,
-  ): BattleEvent[] {
+  act(actorId: string, action: ActionId, targetId?: string): BattleEvent[] {
     if (this.winnerSide !== null) {
       throw new Error("AtbBattle: cannot act, the battle is over");
     }
-    const actor = this.getCombatant(actorId);
+    const actor = this.getLive(actorId);
     if (actor.stats.hp <= 0) {
       throw new Error(`AtbBattle: actor "${actorId}" is dead and cannot act`);
     }
@@ -140,31 +164,90 @@ export class AtbBattle {
 
     // Acting starts fresh: any previous guard on the actor ends now.
     actor.guarding = false;
-    const events: BattleEvent[] = [];
 
-    if (action === "guard") {
-      actor.guarding = true;
-      actor.gauge = 0;
-      events.push({
-        type: "action",
-        actorId,
-        targetId: actorId,
-        action: "guard",
-        damage: 0,
-        targetHp: actor.stats.hp,
-      });
-      return events;
+    switch (action) {
+      case "guard":
+        return this.actGuard(actor);
+      case "focus":
+        return this.actFocus(actor);
+      case "second-wind":
+        return this.actSecondWind(actor);
+      case "sandstep":
+        return this.actSandstep(actor);
+      case "attack":
+        return this.actAttack(actor, targetId);
     }
+  }
 
-    // attack
+  private selfAction(
+    actor: LiveCombatant,
+    action: ActionId,
+  ): Extract<BattleEvent, { type: "action" }> {
+    return {
+      type: "action",
+      actorId: actor.id,
+      targetId: actor.id,
+      action,
+      damage: 0,
+      targetHp: actor.stats.hp,
+    };
+  }
+
+  private actGuard(actor: LiveCombatant): BattleEvent[] {
+    actor.guarding = true;
+    actor.gauge = 0;
+    return [this.selfAction(actor, "guard")];
+  }
+
+  private actFocus(actor: LiveCombatant): BattleEvent[] {
+    actor.focused = true;
+    actor.gauge = 0;
+    return [this.selfAction(actor, "focus")];
+  }
+
+  private actSecondWind(actor: LiveCombatant): BattleEvent[] {
+    if (actor.secondWindUsed) {
+      throw new Error(
+        `AtbBattle: "${actor.id}" has already used second-wind this battle`,
+      );
+    }
+    actor.secondWindUsed = true;
+    const before = actor.stats.hp;
+    actor.stats.hp = Math.min(
+      actor.stats.maxHp,
+      before + Math.round(actor.stats.maxHp * 0.3),
+    );
+    actor.gauge = 0;
+    return [
+      this.selfAction(actor, "second-wind"),
+      {
+        type: "heal",
+        id: actor.id,
+        amount: actor.stats.hp - before,
+        hp: actor.stats.hp,
+      },
+    ];
+  }
+
+  private actSandstep(actor: LiveCombatant): BattleEvent[] {
+    if (actor.sandstepUsed) {
+      throw new Error(
+        `AtbBattle: "${actor.id}" has already used sandstep this battle`,
+      );
+    }
+    actor.sandstepUsed = true;
+    const event = this.selfAction(actor, "sandstep");
+    actor.gauge = 0.5; // refills from half instead of empty
+    return [event];
+  }
+
+  private actAttack(actor: LiveCombatant, targetId?: string): BattleEvent[] {
     if (targetId === undefined) {
       throw new Error("AtbBattle: attack requires a targetId");
     }
-    const target = this.getCombatant(targetId);
+    const target = this.getLive(targetId);
     if (target.stats.hp <= 0) {
-      throw new Error(
-        `AtbBattle: target "${targetId}" is already defeated`,
-      );
+      throw new Error(`AtbBattle: target "${targetId}" is already defeated`);
     }
     if (target.side === actor.side) {
       throw new Error(
@@ -172,6 +255,7 @@ export class AtbBattle {
       );
     }
 
+    const events: BattleEvent[] = [];
     let damage = Math.max(
       1,
       Math.round(
@@ -179,7 +263,13 @@ export class AtbBattle {
           (0.9 + this.rng() * 0.2),
       ),
     );
-    if (target.guarding) {
+    if (actor.focused) {
+      // Focus multiplies after formula+variance, before guard halving.
+      damage = Math.max(1, Math.round(damage * 1.5));
+      actor.focused = false;
+    }
+    const targetWasGuarding = target.guarding;
+    if (targetWasGuarding) {
       damage = Math.max(1, Math.floor(damage / 2));
     }
 
@@ -188,21 +278,37 @@ export class AtbBattle {
 
     events.push({
       type: "action",
-      actorId,
+      actorId: actor.id,
       targetId,
       action: "attack",
       damage,
       targetHp: target.stats.hp,
     });
+    events.push(...this.deathEvents(target));
 
-    if (target.stats.hp === 0) {
-      events.push({ type: "defeated", id: target.id });
-      if (this.livingOn(target.side).length === 0) {
-        this.winnerSide = actor.side;
-        events.push({ type: "victory", winner: actor.side });
-      }
+    // Cactus-guard thorns: prick the attacker after the hit resolves.
+    if (targetWasGuarding && target.cactusGuard && this.winnerSide === null) {
+      actor.stats.hp = Math.max(0, actor.stats.hp - THORNS_DAMAGE);
+      events.push({
+        type: "thorns",
+        targetId: actor.id,
+        damage: THORNS_DAMAGE,
+        targetHp: actor.stats.hp,
+      });
+      events.push(...this.deathEvents(actor));
     }
 
+    return events;
+  }
+
+  /** defeated (and victory, if that wiped the side) for a combatant at 0 hp. */
+  private deathEvents(c: LiveCombatant): BattleEvent[] {
+    if (c.stats.hp > 0) return [];
+    const events: BattleEvent[] = [{ type: "defeated", id: c.id }];
+    if (this.livingOn(c.side).length === 0) {
+      this.winnerSide = c.side === "party" ? "enemy" : "party";
+      events.push({ type: "victory", winner: this.winnerSide });
+    }
     return events;
   }
 }

@@ -13,7 +13,7 @@ import { PixelGrid } from "../grid";
 
 export const SCARAB_FRAME = 24;
 
-interface BugPose {
+export interface BugPose {
   /** Antenna position: 0 = tucked, 1 = splayed (twitch). */
   antenna: 0 | 1;
   /** White glint on the jade gem + warm shimmer on the shell. */
@@ -24,7 +24,7 @@ interface BugPose {
   hop: 0 | 1;
 }
 
-const BUG_POSES: readonly BugPose[] = [
+export const BUG_POSES: readonly BugPose[] = [
   { antenna: 0, glint: false, legs: "stand", hop: 0 }, // 0 idle A
   { antenna: 1, glint: true, legs: "stand", hop: 0 }, // 1 idle B
   { antenna: 0, glint: false, legs: "A", hop: 0 }, // 2 skitter
@@ -35,7 +35,7 @@ const BUG_POSES: readonly BugPose[] = [
 
 /** One thin leg from the shell edge at (x, y). dir: -1 = left, +1 = right.
  *  phase: -1 back, 0 neutral, +1 forward. */
-function leg(g: PixelGrid, x: number, y: number, dir: number, phase: number): void {
+export function leg(g: PixelGrid, x: number, y: number, dir: number, phase: number): void {
   g.px(x + dir, y, "ink");
   g.px(x + dir * 2, y + (phase === 0 ? 0 : -phase), "ink");
   g.px(x + dir * 3, y + (phase === 0 ? 1 : -phase * 2), "ink");

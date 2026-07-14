@@ -19,7 +19,8 @@ export class DialogueBox {
   private hintText: Phaser.GameObjects.Text;
   private runner: DialogueRunner | null = null;
   private selected = 0;
-  private onClose: (() => void) | null = null;
+  private onClose: ((endNodeId: string | null) => void) | null = null;
+  private lastNodeId: string | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -65,10 +66,11 @@ export class DialogueBox {
     return this.runner !== null;
   }
 
-  open(script: DialogueScript, onClose?: () => void): void {
+  open(script: DialogueScript, onClose?: (endNodeId: string | null) => void): void {
     this.runner = new DialogueRunner(script);
     this.onClose = onClose ?? null;
     this.runner.start();
+    this.lastNodeId = this.runner.currentNodeId;
     this.container.setVisible(true);
     this.render();
   }
@@ -78,6 +80,7 @@ export class DialogueBox {
     if (!this.runner) return;
     const choices = this.runner.choices;
     const line = choices ? this.runner.advance(this.selected) : this.runner.advance();
+    if (this.runner.currentNodeId !== null) this.lastNodeId = this.runner.currentNodeId;
     if (line === null) {
       this.close();
       return;
@@ -110,7 +113,10 @@ export class DialogueBox {
     this.container.setVisible(false);
     this.choiceTexts.forEach((t) => t.destroy());
     this.choiceTexts = [];
-    this.onClose?.();
+    const cb = this.onClose;
+    const endedAt = this.lastNodeId;
+    this.onClose = null;
+    cb?.(endedAt);
   }
 
   private render(): void {

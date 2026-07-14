@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene";
-import { WorldScene } from "./scenes/WorldScene";
+import { CrashScene } from "./scenes/CrashScene";
+import { OasisScene } from "./scenes/OasisScene";
+import { TrailScene } from "./scenes/TrailScene";
+import { MineScene } from "./scenes/MineScene";
+import { DepthsScene } from "./scenes/DepthsScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -19,7 +23,7 @@ const game = new Phaser.Game({
     default: "arcade",
     arcade: { debug: false }
   },
-  scene: [BootScene, WorldScene, BattleScene]
+  scene: [BootScene, CrashScene, OasisScene, TrailScene, MineScene, DepthsScene, BattleScene]
 });
 
 // Exposed for headless smoke tests and debugging.

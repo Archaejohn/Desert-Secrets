@@ -1,11 +1,18 @@
 /**
  * manifest.json builder — the machine-readable description of every
- * generated sheet, matching docs/CONTRACTS.md §1 exactly.
+ * generated sheet, matching docs/CONTRACTS.md §1 and §4 exactly.
  */
 import { PALETTE } from "../../../src/shared/palette";
 import { CHAR_FRAME_W, CHAR_FRAME_H } from "./sprites/poses";
 import { SCARAB_FRAME } from "./sprites/scarab";
+import { PIGGY_FRAME } from "./sprites/piggy";
+import { JACKRABBIT_FRAME } from "./sprites/jackrabbit";
+import { BUZZARD_FRAME } from "./sprites/buzzard";
+import { GILA_FRAME } from "./sprites/gila";
+import { FOREMAN_FRAME } from "./sprites/foreman";
+import { QUEEN_FRAME } from "./sprites/queen";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
+import { TILE2_NAMES } from "./tileset2";
 
 export interface AnimationDef {
   frames: number[];
@@ -22,17 +29,36 @@ export interface SheetDef {
   animations: Record<string, AnimationDef>;
 }
 
+export interface TileSetDef {
+  file: string;
+  tileSize: number;
+  columns: number;
+  names: Record<string, number>;
+}
+
 export interface Manifest {
   palette: Record<string, string>;
-  sheets: { hero: SheetDef; npc: SheetDef; scarab: SheetDef };
-  tiles: { file: string; tileSize: number; columns: number; names: Record<string, number> };
+  sheets: {
+    hero: SheetDef;
+    npc: SheetDef;
+    scarab: SheetDef;
+    rosa: SheetDef;
+    piggy: SheetDef;
+    jackrabbit: SheetDef;
+    buzzard: SheetDef;
+    gila: SheetDef;
+    foreman: SheetDef;
+    queen: SheetDef;
+  };
+  tiles: TileSetDef;
+  tiles2: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
 
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
-function characterSheet(prefix: "hero" | "npc"): SheetDef {
+function characterSheet(prefix: "hero" | "npc" | "rosa"): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
     const base = row * 6;
@@ -53,28 +79,51 @@ function characterSheet(prefix: "hero" | "npc"): SheetDef {
   };
 }
 
-export function buildManifest(): Manifest {
-  const names: Record<string, number> = {};
-  TILE_NAMES.forEach((name, i) => {
-    names[name] = i;
+/** Single-row creature sheet: idle [0,1] + one motion animation [2..5]. */
+function creatureSheet(
+  name: string,
+  frame: number,
+  moveKey: string,
+  idleRate: number,
+  moveRate: number
+): SheetDef {
+  return {
+    file: `${name}.png`,
+    frameWidth: frame,
+    frameHeight: frame,
+    columns: 6,
+    rows: 1,
+    animations: {
+      [`${name}-idle`]: { frames: [0, 1], frameRate: idleRate, repeat: -1 },
+      [`${name}-${moveKey}`]: { frames: [2, 3, 4, 5], frameRate: moveRate, repeat: -1 }
+    }
+  };
+}
+
+function tileNames(names: readonly string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  names.forEach((name, i) => {
+    map[name] = i;
   });
+  return map;
+}
+
+export function buildManifest(): Manifest {
   return {
     palette: { ...PALETTE },
     sheets: {
       hero: characterSheet("hero"),
       npc: characterSheet("npc"),
-      scarab: {
-        file: "scarab.png",
-        frameWidth: SCARAB_FRAME,
-        frameHeight: SCARAB_FRAME,
-        columns: 6,
-        rows: 1,
-        animations: {
-          "scarab-idle": { frames: [0, 1], frameRate: 3, repeat: -1 },
-          "scarab-move": { frames: [2, 3, 4, 5], frameRate: 10, repeat: -1 }
-        }
-      }
+      scarab: creatureSheet("scarab", SCARAB_FRAME, "move", 3, 10),
+      rosa: characterSheet("rosa"),
+      piggy: creatureSheet("piggy", PIGGY_FRAME, "walk", 3, 8),
+      jackrabbit: creatureSheet("jackrabbit", JACKRABBIT_FRAME, "move", 3, 12),
+      buzzard: creatureSheet("buzzard", BUZZARD_FRAME, "move", 3, 8),
+      gila: creatureSheet("gila", GILA_FRAME, "move", 3, 8),
+      foreman: creatureSheet("foreman", FOREMAN_FRAME, "move", 3, 10),
+      queen: creatureSheet("queen", QUEEN_FRAME, "move", 2, 8)
     },
-    tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names }
+    tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
+    tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) }
   };
 }
