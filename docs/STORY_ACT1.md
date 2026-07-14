@@ -46,7 +46,10 @@ Dusk on the highway shoulder. Rosa's truck has jackknifed; one crate is
 broken open and empty. Movement/interaction tutorial: inspect the crate,
 find the first **frost feather** (a penguin feather rimed with ice that
 isn't melting). Rosa gives Joseph the radio and a cold pack, and the act's
-stakes: Piggy is a *baby*; in desert heat he has hours, not days.
+stakes: Piggy is a *baby*; in desert heat he has hours, not days. A quiet
+aside plants a much longer thread: Joseph hasn't heard from his fraternal
+twin brother **Thomas** all day and doesn't know where he is — Thomas
+doesn't resurface until Parts 2–4 (`docs/STORY_PARTS2-4.md`).
 *No combat. Ends when Joseph steps off the asphalt onto the flats.*
 
 ### Beat 2 — The Keeper of the Water (minutes 3–9)

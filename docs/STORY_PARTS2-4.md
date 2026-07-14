@@ -70,9 +70,14 @@ much bigger than a glacier.
 - **Acts ~3–5:** further regions unlock as they're earned; worldbuilding,
   side content, maybe a literal map/compass macguffin gating where
   Thomas can even be found; rumors sharpen into a name.
-- **Act ~6 (or 7): find Thomas** — a stranded pilot/tinkerer holed up in a
-  hidden hangar-town, guarding a rocket ship that hasn't flown in a very
-  long time.
+- **Act ~6 (or 7): find Thomas** — and this isn't just the party rescuing
+  a stranger for the party's sake. Thomas is Joseph's **fraternal twin
+  brother**, missing since before the story even started (the seed is
+  planted all the way back in Part One, Act 1 — Joseph mentions to Rosa
+  that he hasn't heard from Thomas all day). He's been stranded down here
+  the whole time, holed up in a hidden hangar-town, guarding a rocket
+  ship that hasn't flown in a very long time. This is a reunion first,
+  a plot device second.
 - **The very next act: find Baby Chick**, Thomas's sidekick — off on his
   own somewhere in the underground world, probably in some kind of
   trouble, which is a deliberate structural echo of Part One's whole
@@ -91,7 +96,7 @@ next Part's cold open, and it doesn't go how anyone plans.
 
 | Character | Role |
 |---|---|
-| **Thomas** | Stranded pilot/engineer, comic and gadget-obsessed, has clearly been down here a long time. From here on he's Joseph's permanent co-lead — the two of them never leave the active party. |
+| **Thomas** | Joseph's fraternal twin brother — missing since Part One's opening night, stranded down here ever since. Physically strong (he's the party's front-line muscle where Joseph is the practical one), loves football and never quite stops talking about it, clearly been down here a long time. From here on he's Joseph's permanent co-lead — the two of them never leave the active party. |
 | **Baby Chick** | Thomas's sidekick — an actual baby chicken. Very smart, a bit of a nerd, does real math out loud... and gets it wrong just often enough to be dangerous. Sent off on his own fuel-quest once found; joins for good once it's done. |
 
 **Character note:** Baby Chick is genuinely brilliant — he's the one who

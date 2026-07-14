@@ -89,6 +89,14 @@ describe("rosaCrash", () => {
     expect(all).toMatch(/isn't melting/i);
   });
 
+  it("seeds the Thomas thread on both choice branches", () => {
+    for (const pick of [0, 1]) {
+      const { lines } = playThrough(rosaCrashScript, [pick]);
+      const all = lines.map((l) => l.text).join(" ");
+      expect(all).toMatch(/Thomas/);
+    }
+  });
+
   it("terminates on both choice branches", () => {
     for (const pick of [0, 1]) {
       const { runner } = playThrough(rosaCrashScript, [pick]);

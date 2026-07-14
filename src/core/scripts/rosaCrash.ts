@@ -14,6 +14,7 @@ export const rosaCrashScript: DialogueScript = {
       lines: [
         { speaker: "Rosa", text: "Hey! Careful, the trailer's still settling." },
         { speaker: "Rosa", text: "Rosa Delgado. Aquarium transport. Was." },
+        { speaker: "Joseph", text: "Huh. Haven't heard from Thomas all day." },
         { speaker: "Rosa", text: "One crate broke open. The small one." },
       ],
       next: "piggy",
