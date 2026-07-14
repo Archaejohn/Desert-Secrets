@@ -92,14 +92,19 @@ next Part's cold open, and it doesn't go how anyone plans.
 | Character | Role |
 |---|---|
 | **Thomas** | Stranded pilot/engineer, comic and gadget-obsessed, has clearly been down here a long time. From here on he's Joseph's permanent co-lead — the two of them never leave the active party. |
-| **Baby Chick** | Thomas's sidekick. Species deliberately open — see the naming note below. Sent off on his own fuel-quest once found; joins for good once it's done. |
+| **Baby Chick** | Thomas's sidekick — an actual baby chicken. Very smart, a bit of a nerd, does real math out loud... and gets it wrong just often enough to be dangerous. Sent off on his own fuel-quest once found; joins for good once it's done. |
 
-**Naming note, worth keeping intentional:** the game already has a
-running gag where a character's name doesn't match their species — Piggy
-and Fluffball are both penguins, and Part 3 adds a red panda named
-*Mr. Goose*. "Baby Chick" fits that pattern before a single detail is
-locked — there's no requirement he end up being an actual chick, and it
-might be funnier if he isn't. Leave it open for whoever designs him.
+**Character note:** Baby Chick is genuinely brilliant — he's the one who
+*can* calculate fuel loads, trajectories, part tolerances, whatever the
+plot needs solved with math — which is exactly what makes his mistakes
+land. He's not careless, he's confidently wrong at the worst moment,
+often by one decimal place. That's not a one-off joke for the Part 3
+cold open; it's a running trait worth reusing anywhere Parts 2–4 need a
+smart plan to go sideways in a specific, character-driven way rather than
+generic chaos. (Also worth keeping in mind: unlike Piggy, Fluffball, and
+Part 3's *Mr. Goose*, his name and species actually match — a baby chick
+who's exactly as advertised, next to three characters who aren't, is its
+own small joke.)
 
 ---
 
@@ -107,11 +112,14 @@ might be funnier if he isn't. Leave it open for whoever designs him.
 
 ### Cold open
 
-The rocket launches — and doesn't stop. Baby Chick, unsupervised near the
-fuel hatch, has topped it off with **Super Duper chocolate chip cookies
-and a cup of milk**. Instead of a short hop to the surface, the ship
-blasts clean through the atmosphere and out of control into space before
-anyone can do anything about it. Rosa never gets her radio call.
+The rocket launches — and doesn't stop. Baby Chick ran the fuel numbers
+himself, confidently, out loud, and got one figure wrong: he topped the
+tank off with **Super Duper chocolate chip cookies and a cup of milk**
+instead of the standard batch, sure right up until liftoff that he'd
+accounted for the difference. He hadn't. Instead of a short hop to the
+surface, the ship blasts clean through the atmosphere and out of control
+into space before anyone can do anything about it. Rosa never gets her
+radio call.
 
 ### Structure
 
