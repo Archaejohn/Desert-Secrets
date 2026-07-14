@@ -620,3 +620,118 @@ alongside a short label. This is deliberately the *minimal* version of
 the inventory system `docs/STORY_ACTS3-7.md` already anticipates needing
 for Act 4's stinky socks — extend this component later rather than
 building a second one.
+
+# v6: inventory window, equip, and the spigot
+
+Replaces v5's walk-over triggers for the bucket quest with an explicit
+inventory window and an equip step, and fixes a shed map bug that made
+the bucket unreachable via its intended path.
+
+## The shed reachability bug
+
+`shedMap.ts`'s original layout put a flavor wall (`decor[5][x]` for
+x=6..10) directly between the north spawn and `SHED_BUCKET` at
+`{x:8,y:6}`, sealing the pickup off from the entrance entirely — reaching
+it required an unintended detour around the south side. Root-caused via
+a debug script that walked the player with real arrow-key input (not
+`body.reset` teleportation, which bypasses collision and had masked the
+bug in every prior smoke-test run) and printed an `isSolidAt()` ASCII
+map. Fixed by moving `SHED_BUCKET` to `{x:8,y:5}` and restructuring the
+flavor wall to sit *behind* (south of) the bucket, never between spawn
+and pickup — verified with a clean walkable column from y=2 to y=5.
+Lesson: e2e coverage now includes at least one real, key-driven walking
+check (`walkUntilNear` in `tools/smoke/e2e.mjs`) rather than only
+teleport-based state assertions, specifically to catch this class of bug.
+
+## `Act1State.items.equipped`
+
+`gameState.ts`: `items` gains `equipped: "bucket" | null`, `null` in
+`newGame()`. Only an equipped item can be used out in the world — the
+spigot and the coop both check `items.equipped === "bucket"` before
+`items.bucket`, in addition to it. Picking the bucket up no longer
+equips it automatically; equipping is a deliberate step in the
+inventory window. Delivering the chore's filled bucket clears both
+`items.bucket` (→ `"none"`) and `items.equipped` (→ `null`) — it's
+spent and no longer worth carrying equipped.
+
+## `InteractPoint`: press-E interactions replace walk-over triggers
+
+`ZoneScene.ts` gains a new interaction primitive alongside the existing
+`addTrigger` (still used for exits/cutscenes elsewhere): `addInteractPoint(tileX,
+tileY, onUse, opts?: {range?, once?})`. Unlike a walk-over trigger, it
+only fires on an explicit E-press/tap while in range — never just by
+standing on a tile — so it structurally cannot refire on the frame right
+after its own callback changes the state it reads (the root cause of an
+earlier bug where a successful chicken-delivery's state reset triggered
+a stray "no bucket" hint one frame later). NPCs still take priority over
+interact points when both are in range; the shared `talkPrompt` ("E")
+UI element is reused for both. The shed's bucket pickup, the coop
+delivery, and the new spigot fill are all `InteractPoint`s now; none of
+the three is a walk-over `addTrigger` any more.
+
+## New generated asset: the spigot
+
+| File | Frame | Grid | Animations | Design |
+|---|---|---|---|---|
+| `spigot.png` | 16×16 | 1×1 (16×16px) | `spigot-idle` [0] repeat 0 | A static, single-frame prop — a valve wheel, pipe and spout on a clay mound, with a falling water drop as the "fill here" tell. Placed next to the spring so the fill spot is an obvious landmark instead of an invisible trigger tile. |
+
+Wired the same way as `bucket.png` (a `composeSheet`/`propSheet` pair in
+`assets.ts`/`manifest.ts`, appended additively to `SHEET_KEYS` — not a
+`tileset.ts`/`tileset2.ts`/`tileset3.ts` entry, since those three
+tilesets are fixed at exactly 16 contract tiles each and inserting a
+17th would risk disturbing their pinned determinism hashes). Placed in
+`OasisScene` with a plain `this.add.sprite(..., "spigot", 0)`, the same
+way the coop's decorative hens are placed — not `addProp()`, which only
+resolves names from the tile atlases.
+
+## `InventoryMenu`: the inventory window
+
+`src/game/ui/InventoryMenu.ts` — a modal window opened with the "I" key
+(mirroring `PerkMenu`'s styling and self-contained input-handler
+lifecycle: ink background, gold border/highlight, listeners registered
+on open and torn down on close). Lists carried items; selecting the
+bucket row (SPACE/ENTER, or tap) toggles `items.equipped`. ESC or "I"
+closes it. `ZoneScene.openInventory()` constructs it lazily against the
+current `Act1State`; while `inventoryMenu` is set, `update()` returns
+immediately after zeroing player velocity, so movement, dialogue and
+interact points are all suspended for the duration.
+
+Opening is wired as a single `keydown-I` event listener bound once in
+`setupInput()`, calling `openInventory()` (which itself no-ops if a
+menu is already open, dialogue is open, input is locked, or a scene
+transition is in flight) — **not** a polled `JustDown` check in
+`update()`. The polled form was tried first and had a real bug: while
+the menu is open, `update()` returns before ever reading the "I" key,
+so a *second* "I" press (the one meant to close the menu) sets the key's
+internal justDown flag without anyone consuming it. `InventoryMenu`'s
+own `keydown-I` listener closes the menu synchronously on that same
+press — but then the very next `update()` tick sees the still-unconsumed
+`JustDown` flag and reopens it immediately. Event-driven opening avoids
+the whole failure mode: there is no polled flag left to go stale.
+
+## Oasis/shed changes
+
+- `ShedScene`: the bucket pickup is now an `InteractPoint` (`once:
+  true`) instead of a walk-over trigger; same effect (destroys the prop,
+  sets `items.bucket = "empty"`), but only fires on E/tap.
+- `OasisScene`'s coop delivery and spring fill are both `InteractPoint`s
+  now, gated on `items.equipped === "bucket"` in addition to the bucket
+  state itself; hint copy was tightened to fit the 48-char dialogue box
+  and to mention equipping via the bag.
+- A `spigot` sprite marks the fill spot next to `OASIS_SPRING_FILL`.
+- `homeAct1.ts`'s chicken-chore branch mentions the spigot and equipping
+  from the bag.
+
+## HUD changes
+
+`Hud.ts`'s inventory row is no longer a full item list — it now shows
+only a small "Equipped: Bucket (full/empty)" readout, and only while
+something is actually equipped. The full contents live in the `I`
+window; the HUD row can't go stale showing an item the player is merely
+carrying but hasn't equipped.
+
+## Touch affordances
+
+`touch.ts` gains `addInventoryButton`/`inInventoryButtonZone`, a
+top-left bag button mirroring the top-right fullscreen button, shown
+only on touch devices (alongside the joystick and action-button hint).

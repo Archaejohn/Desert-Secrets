@@ -41,8 +41,12 @@ const CHORE_XP = 10;
 function hint(text: string): DialogueScript {
   return { start: "hint", nodes: [{ id: "hint", lines: [{ speaker: "", text }] }] };
 }
-const NO_BUCKET_HINT = hint("Trough's dry. Got a bucket?");
-const EMPTY_BUCKET_HINT = hint("Bucket's empty. Try the spring.");
+const NEED_BUCKET_HINT = hint("Trough's dry. Bucket's in the shed.");
+const NOT_EQUIPPED_HINT = hint("Equip the bucket first — press I.");
+const EMPTY_BUCKET_HINT = hint("Bucket's empty. Try the spigot.");
+const CHORES_DONE_HINT = hint("The chickens are fed. Thanks, Joseph.");
+const SPIGOT_NEED_BUCKET_HINT = hint("Equip the bucket first — press I.");
+const SPIGOT_ALREADY_FULL_HINT = hint("Already full.");
 
 export class OasisScene extends ZoneScene {
   private scarab: Phaser.Physics.Arcade.Sprite | null = null;
@@ -135,44 +139,56 @@ export class OasisScene extends ZoneScene {
     }
 
     if (getState(this).flags.choresDone) return;
-    this.addTrigger(
-      { x1: OASIS_COOP.x, y1: OASIS_COOP.y, x2: OASIS_COOP.x, y2: OASIS_COOP.y },
-      () => {
-        const bucket = getState(this).items.bucket;
-        // Repeatable trigger: nudge the player off the tile every time it
-        // fires, success or not, so standing still can't re-fire it next
-        // frame (it would otherwise see the just-updated state and react
-        // to the WRONG branch — e.g. re-reading "bucket: none" right after
-        // spending a filled one and popping a stale "no bucket" hint).
-        this.player.setPosition(this.player.x, this.player.y + TILE);
-        if (bucket === "filled") {
-          const { state } = awardXp(getState(this), CHORE_XP);
-          setState(this, {
-            ...state,
-            items: { ...state.items, bucket: "none" },
-            flags: { ...state.flags, choresDone: true }
-          });
-          this.floatText(OASIS_COOP.x * TILE + TILE / 2, OASIS_COOP.y * TILE, `+${CHORE_XP} XP`);
-        } else {
-          this.openScript(bucket === "empty" ? EMPTY_BUCKET_HINT : NO_BUCKET_HINT);
-        }
-      },
-      false
-    );
+    // Press-E interaction: fires only on an explicit key/tap press, never
+    // by just standing on the tile, so it can't refire on the frame right
+    // after a successful delivery resets the bucket state.
+    this.addInteractPoint(OASIS_COOP.x, OASIS_COOP.y, () => {
+      const s = getState(this);
+      if (s.flags.choresDone) {
+        this.openScript(CHORES_DONE_HINT);
+        return;
+      }
+      if (s.items.equipped !== "bucket") {
+        this.openScript(s.items.bucket === "none" ? NEED_BUCKET_HINT : NOT_EQUIPPED_HINT);
+        return;
+      }
+      if (s.items.bucket !== "filled") {
+        this.openScript(EMPTY_BUCKET_HINT);
+        return;
+      }
+      const { state } = awardXp(s, CHORE_XP);
+      setState(this, {
+        ...state,
+        items: { ...state.items, bucket: "none", equipped: null },
+        flags: { ...state.flags, choresDone: true }
+      });
+      this.floatText(OASIS_COOP.x * TILE + TILE / 2, OASIS_COOP.y * TILE, `+${CHORE_XP} XP`);
+    });
   }
 
-  /** Fills an empty bucket at the spring's edge. Repeatable; no-op otherwise. */
+  /** A visible spigot marks the fill spot; press E to fill an equipped, empty bucket. */
   private placeSpring(): void {
-    this.addTrigger(
-      { x1: OASIS_SPRING_FILL.x, y1: OASIS_SPRING_FILL.y, x2: OASIS_SPRING_FILL.x, y2: OASIS_SPRING_FILL.y },
-      () => {
-        const s = getState(this);
-        if (s.items.bucket !== "empty") return;
-        setState(this, { ...s, items: { ...s.items, bucket: "filled" } });
-        this.floatText(OASIS_SPRING_FILL.x * TILE + TILE / 2, OASIS_SPRING_FILL.y * TILE, "Bucket filled!");
-      },
-      false
+    const spigot = this.add.sprite(
+      OASIS_SPRING_FILL.x * TILE + TILE / 2,
+      OASIS_SPRING_FILL.y * TILE + TILE / 2,
+      "spigot",
+      0
     );
+    spigot.setDepth(spigot.y);
+
+    this.addInteractPoint(OASIS_SPRING_FILL.x, OASIS_SPRING_FILL.y, () => {
+      const s = getState(this);
+      if (s.items.equipped !== "bucket") {
+        this.openScript(SPIGOT_NEED_BUCKET_HINT);
+        return;
+      }
+      if (s.items.bucket === "filled") {
+        this.openScript(SPIGOT_ALREADY_FULL_HINT);
+        return;
+      }
+      setState(this, { ...s, items: { ...s.items, bucket: "filled" } });
+      this.floatText(OASIS_SPRING_FILL.x * TILE + TILE / 2, OASIS_SPRING_FILL.y * TILE, "Bucket filled!");
+    });
   }
 
   protected onUpdate(): void {

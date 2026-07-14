@@ -89,27 +89,24 @@ export class Hud {
     this.updateInventory(state);
   }
 
+  /**
+   * A small "what's equipped" readout — not the full inventory (that's the
+   * "I" window). Only shows when something is actually equipped, so it
+   * can't go stale showing an item the player is merely carrying.
+   */
   private updateInventory(state: Act1State): void {
-    const showBucket = state.items.bucket !== "none";
-    const showColdPack = state.items.coldPack;
-    if (!showBucket && !showColdPack) {
+    if (state.items.equipped !== "bucket") {
       this.invBg.setVisible(false);
       this.bucketIcon.setVisible(false);
       this.invText.setText("");
       return;
     }
-    const label = [
-      showBucket ? (state.items.bucket === "filled" ? "Bucket (full)" : "Bucket (empty)") : null,
-      showColdPack ? "Cold pack" : null
-    ]
-      .filter(Boolean)
-      .join("  ");
-    this.invText.setText(label).setPosition(showBucket ? 20 : 5, 46);
-    this.bucketIcon.setVisible(showBucket);
-    if (showBucket) this.bucketIcon.setFrame(state.items.bucket === "filled" ? 1 : 0);
+    const label = `Equipped: Bucket (${state.items.bucket === "filled" ? "full" : "empty"})`;
+    this.invText.setText(label).setPosition(20, 46);
+    this.bucketIcon.setVisible(true).setFrame(state.items.bucket === "filled" ? 1 : 0);
     this.invBg.clear();
     this.invBg.fillStyle(hexToInt(PALETTE.ink), 0.6);
-    this.invBg.fillRect(4, 44, this.invText.width + (showBucket ? 20 : 6), 14);
+    this.invBg.fillRect(4, 44, this.invText.width + 20, 14);
     this.invBg.setVisible(true);
   }
 }

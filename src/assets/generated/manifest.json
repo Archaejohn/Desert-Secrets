@@ -907,6 +907,22 @@
           "repeat": -1
         }
       }
+    },
+    "spigot": {
+      "file": "spigot.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "columns": 1,
+      "rows": 1,
+      "animations": {
+        "spigot-idle": {
+          "frames": [
+            0
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        }
+      }
     }
   },
   "tiles": {

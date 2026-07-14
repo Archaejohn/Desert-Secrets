@@ -146,7 +146,8 @@ describe("bucket manifest", () => {
         "icebat",
         "crystalcrawler",
         "frostscarab",
-        "warden"
+        "warden",
+        "spigot"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected

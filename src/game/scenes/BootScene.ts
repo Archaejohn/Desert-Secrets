@@ -32,6 +32,7 @@ import johnUrl from "../../assets/generated/john.png";
 import pamelaUrl from "../../assets/generated/pamela.png";
 import chickenUrl from "../../assets/generated/chicken.png";
 import bucketUrl from "../../assets/generated/bucket.png";
+import spigotUrl from "../../assets/generated/spigot.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -54,7 +55,8 @@ const SHEET_URLS: Record<string, string> = {
   john: johnUrl,
   pamela: pamelaUrl,
   chicken: chickenUrl,
-  bucket: bucketUrl
+  bucket: bucketUrl,
+  spigot: spigotUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {

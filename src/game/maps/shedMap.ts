@@ -1,7 +1,9 @@
 /**
  * Zone — The Shed. A small utility yard south of the homestead where
  * Joseph's family keeps tools and water buckets. One screen, one job:
- * find the bucket. Pure data, deterministic, unit-testable.
+ * find the bucket — sitting in the open, directly reachable from the
+ * entrance, with a low wall behind it for flavor only (never blocking
+ * the approach). Pure data, deterministic, unit-testable.
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
@@ -11,8 +13,8 @@ export const SHED_HEIGHT = 12;
 
 /** Default spawn: just inside the north gate, arriving from the oasis. */
 export const SHED_SPAWN = { x: 8, y: 2 } as const;
-/** The bucket sits against the back wall of the lean-to. */
-export const SHED_BUCKET = { x: 8, y: 6 } as const;
+/** The bucket sits out in the open, a short straight walk from the gate. */
+export const SHED_BUCKET = { x: 8, y: 5 } as const;
 /** North-edge exit band → back to the oasis, south of the coop. */
 export const SHED_NORTH_EXIT = { x1: 7, y1: 0, x2: 8, y2: 0 } as const;
 
@@ -33,16 +35,19 @@ export function buildShedMap(): ZoneMap {
     }
   }
 
-  // A small three-sided lean-to sheltering the bucket: brick back wall
-  // and two short side walls, open to the north (where the player enters).
-  for (let x = 6; x <= 10; x++) decor[5][x] = cellHash(x, 5) % 4 === 0 ? "brickCracked" : "brick";
-  for (let y = 5; y <= 8; y++) {
-    decor[y][6] = "ruinPillar";
-    decor[y][10] = "ruinPillar";
-  }
+  // A low backdrop wall BEHIND the bucket (south of it) — flavor only,
+  // never between the entrance and the pickup. Gap in the middle keeps
+  // it from reading as a fully enclosed room.
+  decor[7][6] = "brick";
+  decor[7][7] = cellHash(7, 7) % 3 === 0 ? "brickCracked" : "brick";
+  decor[7][9] = "brick";
+  decor[7][10] = cellHash(10, 7) % 3 === 0 ? "brickCracked" : "brick";
+  decor[8][6] = "ruinPillar";
+  decor[8][10] = "ruinPillar";
 
-  // A water barrel and scattered flavor props.
-  decor[7][8] = "pot";
+  // A water barrel and scattered flavor props, all clear of the direct
+  // spawn-to-bucket path (column 7-9, rows 2-5).
+  decor[6][3] = "pot";
   const rocks: Array<[number, number]> = [
     [3, 3],
     [13, 4],

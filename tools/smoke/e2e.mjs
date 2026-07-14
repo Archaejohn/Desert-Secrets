@@ -149,6 +149,36 @@ async function waitFor(page, pred, timeoutMs = 15_000) {
   return snapshot(page);
 }
 
+/**
+ * Walk (real key-driven, collision-respecting movement — not a teleport)
+ * toward a px target until within range, tapping the direction in short
+ * bursts. Used for the one reachability check that must catch real map
+ * bugs: teleporting bypasses collision entirely and would silently mask a
+ * wall sealing off a pickup (as the shed's bucket once was).
+ */
+async function walkUntilNear(page, dir, targetX, targetY, range = 22, maxSteps = 14) {
+  for (let i = 0; i < maxSteps; i++) {
+    const cur = await snapshot(page);
+    if (Math.hypot(cur.px - targetX, cur.py - targetY) < range) return cur;
+    await page.keyboard.down(dir);
+    await page.waitForTimeout(120);
+    await page.keyboard.up(dir);
+    await page.waitForTimeout(60);
+  }
+  return snapshot(page);
+}
+
+/** Move the player directly onto a px point (spawn-safe; not a physics walk). */
+async function standAt(page, zone, x, y) {
+  await page.evaluate(
+    ([zone, x, y]) => {
+      window.__game.scene.getScene(zone).player.body.reset(x, y);
+    },
+    [zone, x, y]
+  );
+  await page.waitForTimeout(150);
+}
+
 const browser = await chromium.launch({
   executablePath,
   args: ["--no-sandbox", "--use-gl=swiftshader"]
@@ -256,16 +286,20 @@ s = await waitFor(page, (x) => x.zoneKey === "oasis", 10_000);
 check("tutorial battle won", s.state.flags.tutorialBattleWon === true, JSON.stringify(s.state.flags));
 check("battle XP awarded", s.state.hero.xp >= 13, `xp=${s.state.hero.xp}`);
 
-// Optional side quest: feed and water the chickens. Three steps, all
-// skippable, none blocking progress to the trail.
+// Optional side quest: feed and water the chickens. Now a fetch-quest with
+// a real inventory: grab the bucket, open the bag and equip it, fill it at
+// the spigot, deliver it to the coop. All skippable, none blocking
+// progress to the trail. Every step here is a press-E InteractPoint, never
+// a walk-over trigger, so standing still can't cause a stray re-fire.
 const xpBeforeChores = (await snapshot(page)).state.hero.xp;
 
-// 1) Walking to the coop with no bucket yet: a hint, no state change.
-const oasisTrigsBefore = await page.evaluate(() => {
+// 1) Pressing E at the coop with no bucket yet: a hint, no state change.
+const coopPointBefore = await page.evaluate(() => {
   const w = window.__game.scene.getScene("oasis");
-  return w["triggers"].map((t) => t.rect);
+  return w["interactPoints"][0]; // coop is added first, in placeCoop()
 });
-await teleport(page, oasisTrigsBefore[0].x1, oasisTrigsBefore[0].y1);
+await standAt(page, "oasis", coopPointBefore.x, coopPointBefore.y);
+await tap(page, "KeyE");
 await page.waitForTimeout(300);
 s = await snapshot(page);
 check(
@@ -275,40 +309,67 @@ check(
 );
 if (s.dialogueOpen) await talkThrough(page); // close the hint before moving on
 
-// 2) South to the shed, pick up the bucket.
+// 2) South to the shed. WALK there with real keypresses (not a teleport) —
+// the one genuine collision-respecting traversal check in this script, to
+// catch a map wall sealing off the pickup the way teleporting would miss.
 s = await exitTo("oasis", "shed");
 check("south exit reaches the shed", s.zoneKey === "shed");
-const bucketTrig = await page.evaluate(() => {
+const bucketPoint = await page.evaluate(() => {
   const w = window.__game.scene.getScene("shed");
-  return w["triggers"].map((t) => t.rect)[0];
+  return w["interactPoints"][0];
 });
-await teleport(page, bucketTrig.x1, bucketTrig.y1);
+s = await walkUntilNear(page, "ArrowDown", bucketPoint.x, bucketPoint.y);
+check(
+  "walking down from the shed spawn reaches the bucket",
+  Math.hypot(s.px - bucketPoint.x, s.py - bucketPoint.y) < 22,
+  `at ${s.px},${s.py} vs ${bucketPoint.x},${bucketPoint.y}`
+);
+await tap(page, "KeyE");
 await page.waitForTimeout(300);
 s = await snapshot(page);
 check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
 
-// 3) Back to the oasis, fill it at the spring.
+// 3) Open the inventory window and equip the bucket — only an equipped
+// item can be used out in the world.
+await tap(page, "KeyI");
+await page.waitForTimeout(250);
+let invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
+check("inventory window opens on I", invOpen === true);
+await tap(page, "Space"); // the bucket is the only (selected) row
+await page.waitForTimeout(200);
+s = await snapshot(page);
+check("selecting the bucket in the inventory equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
+await tap(page, "KeyI"); // close
+await page.waitForTimeout(250);
+invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
+check("inventory window closes on I", invOpen === false);
+
+// 4) Back to the oasis, fill the equipped bucket at the spigot.
 s = await exitTo("shed", "oasis");
 check("shed exit returns to the oasis", s.zoneKey === "oasis");
-const oasisTrigs = await page.evaluate(() => {
+const spigotPoint = await page.evaluate(() => {
   const w = window.__game.scene.getScene("oasis");
-  return w["triggers"].map((t) => t.rect);
+  return w["interactPoints"][1]; // [0] coop, [1] spigot — added in that order
 });
-await teleport(page, oasisTrigs[1].x1, oasisTrigs[1].y1); // spring-fill trigger
+await standAt(page, "oasis", spigotPoint.x, spigotPoint.y);
+await tap(page, "KeyE");
 await page.waitForTimeout(300);
 s = await snapshot(page);
-check("filling the bucket at the spring sets its state to filled", s.state.items.bucket === "filled");
+check("filling the equipped bucket at the spigot sets its state to filled", s.state.items.bucket === "filled");
 
-// 4) Deliver it to the coop: completes the chore, awards XP, spends the bucket.
-await teleport(page, oasisTrigs[0].x1, oasisTrigs[0].y1); // coop trigger
+// 5) Deliver it to the coop: completes the chore, awards XP, spends and
+// un-equips the bucket.
+await standAt(page, "oasis", coopPointBefore.x, coopPointBefore.y);
+await tap(page, "KeyE");
 await page.waitForTimeout(300);
 s = await snapshot(page);
 check(
   "delivering the full bucket completes the chore and awards bonus XP",
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
-    s.state.items.bucket === "none",
-  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket}`
+    s.state.items.bucket === "none" &&
+    s.state.items.equipped === null,
+  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${s.state.items.equipped}`
 );
 
 // ---------- Beat 3: the trail ----------

@@ -23,7 +23,7 @@ describe("newGame", () => {
     expect(s.hero).toEqual({ xp: 0, perks: [] });
     expect(s.hp).toBe(32); // level 1 maxHp
     expect(s.pendingPerks).toBe(0);
-    expect(s.items).toEqual({ coldPack: false, shinies: 0, bucket: "none" });
+    expect(s.items).toEqual({ coldPack: false, shinies: 0, bucket: "none", equipped: null });
   });
 
   it("initialises every scene flag to false", () => {
@@ -176,12 +176,13 @@ describe("respawn", () => {
     s.items.coldPack = true;
     s.items.shinies = 2;
     s.items.bucket = "filled";
+    s.items.equipped = "bucket";
     s.flags.foremanDefeated = true;
     const after = respawn(s);
     expect(after.hp).toBe(statsForBuild(s.hero).maxHp);
     expect(after.zone).toBe("mine");
     expect(after.hero).toEqual(s.hero);
-    expect(after.items).toEqual({ coldPack: true, shinies: 2, bucket: "filled" });
+    expect(after.items).toEqual({ coldPack: true, shinies: 2, bucket: "filled", equipped: "bucket" });
     expect(after.flags.foremanDefeated).toBe(true);
     expect(after.pendingPerks).toBe(s.pendingPerks);
   });

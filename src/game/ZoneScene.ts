@@ -9,6 +9,7 @@ import Phaser from "phaser";
 import { MANIFEST } from "./manifest";
 import { DialogueBox } from "./ui/DialogueBox";
 import { Hud } from "./ui/Hud";
+import { InventoryMenu } from "./ui/InventoryMenu";
 import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
@@ -20,7 +21,9 @@ import {
   JoystickVisual,
   addActionButtonHint,
   addFullscreenButton,
+  addInventoryButton,
   inFullscreenButtonZone,
+  inInventoryButtonZone,
   isTouchDevice
 } from "./ui/touch";
 
@@ -68,6 +71,15 @@ interface TriggerZone {
   cb: () => void;
 }
 
+/** A stand-in-range, press-E interaction (spigot, bucket pickup, coop drop-off). */
+interface InteractPoint {
+  x: number;
+  y: number;
+  range: number;
+  once: boolean;
+  onUse: () => void;
+}
+
 export abstract class ZoneScene extends Phaser.Scene {
   protected player!: Phaser.Physics.Arcade.Sprite;
   protected dialogue!: DialogueBox;
@@ -81,10 +93,12 @@ export abstract class ZoneScene extends Phaser.Scene {
   private npcs: Npc[] = [];
   private exits: Exit[] = [];
   private triggers: TriggerZone[] = [];
+  private interactPoints: InteractPoint[] = [];
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key>;
   private keyInteract!: Phaser.Input.Keyboard.Key;
   private keySpace!: Phaser.Input.Keyboard.Key;
+  private inventoryMenu: InventoryMenu | null = null;
   private talkPrompt!: Phaser.GameObjects.Text;
   private joyOrigin: Phaser.Math.Vector2 | null = null;
   private joyVector = new Phaser.Math.Vector2(0, 0);
@@ -109,6 +123,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.npcs = [];
     this.exits = [];
     this.triggers = [];
+    this.interactPoints = [];
+    this.inventoryMenu = null;
     this.transitioning = false;
     this.inputLocked = false;
     this.joyOrigin = null;
@@ -158,6 +174,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (isTouchDevice(this)) {
       this.joystickVisual = new JoystickVisual(this);
       addActionButtonHint(this);
+      addInventoryButton(this, () => this.openInventory());
     }
 
     // Controls reminder on zone entry; fades away after a few seconds.
@@ -166,8 +183,8 @@ export abstract class ZoneScene extends Phaser.Scene {
         this.scale.width / 2,
         this.scale.height - 10,
         isTouchDevice(this)
-          ? "drag left side to move · tap right side / A to talk"
-          : "arrows/WASD move · E or SPACE talk & confirm",
+          ? "drag left side to move · tap right side / A to talk · bag to open inventory"
+          : "arrows/WASD move · E or SPACE talk & confirm · I for inventory",
         {
           fontFamily: "monospace",
           fontSize: "8px",
@@ -289,6 +306,11 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.wasd = kb.addKeys("W,A,S,D") as ZoneScene["wasd"];
     this.keyInteract = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.keySpace = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // Event-driven, not polled: openInventory() itself is a no-op while a
+    // menu is already open, so this can't race with InventoryMenu's own
+    // "keydown-I" close listener (a polled JustDown check would — see the
+    // bug this replaced in docs/CONTRACTS.md "v6").
+    kb.on("keydown-I", () => this.openInventory());
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => this.onPointerDown(p));
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
       if (this.joyOrigin && p.isDown) {
@@ -360,6 +382,26 @@ export abstract class ZoneScene extends Phaser.Scene {
 
   protected addTrigger(rect: TriggerZone["rect"], cb: () => void, once = true): void {
     this.triggers.push({ rect, once, fired: false, cb });
+  }
+
+  /**
+   * A stand-nearby, press-E interaction (spigot, bucket, coop). Unlike
+   * addTrigger, this only fires on an explicit key/tap press — never by
+   * just standing on a tile — so it can't refire on its own next frame.
+   */
+  protected addInteractPoint(
+    tileX: number,
+    tileY: number,
+    onUse: () => void,
+    opts?: { range?: number; once?: boolean }
+  ): void {
+    this.interactPoints.push({
+      x: tileX * TILE + TILE / 2,
+      y: tileY * TILE + TILE / 2,
+      range: opts?.range ?? TALK_RANGE,
+      once: opts?.once ?? false,
+      onUse
+    });
   }
 
   /** Open a dialogue immediately (cutscenes, radio calls). */
@@ -444,6 +486,41 @@ export abstract class ZoneScene extends Phaser.Scene {
     return best;
   }
 
+  private nearestInteractPoint(): InteractPoint | null {
+    let best: InteractPoint | null = null;
+    let bestD = Infinity;
+    for (const ip of this.interactPoints) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, ip.x, ip.y);
+      if (d < ip.range && d < bestD) {
+        bestD = d;
+        best = ip;
+      }
+    }
+    return best;
+  }
+
+  /** Opens the inventory window; toggling the bucket equips/unequips it. */
+  private openInventory(): void {
+    if (this.dialogue.isOpen || this.inputLocked || this.inventoryMenu || this.transitioning) return;
+    this.player.setVelocity(0, 0);
+    this.player.play(`hero-idle-${this.facing}`, true);
+    this.talkPrompt.setVisible(false);
+    this.inventoryMenu = new InventoryMenu(
+      this,
+      getState(this).items,
+      () => {
+        const s = getState(this);
+        const equipped: "bucket" | null = s.items.equipped === "bucket" ? null : "bucket";
+        const items = { ...s.items, equipped };
+        setState(this, { ...s, items });
+        return items;
+      },
+      () => {
+        this.inventoryMenu = null;
+      }
+    );
+  }
+
   private talkTo(npc: Npc): void {
     const script = npc.script();
     if (!script) return;
@@ -463,7 +540,9 @@ export abstract class ZoneScene extends Phaser.Scene {
 
   private onPointerDown(p: Phaser.Input.Pointer): void {
     if (this.inputLocked) return;
+    if (this.inventoryMenu) return; // the menu owns pointer input while open
     if (inFullscreenButtonZone(this, p)) return; // handled by the button itself
+    if (inInventoryButtonZone(this, p)) return; // handled by the button itself
     if (this.dialogue.isOpen) {
       this.dialogue.tapAt(p.x, p.y);
       return;
@@ -480,6 +559,12 @@ export abstract class ZoneScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     if (this.transitioning) return;
     const dt = deltaMs / 1000;
+
+    if (this.inventoryMenu) {
+      // The menu owns keyboard/pointer input while open; just idle the player.
+      this.player.setVelocity(0, 0);
+      return;
+    }
 
     // Depth-sort actors.
     this.player.setDepth(this.player.y);
@@ -505,13 +590,23 @@ export abstract class ZoneScene extends Phaser.Scene {
       return;
     }
 
-    // Talk prompt + interaction.
+    // Talk prompt + interaction. NPCs take priority over interact points.
     const npc = this.nearestNpc();
-    this.talkPrompt.setVisible(npc !== null);
+    const interactPoint = npc ? null : this.nearestInteractPoint();
+    this.talkPrompt.setVisible(npc !== null || interactPoint !== null);
     if (npc) {
       this.talkPrompt.setPosition(npc.sprite.x, npc.sprite.y - 26);
       if (interactPressed) {
         this.talkTo(npc);
+        return;
+      }
+    } else if (interactPoint) {
+      this.talkPrompt.setPosition(interactPoint.x, interactPoint.y - 20);
+      if (interactPressed) {
+        interactPoint.onUse();
+        if (interactPoint.once) {
+          this.interactPoints = this.interactPoints.filter((p) => p !== interactPoint);
+        }
         return;
       }
     }

@@ -34,14 +34,17 @@ export class ShedScene extends ZoneScene {
       );
       bucket.play("bucket-empty");
       bucket.setDepth(bucket.y);
-      this.addTrigger(
-        { x1: SHED_BUCKET.x, y1: SHED_BUCKET.y, x2: SHED_BUCKET.x, y2: SHED_BUCKET.y },
+      // Press-E pickup: fires once, on an explicit key/tap press only.
+      this.addInteractPoint(
+        SHED_BUCKET.x,
+        SHED_BUCKET.y,
         () => {
           bucket.destroy();
           const s = getState(this);
           setState(this, { ...s, items: { ...s.items, bucket: "empty" } });
-          this.floatText(SHED_BUCKET.x * TILE + TILE / 2, SHED_BUCKET.y * TILE, "Got a bucket.");
-        }
+          this.floatText(SHED_BUCKET.x * TILE + TILE / 2, SHED_BUCKET.y * TILE, "Got a bucket. Open the bag (I) to equip it.");
+        },
+        { once: true }
       );
     }
 

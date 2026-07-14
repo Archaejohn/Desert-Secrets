@@ -38,6 +38,7 @@ const sheets = [
   ["crystalcrawler.png", assets.crystalcrawler],
   ["frostscarab.png", assets.frostscarab],
   ["warden.png", assets.warden],
+  ["spigot.png", assets.spigot],
   ["tiles.png", assets.tiles],
   ["tiles2.png", assets.tiles2],
   ["tiles3.png", assets.tiles3]

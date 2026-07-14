@@ -88,3 +88,20 @@ describe("bucket asset byte-stability", () => {
     }
   });
 });
+
+describe("spigot asset byte-stability", () => {
+  // sha256 of the newly-generated spigot.png (docs/CONTRACTS.md "v6:
+  // inventory window, equip, and the spigot"). Pinned once here so future
+  // refactors can't silently move a shipped pixel.
+  const FROZEN = {
+    spigot: "18c897f81e8ae093972250408175094dc7fda623380fd64440dcebf947675709"
+  } as const;
+
+  it("spigot sheet encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

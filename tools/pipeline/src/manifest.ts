@@ -19,6 +19,7 @@ import { ICEBAT_FRAME } from "./sprites/icebat";
 import { CRYSTALCRAWLER_FRAME } from "./sprites/crystalcrawler";
 import { FROSTSCARAB_FRAME } from "./sprites/frostscarab";
 import { WARDEN_FRAME } from "./sprites/warden";
+import { SPIGOT_FRAME } from "./sprites/spigot";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
@@ -69,6 +70,7 @@ export interface Manifest {
     crystalcrawler: SheetDef;
     frostscarab: SheetDef;
     warden: SheetDef;
+    spigot: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
@@ -177,7 +179,8 @@ export function buildManifest(): Manifest {
       icebat: creatureSheet("icebat", ICEBAT_FRAME, "move", 3, 10),
       crystalcrawler: creatureSheet("crystalcrawler", CRYSTALCRAWLER_FRAME, "move", 3, 8),
       frostscarab: creatureSheet("frostscarab", FROSTSCARAB_FRAME, "move", 3, 10),
-      warden: creatureSheet("warden", WARDEN_FRAME, "move", 2, 8)
+      warden: creatureSheet("warden", WARDEN_FRAME, "move", 2, 8),
+      spigot: propSheet("spigot", SPIGOT_FRAME, [["idle", 0]])
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },

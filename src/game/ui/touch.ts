@@ -48,6 +48,27 @@ export function addFullscreenButton(scene: Phaser.Scene, y = 16): void {
   });
 }
 
+/** Top-left corner zone reserved for the inventory button. */
+export function inInventoryButtonZone(scene: Phaser.Scene, p: Phaser.Input.Pointer): boolean {
+  return p.x < 30 && p.y < 36;
+}
+
+export function addInventoryButton(scene: Phaser.Scene, onTap: () => void, y = 16): void {
+  const btn = scene.add
+    .text(4, y, "🎒", {
+      fontFamily: "monospace",
+      fontSize: "12px",
+      color: PALETTE.sand,
+      backgroundColor: "#24182799",
+      padding: { x: 4, y: 2 }
+    })
+    .setOrigin(0, 0)
+    .setScrollFactor(0)
+    .setDepth(7000)
+    .setInteractive({ useHandCursor: true });
+  btn.on("pointerdown", onTap);
+}
+
 /** Joystick base + thumb that renders while the player drags. */
 export class JoystickVisual {
   private base: Phaser.GameObjects.Graphics;

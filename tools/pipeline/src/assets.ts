@@ -25,6 +25,7 @@ import { icebatFrames } from "./sprites/icebat";
 import { crystalcrawlerFrames } from "./sprites/crystalcrawler";
 import { frostscarabFrames } from "./sprites/frostscarab";
 import { wardenFrames } from "./sprites/warden";
+import { spigotFrames } from "./sprites/spigot";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -52,6 +53,7 @@ export interface BuiltAssets {
   crystalcrawler: PixelGrid;
   frostscarab: PixelGrid;
   warden: PixelGrid;
+  spigot: PixelGrid;
   tiles: PixelGrid;
   tiles2: PixelGrid;
   tiles3: PixelGrid;
@@ -81,6 +83,7 @@ export const SHEET_KEYS = [
   "crystalcrawler",
   "frostscarab",
   "warden",
+  "spigot",
   "tiles",
   "tiles2",
   "tiles3"
@@ -109,6 +112,7 @@ export function buildAssets(): BuiltAssets {
     crystalcrawler: composeSheet(crystalcrawlerFrames(), 6),
     frostscarab: composeSheet(frostscarabFrames(), 6),
     warden: composeSheet(wardenFrames(), 6),
+    spigot: composeSheet(spigotFrames(), 1),
     tiles: composeSheet(tileFrames(), 8),
     tiles2: composeSheet(tile2Frames(), 8),
     tiles3: composeSheet(tile3Frames(), 8),

@@ -79,7 +79,7 @@ export interface Act1State {
   hp: number;
   /** Level-ups not yet spent on a perk choice. */
   pendingPerks: number;
-  items: { coldPack: boolean; shinies: number; bucket: BucketState };
+  items: { coldPack: boolean; shinies: number; bucket: BucketState; equipped: "bucket" | null };
   flags: Record<string, boolean>;
 }
 
@@ -92,7 +92,7 @@ export function newGame(): Act1State {
     hero: { xp: 0, perks: [] },
     hp: baseStatsForLevel(1).maxHp,
     pendingPerks: 0,
-    items: { coldPack: false, shinies: 0, bucket: "none" }, // Rosa grants the cold pack in dialogue
+    items: { coldPack: false, shinies: 0, bucket: "none", equipped: null }, // Rosa grants the cold pack in dialogue
     flags,
   };
 }
