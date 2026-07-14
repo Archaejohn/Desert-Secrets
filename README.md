@@ -22,9 +22,9 @@ checkpoint save lets you continue after closing the browser):
   the target's gauge).
 - **The Rime Warden** — a two-member-party boss on the frozen lake, and
   an ending that reveals Piggy isn't alone down here.
-- Leveling extends to Level 8; story plans for Acts 3–5 (Fluffball's
-  secret, the gathering, and a certain underground pizzeria) live in
-  `docs/STORY_ACTS3-5.md`.
+- Leveling extends to Level 8; story plans for Acts 3–7 (a dedicated act
+  per ingredient Piggy loves, Fluffball joining the party, and a certain
+  underground pizzeria) live in `docs/STORY_ACTS3-7.md`.
 
 ## Act 1 — The Coldest Cargo (~30 min)
 
