@@ -16,6 +16,13 @@ import type { ZoneId } from "../core/gameState";
 import { EncounterClock, ENCOUNTERS } from "../core/encounters";
 import { makeRng } from "../core/rng";
 import { PALETTE } from "../shared/palette";
+import {
+  JoystickVisual,
+  addActionButtonHint,
+  addFullscreenButton,
+  inFullscreenButtonZone,
+  isTouchDevice
+} from "./ui/touch";
 
 export const TILE = 16;
 const PLAYER_SPEED = 72;
@@ -81,6 +88,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   private talkPrompt!: Phaser.GameObjects.Text;
   private joyOrigin: Phaser.Math.Vector2 | null = null;
   private joyVector = new Phaser.Math.Vector2(0, 0);
+  private joystickVisual: JoystickVisual | null = null;
   private transitioning = false;
   private encounterClock: EncounterClock | null = null;
   private animatedTilePairs: Array<[number, number]> = [];
@@ -145,6 +153,12 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true);
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.fadeIn(400);
+
+    addFullscreenButton(this);
+    if (isTouchDevice(this)) {
+      this.joystickVisual = new JoystickVisual(this);
+      addActionButtonHint(this);
+    }
 
     this.populate();
     this.hud.update(getState(this));
@@ -248,11 +262,15 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.keySpace = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => this.onPointerDown(p));
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (this.joyOrigin && p.isDown) this.joyVector.set(p.x - this.joyOrigin.x, p.y - this.joyOrigin.y);
+      if (this.joyOrigin && p.isDown) {
+        this.joyVector.set(p.x - this.joyOrigin.x, p.y - this.joyOrigin.y);
+        this.joystickVisual?.move(this.joyVector.x, this.joyVector.y);
+      }
     });
     this.input.on("pointerup", () => {
       this.joyOrigin = null;
       this.joyVector.set(0, 0);
+      this.joystickVisual?.hide();
     });
   }
 
@@ -416,12 +434,14 @@ export abstract class ZoneScene extends Phaser.Scene {
 
   private onPointerDown(p: Phaser.Input.Pointer): void {
     if (this.inputLocked) return;
+    if (inFullscreenButtonZone(this, p)) return; // handled by the button itself
     if (this.dialogue.isOpen) {
       this.dialogue.tapAt(p.y);
       return;
     }
     if (p.x < this.scale.width / 2) {
       this.joyOrigin = new Phaser.Math.Vector2(p.x, p.y);
+      this.joystickVisual?.show(p.x, p.y);
     } else {
       const npc = this.nearestNpc();
       if (npc) this.talkTo(npc);

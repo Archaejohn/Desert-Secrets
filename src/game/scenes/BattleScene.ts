@@ -25,6 +25,7 @@ import {
   type ZoneId
 } from "../../core/gameState";
 import { getState, setState } from "../state";
+import { addFullscreenButton, inFullscreenButtonZone } from "../ui/touch";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { MANIFEST, tileIndex } from "../manifest";
 import { PerkMenu } from "../ui/PerkMenu";
@@ -349,7 +350,11 @@ export class BattleScene extends Phaser.Scene {
     this.menuBg = this.add.graphics();
     this.menuPanel = this.add.container(0, 0, [this.menuBg]);
     this.menuPanel.setDepth(1000).setVisible(false);
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => this.tapMenu(p));
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (inFullscreenButtonZone(this, p)) return; // handled by the button
+      this.tapMenu(p);
+    });
+    addFullscreenButton(this, 4);
   }
 
   private actionMenuItems(): { label: string; value: string }[] {
