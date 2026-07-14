@@ -24,6 +24,7 @@ const sheets = [
   ["john.png", assets.john],
   ["pamela.png", assets.pamela],
   ["chicken.png", assets.chicken],
+  ["bucket.png", assets.bucket],
   ["piggy.png", assets.piggy],
   ["jackrabbit.png", assets.jackrabbit],
   ["buzzard.png", assets.buzzard],

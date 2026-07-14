@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
+        ["crash","oasis","shed","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -256,22 +256,64 @@ s = await waitFor(page, (x) => x.zoneKey === "oasis", 10_000);
 check("tutorial battle won", s.state.flags.tutorialBattleWon === true, JSON.stringify(s.state.flags));
 check("battle XP awarded", s.state.hero.xp >= 13, `xp=${s.state.hero.xp}`);
 
-// Optional side quest: feed and water the chickens, for bonus XP.
+// Optional side quest: feed and water the chickens. Three steps, all
+// skippable, none blocking progress to the trail.
 const xpBeforeChores = (await snapshot(page)).state.hero.xp;
-const coopTrig = await page.evaluate(() => {
+
+// 1) Walking to the coop with no bucket yet: a hint, no state change.
+const oasisTrigsBefore = await page.evaluate(() => {
   const w = window.__game.scene.getScene("oasis");
-  return w["triggers"].map((t) => t.rect)[0];
+  return w["triggers"].map((t) => t.rect);
 });
-await teleport(page, coopTrig.x1, coopTrig.y1);
+await teleport(page, oasisTrigsBefore[0].x1, oasisTrigsBefore[0].y1);
 await page.waitForTimeout(300);
 s = await snapshot(page);
 check(
-  "the chicken side quest is optional and awards bonus XP",
-  s.state.flags.choresDone === true && s.state.hero.xp > xpBeforeChores,
-  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp}`
+  "coop hints instead of completing with no bucket",
+  s.state.items.bucket === "none" && s.state.flags.choresDone !== true,
+  `bucket=${s.state.items.bucket}`
+);
+if (s.dialogueOpen) await talkThrough(page); // close the hint before moving on
+
+// 2) South to the shed, pick up the bucket.
+s = await exitTo("oasis", "shed");
+check("south exit reaches the shed", s.zoneKey === "shed");
+const bucketTrig = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("shed");
+  return w["triggers"].map((t) => t.rect)[0];
+});
+await teleport(page, bucketTrig.x1, bucketTrig.y1);
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
+
+// 3) Back to the oasis, fill it at the spring.
+s = await exitTo("shed", "oasis");
+check("shed exit returns to the oasis", s.zoneKey === "oasis");
+const oasisTrigs = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("oasis");
+  return w["triggers"].map((t) => t.rect);
+});
+await teleport(page, oasisTrigs[1].x1, oasisTrigs[1].y1); // spring-fill trigger
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check("filling the bucket at the spring sets its state to filled", s.state.items.bucket === "filled");
+
+// 4) Deliver it to the coop: completes the chore, awards XP, spends the bucket.
+await teleport(page, oasisTrigs[0].x1, oasisTrigs[0].y1); // coop trigger
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check(
+  "delivering the full bucket completes the chore and awards bonus XP",
+  s.state.flags.choresDone === true &&
+    s.state.hero.xp > xpBeforeChores &&
+    s.state.items.bucket === "none",
+  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket}`
 );
 
 // ---------- Beat 3: the trail ----------
+s = await waitFor(page, (x) => x.zoneKey === "oasis", 8000);
+check("back in the oasis after chores", s.zoneKey === "oasis", JSON.stringify(s.active));
 const oasisExits = await page.evaluate(() => {
   const w = window.__game.scene.getScene("oasis");
   return w["exits"].map((e) => ({ rect: e.rect, target: e.target }));
@@ -279,7 +321,7 @@ const oasisExits = await page.evaluate(() => {
 const toTrail = oasisExits.find((e) => e.target === "trail");
 await teleport(page, toTrail.rect.x1, toTrail.rect.y1);
 s = await waitFor(page, (x) => x.zoneKey === "trail");
-check("reaches the trail", s.zoneKey === "trail");
+check("reaches the trail", s.zoneKey === "trail", JSON.stringify(s.active));
 await talkThrough(page); // radio check-in
 s = await snapshot(page);
 

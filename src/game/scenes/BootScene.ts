@@ -31,6 +31,7 @@ import wardenUrl from "../../assets/generated/warden.png";
 import johnUrl from "../../assets/generated/john.png";
 import pamelaUrl from "../../assets/generated/pamela.png";
 import chickenUrl from "../../assets/generated/chicken.png";
+import bucketUrl from "../../assets/generated/bucket.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -52,7 +53,8 @@ const SHEET_URLS: Record<string, string> = {
   warden: wardenUrl,
   john: johnUrl,
   pamela: pamelaUrl,
-  chicken: chickenUrl
+  chicken: chickenUrl,
+  bucket: bucketUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {
@@ -64,7 +66,8 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   crevasse: "The Crevasse",
   maze: "The Ice Maze",
   galleries: "The Galleries",
-  sanctum: "The Sanctum"
+  sanctum: "The Sanctum",
+  shed: "The Shed"
 };
 
 export class BootScene extends Phaser.Scene {

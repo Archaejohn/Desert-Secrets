@@ -25,10 +25,16 @@ export const OASIS_COOP_PEN = { x1: 17, y1: 15, x2: 20, y2: 17 } as const;
 export const OASIS_WEST_EXIT = { x1: 1, y1: 9, x2: 1, y2: 11 } as const;
 /** East-edge exit band → the Piggy Trail. */
 export const OASIS_EAST_EXIT = { x1: 30, y1: 8, x2: 30, y2: 10 } as const;
+/** South-edge exit band, past the coop → the shed. */
+export const OASIS_SOUTH_EXIT = { x1: 18, y1: 19, x2: 19, y2: 19 } as const;
 /** Where the player appears when arriving from the crash site. */
 export const OASIS_WEST_SPAWN = { x: 2, y: 10 } as const;
 /** Where the player appears when arriving back from the trail. */
 export const OASIS_EAST_SPAWN = { x: 29, y: 9 } as const;
+/** Where the player appears when arriving back from the shed. */
+export const OASIS_SOUTH_SPAWN = { x: 19, y: 18 } as const;
+/** Just south of the pond — fill an empty bucket here. */
+export const OASIS_SPRING_FILL = { x: 26, y: 8 } as const;
 
 export function buildOasisMap(): ZoneMap {
   const ground: string[][] = [];
@@ -106,6 +112,9 @@ export function buildOasisMap(): ZoneMap {
   ];
   for (const [x, y] of cacti) decor[y][x] = "cactus";
 
+  // A little sandSparkle where the spring overflows, marking the fill spot.
+  ground[OASIS_SPRING_FILL.y][OASIS_SPRING_FILL.x] = "sandSparkle";
+
   // The chicken coop: a small fenced pen (existing tiles only — no new
   // tileset), open at its south edge as the walk-in entrance.
   const pen = OASIS_COOP_PEN;
@@ -147,6 +156,11 @@ export function buildOasisMap(): ZoneMap {
     decor[y][OASIS_WIDTH - 1] = null;
     ground[y][OASIS_WIDTH - 1] = "frostSand";
     ground[y][OASIS_WIDTH - 2] = "frostSand";
+  }
+  for (let x = OASIS_SOUTH_EXIT.x1; x <= OASIS_SOUTH_EXIT.x2; x++) {
+    decor[OASIS_HEIGHT - 1][x] = null;
+    ground[OASIS_HEIGHT - 1][x] = "sand2";
+    ground[OASIS_HEIGHT - 2][x] = "sand2";
   }
 
   return { ground, decor, overhead };

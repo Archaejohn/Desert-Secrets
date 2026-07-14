@@ -480,6 +480,29 @@
         }
       }
     },
+    "bucket": {
+      "file": "bucket.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "columns": 2,
+      "rows": 1,
+      "animations": {
+        "bucket-empty": {
+          "frames": [
+            0
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "bucket-full": {
+          "frames": [
+            1
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        }
+      }
+    },
     "piggy": {
       "file": "piggy.png",
       "frameWidth": 16,

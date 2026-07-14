@@ -227,6 +227,7 @@ describe("act1-retcon manifest", () => {
         "john",
         "pamela",
         "chicken",
+        "bucket",
         "piggy",
         "jackrabbit",
         "buzzard",

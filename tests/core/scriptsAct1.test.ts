@@ -232,6 +232,7 @@ describe("radioLines", () => {
       "mine",
       "oasis",
       "sanctum",
+      "shed",
       "trail",
     ]);
   });

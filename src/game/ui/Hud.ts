@@ -14,6 +14,9 @@ export class Hud {
   private levelText: Phaser.GameObjects.Text;
   private zoneText: Phaser.GameObjects.Text;
   private objectiveText: Phaser.GameObjects.Text;
+  private invBg: Phaser.GameObjects.Graphics;
+  private bucketIcon: Phaser.GameObjects.Sprite;
+  private invText: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, zoneName: string) {
     const c = scene.add.container(0, 0).setScrollFactor(0).setDepth(6000);
@@ -39,7 +42,25 @@ export class Hud {
       backgroundColor: "#24182799",
       padding: { x: 2, y: 1 }
     });
-    c.add([this.bars, this.levelText, this.zoneText, this.objectiveText]);
+
+    // Minimal inventory row: only shown when there's something to carry.
+    this.invBg = scene.add.graphics().setVisible(false);
+    this.bucketIcon = scene.add.sprite(11, 51, "bucket", 0).setVisible(false);
+    this.invText = scene.add.text(20, 46, "", {
+      fontFamily: "monospace",
+      fontSize: "8px",
+      color: PALETTE.sandLight
+    });
+
+    c.add([
+      this.bars,
+      this.levelText,
+      this.zoneText,
+      this.objectiveText,
+      this.invBg,
+      this.bucketIcon,
+      this.invText
+    ]);
   }
 
   update(state: Act1State): void {
@@ -65,5 +86,30 @@ export class Hud {
     g.fillStyle(hexToInt(PALETTE.atbGold), 1);
     g.fillRect(6, 27, Math.max(0, Math.round(Math.min(1, frac) * 60)), 2);
     this.objectiveText.setText(`▸ ${objectiveFor(state)}`);
+    this.updateInventory(state);
+  }
+
+  private updateInventory(state: Act1State): void {
+    const showBucket = state.items.bucket !== "none";
+    const showColdPack = state.items.coldPack;
+    if (!showBucket && !showColdPack) {
+      this.invBg.setVisible(false);
+      this.bucketIcon.setVisible(false);
+      this.invText.setText("");
+      return;
+    }
+    const label = [
+      showBucket ? (state.items.bucket === "filled" ? "Bucket (full)" : "Bucket (empty)") : null,
+      showColdPack ? "Cold pack" : null
+    ]
+      .filter(Boolean)
+      .join("  ");
+    this.invText.setText(label).setPosition(showBucket ? 20 : 5, 46);
+    this.bucketIcon.setVisible(showBucket);
+    if (showBucket) this.bucketIcon.setFrame(state.items.bucket === "filled" ? 1 : 0);
+    this.invBg.clear();
+    this.invBg.fillStyle(hexToInt(PALETTE.ink), 0.6);
+    this.invBg.fillRect(4, 44, this.invText.width + (showBucket ? 20 : 6), 14);
+    this.invBg.setVisible(true);
   }
 }

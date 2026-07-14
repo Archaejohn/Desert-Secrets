@@ -26,11 +26,22 @@ import {
   OASIS_PAMELA,
   OASIS_PARENTS,
   OASIS_SCARAB,
+  OASIS_SOUTH_EXIT,
+  OASIS_SOUTH_SPAWN,
   OASIS_SPAWN,
+  OASIS_SPRING_FILL,
   OASIS_WEST_EXIT,
   OASIS_WEST_SPAWN,
   OASIS_WIDTH
 } from "../../src/game/maps/oasisMap";
+import {
+  buildShedMap,
+  SHED_BUCKET,
+  SHED_HEIGHT,
+  SHED_NORTH_EXIT,
+  SHED_SPAWN,
+  SHED_WIDTH
+} from "../../src/game/maps/shedMap";
 import {
   buildTrailMap,
   TRAIL_CHIPS,
@@ -146,13 +157,14 @@ function assertEnclosed(map: ZoneMap, gates: Array<{ x: number; y: number }> = [
 /** Border-edge gate cells implied by an exit band one tile inside the edge. */
 function edgeGate(
   rect: { x1: number; y1: number; x2: number; y2: number },
-  edge: "west" | "east" | "north",
+  edge: "west" | "east" | "north" | "south",
   map: ZoneMap
 ): Array<{ x: number; y: number }> {
-  const { width } = mapSize(map);
+  const { width, height } = mapSize(map);
   const cells: Array<{ x: number; y: number }> = [];
-  if (edge === "north") {
-    for (let x = rect.x1; x <= rect.x2; x++) cells.push({ x, y: 0 });
+  if (edge === "north" || edge === "south") {
+    const y = edge === "north" ? 0 : height - 1;
+    for (let x = rect.x1; x <= rect.x2; x++) cells.push({ x, y });
   } else {
     const x = edge === "west" ? 0 : width - 1;
     for (let y = rect.y1; y <= rect.y2; y++) cells.push({ x, y });
@@ -234,7 +246,11 @@ describe("oasis map (the homestead)", () => {
   });
 
   it("is fully enclosed by solid border tiles", () => {
-    assertEnclosed(map, [...edgeGate(OASIS_WEST_EXIT, "west", map), ...edgeGate(OASIS_EAST_EXIT, "east", map)]);
+    assertEnclosed(map, [
+      ...edgeGate(OASIS_WEST_EXIT, "west", map),
+      ...edgeGate(OASIS_EAST_EXIT, "east", map),
+      ...edgeGate(OASIS_SOUTH_EXIT, "south", map)
+    ]);
   });
 
   it("keeps spawn points, exits and NPC tiles walkable", () => {
@@ -244,20 +260,25 @@ describe("oasis map (the homestead)", () => {
       OASIS_PAMELA,
       OASIS_SCARAB,
       OASIS_COOP,
+      OASIS_SPRING_FILL,
       OASIS_WEST_SPAWN,
       OASIS_EAST_SPAWN,
+      OASIS_SOUTH_SPAWN,
       rectTile(OASIS_WEST_EXIT),
-      rectTile(OASIS_EAST_EXIT)
+      rectTile(OASIS_EAST_EXIT),
+      rectTile(OASIS_SOUTH_EXIT)
     ]) {
       expect(isSolidAt(map, p.x, p.y)).toBe(false);
     }
   });
 
-  it("lets the player walk from spawn to the parents, the coop and both exits", () => {
+  it("lets the player walk from spawn to the parents, the coop, the spring and all exits", () => {
     expect(reachable(map, OASIS_SPAWN, OASIS_PARENTS)).toBe(true);
     expect(reachable(map, OASIS_SPAWN, OASIS_COOP)).toBe(true);
+    expect(reachable(map, OASIS_SPAWN, OASIS_SPRING_FILL)).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_WEST_EXIT))).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_EAST_EXIT))).toBe(true);
+    expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_SOUTH_EXIT))).toBe(true);
   });
 
   it("fences the coop except for its south-facing entrance", () => {
@@ -287,6 +308,39 @@ describe("oasis map (the homestead)", () => {
       }
     }
     expect(found).toBe(true);
+  });
+});
+
+// ----------------------------------------------------------------- shed
+
+describe("shed map (the shed)", () => {
+  const map = buildShedMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, SHED_WIDTH, SHED_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildShedMap()).toEqual(map);
+  });
+
+  it("is fully enclosed by solid border tiles", () => {
+    assertEnclosed(map, edgeGate(SHED_NORTH_EXIT, "north", map));
+  });
+
+  it("keeps the spawn, the bucket and the exit walkable", () => {
+    for (const p of [SHED_SPAWN, SHED_BUCKET, rectTile(SHED_NORTH_EXIT)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player walk from spawn to the bucket and back out", () => {
+    expect(reachable(map, SHED_SPAWN, SHED_BUCKET)).toBe(true);
+    expect(reachable(map, SHED_SPAWN, rectTile(SHED_NORTH_EXIT))).toBe(true);
   });
 });
 

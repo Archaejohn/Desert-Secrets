@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene";
 import { CrashScene } from "./scenes/CrashScene";
 import { OasisScene } from "./scenes/OasisScene";
+import { ShedScene } from "./scenes/ShedScene";
 import { TrailScene } from "./scenes/TrailScene";
 import { MineScene } from "./scenes/MineScene";
 import { DepthsScene } from "./scenes/DepthsScene";
@@ -31,6 +32,7 @@ const game = new Phaser.Game({
     BootScene,
     CrashScene,
     OasisScene,
+    ShedScene,
     TrailScene,
     MineScene,
     DepthsScene,

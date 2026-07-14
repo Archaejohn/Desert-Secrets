@@ -7,6 +7,7 @@ import { CHAR_FRAME_W, CHAR_FRAME_H } from "./sprites/poses";
 import { SCARAB_FRAME } from "./sprites/scarab";
 import { PIGGY_FRAME } from "./sprites/piggy";
 import { CHICKEN_FRAME } from "./sprites/chicken";
+import { BUCKET_FRAME } from "./sprites/bucket";
 import { JACKRABBIT_FRAME } from "./sprites/jackrabbit";
 import { BUZZARD_FRAME } from "./sprites/buzzard";
 import { GILA_FRAME } from "./sprites/gila";
@@ -54,6 +55,7 @@ export interface Manifest {
     john: SheetDef;
     pamela: SheetDef;
     chicken: SheetDef;
+    bucket: SheetDef;
     piggy: SheetDef;
     jackrabbit: SheetDef;
     buzzard: SheetDef;
@@ -119,6 +121,27 @@ function creatureSheet(
   };
 }
 
+/** Static two-frame prop sheet: no idle/move cycle, just two named,
+ *  one-frame, non-looping states (e.g. bucket empty/full). */
+function propSheet(
+  name: string,
+  frame: number,
+  states: readonly [key: string, frameIndex: number][]
+): SheetDef {
+  const animations: Record<string, AnimationDef> = {};
+  for (const [key, frameIndex] of states) {
+    animations[`${name}-${key}`] = { frames: [frameIndex], frameRate: 1, repeat: 0 };
+  }
+  return {
+    file: `${name}.png`,
+    frameWidth: frame,
+    frameHeight: frame,
+    columns: states.length,
+    rows: 1,
+    animations
+  };
+}
+
 function tileNames(names: readonly string[]): Record<string, number> {
   const map: Record<string, number> = {};
   names.forEach((name, i) => {
@@ -138,6 +161,10 @@ export function buildManifest(): Manifest {
       john: characterSheet("john"),
       pamela: characterSheet("pamela"),
       chicken: creatureSheet("chicken", CHICKEN_FRAME, "move", 3, 10),
+      bucket: propSheet("bucket", BUCKET_FRAME, [
+        ["empty", 0],
+        ["full", 1]
+      ]),
       piggy: creatureSheet("piggy", PIGGY_FRAME, "walk", 3, 8),
       jackrabbit: creatureSheet("jackrabbit", JACKRABBIT_FRAME, "move", 3, 12),
       buzzard: creatureSheet("buzzard", BUZZARD_FRAME, "move", 3, 8),

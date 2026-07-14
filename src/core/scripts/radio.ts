@@ -36,4 +36,5 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   maze: checkIn(["...static..."]),
   galleries: checkIn(["...static..."]),
   sanctum: checkIn(["...static..."]),
+  shed: checkIn(["Bucket duty? Sure. Very heroic of you."]),
 };

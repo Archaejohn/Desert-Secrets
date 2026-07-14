@@ -555,3 +555,68 @@ low walls, `pot` as feed/water troughs, plain `sand` interior).
   hens go wild."), sets `choresDone`, awards **+10 XP**, floats "+10 XP".
   Entirely optional — never blocks the exit to the trail. 2–3 static
   `chicken-idle` sprites live in the pen for visual life.
+
+---
+
+# Act 1 addition: the bucket fetch-quest + a minimal inventory (v5)
+
+Extends the chicken side quest from v4: instead of completing on a single
+walk-in, feeding the chickens now takes three steps — get a bucket from
+a new zone south of the homestead, fill it at the spring, deliver it to
+the coop. A small persistent inventory HUD shows what's currently held.
+
+## New generated asset
+
+| File | Frame | Grid | Animations | Design |
+|---|---|---|---|---|
+| `bucket.png` | 16×16 | 2×1 (32×16px) | `bucket-empty` [0] repeat 0, `bucket-full` [1] repeat 0 | A static prop, not a creature — two discrete frames, no motion between them. Frame 0: a plain clay/rust pail, empty (interior in `ink` shadow). Frame 1: the same pail with a `skyBlue`/`mint` water surface visible over the rim, one small `white` glint. |
+
+Same palette-lock/determinism rules as every other sheet; all prior
+assets (through `pamela.png`/`chicken.png`) stay byte-identical.
+
+## New zone: `shed`
+
+A small single-screen utility area south of the homestead — Joseph's
+family keeps tools and water buckets here. Composed entirely from
+existing tile names (no new tileset): `brick`/`brickCracked` walls,
+`ruinPillar` support posts, `pot` as barrels, `rock`/`cactus`/`bones` for
+flavor, bounded on all sides, one north exit back to `oasis`. Holds one
+pickup: the bucket, at a landmark tile `SHED_BUCKET`. Walking onto it (if
+`items.bucket === "none"`) removes the prop, sets `items.bucket =
+"empty"`, floats "Got a bucket." `ZoneId` gains `"shed"`.
+
+## Oasis changes
+
+- New `OASIS_SOUTH_EXIT` gate in the south border (existing visible-gate
+  pattern — a real opening + a path, not an invisible trigger), placed
+  near the coop, leading to `shed`; `OASIS_SOUTH_SPAWN` back the other way.
+- New `OASIS_SPRING_FILL` landmark just south of the pond. A repeatable
+  (`once: false`) trigger there: if `items.bucket === "empty"`, fill it
+  (`items.bucket = "filled"`, float "Bucket filled!"); any other bucket
+  state, no effect (silent).
+- The coop trigger (v4) now branches on `items.bucket` instead of firing
+  unconditionally: `"filled"` → completes the chore exactly as v4 (+10
+  XP, `choresDone`, bucket is spent — reset to `"none"` since the quest
+  is one-time and done); `"none"` or `"empty"` → a short inline hint line
+  instead ("Trough's dry. Got a bucket?" / "Bucket's empty. Try the
+  spring.") and no state change.
+- `homeAct1.ts`'s "Ask about the chickens" branch gets one line added
+  pointing at the shed ("Bucket's out in the shed, south of here.").
+
+## Core changes
+
+- `gameState.ts`: `Act1State.items` gains `bucket: "none" | "empty" |
+  "filled"`, initialized `"none"` in `newGame()`. Existing `items`
+  spread-update call sites are unaffected (additive field).
+
+## Inventory HUD
+
+A small new UI element (`src/game/ui/InventoryHud.ts` or folded into the
+existing `Hud`) — shown only when there's something worth showing (the
+cold pack is held, or the bucket is anything but `"none"`). Text-based
+for the cold pack (no dedicated art exists for it); the bucket gets a
+small icon drawn from `bucket.png` at its current frame (empty/full)
+alongside a short label. This is deliberately the *minimal* version of
+the inventory system `docs/STORY_ACTS3-7.md` already anticipates needing
+for Act 4's stinky socks — extend this component later rather than
+building a second one.

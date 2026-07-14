@@ -27,7 +27,11 @@ export type ZoneId =
   | "crevasse"
   | "maze"
   | "galleries"
-  | "sanctum";
+  | "sanctum"
+  | "shed";
+
+/** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
+export type BucketState = "none" | "empty" | "filled";
 
 /** Quest flags used by scenes, all false at newGame(). */
 export const ACT1_FLAGS = [
@@ -75,7 +79,7 @@ export interface Act1State {
   hp: number;
   /** Level-ups not yet spent on a perk choice. */
   pendingPerks: number;
-  items: { coldPack: boolean; shinies: number };
+  items: { coldPack: boolean; shinies: number; bucket: BucketState };
   flags: Record<string, boolean>;
 }
 
@@ -88,7 +92,7 @@ export function newGame(): Act1State {
     hero: { xp: 0, perks: [] },
     hp: baseStatsForLevel(1).maxHp,
     pendingPerks: 0,
-    items: { coldPack: false, shinies: 0 }, // Rosa grants the cold pack in dialogue
+    items: { coldPack: false, shinies: 0, bucket: "none" }, // Rosa grants the cold pack in dialogue
     flags,
   };
 }

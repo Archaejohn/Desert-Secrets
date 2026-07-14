@@ -11,6 +11,7 @@ import { rosaFrames } from "./sprites/rosa";
 import { johnFrames } from "./sprites/john";
 import { pamelaFrames } from "./sprites/pamela";
 import { chickenFrames } from "./sprites/chicken";
+import { bucketFrames } from "./sprites/bucket";
 import { piggyFrames } from "./sprites/piggy";
 import { jackrabbitFrames } from "./sprites/jackrabbit";
 import { buzzardFrames } from "./sprites/buzzard";
@@ -37,6 +38,7 @@ export interface BuiltAssets {
   john: PixelGrid;
   pamela: PixelGrid;
   chicken: PixelGrid;
+  bucket: PixelGrid;
   piggy: PixelGrid;
   jackrabbit: PixelGrid;
   buzzard: PixelGrid;
@@ -65,6 +67,7 @@ export const SHEET_KEYS = [
   "john",
   "pamela",
   "chicken",
+  "bucket",
   "piggy",
   "jackrabbit",
   "buzzard",
@@ -92,6 +95,7 @@ export function buildAssets(): BuiltAssets {
     john: composeSheet(johnFrames(), 6),
     pamela: composeSheet(pamelaFrames(), 6),
     chicken: composeSheet(chickenFrames(), 6),
+    bucket: composeSheet(bucketFrames(), 2),
     piggy: composeSheet(piggyFrames(), 6),
     jackrabbit: composeSheet(jackrabbitFrames(), 6),
     buzzard: composeSheet(buzzardFrames(), 6),

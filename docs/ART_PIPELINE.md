@@ -47,6 +47,7 @@ follows them exactly.
 | `frostscarab.png` | 24×24 | 6×1 | the scarab rig re-dressed in frost: skyBlue shell, bone rime edges, mint gem, mint eyes |
 | `piggy.png` | 16×16 | 6×1 | baby emperor penguin; idle shiver (lateral tremble + head tuck), waddle with alternating lean/steps, one alternating mint frost-glint pixel |
 | `chicken.png` | 16×16 | 6×1 | small round hen, bone/sand feathers, amber beak+feet, a single small rust comb accent; idle = head-bob peck, move = strut with alternating leg contact |
+| `bucket.png` | 16×16 | 2×1 | static clay/rust pail prop, not a creature — no idle/move cycle; `bucket-empty` [0] shows an ink hollow interior, `bucket-full` [1] shows a skyBlue/mint water surface with one white glint, both one-frame animations with repeat 0 |
 | `fluffball.png` | 16×16 | 6×1 | second chick: Piggy's waddle machinery with an even rounder no-neck silhouette in gray (mauve/plum) down; idle = fluff-shake |
 | `slither.png` | 16×16 | 6×1 | jade whipsnake facing RIGHT (world code flips): coiled tongue-flick idle, 4-frame travelling-wave S-curve undulation |
 | `jackrabbit.png` | 16×16 | 6×1 | idle sit + ear twitch, 4-frame hop cycle |

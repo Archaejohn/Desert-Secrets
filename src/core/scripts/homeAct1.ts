@@ -56,7 +56,8 @@ export const homeAct1Script: DialogueScript = {
       lines: [
         { speaker: "Pamela", text: "Did you feed and water the chickens yet?" },
         { speaker: "Joseph", text: "...I was just heading out, if I'm honest." },
-        { speaker: "John", text: "Trough's west of the spring. Won't take long." },
+        { speaker: "John", text: "Bucket's out in the shed, south of here." },
+        { speaker: "John", text: "Fill it at the spring, then the trough's west." },
         { speaker: "Pamela", text: "Do it before you go. They get dramatic." },
       ],
       next: "hub",

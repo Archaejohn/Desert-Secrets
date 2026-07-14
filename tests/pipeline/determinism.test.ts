@@ -71,3 +71,20 @@ describe("act1-retcon asset byte-stability", () => {
     }
   });
 });
+
+describe("bucket asset byte-stability", () => {
+  // sha256 of the newly-generated bucket.png (docs/CONTRACTS.md "Act 1
+  // addition: the bucket fetch-quest + a minimal inventory (v5)"). Pinned
+  // once here so future refactors can't silently move a shipped pixel.
+  const FROZEN = {
+    bucket: "43cd2f8960b444f9862b7daa15fdc8325ea9aff0045d4256a84df627acdc6c13"
+  } as const;
+
+  it("bucket sheet encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});
