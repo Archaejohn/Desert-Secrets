@@ -96,16 +96,26 @@ export class DialogueBox {
     this.renderChoices(choices);
   }
 
-  /** For touch: pick a specific choice row if one was tapped, else confirm. */
-  tapAt(screenY: number): void {
+  /**
+   * Touch input. Plain lines: any tap advances. Choice lists: ONLY a tap
+   * on a choice row picks it — taps anywhere else are ignored, so a
+   * stray touch (e.g. a joystick-intent press) can't pick an option.
+   */
+  tapAt(_screenX: number, screenY: number): void {
     if (!this.runner) return;
     const choices = this.runner.choices;
-    if (choices) {
-      const localY = screenY - (this.container.y + 18);
-      const row = Math.floor(localY / 12);
-      if (row >= 0 && row < choices.length) this.selected = row;
+    if (!choices) {
+      this.confirm();
+      return;
     }
-    this.confirm();
+    // Choice i's text renders at container-relative y = 18 + 12*(i+1);
+    // give each row a 12px-tall tap band starting 2px above its text.
+    const localY = screenY - this.container.y;
+    const row = Math.floor((localY - 28) / 12);
+    if (row >= 0 && row < choices.length) {
+      this.selected = row;
+      this.confirm();
+    }
   }
 
   private close(): void {
@@ -131,7 +141,7 @@ export class DialogueBox {
       this.selected = 0;
       this.lineText.setText(line.text);
       this.renderChoices(choices);
-      this.hintText.setText("↑↓ + SPACE");
+      this.hintText.setText("tap · ↑↓+SPACE");
     } else {
       this.lineText.setText(line.text);
       this.hintText.setText("SPACE ▸");

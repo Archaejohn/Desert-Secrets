@@ -1,5 +1,26 @@
 # Shipping to Android
 
+## Install on a phone today (PWA — no store, no build tools)
+
+The game is an installable Progressive Web App: `docs/play/` holds the
+built game plus a web manifest, home-screen icons (pipeline-generated
+Piggy), and a service worker that caches everything for offline play.
+
+1. Host `docs/play/` anywhere static. Easiest: GitHub Pages — repo
+   **Settings → Pages → Deploy from a branch → `main` / `docs`**, then the
+   game lives at `https://<owner>.github.io/Desert-Secrets/play/`.
+2. Open that URL on the phone:
+   - **Android (Chrome):** menu ⋮ → **Add to Home screen** (or the
+     automatic "Install app" prompt). Launches fullscreen in landscape,
+     works offline.
+   - **iPhone (Safari):** Share → **Add to Home Screen**. Same result —
+     standalone and fullscreen (iOS has no in-browser fullscreen API, so
+     this is *the* way to play fullscreen on an iPhone).
+3. After changing the game, refresh the hosted copy with `npm run pages`
+   and commit `docs/play/`.
+
+## Play Store route (Capacitor)
+
 The game is a Phaser 3 web build, which ships to Android with
 [Capacitor](https://capacitorjs.com/) — the standard wrapper for web games
 on Google Play. Nothing in the game assumes a browser beyond a WebView:

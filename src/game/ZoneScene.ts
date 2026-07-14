@@ -436,7 +436,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (this.inputLocked) return;
     if (inFullscreenButtonZone(this, p)) return; // handled by the button itself
     if (this.dialogue.isOpen) {
-      this.dialogue.tapAt(p.y);
+      this.dialogue.tapAt(p.x, p.y);
       return;
     }
     if (p.x < this.scale.width / 2) {
