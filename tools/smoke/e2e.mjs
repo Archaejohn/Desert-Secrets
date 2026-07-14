@@ -1,7 +1,7 @@
 /**
  * Headless end-to-end playthrough of Act 1 against the built bundle
  * (dist/index.html). Not a unit test — it drives the real game in
- * Chromium: crash site → Rosa → oasis → Sahra → tutorial battle
+ * Chromium: crash site → Rosa → oasis → parents → tutorial battle
  * (first lost on purpose to verify scene-start respawn, then won) →
  * trail (chips, random encounter, jackrabbit, Dusty) → mine (lever,
  * Foreman boss) → depths (Dust Queen, cliffhanger, end card).
@@ -226,12 +226,12 @@ s = await waitFor(page, (x) => x.zoneKey === "oasis");
 check("east exit reaches the oasis", s.zoneKey === "oasis");
 check("checkpoint updated to oasis", s.state.zone === "oasis");
 
-// Talk to Sahra, exit via farewell (last choice), tutorial battle starts.
-const sahraOpened = await talkToNpc(page, "oasis", 0);
-check("Sahra dialogue opens", sahraOpened);
-await talkThrough(page, { exitIndex: 99 }); // always pick the LAST choice (farewell)
+// Talk to John, exit via farewell (last choice), tutorial battle starts.
+const parentsOpened = await talkToNpc(page, "oasis", 0);
+check("parents' dialogue opens", parentsOpened);
+await talkThrough(page, { exitIndex: 99 }); // always pick the LAST choice (goodbye)
 s = await waitFor(page, (x) => x.battle, 8000);
-check("tutorial battle starts after Sahra", s.battle === true);
+check("tutorial battle starts after meeting the parents", s.battle === true);
 
 // Lose on purpose: never act. Scarab needs ~5 hits.
 s = await fightThrough(page, { act: false, timeoutMs: 120_000 });
@@ -255,6 +255,21 @@ s = await fightThrough(page);
 s = await waitFor(page, (x) => x.zoneKey === "oasis", 10_000);
 check("tutorial battle won", s.state.flags.tutorialBattleWon === true, JSON.stringify(s.state.flags));
 check("battle XP awarded", s.state.hero.xp >= 13, `xp=${s.state.hero.xp}`);
+
+// Optional side quest: feed and water the chickens, for bonus XP.
+const xpBeforeChores = (await snapshot(page)).state.hero.xp;
+const coopTrig = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("oasis");
+  return w["triggers"].map((t) => t.rect)[0];
+});
+await teleport(page, coopTrig.x1, coopTrig.y1);
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check(
+  "the chicken side quest is optional and awards bonus XP",
+  s.state.flags.choresDone === true && s.state.hero.xp > xpBeforeChores,
+  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp}`
+);
 
 // ---------- Beat 3: the trail ----------
 const oasisExits = await page.evaluate(() => {

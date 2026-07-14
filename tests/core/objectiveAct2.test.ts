@@ -103,7 +103,7 @@ describe("objectiveFor — Act 2 chain", () => {
 
   it("leaves the Act 1 chain untouched while actComplete is false", () => {
     expect(objectiveFor(state("crash"))).toBe("Talk to Rosa by the truck");
-    expect(objectiveFor(state("depths", { metRosa: true, metSahra: true, tutorialBattleWon: true, metDusty: true, mineOpen: true, leverPulled: true, foremanDefeated: true }))).toBe(
+    expect(objectiveFor(state("depths", { metRosa: true, metParents: true, tutorialBattleWon: true, metDusty: true, mineOpen: true, leverPulled: true, foremanDefeated: true }))).toBe(
       "Find Piggy in the cold below",
     );
   });

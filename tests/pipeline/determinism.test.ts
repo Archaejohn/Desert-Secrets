@@ -52,3 +52,22 @@ describe("pre-act2 asset byte-stability", () => {
     }
   });
 });
+
+describe("act1-retcon asset byte-stability", () => {
+  // sha256 of the newly-generated john/pamela/chicken PNGs (docs/CONTRACTS.md
+  // "Act 1 retcon: John & Pamela replace Sahra"). Pinned once here so future
+  // refactors can't silently move a shipped pixel.
+  const FROZEN = {
+    john: "19999fa7f84c95a3f6051ebb19f33190e026daff5d035b494631737a313e2a1e",
+    pamela: "52f5a094c756b194f1e53ba6aba14caa9e80c81d8b2284c24f9c83d5b7444ad3",
+    chicken: "f7b656b5b02aba2522d68f9c8b5d930d7e40c87a168a354087ab4510441d67c0"
+  } as const;
+
+  it("john/pamela/chicken sheets encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

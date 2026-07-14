@@ -28,7 +28,7 @@ describe("newGame", () => {
 
   it("initialises every scene flag to false", () => {
     const s = newGame();
-    expect(ACT1_FLAGS.length).toBe(16);
+    expect(ACT1_FLAGS.length).toBe(17);
     for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS]) {
       expect(s.flags[flag]).toBe(false);
     }

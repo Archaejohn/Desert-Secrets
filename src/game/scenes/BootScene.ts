@@ -28,6 +28,9 @@ import icebatUrl from "../../assets/generated/icebat.png";
 import crystalcrawlerUrl from "../../assets/generated/crystalcrawler.png";
 import frostscarabUrl from "../../assets/generated/frostscarab.png";
 import wardenUrl from "../../assets/generated/warden.png";
+import johnUrl from "../../assets/generated/john.png";
+import pamelaUrl from "../../assets/generated/pamela.png";
+import chickenUrl from "../../assets/generated/chicken.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -46,12 +49,15 @@ const SHEET_URLS: Record<string, string> = {
   icebat: icebatUrl,
   crystalcrawler: crystalcrawlerUrl,
   frostscarab: frostscarabUrl,
-  warden: wardenUrl
+  warden: wardenUrl,
+  john: johnUrl,
+  pamela: pamelaUrl,
+  chicken: chickenUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {
   crash: "Highway 95",
-  oasis: "Sahra's Oasis",
+  oasis: "The Homestead",
   trail: "The Piggy Trail",
   mine: "Cinnabar Mine",
   depths: "The Depths",

@@ -19,19 +19,19 @@ describe("objectiveFor", () => {
   it("walks the quest chain in order", () => {
     const chain: Array<[Act1State, RegExp]> = [
       [state("oasis", { metRosa: true }), /keeper|oasis/i],
-      [state("oasis", { metRosa: true, metSahra: true }), /scarab/i],
+      [state("oasis", { metRosa: true, metParents: true }), /scarab/i],
       [
-        state("oasis", { metRosa: true, metSahra: true, tutorialBattleWon: true }),
+        state("oasis", { metRosa: true, metParents: true, tutorialBattleWon: true }),
         /trail|east/i
       ],
       [
-        state("trail", { metRosa: true, metSahra: true, tutorialBattleWon: true }),
+        state("trail", { metRosa: true, metParents: true, tutorialBattleWon: true }),
         /Last Chance|Fuel/i
       ],
       [
         state("trail", {
           metRosa: true,
-          metSahra: true,
+          metParents: true,
           tutorialBattleWon: true,
           metDusty: true,
           mineOpen: true
@@ -41,7 +41,7 @@ describe("objectiveFor", () => {
       [
         state("mine", {
           metRosa: true,
-          metSahra: true,
+          metParents: true,
           tutorialBattleWon: true,
           metDusty: true,
           mineOpen: true
@@ -51,7 +51,7 @@ describe("objectiveFor", () => {
       [
         state("mine", {
           metRosa: true,
-          metSahra: true,
+          metParents: true,
           tutorialBattleWon: true,
           metDusty: true,
           mineOpen: true,
@@ -62,7 +62,7 @@ describe("objectiveFor", () => {
       [
         state("depths", {
           metRosa: true,
-          metSahra: true,
+          metParents: true,
           tutorialBattleWon: true,
           metDusty: true,
           mineOpen: true,

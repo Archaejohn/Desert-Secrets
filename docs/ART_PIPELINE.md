@@ -26,24 +26,27 @@ the game always builds without running the pipeline first).
 npm run art          # = npx tsx tools/pipeline/src/index.ts
 ```
 
-Writes 21 files into `src/assets/generated/`: the v1 set (`hero.png`,
+Writes 24 files into `src/assets/generated/`: the v1 set (`hero.png`,
 `npc.png`, `scarab.png`, `tiles.png`), the Act 1 set (`rosa.png`,
 `piggy.png`, `jackrabbit.png`, `buzzard.png`, `gila.png`, `foreman.png`,
 `queen.png`, `tiles2.png`), the Act 2 set (`slither.png`, `miner.png`,
 `fluffball.png`, `icebat.png`, `crystalcrawler.png`, `frostscarab.png`,
-`warden.png`, `tiles3.png`) and `manifest.json`. Layouts, frame semantics
+`warden.png`, `tiles3.png`), the Act 1 retcon set (`john.png`,
+`pamela.png`, `chicken.png`) and `manifest.json`. Layouts, frame semantics
 and the manifest schema are specified in `docs/CONTRACTS.md` §1, §4 and §7
-— the pipeline follows them exactly.
+and the "Act 1 retcon: John & Pamela replace Sahra" section — the pipeline
+follows them exactly.
 
 ### Asset list
 
 | Sheet | Frame | Grid | Notes |
 |---|---|---|---|
-| `hero.png` / `npc.png` / `rosa.png` / `miner.png` | 16×24 | 6×4 | 4-direction humanoids sharing `poses.ts` (idle 0–1, walk 2–5 per row). Rosa: ink bob, bone shirt, amber hi-vis vest. Miner: rust hard hat with an amber lantern pixel, bone beard, slate bib overalls |
+| `hero.png` / `npc.png` / `rosa.png` / `miner.png` / `john.png` / `pamela.png` | 16×24 | 6×4 | 4-direction humanoids sharing `poses.ts` (idle 0–1, walk 2–5 per row). Rosa: ink bob, bone shirt, amber hi-vis vest. Miner: rust hard hat with an amber lantern pixel, bone beard, slate bib overalls. John: broad-shouldered rancher dad, wide sand hat brim, rust/clay shirt, slate trousers, ink boots. Pamela: jade/teal apron over a bone blouse, sand hair in a rust-ribboned bun |
 | `scarab.png` | 24×24 | 6×1 | battle enemy; idle 0–1 / skitter 2–5 |
 | `foreman.png` | 24×24 | 6×1 | armored scarab elite — reuses the scarab pose table + leg rig with slate/indigo plates and an amber eye slit |
 | `frostscarab.png` | 24×24 | 6×1 | the scarab rig re-dressed in frost: skyBlue shell, bone rime edges, mint gem, mint eyes |
 | `piggy.png` | 16×16 | 6×1 | baby emperor penguin; idle shiver (lateral tremble + head tuck), waddle with alternating lean/steps, one alternating mint frost-glint pixel |
+| `chicken.png` | 16×16 | 6×1 | small round hen, bone/sand feathers, amber beak+feet, a single small rust comb accent; idle = head-bob peck, move = strut with alternating leg contact |
 | `fluffball.png` | 16×16 | 6×1 | second chick: Piggy's waddle machinery with an even rounder no-neck silhouette in gray (mauve/plum) down; idle = fluff-shake |
 | `slither.png` | 16×16 | 6×1 | jade whipsnake facing RIGHT (world code flips): coiled tongue-flick idle, 4-frame travelling-wave S-curve undulation |
 | `jackrabbit.png` | 16×16 | 6×1 | idle sit + ear twitch, 4-frame hop cycle |
@@ -65,7 +68,7 @@ and the manifest schema are specified in `docs/CONTRACTS.md` §1, §4 and §7
 | `tools/pipeline/src/sheet.ts` | `composeSheet(frames, columns)` — row-major layout, Phaser frame numbering |
 | `tools/pipeline/src/png.ts` | `PixelGrid` → PNG buffer via pngjs + the master palette |
 | `tools/pipeline/src/rng.ts` | seeded mulberry32 |
-| `tools/pipeline/src/sprites/*.ts` | pure frame builders (hero, npc, rosa, miner, scarab, foreman, frostscarab, piggy, fluffball, slither, jackrabbit, buzzard, icebat, gila, crystalcrawler, queen, warden) + shared pose table (`poses.ts`) |
+| `tools/pipeline/src/sprites/*.ts` | pure frame builders (hero, npc, rosa, miner, john, pamela, scarab, foreman, frostscarab, piggy, fluffball, chicken, slither, jackrabbit, buzzard, icebat, gila, crystalcrawler, queen, warden) + shared pose table (`poses.ts`) |
 | `tools/pipeline/src/tileset.ts` | the 16 named v1 tiles |
 | `tools/pipeline/src/tileset2.ts` | the 24 named Act 1 tiles |
 | `tools/pipeline/src/tileset3.ts` | the 16 named Act 2 tiles |

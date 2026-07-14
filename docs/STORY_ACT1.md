@@ -19,7 +19,7 @@ isn't melting. The desert has been waiting for something cold.
 
 Warm-hearted adventure with a thread of mystery. The desert is dangerous
 but never cruel; every "monster" has a reason. Dialogue is short, dry, and
-kind (Sahra's existing voice is the register for the whole game).
+kind — that register carries the whole game.
 
 ## Cast (Act 1)
 
@@ -28,7 +28,7 @@ kind (Sahra's existing voice is the register for the whole game).
 | **Joseph** | Player character. Practical, soft-spoken, carries a canteen and a wildlife crate harness. |
 | **Piggy** | Baby emperor penguin. Cannot speak; communicates in waddles, squeaks and one devastating look. Frost follows him. |
 | **Rosa Delgado** | The transport driver. Radios Joseph tips and urgency; the act's clock ("he can't take this heat much longer"). |
-| **Sahra the Keeper** | The oasis hermit (already in game). Knows the desert "collects lost things." Gives the trail quest. |
+| **John & Pamela** | Joseph's parents, at the family homestead by the spring. Warm, practical, a little worried — about Piggy, and about Thomas being unreachable all day. Give the trail hints and an optional chicken-chores side quest. |
 | **Dusty** | A giant pack rat who runs a trading post out of the Last Chance Fuel station. Trades in shiny things; saw everything. |
 | **The Dust Queen** | Brood-mother of the giant scarabs nesting in Cinnabar Mine. Act 1 boss — and not a villain. |
 
@@ -52,13 +52,18 @@ twin brother **Thomas** all day and doesn't know where he is — Thomas
 doesn't resurface until Parts 2–4 (`docs/STORY_PARTS2-4.md`).
 *No combat. Ends when Joseph steps off the asphalt onto the flats.*
 
-### Beat 2 — The Keeper of the Water (minutes 3–9)
-Cross Cholla Flats to **Sahra's oasis** (the existing map). Sahra saw a
-"little tuxedoed bird chasing the shine of a mirage" at dawn — and warns
-that the crash woke the scarab brood. **Forced tutorial battle: one scarab**
-(teaches ATB gauges, Attack, Guard). Sahra reads the frost feather and goes
-quiet — first hint she knows more than she says. Quest: follow three
-**ice chips** Piggy left where he rested. *Joseph reaches Level 2 here.*
+### Beat 2 — The Homestead (minutes 3–9)
+Cross Cholla Flats to the family homestead by the spring (the existing
+oasis map). John saw Piggy waddle past at dawn, headed east; the ground's
+been humming since the crash — the scarabs are stirring.
+**Forced tutorial battle: one scarab** (teaches ATB gauges, Attack,
+Guard). A quiet hub lets Joseph ask about Thomas (still missing, second
+mention of the thread) or the chickens (an optional side quest — feed and
+water them at the coop for bonus XP, never required). Farewell: John
+mentions ice out on the flats that never melted — first hint someone
+*noticed*, without Sahra's mysticism; the mystery itself stays seeded by
+Rosa's crash-site line instead. Quest: follow three **ice chips** Piggy
+left where he rested. *Joseph reaches Level 2 here.*
 
 ### Beat 3 — The Trail (minutes 9–17)
 Three micro-zones, one clue each:
@@ -104,7 +109,7 @@ back. **Title card: Act 2 — The Ice Below.**
 | Beat | Content | Minutes |
 |---|---|---|
 | 1 | Crash site, tutorial, stakes | 3 |
-| 2 | Oasis, Sahra, tutorial battle | 6 |
+| 2 | Homestead, parents, tutorial battle | 6 |
 | 3 | Three-zone trail, 2–4 battles, Dusty | 8 |
 | 4 | Mine dungeon, puzzle, Foreman | 6 |
 | 5 | Dust Queen (fight or parley) | 5 |
@@ -141,9 +146,10 @@ back. **Title card: Act 2 — The Ice Below.**
 | Foreman Scarab | 30 | Mid-boss |
 | Dust Queen | 60 | Fight **or** parley route |
 | Quest: crash-site scene | 5 | |
-| Quest: Sahra's three ice chips | 5 × 3 | Discovery bonuses |
+| Quest: three ice chips on the flats | 5 × 3 | Discovery bonuses |
 | Quest: Dusty's trade | 10 | |
 | Quest: mine-cart lever | 10 | |
+| Side quest: feed & water the chickens | 10 | Optional, homestead only |
 
 Mandatory-path total ≈ **8 + 8 + 10 + 14 + 30 + 60 + 55 quest/discovery
 = ~165 XP** → comfortably Level 4 before the Queen, Level 5 exactly if the
@@ -176,8 +182,13 @@ inside a 30-minute act.
   no new colors needed — Act 1 stays inside the established look.
 
 ### Continuity with the shipped demo
-- Sahra's current "sun-temple" lore line gets revised to the buried-ice
-  secret when Act 1 dialogue is written (`src/core/scripts/sahra.ts`).
-- The demo's oasis map becomes Beat 2's location as-is; the demo battle
-  is Beat 2's tutorial battle.
+- The demo's oasis map became Beat 2's location as-is (`src/game/maps/
+  oasisMap.ts`); the demo battle is Beat 2's tutorial battle.
 - The hero is Joseph everywhere a name appears.
+- **Retcon:** Beat 2 originally starred Sahra, a desert hermit
+  (`src/core/scripts/sahra.ts` / `sahraAct1.ts`, since deleted). She's
+  been replaced with Joseph's parents, John and Pamela
+  (`src/core/scripts/homeAct1.ts`) — see the cast table and Beat 2 above.
+  The frost-mystery seeding she used to carry moved to Rosa's crash-site
+  dialogue instead. Sahra isn't cut from the game; she's free to appear
+  fresh, later, unconnected to Act 1 — see `docs/STORY_ACTS3-7.md` Act 5.

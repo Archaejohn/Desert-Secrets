@@ -49,8 +49,8 @@ along by Slither, who swims ahead as scout.
   bed — and bolts the second Joseph gets close, dropping (or shrieking)
   one clue as he goes: Piggy's favorite fish, **silverfin**, only runs
   in the sea's deepest kelp beds, past where the light gives out.
-- Mid-act: the flooded ruins of the sun-temple Sahra hinted at back in
-  Act 1 — the desert wasn't hiding treasure, it was hiding an
+- Mid-act: the flooded ruins of a sun-temple nobody topside ever knew
+  was there — the desert wasn't hiding treasure, it was hiding an
   **ecosystem** that's been down here since the Mojave was ocean.
 - **Fishing minigame:** a timing-based catch off a floe for the silverfin
   clue; a much bigger fish (mini-boss: **the Lurker**) keeps stealing the

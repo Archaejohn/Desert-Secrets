@@ -4,8 +4,6 @@ import {
   validateScript,
   type DialogueScript,
 } from "../../src/core/dialogue";
-import { sahraScript } from "../../src/core/scripts/sahra";
-
 function line(text: string) {
   return { speaker: "NPC", text };
 }
@@ -206,62 +204,5 @@ describe("DialogueRunner", () => {
     expect(r.active).toBe(false);
     expect(r.start()).toEqual(line("hello"));
     expect(r.active).toBe(true);
-  });
-});
-
-describe("sahraScript", () => {
-  it("validates clean", () => {
-    expect(() => validateScript(sahraScript)).not.toThrow();
-  });
-
-  it("keeps every line within a 3-line text box (~48 chars)", () => {
-    for (const node of sahraScript.nodes) {
-      for (const l of node.lines) {
-        expect(l.text.length).toBeLessThanOrEqual(48);
-      }
-    }
-  });
-
-  function runToChoices(r: DialogueRunner) {
-    r.start();
-    while (r.choices === null) {
-      const next = r.advance();
-      if (next === null) throw new Error("script ended before any choice");
-    }
-  }
-
-  it("reaches a three-way choice from the greeting", () => {
-    const r = new DialogueRunner(sahraScript);
-    runToChoices(r);
-    expect(r.choices!.map((c) => c.text)).toEqual([
-      "Ask about the temple",
-      "Ask about the scarabs",
-      "Say farewell",
-    ]);
-  });
-
-  it("temple and scarab branches loop back to the choice hub", () => {
-    for (const idx of [0, 1]) {
-      const r = new DialogueRunner(sahraScript);
-      runToChoices(r);
-      let l = r.advance(idx);
-      expect(l).not.toBeNull();
-      while (r.choices === null) {
-        l = r.advance();
-        expect(l).not.toBeNull(); // lore must flow back to the hub, not end
-      }
-      expect(r.choices!.length).toBe(3); // back at the hub
-      expect(r.active).toBe(true);
-    }
-  });
-
-  it("farewell terminates the conversation", () => {
-    const r = new DialogueRunner(sahraScript);
-    runToChoices(r);
-    let l = r.advance(2);
-    expect(l).not.toBeNull();
-    while (l !== null) l = r.advance();
-    expect(r.active).toBe(false);
-    expect(r.currentLine).toBeNull();
   });
 });

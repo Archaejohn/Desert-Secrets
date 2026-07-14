@@ -33,7 +33,8 @@ export type ZoneId =
 export const ACT1_FLAGS = [
   "metRosa",
   "gotColdPack",
-  "metSahra",
+  "metParents",
+  "choresDone",
   "tutorialBattleWon",
   "chip1",
   "chip2",

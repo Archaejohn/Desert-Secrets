@@ -490,3 +490,68 @@ determinism, enclosure-with-gates, BFS spawn→landmarks) plus maze-specific:
 - Each declared false-lead dead end is reachable, and removing its single
   entrance tile makes it unreachable (proves it's a true cul-de-sac).
 - Both maze→galleries exits reachable; loop corridor returns to entry.
+
+---
+
+# Act 1 retcon: John & Pamela replace Sahra (v4)
+
+Sahra is removed from Act 1's oasis beat. The oasis is now framed as
+Joseph's family homestead, built by the spring — his parents, **John**
+and **Pamela**, live there. (Sahra herself is not deleted from the game's
+future — `docs/STORY_ACTS3-7.md` Act 5 can still introduce her fresh,
+unconnected to Act 1, as originally planned.)
+
+## New generated assets
+
+Same rules as §1/§4/§7 (palette-locked, deterministic, ink outlines,
+manifest animations with absolute frame indices):
+
+| File | Frame | Grid | Animations | Design |
+|---|---|---|---|---|
+| `john.png` | 16×24 | 6×4 (down/left/right/up) | `john-idle-*`, `john-walk-*` (8 keys, hero pattern) | Sturdy rancher dad: rust/clay work shirt, slate trousers, bone/gray hair, wide sand-colored hat, ink boots — broader silhouette than Joseph |
+| `pamela.png` | 16×24 | 6×4 (down/left/right/up) | `pamela-idle-*`, `pamela-walk-*` (8 keys, hero pattern) | Practical mom: jade/teal apron over a bone blouse, sand hair tied back, warm posture |
+| `chicken.png` | 16×16 | 6×1 | `chicken-idle` [0,1] fr 3, `chicken-move` [2..5] fr 10 | Small round hen: bone/sand feathers, amber beak+feet, small rust comb; idle = head-bob peck, move = strut |
+
+`john.png`/`pamela.png` reuse the existing 4-direction humanoid rig
+(`poses.ts`, mirror-derived left row) like `rosa.ts`/`miner.ts`.
+`chicken.png` reuses the small-creature pattern (`jackrabbit.ts`).
+All prior assets (through `tiles3.png`) stay byte-identical — no existing
+tileset gains new tiles; the chicken coop is composed entirely from
+existing tile names (`ruinPillar` fence posts, `brick`/`brickCracked`
+low walls, `pot` as feed/water troughs, plain `sand` interior).
+
+## Core changes
+
+- `gameState.ts`: `ACT1_FLAGS` drops `metSahra`, gains `metParents` (same
+  narrative slot — set on first dialogue close, same node that triggers
+  the tutorial battle) and `choresDone` (the chicken side quest, optional,
+  never gates progress).
+- `objective.ts`: the `!f.metSahra` line ("Find the keeper of the oasis")
+  becomes `!f.metParents` → `"Find your parents at the oasis"`.
+- `scripts/sahra.ts` and `scripts/sahraAct1.ts` are deleted (the former
+  was already orphaned/demo-only; the latter is fully superseded).
+  `scripts/homeAct1.ts` replaces `sahraAct1.ts` in `OasisScene`, same
+  structural contract: a greet flow ending in a 3-item choice hub
+  ("Ask about Thomas" / "Ask about the chickens" / "Say goodbye"), the
+  first two looping back to the hub, farewell terminating the script.
+  Content: Pamela and John both voice lines (family conversation, not a
+  single hermit monologue); "Ask about Thomas" reinforces the Act 1
+  crash-site seed (Thomas still hasn't turned up — "That boy and his
+  secrets. Find Piggy first."); "Ask about the chickens" is exactly the
+  side-quest hook the design calls for ("did you feed and water them
+  yet?") and points the player at the coop.
+
+## Scene changes (`OasisScene`, `oasisMap.ts`)
+
+- `OASIS_SAHRA` renamed `OASIS_PARENTS` (John's tile; Pamela stands one
+  tile over). Both are `addNpc`'d pointing at the same `homeAct1Script`
+  and the same `onClose` handler (sets `metParents`, fires the tutorial
+  battle on the first close) — talking to either parent has the same
+  effect, no separate bookkeeping per parent.
+- New landmark `OASIS_COOP` (interaction point) plus a small fenced pen
+  near it (existing tiles only, per above). One `addTrigger` there:
+  walking in and interacting (if `!choresDone`) plays a short two-line
+  inline flavor beat ("You fill the trough and top off the water. The
+  hens go wild."), sets `choresDone`, awards **+10 XP**, floats "+10 XP".
+  Entirely optional — never blocks the exit to the trail. 2–3 static
+  `chicken-idle` sprites live in the pen for visual life.

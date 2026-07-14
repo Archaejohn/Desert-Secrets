@@ -18,10 +18,13 @@ import {
 } from "../../src/game/maps/crashMap";
 import {
   buildOasisMap,
+  OASIS_COOP,
+  OASIS_COOP_PEN,
   OASIS_EAST_EXIT,
   OASIS_EAST_SPAWN,
   OASIS_HEIGHT,
-  OASIS_SAHRA,
+  OASIS_PAMELA,
+  OASIS_PARENTS,
   OASIS_SCARAB,
   OASIS_SPAWN,
   OASIS_WEST_EXIT,
@@ -215,7 +218,7 @@ describe("crash map (Highway 95)", () => {
 
 // ---------------------------------------------------------------- oasis
 
-describe("oasis map (Sahra's Oasis)", () => {
+describe("oasis map (the homestead)", () => {
   const map = buildOasisMap();
 
   it("has the declared dimensions", () => {
@@ -237,8 +240,10 @@ describe("oasis map (Sahra's Oasis)", () => {
   it("keeps spawn points, exits and NPC tiles walkable", () => {
     for (const p of [
       OASIS_SPAWN,
-      OASIS_SAHRA,
+      OASIS_PARENTS,
+      OASIS_PAMELA,
       OASIS_SCARAB,
+      OASIS_COOP,
       OASIS_WEST_SPAWN,
       OASIS_EAST_SPAWN,
       rectTile(OASIS_WEST_EXIT),
@@ -248,10 +253,22 @@ describe("oasis map (Sahra's Oasis)", () => {
     }
   });
 
-  it("lets the player walk from spawn to Sahra and both exits", () => {
-    expect(reachable(map, OASIS_SPAWN, OASIS_SAHRA)).toBe(true);
+  it("lets the player walk from spawn to the parents, the coop and both exits", () => {
+    expect(reachable(map, OASIS_SPAWN, OASIS_PARENTS)).toBe(true);
+    expect(reachable(map, OASIS_SPAWN, OASIS_COOP)).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_WEST_EXIT))).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_EAST_EXIT))).toBe(true);
+  });
+
+  it("fences the coop except for its south-facing entrance", () => {
+    // The three declared fence sides must be solid...
+    for (let x = OASIS_COOP_PEN.x1; x <= OASIS_COOP_PEN.x2; x++) {
+      expect(isSolidAt(map, x, OASIS_COOP_PEN.y1)).toBe(true); // north wall
+    }
+    expect(isSolidAt(map, OASIS_COOP_PEN.x1, OASIS_COOP_PEN.y2)).toBe(true); // west corner
+    expect(isSolidAt(map, OASIS_COOP_PEN.x2, OASIS_COOP_PEN.y2)).toBe(true); // east corner
+    // ...except the entrance gap itself, which must be open.
+    expect(isSolidAt(map, OASIS_COOP.x, OASIS_COOP.y)).toBe(false);
   });
 
   it("keeps the pond and ruins, with palm crowns in the overhead grid", () => {

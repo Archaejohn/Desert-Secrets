@@ -5,7 +5,7 @@ import {
   type DialogueScript,
 } from "../../src/core/dialogue";
 import { rosaCrashScript } from "../../src/core/scripts/rosaCrash";
-import { sahraAct1Script } from "../../src/core/scripts/sahraAct1";
+import { homeAct1Script } from "../../src/core/scripts/homeAct1";
 import { dustyTradeScript } from "../../src/core/scripts/dustyTrade";
 import { rabbitChoiceScript } from "../../src/core/scripts/rabbitChoice";
 import { queenFightScript } from "../../src/core/scripts/queenFight";
@@ -15,7 +15,7 @@ import { cliffhangerScript } from "../../src/core/scripts/cliffhanger";
 
 const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["rosaCrash", rosaCrashScript],
-  ["sahraAct1", sahraAct1Script],
+  ["homeAct1", homeAct1Script],
   ["dustyTrade", dustyTradeScript],
   ["rabbitChoice", rabbitChoiceScript],
   ["queenFight", queenFightScript],
@@ -105,33 +105,47 @@ describe("rosaCrash", () => {
   });
 });
 
-describe("sahraAct1", () => {
-  it("offers the trail / scarabs / farewell hub", () => {
-    const { choiceLists } = playThrough(sahraAct1Script, [2]);
+describe("homeAct1", () => {
+  it("offers the Thomas / chickens / goodbye hub", () => {
+    const { choiceLists } = playThrough(homeAct1Script, [2]);
     expect(choiceLists[0]).toEqual([
-      "Ask about the trail",
-      "Ask about the scarabs",
-      "Say farewell",
+      "Ask about Thomas",
+      "Ask about the chickens",
+      "Say goodbye",
     ]);
   });
 
-  it("corrects the old sun-temple lore to the cold below", () => {
-    const { lines } = playThrough(sahraAct1Script, [2]);
+  it("reinforces the Thomas thread on that branch", () => {
+    const { lines } = playThrough(homeAct1Script, [0, 2]);
     const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/sun-temple/);
-    expect(all).toMatch(/what sleeps below is cold/i);
+    expect(all).toMatch(/Thomas/);
   });
 
-  it("trail and scarab branches loop back to the hub", () => {
-    const { choiceLists, runner } = playThrough(sahraAct1Script, [0, 1, 2]);
+  it("hints the chicken side quest and the coop's location", () => {
+    const { lines } = playThrough(homeAct1Script, [1, 2]);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/chickens/i);
+    expect(all).toMatch(/trough/i);
+  });
+
+  it("Thomas and chickens branches loop back to the hub", () => {
+    const { choiceLists, runner } = playThrough(homeAct1Script, [0, 1, 2]);
     expect(choiceLists.length).toBe(3); // hub seen three times
     expect(runner.active).toBe(false);
   });
 
-  it("gives the three-ice-chips quest on the trail branch", () => {
-    const { lines } = playThrough(sahraAct1Script, [0, 2]);
+  it("preserves the frost-on-the-flats hint that motivates the trail", () => {
+    const { lines } = playThrough(homeAct1Script, [2]);
     const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/three chips/i);
+    expect(all).toMatch(/ice/i);
+    expect(all).toMatch(/flats/i);
+  });
+
+  it("mentions Piggy headed east and the scarabs stirring", () => {
+    const { lines } = playThrough(homeAct1Script, [2]);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/east/i);
+    expect(all).toMatch(/scarabs/i);
   });
 });
 

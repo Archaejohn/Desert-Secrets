@@ -9,7 +9,7 @@ export function objectiveFor(s: Act1State): string {
   if (f.actComplete) return act2ObjectiveFor(s);
   if (!f.metRosa) return "Talk to Rosa by the truck";
   if (s.zone === "crash") return "Follow the frost trail east";
-  if (!f.metSahra) return "Find the keeper of the oasis";
+  if (!f.metParents) return "Find your parents at the oasis";
   if (!f.tutorialBattleWon) return "Fight off the scarab!";
   if (s.zone === "oasis") return "Follow Piggy's trail east";
   if (!f.mineOpen) {

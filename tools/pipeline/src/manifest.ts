@@ -6,6 +6,7 @@ import { PALETTE } from "../../../src/shared/palette";
 import { CHAR_FRAME_W, CHAR_FRAME_H } from "./sprites/poses";
 import { SCARAB_FRAME } from "./sprites/scarab";
 import { PIGGY_FRAME } from "./sprites/piggy";
+import { CHICKEN_FRAME } from "./sprites/chicken";
 import { JACKRABBIT_FRAME } from "./sprites/jackrabbit";
 import { BUZZARD_FRAME } from "./sprites/buzzard";
 import { GILA_FRAME } from "./sprites/gila";
@@ -50,6 +51,9 @@ export interface Manifest {
     npc: SheetDef;
     scarab: SheetDef;
     rosa: SheetDef;
+    john: SheetDef;
+    pamela: SheetDef;
+    chicken: SheetDef;
     piggy: SheetDef;
     jackrabbit: SheetDef;
     buzzard: SheetDef;
@@ -73,7 +77,7 @@ const DIRECTIONS = ["down", "left", "right", "up"] as const;
 
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
-function characterSheet(prefix: "hero" | "npc" | "rosa" | "miner"): SheetDef {
+function characterSheet(prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela"): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
     const base = row * 6;
@@ -131,6 +135,9 @@ export function buildManifest(): Manifest {
       npc: characterSheet("npc"),
       scarab: creatureSheet("scarab", SCARAB_FRAME, "move", 3, 10),
       rosa: characterSheet("rosa"),
+      john: characterSheet("john"),
+      pamela: characterSheet("pamela"),
+      chicken: creatureSheet("chicken", CHICKEN_FRAME, "move", 3, 10),
       piggy: creatureSheet("piggy", PIGGY_FRAME, "walk", 3, 8),
       jackrabbit: creatureSheet("jackrabbit", JACKRABBIT_FRAME, "move", 3, 12),
       buzzard: creatureSheet("buzzard", BUZZARD_FRAME, "move", 3, 8),

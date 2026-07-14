@@ -359,9 +359,12 @@ describe("act2 manifest", () => {
     });
   });
 
-  it("all seventeen sheets and three tilesets are present", () => {
-    expect(Object.keys(manifest.sheets).sort()).toEqual(
-      [
+  it("all seventeen act1/act2 sheets and three tilesets are present (plus later additive batches)", () => {
+    // Exact-equal on the act1/act2 subset via arrayContaining: later batches
+    // (e.g. the Act 1 retcon's john/pamela/chicken, see act1Retcon.test.ts)
+    // add sheets additively and must not break this list.
+    expect(Object.keys(manifest.sheets)).toEqual(
+      expect.arrayContaining([
         "hero",
         "npc",
         "scarab",
@@ -379,7 +382,7 @@ describe("act2 manifest", () => {
         "crystalcrawler",
         "frostscarab",
         "warden"
-      ].sort()
+      ])
     );
     expect(manifest.tiles.names.sand).toBe(0);
     expect(manifest.tiles2.names.eggCluster).toBe(23);

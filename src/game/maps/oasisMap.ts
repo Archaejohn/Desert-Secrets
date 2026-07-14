@@ -13,10 +13,14 @@ export const OASIS_HEIGHT = 20;
 
 /** Default spawn: the southern flats. */
 export const OASIS_SPAWN = { x: 8, y: 16 } as const;
-/** Sahra the Keeper wanders near the pond. */
-export const OASIS_SAHRA = { x: 23, y: 9 } as const;
+/** John stands near the pond; Pamela is one tile east of him. */
+export const OASIS_PARENTS = { x: 23, y: 9 } as const;
+export const OASIS_PAMELA = { x: 24, y: 9 } as const;
 /** The ambient patrolling scarab's home tile. */
 export const OASIS_SCARAB = { x: 14, y: 13 } as const;
+/** The chicken coop: a small fenced pen, interact from its south gap. */
+export const OASIS_COOP = { x: 19, y: 17 } as const;
+export const OASIS_COOP_PEN = { x1: 17, y1: 15, x2: 20, y2: 17 } as const;
 /** West-edge exit band → crash site. */
 export const OASIS_WEST_EXIT = { x1: 1, y1: 9, x2: 1, y2: 11 } as const;
 /** East-edge exit band → the Piggy Trail. */
@@ -101,6 +105,19 @@ export function buildOasisMap(): ZoneMap {
     [2, 14]
   ];
   for (const [x, y] of cacti) decor[y][x] = "cactus";
+
+  // The chicken coop: a small fenced pen (existing tiles only — no new
+  // tileset), open at its south edge as the walk-in entrance.
+  const pen = OASIS_COOP_PEN;
+  for (let x: number = pen.x1; x <= pen.x2; x++) {
+    decor[pen.y1][x] = "ruinPillar";
+    if (x !== OASIS_COOP.x) decor[pen.y2][x] = "ruinPillar";
+  }
+  for (let y = pen.y1; y <= pen.y2; y++) {
+    decor[y][pen.x1] = "ruinPillar";
+    decor[y][pen.x2] = "ruinPillar";
+  }
+  decor[pen.y1 + 1][pen.x1 + 1] = "pot"; // feed/water trough
 
   // Frost-sand patches near the east exit: Piggy went that way.
   for (let y = 8; y <= 11; y++) {

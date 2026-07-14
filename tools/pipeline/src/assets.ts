@@ -8,6 +8,9 @@ import { heroFrames } from "./sprites/hero";
 import { npcFrames } from "./sprites/npc";
 import { scarabFrames } from "./sprites/scarab";
 import { rosaFrames } from "./sprites/rosa";
+import { johnFrames } from "./sprites/john";
+import { pamelaFrames } from "./sprites/pamela";
+import { chickenFrames } from "./sprites/chicken";
 import { piggyFrames } from "./sprites/piggy";
 import { jackrabbitFrames } from "./sprites/jackrabbit";
 import { buzzardFrames } from "./sprites/buzzard";
@@ -31,6 +34,9 @@ export interface BuiltAssets {
   npc: PixelGrid;
   scarab: PixelGrid;
   rosa: PixelGrid;
+  john: PixelGrid;
+  pamela: PixelGrid;
+  chicken: PixelGrid;
   piggy: PixelGrid;
   jackrabbit: PixelGrid;
   buzzard: PixelGrid;
@@ -56,6 +62,9 @@ export const SHEET_KEYS = [
   "npc",
   "scarab",
   "rosa",
+  "john",
+  "pamela",
+  "chicken",
   "piggy",
   "jackrabbit",
   "buzzard",
@@ -80,6 +89,9 @@ export function buildAssets(): BuiltAssets {
     npc: composeSheet(npcFrames(), 6),
     scarab: composeSheet(scarabFrames(), 6),
     rosa: composeSheet(rosaFrames(), 6),
+    john: composeSheet(johnFrames(), 6),
+    pamela: composeSheet(pamelaFrames(), 6),
+    chicken: composeSheet(chickenFrames(), 6),
     piggy: composeSheet(piggyFrames(), 6),
     jackrabbit: composeSheet(jackrabbitFrames(), 6),
     buzzard: composeSheet(buzzardFrames(), 6),
