@@ -24,7 +24,10 @@ checkpoint save lets you continue after closing the browser):
   an ending that reveals Piggy isn't alone down here.
 - Leveling extends to Level 8; story plans for Acts 3–7 (a dedicated act
   per ingredient Piggy loves, Fluffball joining the party, and a certain
-  underground pizzeria) live in `docs/STORY_ACTS3-7.md`.
+  underground pizzeria) live in `docs/STORY_ACTS3-7.md`. Beyond that,
+  `docs/STORY_PARTS2-4.md` roadmaps the rest of the game — an underground
+  overworld, a rocket built out of chocolate chip cookies, and a trip to
+  outer space.
 
 ## Act 1 — The Coldest Cargo (~30 min)
 

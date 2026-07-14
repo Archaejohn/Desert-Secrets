@@ -4,9 +4,9 @@ The back half of the game answers one question: **how do you catch a
 penguin who doesn't want to be caught?** Answer: you learn what he loves,
 you go get it — four separate times, four separate places — and you cook
 it. Catching Piggy at the end of Act 7 closes out **Part One** of Desert
-Secrets. (Whatever comes after — the waking ocean under the ice, the
-choice made in Act 7's ending — is Part Two, and stays undesigned for now
-on purpose.)
+Secrets. What comes after is planned in
+[`docs/STORY_PARTS2-4.md`](./STORY_PARTS2-4.md) — Part One's finale below
+sets it up directly: the walk out doesn't go the way anyone expects.
 
 ## The shape of it
 
@@ -149,12 +149,14 @@ coming three thousand years ago.
   since the crash in Act 1. Piggy's frost was never a fluke — emperor
   penguins were the old ocean's favorites, and the ice *remembers*. It
   followed him because it wanted to go home.
-- **Finale, and the Part One/Part Two hinge:** Joseph, Slither, Fluffball
-  and a very full Piggy carry a seed of the ice to the surface at dawn.
-  Rosa is waiting on Highway 95. The oasis is a little bigger than it
-  used to be. Piggy stays until the transport comes — then, at the last
-  second, the player chooses: send him to the breeding program, or let
-  two penguins keep a desert's secret. **End of Part One.**
+- **Finale, and the Part One/Part Two hinge:** with Piggy caught, fed, and
+  the secret out, Joseph, Slither, Fluffball and a very full Piggy carry a
+  seed of the ice back up through the tunnels, heading for the surface
+  and Rosa's radio call — mission accomplished, headed home. They never
+  make it. **End of Part One** — Part Two opens mid-step, the floor gone
+  out from under them. (What Piggy's future actually holds — stay, go,
+  something else — isn't decided here. That question waits for the game's
+  real ending, after Parts 2–4.)
 
 ## Companion notes
 
