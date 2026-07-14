@@ -145,5 +145,20 @@ export function buildTrailMap(): ZoneMap {
     decor[y][TRAIL_WIDTH - 1] = "rock";
   }
 
+  // Visible gates: west back to the oasis, north into the mine.
+  for (let y = TRAIL_WEST_EXIT.y1; y <= TRAIL_WEST_EXIT.y2; y++) {
+    decor[y][0] = null;
+    ground[y][0] = "frostSand";
+    ground[y][1] = "frostSand";
+  }
+  for (let x = TRAIL_MINE_EXIT.x1; x <= TRAIL_MINE_EXIT.x2; x++) {
+    decor[0][x] = null;
+    ground[0][x] = "frostSand";
+    ground[1][x] = "frostSand";
+    // Frame the opening with timbers so it reads as a mine mouth.
+    decor[0][TRAIL_MINE_EXIT.x1 - 1] = "mineTimber";
+    decor[0][TRAIL_MINE_EXIT.x2 + 1] = "mineTimber";
+  }
+
   return { ground, decor, overhead };
 }

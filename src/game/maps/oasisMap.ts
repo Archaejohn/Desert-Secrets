@@ -120,5 +120,17 @@ export function buildOasisMap(): ZoneMap {
     decor[y][OASIS_WIDTH - 1] = "rock";
   }
 
+  // Visible gates: open the border across both exit bands with frost paths.
+  for (let y = OASIS_WEST_EXIT.y1; y <= OASIS_WEST_EXIT.y2; y++) {
+    decor[y][0] = null;
+    ground[y][0] = "frostSand";
+    ground[y][1] = "frostSand";
+  }
+  for (let y = OASIS_EAST_EXIT.y1; y <= OASIS_EAST_EXIT.y2; y++) {
+    decor[y][OASIS_WIDTH - 1] = null;
+    ground[y][OASIS_WIDTH - 1] = "frostSand";
+    ground[y][OASIS_WIDTH - 2] = "frostSand";
+  }
+
   return { ground, decor, overhead };
 }

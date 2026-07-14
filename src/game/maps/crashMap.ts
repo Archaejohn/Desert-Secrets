@@ -93,5 +93,17 @@ export function buildCrashMap(): ZoneMap {
     decor[y][CRASH_WIDTH - 1] = "rock";
   }
 
+  // Visible east gate: open the border across the exit band and lay a
+  // frost trail toward it — the way out must LOOK like a way out.
+  for (let y = CRASH_EXIT_EAST.y1; y <= CRASH_EXIT_EAST.y2; y++) {
+    decor[y][CRASH_WIDTH - 1] = null;
+    ground[y][CRASH_WIDTH - 1] = "frostSand";
+  }
+  for (let x = CRASH_FEATHER.x + 1; x < CRASH_WIDTH; x++) {
+    for (const y of [7, 8]) {
+      if (decor[y][x] === null && cellHash(x, y) % 2 === 0) ground[y][x] = "frostSand";
+    }
+  }
+
   return { ground, decor };
 }

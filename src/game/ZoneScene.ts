@@ -160,6 +160,27 @@ export abstract class ZoneScene extends Phaser.Scene {
       addActionButtonHint(this);
     }
 
+    // Controls reminder on zone entry; fades away after a few seconds.
+    const hint = this.add
+      .text(
+        this.scale.width / 2,
+        this.scale.height - 10,
+        isTouchDevice(this)
+          ? "drag left side to move · tap right side / A to talk"
+          : "arrows/WASD move · E or SPACE talk & confirm",
+        {
+          fontFamily: "monospace",
+          fontSize: "8px",
+          color: PALETTE.bone,
+          backgroundColor: "#24182799",
+          padding: { x: 4, y: 2 }
+        }
+      )
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(6000);
+    this.tweens.add({ targets: hint, alpha: 0, delay: 7000, duration: 800 });
+
     this.populate();
     this.hud.update(getState(this));
   }

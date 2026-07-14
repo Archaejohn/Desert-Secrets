@@ -119,16 +119,42 @@ function assertKnownNames(map: ZoneMap): void {
   }
 }
 
-function assertEnclosed(map: ZoneMap): void {
+/**
+ * The border must be solid EXCEPT at declared exit gates, which must be
+ * visibly open (walkable) so the player can see the way out.
+ */
+function assertEnclosed(map: ZoneMap, gates: Array<{ x: number; y: number }> = []): void {
   const { width, height } = mapSize(map);
+  const gateSet = new Set(gates.map((g) => `${g.x},${g.y}`));
+  const expectBorder = (x: number, y: number) => {
+    if (gateSet.has(`${x},${y}`)) expect(isSolidAt(map, x, y)).toBe(false);
+    else expect(isSolidAt(map, x, y)).toBe(true);
+  };
   for (let x = 0; x < width; x++) {
-    expect(isSolidAt(map, x, 0)).toBe(true);
-    expect(isSolidAt(map, x, height - 1)).toBe(true);
+    expectBorder(x, 0);
+    expectBorder(x, height - 1);
   }
   for (let y = 0; y < height; y++) {
-    expect(isSolidAt(map, 0, y)).toBe(true);
-    expect(isSolidAt(map, width - 1, y)).toBe(true);
+    expectBorder(0, y);
+    expectBorder(width - 1, y);
   }
+}
+
+/** Border-edge gate cells implied by an exit band one tile inside the edge. */
+function edgeGate(
+  rect: { x1: number; y1: number; x2: number; y2: number },
+  edge: "west" | "east" | "north",
+  map: ZoneMap
+): Array<{ x: number; y: number }> {
+  const { width } = mapSize(map);
+  const cells: Array<{ x: number; y: number }> = [];
+  if (edge === "north") {
+    for (let x = rect.x1; x <= rect.x2; x++) cells.push({ x, y: 0 });
+  } else {
+    const x = edge === "west" ? 0 : width - 1;
+    for (let y = rect.y1; y <= rect.y2; y++) cells.push({ x, y });
+  }
+  return cells;
 }
 
 function assertDimensions(map: ZoneMap, width: number, height: number): void {
@@ -164,7 +190,7 @@ describe("crash map (Highway 95)", () => {
   });
 
   it("is fully enclosed by solid border tiles", () => {
-    assertEnclosed(map);
+    assertEnclosed(map, edgeGate(CRASH_EXIT_EAST, "east", map));
   });
 
   it("keeps the spawn and every landmark walkable", () => {
@@ -205,7 +231,7 @@ describe("oasis map (Sahra's Oasis)", () => {
   });
 
   it("is fully enclosed by solid border tiles", () => {
-    assertEnclosed(map);
+    assertEnclosed(map, [...edgeGate(OASIS_WEST_EXIT, "west", map), ...edgeGate(OASIS_EAST_EXIT, "east", map)]);
   });
 
   it("keeps spawn points, exits and NPC tiles walkable", () => {
@@ -265,7 +291,7 @@ describe("trail map (The Piggy Trail)", () => {
   });
 
   it("is fully enclosed by solid border tiles", () => {
-    assertEnclosed(map);
+    assertEnclosed(map, [...edgeGate(TRAIL_WEST_EXIT, "west", map), ...edgeGate(TRAIL_MINE_EXIT, "north", map)]);
   });
 
   it("keeps spawn, chips, NPCs and exits walkable", () => {
