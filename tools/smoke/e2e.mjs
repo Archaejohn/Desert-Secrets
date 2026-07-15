@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt","pizzaDescent","pizzaVent","pizzaApproach","pizzeria","pizzaAscent"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt","pizzaDescent","pizzaVent","pizzaApproach","pizzeria","pizzaAscent"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -1281,16 +1281,137 @@ check(
   JSON.stringify(s.state.items)
 );
 
-// The Act 6 ending: dialogue → act6Complete → the Act 7 end card → title.
+// The Act 6 ending: dialogue → act6Complete + act7Started → a REAL hand-off
+// into Act 7's entry zone (not an end card, like every prior retrofit).
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act6Complete === true, 9000);
 check("Act 6 completes (reef mint kelp earned)", s.state.flags.act6Complete === true, JSON.stringify(s.state.flags));
-await page.screenshot({ path: path.join(root, "../act6-end-card.png") }).catch(() => {});
-await page.waitForTimeout(600);
+s = await waitFor(page, (x) => x.zoneKey === "pizzaDescent", 9000);
+check(
+  "Act 6 hands off into Act 7 (a real zone, not a title-card placeholder)",
+  s.zoneKey === "pizzaDescent" && s.state.flags.act7Started === true,
+  `zone=${s.zoneKey}`
+);
+
+// ---------- Act 7: La Pizzeria Sotterranea (the finale — closing Part One) ----------
+
+// Zone 1 (warm descent): the tomato-pie smell (the Act 2 seed) → into the vents.
+await healUp(page);
+s = await driveTriggersUntil("pizzaDescent", (x) => x.state.flags.sawPizzaDescent);
+check("the warm-deep arrival beat plays (tomato-pie smell paid off)", s.state.flags.sawPizzaDescent === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "pizzaDescent") s = await waitFor(page, (x) => x.zoneKey === "pizzaDescent", 8000);
+await page.screenshot({ path: path.join(root, "../act7-descent.png") }).catch(() => {});
+s = await exitTo("pizzaDescent", "pizzaVent");
+check("the descent leads into the lava vents", s.zoneKey === "pizzaVent", `zone=${s.zoneKey}`);
+
+// Zone 2 (lava vents): entry beat → south into the old kitchens.
+s = await driveTriggersUntil("pizzaVent", (x) => x.state.flags.sawPizzaVent);
+check("the lava-vents entry beat plays", s.state.flags.sawPizzaVent === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "pizzaVent") s = await waitFor(page, (x) => x.zoneKey === "pizzaVent", 8000);
+await page.screenshot({ path: path.join(root, "../act7-vents.png") }).catch(() => {});
+s = await exitTo("pizzaVent", "pizzaApproach");
+check("the vents lead into the old kitchens", s.zoneKey === "pizzaApproach", `zone=${s.zoneKey}`);
+
+// Zone 3 (old kitchens): entry beat → south into the restaurant.
+s = await driveTriggersUntil("pizzaApproach", (x) => x.state.flags.sawPizzaApproach);
+check("the old-kitchens entry beat plays", s.state.flags.sawPizzaApproach === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "pizzaApproach") s = await waitFor(page, (x) => x.zoneKey === "pizzaApproach", 8000);
+s = await exitTo("pizzaApproach", "pizzeria");
+check("the kitchens lead into La Pizzeria Sotterranea", s.zoneKey === "pizzeria", `zone=${s.zoneKey}`);
+check("checkpoint updated to the pizzeria", s.state.zone === "pizzeria");
+
+// Zone 4 (the pizzeria): meet Testudo → the bake → the catch → the reveal.
+s = await driveTriggersUntil("pizzeria", (x) => x.state.flags.metTestudo);
+check("the restaurant arrival beat plays (Chef Testudo)", s.state.flags.metTestudo === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "pizzeria") s = await waitFor(page, (x) => x.zoneKey === "pizzeria", 8000);
+await page.screenshot({ path: path.join(root, "../act7-testudo.png") }).catch(() => {});
+
+// THE BAKE: talk to Testudo → "Bake the pizza." → the cooking timing minigame.
+await talkToNpc(page, "pizzeria", 0);
+await talkThrough(page, { pickIndex: 0, maxSteps: 40 }); // "Bake the pizza." → bake-end
+await page.waitForTimeout(300);
+const cookOpen = await page.evaluate(() => !!window.__game.scene.getScene("pizzeria").cookingMenu);
+check("baking opens the cooking timing minigame", cookOpen === true);
+await page.screenshot({ path: path.join(root, "../act7-cooking.png") }).catch(() => {});
+
+// Drive the bake: read the pure cooking state, PLACE only when the heat marker
+// is well inside the glowing band (four clean toppings → a perfect pizza).
+const cookDeadline = Date.now() + 45_000;
+let baked = false;
+while (Date.now() < cookDeadline) {
+  const cs = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("pizzeria");
+    const m = w.cookingMenu;
+    if (!m) return { open: false, baked: window.__game.registry.get("act1").flags.pizzaBaked === true };
+    return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };
+  });
+  if (!cs.open) { baked = cs.baked; break; }
+  if (Math.abs(cs.p - cs.t) < cs.w * 0.5) await tap(page, "Space", 30);
+  await page.waitForTimeout(25);
+}
+check("the cooking minigame bakes the perfect pizza", baked === true);
+s = await waitFor(page, (x) => x.state.flags.pizzaBaked === true, 8000);
+check("the pizza is baked", s.state.flags.pizzaBaked === true, JSON.stringify(s.state.flags));
+
+// THE CATCH (a warm reunion, NOT a chase): Piggy comes to the smell, is caught.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 9000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.piggyCaught === true, 9000);
+check("Piggy is finally, gently caught (the reunion payoff, not a chase)", s.state.flags.piggyCaught === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act7-reunion.png") }).catch(() => {});
+
+// THE REVEAL (the glacier/old-ocean secret — the ONE mystery that resolves).
+s = await waitFor(page, (x) => x.dialogueOpen === true, 9000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.heardReveal === true, 9000);
+check("Testudo reveals the ice/ocean secret", s.state.flags.heardReveal === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act7-reveal.png") }).catch(() => {});
+
+// Hand-off to the finale ascent (a real zone), Piggy now caught and following.
+s = await waitFor(page, (x) => x.zoneKey === "pizzaAscent", 12_000);
+check("the reveal hands off to the long climb up (a real zone)", s.zoneKey === "pizzaAscent", `zone=${s.zoneKey}`);
+
+// Zone 5 (the ascent): the arrival beat (auto-fires on spawn), then the finale.
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await snapshot(page);
+if (!s.state.flags.sawPizzaAscent) {
+  await teleport(page, 10, 14);
+  await page.waitForTimeout(400);
+  if ((await snapshot(page)).dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+  s = await snapshot(page);
+}
+check("the long-way-up arrival beat plays (Piggy following)", s.state.flags.sawPizzaAscent === true, JSON.stringify(s.state.flags));
+
+// The finale: walk into the top trigger → Rosa's radio crackles back, then the
+// floor gives way. A deliberate END OF PART ONE cliffhanger.
+const finaleRect = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("pizzaAscent");
+  return w.triggers[w.triggers.length - 1].rect; // the finale trigger (added last)
+});
+await teleport(page, finaleRect.x1, finaleRect.y1);
+await page.waitForTimeout(500);
+s = await waitFor(page, (x) => x.dialogueOpen === true, 9000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act7Complete === true, 12_000);
+check(
+  "Part One completes on the finale (piggyCaught + partOneComplete)",
+  s.state.flags.act7Complete === true &&
+    s.state.flags.piggyCaught === true &&
+    s.state.flags.partOneComplete === true,
+  JSON.stringify(s.state.flags)
+);
+await page.waitForTimeout(700);
+await page.screenshot({ path: path.join(root, "../act7-endofpartone.png") }).catch(() => {});
+
+// The END OF PART ONE card → back to the title (Part Two isn't built yet).
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
-check("the Act 6 end card returns to the title (Act 7 is a teammate's task)", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
+check(
+  "the END OF PART ONE card returns to the title (a deliberate cliffhanger)",
+  backAtTitle.active?.includes("boot") === true,
+  JSON.stringify(backAtTitle.active)
+);
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -1299,4 +1420,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 + Act 5 + Act 6 smoke checks passed");
+console.log("\nAll Act 1–7 smoke checks passed — the full game, fresh save through END OF PART ONE");

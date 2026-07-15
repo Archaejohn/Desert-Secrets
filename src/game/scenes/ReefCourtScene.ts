@@ -28,15 +28,16 @@ import {
   REEF_C_SPAWN
 } from "../maps/reefCourtMap";
 import { REEF_H_RETURN_SPAWN } from "../maps/reefHollowMap";
+import { PIZZA_D_SPAWN } from "../maps/pizzaDescentMap";
 import { reefCourtEntryScript } from "../../core/scripts/reefCourtEntry";
 import { reefParleyScript } from "../../core/scripts/reefParley";
 import { reefYieldScript } from "../../core/scripts/reefYield";
 import { act6EndingScript } from "../../core/scripts/act6Ending";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE, hexToInt } from "../../shared/palette";
+import { PALETTE } from "../../shared/palette";
 
 /** The crawler warden, once the mint kelp has changed hands. */
 const courtChatterScript: DialogueScript = {
@@ -66,11 +67,12 @@ export class ReefCourtScene extends ZoneScene {
     this.slither = new SlitherFollower(this);
     this.fluffball = new FluffballFollower(this);
 
-    // Epilogue: a reload that lands on the finished act mustn't soft-lock —
-    // re-show the end card rather than dropping the player into a dead court.
+    // Epilogue: a reload that lands on the finished act mustn't soft-lock — the
+    // trade is done, so re-arm the Act 7 hand-off rather than dropping the
+    // player into a dead court.
     if (getState(this).flags.act6Complete) {
       this.inputLocked = true;
-      this.showEndCard();
+      this.time.delayedCall(300, () => this.enterAct7());
       return;
     }
 
@@ -153,59 +155,20 @@ export class ReefCourtScene extends ZoneScene {
 
   private runEnding(): void {
     // Unlock so the ending box advances (movement stays blocked while the box
-    // is open); relock before the end card — same pattern as Acts 1–5.
+    // is open); relock before the hand-off — same pattern as Acts 1–5.
     this.inputLocked = false;
     this.openScript(act6EndingScript, () => {
       this.inputLocked = true;
-      const s = getState(this);
-      setState(this, { ...s, flags: { ...s.flags, act6Complete: true } });
-      this.showEndCard();
+      this.enterAct7();
     });
   }
 
-  private showEndCard(): void {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    this.add.rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 0.94).setScrollFactor(0).setDepth(7000);
-    this.add
-      .text(w / 2, h / 2 - 28, "END OF ACT 6", {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: PALETTE.atbGold
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2, "ACT 7: LA PIZZERIA SOTTERRANEA — coming soon", {
-        fontFamily: "monospace",
-        fontSize: "11px",
-        color: PALETTE.mint
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2 + 26, "SPACE — back to title", {
-        fontFamily: "monospace",
-        fontSize: "9px",
-        color: PALETTE.bone
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-
-    // Act 7's zones are a teammate's next task — return to the title for now,
-    // exactly as Acts 3–5 did for their own successors.
-    let done = false;
-    const backToTitle = (): void => {
-      if (done) return;
-      done = true;
-      resetGame(this);
-      this.scene.start("boot");
-    };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+  /** The Act 6 → Act 7 hand-off: down toward the pizzeria, keeping progress
+   *  (the same real-zone hand-off as Acts 2→3 … 5→6, replacing the old card). */
+  private enterAct7(): void {
+    const s = getState(this);
+    setState(this, { ...s, flags: { ...s.flags, act6Complete: true, act7Started: true } });
+    this.goToZone("pizzaDescent", PIZZA_D_SPAWN);
   }
 
   protected onUpdate(): void {

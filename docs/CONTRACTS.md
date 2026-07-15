@@ -1986,3 +1986,197 @@ SOTTERRANEA — coming soon" end card (→ title), with a reload-safe epilogue g
 (`act6Complete` re-shows the card). Act 7 (the finale — the actual catch, and
 the close of Part One) is the last teammate's next task; this stays a title-card
 placeholder until it's ready to hand off.
+
+---
+
+# v18: Act 7 — La Pizzeria Sotterranea (the finale, and the close of Part One)
+
+Act 7 is the emotional/narrative climax and the **deliberate end of Part One**
+— there is no Act 8 in Part One (a sequel, "Part Two", is planned but not built
+now). Built at the Act 3–6 density: five connected zones, each a distinct
+grounded place with real entry dialogue, dead-end/gate structure BFS-verified,
+and a narrated hand-off in and out. Deep beneath everything, where the miners
+swore they smelled tomato pie (the Act 2 seed, paid off here): a restaurant
+carved into the temple's old kitchens, run by **Chef Testudo**, an ancient
+tortoise. The player brings the four things Piggy loves (silverfin, socks,
+oranges, seaweed — collected across Acts 3–6); Testudo provides the dough and
+tomato; a **cooking/timing minigame** bakes the pizza; the smell draws Piggy in
+and he is finally, gently caught (a warm reunion, NOT a chase). Testudo reveals
+the glacier/old-ocean secret. Then, on the walk out, the floor gives way — the
+**END OF PART ONE** cliffhanger. **Act 7 is combat-free** (no encounters, no
+boss): a warm finale, not a fight.
+
+## The two mysteries stay separate (CLAUDE.md constraint)
+
+Testudo's reveal resolves **only** the ancient glacier / old-ocean thread
+seeded since Act 1 (Rosa's frost that "isn't melting", Act 2's miners smelling
+the sea, the Rime Warden, the flooded sun-temple): the glacier is the last of
+the old ocean, kept asleep under the sand, waking since the Act 1 crash; Piggy's
+frost was never a fluke (his kind were the old sea's darlings); "the ice
+remembers… it wanted to go home." The **scarab / mystery-bug thread is left
+completely untouched** — no Act 7 script references scarabs or bugs (asserted in
+`tests/core/scriptsAct7.test.ts`). Only the ice/ocean mystery resolves here.
+
+## The five zones and how they connect
+
+1. **`pizzaDescent`** (The Warm Deep, 20×14, `pizzaDescentMap.ts`) — the Act 6 →
+   Act 7 entry zone (the hand-off spawns the party here at `PIZZA_D_SPAWN`). The
+   cold reef floor warms to ember stone with a lava glow at the south gate. One
+   gate, south, on toward the vents; otherwise enclosed. Entry beat
+   `pizzaDescentEntry` (`sawPizzaDescent`). No encounters.
+2. **`pizzaVent`** (The Lava Vents, 26×18, `pizzaVentMap.ts`) — a volcanic
+   gallery lit by molten `lavaVent` fissures (SOLID, animated `lavaVent` ↔
+   `lavaVent2`) the party threads around. Two gates: north back to the descent,
+   south on to the kitchens. Entry beat `pizzaVentEntry` (`sawPizzaVent`).
+3. **`pizzaApproach`** (The Old Kitchens, 24×16, `pizzaApproachMap.ts`) — raw
+   rock turns BUILT: ash/ember floor → carved steps → a dressed tile floor,
+   temple columns, a cold oven relic, old signage overhead (`hangSign`). Two
+   gates: north back to the vents, south into the restaurant. Entry beat
+   `pizzaApproachEntry` (`sawPizzaApproach`).
+4. **`pizzeria`** (La Pizzeria Sotterranea, 26×18, `pizzeriaMap.ts`) — THE
+   restaurant: a checkered dining floor, tables set for guests three thousand
+   years gone (`pizzaTable`, SOLID), temple columns, and the great oven
+   (`pizzaOven`, SOLID) flanked by lava vents at the south end, where **Chef
+   Testudo** works. Three beats play here in order (see below). One gate, north,
+   back to the kitchens; the way onward is a narrated hand-off to `pizzaAscent`
+   after the reveal (like `deepBed` → `seaAscent`). Entry beat `pizzeriaEntry`
+   (`metTestudo`). No encounters.
+5. **`pizzaAscent`** (The Long Way Up, 20×18, `pizzaAscentMap.ts`) — the finale:
+   the walk back up, Piggy caught and following (a third follower rig). A
+   switchback climb past two staggered basalt cross-walls, each leaving a single
+   BFS-verified gap. **Enclosed with NO gate** — the only way out is the floor
+   giving way. Entry beat `pizzaAscentEntry` (`sawPizzaAscent`); the finale
+   trigger near the top runs `partOneFinale` and the END OF PART ONE card.
+
+Chain: `pizzaDescent` →(S)→ `pizzaVent` →(S)→ `pizzaApproach` →(S)→ `pizzeria`;
+`pizzeria` →(scripted hand-off after the reveal)→ `pizzaAscent`.
+
+## The pizzeria's three beats (PizzeriaScene)
+
+1. **THE BAKE** — talking to Testudo (once all four ingredients are held; a
+   defensive `testudoNeedsAll` line otherwise) opens `testudoBake`, a choice hub
+   shaped like `fishingCast` (`bake-end` starts the minigame, `wait-end` backs
+   off; the scene branches on the terminal node id). `bake-end` opens
+   `CookingMenu`. A perfect bake sets `pizzaBaked`; a scorched bake lets the
+   player retry.
+2. **THE CATCH** — deliberately NOT a chase (no near-miss, no minigame): a
+   cosmetic Piggy waddle-sprints in from the doorway on his own; `piggyReunion`
+   plays (Fluffball vouches for Joseph; Piggy is gently caught, mid-bite); sets
+   `piggyCaught`. The warm payoff of every near-catch before it.
+3. **THE REVEAL** — `testudoReveal` (the ice/ocean secret); sets `heardReveal`,
+   then a narrated hand-off (`goToZone("pizzaAscent")`). Reload-safe guards
+   resume mid-sequence (`pizzaBaked`→catch, `piggyCaught`→reveal,
+   `heardReveal`→straight up).
+
+## The cooking minigame (`src/core/cooking.ts`, pure + unit-tested)
+
+Engine-agnostic, mirroring `fishing.ts` exactly (proven, testable): a heat
+indicator slides 0..1 bouncing off both ends (`tickCooking(state, cfg, dt)` — no
+`Date.now`/`Math.random`, time is a parameter); `addTopping(state, cfg)`
+registers a tap — inside `[target ± windowHalf]` places a topping cleanly (lands
+a **perfect** bake after `requiredAdds`), outside it is a scorch (ruins the bake
+after `maxFumbles`). `DEFAULT_COOKING` = speed 1.15, target 0.5, windowHalf 0.12,
+4 adds (the four ingredients) / 4 fumbles — brisker and tighter than fishing, so
+it plays distinctly. Fully covered by `tests/core/cooking.test.ts` (bounce
+reflection incl. multi-bounce steps, window edges, perfect/ruined resolution,
+no-op once resolved, determinism), the twin of `fishing.test.ts`. The thin UI is
+`src/game/ui/CookingMenu.ts` (a gauge with the glowing "just right" band, the
+heat marker, four topping pips + labels, a PLACE button; self-manages its own
+UPDATE/keydown/pointerdown listeners like `FishingMenu`; hooks on SPACE or any
+tap). The scene sets `inputLocked` while it's open (same rule as fishing).
+
+## Followers: a third rig (`src/game/PiggyFollower.ts`)
+
+`PiggyFollower` is the third of the family (after `SlitherFollower` /
+`FluffballFollower`), copied the same way into every Act 7 zone. Slither and
+Fluffball travel the whole act (spawned per `slitherJoined` / `fluffballJoined`);
+Piggy is spawned in `pizzaAscent` once `piggyCaught`, trailing furthest back
+(FOLLOW_FRAMES 38 vs 26/14) so the found family lines up single-file: Joseph,
+Slither, Fluffball, Piggy. Piggy is **not** a battle companion in Part One
+(Part Two's job); Act 7 has no combat at all.
+
+## The Act 6 → Act 7 hand-off (replaces the placeholder card)
+
+`ReefCourtScene`'s trade no longer shows an end card. `runEnding()` plays the
+(de-carded) `act6Ending` script, then `enterAct7()` sets `act6Complete` **and**
+`act7Started` and `goToZone("pizzaDescent", PIZZA_D_SPAWN)` — the same real-zone
+hand-off as Acts 2→3 … 5→6. The `act6Complete` epilogue guard re-arms the
+hand-off. `act6Ending`'s terminal title-card lines were removed (de-carded like
+act3/4/5Ending); it now points the party "down, following the smell."
+
+## The finale and the Part One cliffhanger (`partOneFinale`)
+
+In `pizzaAscent`, the finale trigger runs `partOneFinale`: **Rosa's radio (the
+game's very first NPC, Act 1) crackles back to life** — a real signal, almost
+home (a callback; `radioLines.pizzaAscent` also flips from static to a clear
+signal). Then, mid-step, the floor gives way (camera shake + fade). The scene
+renders a **genuine END OF PART ONE card** — "END OF PART ONE" + evocative text
+("Piggy is safe. The secret is out. And the floor is gone." / "What waits below
+has no name yet.") — NOT the "Act N: coming soon" placeholder every prior act
+used for its successor. Sets `act7Complete` + `partOneComplete`, then SPACE →
+`resetGame` → title (Part Two isn't built; the presentation is an intentional
+cliffhanger, not a stub). Reload-safe: `act7Complete` re-shows the card.
+`src/core/scripts/cliffhanger.ts` is **untouched** — it remains Act 1's ice-wall
+end card (still used by `DepthsScene`); Act 7 has its own `partOneFinale.ts`.
+
+## New generated art (additive; prior sheets byte-identical)
+
+- `testudo.png` (24×24, 6×1) — Chef Testudo NPC, `testudo-idle` [0,1] /
+  `testudo-move` [2..5]: a mossy jade/teal domed shell, a wrinkled clay/sand
+  head with wise mint eyes, a bone chef's toque, an amber apron; slow and kindly.
+  Placed via `addNpc` (flat-idle path, like the crawler warden).
+- `tiles8.png` (16×16, **8 cols × 2 rows**), manifest `tiles8`. Row-major names:
+  `emberFloor emberFloor2 ashFloor carvedStep basaltWall lavaVent lavaVent2
+  lavaCrust tileFloor tileFloor2 pizzaTable pizzaOven stoneColumn hangSign
+  ovenGlow steamCrack`. Two looks in one sheet: raw warm volcanic rock →
+  something BUILT (checker dining floor, set tables, the great oven, columns,
+  hanging sign). Solid additions to `SOLID_TILE_NAMES`: `basaltWall`, `lavaVent`,
+  `lavaVent2`, `pizzaTable`, `pizzaOven`, `stoneColumn`. `lavaVent` ↔ `lavaVent2`
+  animate; `hangSign` is the one OVERHEAD tile. Both sheets sha256-pinned in
+  `tests/pipeline/determinism.test.ts` ("act7 asset byte-stability"). `ZoneScene`
+  gains the `tiles8` firstgid/`tileGid`/`tileFrame`/`buildMap` wiring; `BootScene`
+  loads `tiles8`/`testudo`.
+
+## Plumbing (same checklist as every zone addition)
+
+- `gameState.ts`: `ZoneId += pizzaDescent, pizzaVent, pizzaApproach, pizzeria,
+  pizzaAscent`; `ACT7_FLAGS` (`act7Started`, the four `saw*` entry beats,
+  `metTestudo`, `pizzaBaked`, `piggyCaught`, `heardReveal`, `act7Complete`,
+  `partOneComplete`), all false at `newGame()`. No new items (the four
+  ingredients from Acts 3–6 are the gate).
+- `objective.ts`: the Act 7 chain (`act7ObjectiveFor`, a `switch (s.zone)`),
+  hooked in after Act 6's (`act7Started || act7Complete` delegates); ≤ 40 chars.
+- `scripts/`: entry scripts (`pizzaDescentEntry`, `pizzaVentEntry`,
+  `pizzaApproachEntry`, `pizzeriaEntry`, `pizzaAscentEntry`), `testudoBake` (the
+  bake choice hub), `piggyReunion` (the catch), `testudoReveal` (the secret),
+  `partOneFinale` (the cliffhanger); all `validateScript`-clean, ≤ 48 chars/line,
+  Slither hissing. `radio.ts` `radioLines` gains all five zones (exhaustive
+  `Record<ZoneId, …>`; `pizzaAscent`'s flips from static to a clear signal).
+  `BootScene` `ZONE_NAMES` + `main.ts` register the five new scenes.
+- `tests/game/maps2.test.ts`: full BFS suite per new zone (enclosure with gates,
+  landmark reachability, the vents never sealing the path, the pizzeria's oven
+  solid/Testudo walkable, the ascent's switchback proven by blocking a gap).
+  `cooking.test.ts`, `objectiveAct7.test.ts`, `scriptsAct7.test.ts` new;
+  `scriptsAct1.test.ts` radio list, `gameState.test.ts` flag set,
+  `act1Retcon`/`bucket` manifest sheet lists, and `determinism` extended.
+- `tools/smoke/e2e.mjs`: the Act 6 hand-off now lands in `pizzaDescent`, then the
+  full five-zone Act 7 chain (descent → vents → kitchens → pizzeria: meet Testudo,
+  drive the cooking minigame to a perfect bake by reading the pure state, the
+  catch, the reveal → ascent → the finale trigger → END OF PART ONE → title).
+  This makes the keyboard smoke cover the ENTIRE game from a fresh save through
+  the end of Part One in one run. `touch-e2e.mjs` gains an Act 7 check: tapping
+  Testudo opens the bake, the ✓ column confirms it, and screen taps drive the
+  cooking minigame to a perfect bake.
+- Screenshot review confirmed each zone renders with its own `tiles8` art, and
+  the dialogue box (depth 5500) draws cleanly over the overhead signage
+  (`hangSign`, depth 5000) — no overhead-over-dialogue regression.
+
+## Part One is complete, end to end
+
+With Act 7 in, **Part One of Desert Secrets is fully built, Acts 1–7**: the
+homestead intro and the Dust Queen (Acts 1–2), the four-ingredient chase across
+the Sunless Sea, the Miners' Camp, the Sunlit Cave-In and the Reef (Acts 3–6),
+and this finale — the catch, the reveal, and the deliberate cliffhanger that
+opens Part Two. The full run is playable from a fresh save to END OF PART ONE
+and is covered end-to-end by `npm run smoke`. Part Two is planned in
+`docs/STORY_PARTS2-4.md` but not built in this pass.

@@ -51,7 +51,12 @@ export type ZoneId =
   | "reefGarden"
   | "reefWarren"
   | "reefHollow"
-  | "reefCourt";
+  | "reefCourt"
+  | "pizzaDescent"
+  | "pizzaVent"
+  | "pizzaApproach"
+  | "pizzeria"
+  | "pizzaAscent";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";
@@ -172,6 +177,31 @@ export const ACT6_FLAGS = [
   "act6Complete",
 ] as const;
 
+/**
+ * Act 7 quest flags (La Pizzeria Sotterranea — the finale, and the close of
+ * Part One), all false at newGame(). The `saw*` flags are per-zone entry beats
+ * (mirrors Acts 3–6). The story beats they gate: `metTestudo` (meeting the
+ * ancient chef), `pizzaBaked` (the cooking minigame lands the pizza),
+ * `piggyCaught` (the warm reunion — Piggy drawn in by smell, gently caught
+ * mid-bite; NOT a chase), `heardReveal` (Testudo tells the glacier/old-ocean
+ * secret — the ONE mystery that resolves here). `act7Complete` /
+ * `partOneComplete` close out Part One on the deliberate END-OF-PART-ONE
+ * cliffhanger (the floor gives way mid-step on the walk out).
+ */
+export const ACT7_FLAGS = [
+  "act7Started",
+  "sawPizzaDescent",
+  "sawPizzaVent",
+  "sawPizzaApproach",
+  "metTestudo",
+  "pizzaBaked",
+  "piggyCaught",
+  "heardReveal",
+  "sawPizzaAscent",
+  "act7Complete",
+  "partOneComplete",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -205,6 +235,7 @@ export function newGame(): Act1State {
   for (const f of ACT4_FLAGS) flags[f] = false;
   for (const f of ACT5_FLAGS) flags[f] = false;
   for (const f of ACT6_FLAGS) flags[f] = false;
+  for (const f of ACT7_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },

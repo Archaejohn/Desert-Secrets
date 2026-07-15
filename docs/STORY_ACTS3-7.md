@@ -1,5 +1,14 @@
 # Desert Secrets — Acts 3–7: The Ingredient Chase ("Part One" finale)
 
+> **Build status (Part One COMPLETE):** Acts 1–7 are all built and shipped —
+> the full game is playable end-to-end from a fresh save through the END OF
+> PART ONE cliffhanger, and `npm run smoke` covers the entire run. Act 7 (La
+> Pizzeria Sotterranea) closed out Part One: the cooking minigame, the catch,
+> Testudo's glacier/old-ocean reveal, and the floor giving way on the walk out.
+> See `docs/CONTRACTS.md` "v18" for the technical details. Part Two (planned in
+> `docs/STORY_PARTS2-4.md`) is not built yet.
+
+
 The back half of the game answers one question: **how do you catch a
 penguin who doesn't want to be caught?** Answer: you learn what he loves,
 you go get it — four separate times, four separate places — and you cook
@@ -78,7 +87,7 @@ lights, a laundry line. New location, not a revisit of Act 2's map.
   them changes how NPCs and some enemies react (comic dialogue reactions;
   a couple of enemy types actively avoid the party while they're held).
 
-**End card: ACT 5 — SAHRA'S GROVE.**
+**End card: ACT 5 — THE SUNLIT CAVE-IN.**
 
 ## Act 5 — "The Sunlit Cave-In" (~30 min)
 

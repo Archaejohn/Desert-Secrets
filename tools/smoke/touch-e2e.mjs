@@ -552,6 +552,113 @@ if (reefDlg.choices) {
   );
 }
 
+// ---------- Act 7: the cooking minigame (the bake) via touch ----------
+// Jump to the pizzeria with all four ingredients in hand and Testudo already
+// met, then tap to talk, confirm "Bake the pizza." with the ✓ column, and drive
+// the cooking timing minigame with screen taps to land a perfect pizza.
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
+    act4Started: true, act4Complete: true, gotSocks: true,
+    act5Started: true, act5Complete: true, fluffballJoined: true, gotOranges: true,
+    act6Started: true, act6Complete: true, gotSeaweed: true,
+    act7Started: true, sawPizzaDescent: true, sawPizzaVent: true, sawPizzaApproach: true,
+    metTestudo: true
+  };
+  const items = { ...st.items, silverfin: true, stinkySocks: true, oranges: true, seaweed: true };
+  g.registry.set("act1", { ...st, zone: "pizzeria", hp: 999, items, flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("pizzeria", {});
+});
+await page.waitForTimeout(1300);
+
+// Stand next to Chef Testudo and tap the right side to talk via touch.
+await page.evaluate(() => {
+  const w = window.__game.scene.getScene("pizzeria");
+  const n = w["npcs"][0]; // Chef Testudo, at his oven
+  w.player.body.reset(n.sprite.x, n.sprite.y + 14);
+});
+await page.waitForTimeout(250);
+await tapRightSide();
+await page.waitForTimeout(400);
+const bakeTap = await page.evaluate(() => ({ open: window.__game.scene.getScene("pizzeria").dialogue.isOpen }));
+check("tapping to talk opens Testudo's bake dialogue via touch", bakeTap.open === true, JSON.stringify(bakeTap));
+
+// Advance to the bake choice list, then confirm "Bake the pizza." (row 0) via ✓.
+let bakeDlg = null;
+for (let i = 0; i < 10; i++) {
+  bakeDlg = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("pizzeria");
+    return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
+  });
+  if (!bakeDlg.open || bakeDlg.choices) break;
+  await tapRightSide();
+  await page.waitForTimeout(220);
+}
+check(
+  "Testudo's bake dialogue reaches its bake/wait choice list via touch",
+  bakeDlg.open === true && Array.isArray(bakeDlg.choices) && bakeDlg.choices.length === 2,
+  JSON.stringify(bakeDlg)
+);
+if (bakeDlg.choices) {
+  const confirmBtn = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("pizzeria");
+    const dlg = w.dialogue;
+    const b = dlg["touchButtons"];
+    const rect = window.__game.canvas.getBoundingClientRect();
+    const sx = rect.width / window.__game.scale.width;
+    const sy = rect.height / window.__game.scale.height;
+    const cx = dlg["container"].x;
+    const cy = dlg["container"].y;
+    return {
+      x: rect.x + (cx + b.x + b.size / 2) * sx,
+      y: rect.y + (cy + b.top + b.gap + b.size / 2) * sy
+    };
+  });
+  await page.touchscreen.tap(confirmBtn.x, confirmBtn.y);
+  await page.waitForTimeout(300);
+  // Confirming picks "Bake the pizza." → the terminal `bake-end` line; advance
+  // past it to close the dialogue, whose onClose opens the cooking minigame.
+  for (let i = 0; i < 6; i++) {
+    const open = await page.evaluate(() => window.__game.scene.getScene("pizzeria").dialogue.isOpen);
+    if (!open) break;
+    await tapRightSide();
+    await page.waitForTimeout(220);
+  }
+  await page.waitForTimeout(400);
+}
+const cookOpen = await page.evaluate(() => !!window.__game.scene.getScene("pizzeria").cookingMenu);
+check("confirming the bake opens the cooking minigame via touch", cookOpen === true);
+
+// Drive the bake with screen taps: PLACE only when the heat marker is inside
+// the glow (a tap anywhere on the play area counts as a PLACE).
+const rect = await page.evaluate(() => {
+  const r = window.__game.canvas.getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+});
+const cookDeadline = Date.now() + 45_000;
+let baked = false;
+while (Date.now() < cookDeadline) {
+  const cs = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("pizzeria");
+    const m = w.cookingMenu;
+    if (!m) return { open: false, baked: window.__game.registry.get("act1").flags.pizzaBaked === true };
+    return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };
+  });
+  if (!cs.open) { baked = cs.baked; break; }
+  if (Math.abs(cs.p - cs.t) < cs.w * 0.45) {
+    await page.touchscreen.tap(rect.x + rect.w * 0.5, rect.y + rect.h * 0.45);
+  }
+  await page.waitForTimeout(30);
+}
+check("the cooking minigame bakes the perfect pizza via touch taps", baked === true);
+const pizzaBaked = await page.evaluate(() => window.__game.registry.get("act1").flags.pizzaBaked === true);
+check("the pizza is baked (touch)", pizzaBaked === true);
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

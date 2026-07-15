@@ -84,7 +84,14 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "reefWater",
   "reefWater2",
   "wildKelp",
-  "kelpTrellis"
+  "kelpTrellis",
+  // tiles8.png (Act 7 — La Pizzeria Sotterranea / the lava vents)
+  "basaltWall",
+  "lavaVent",
+  "lavaVent2",
+  "pizzaTable",
+  "pizzaOven",
+  "stoneColumn"
 ];
 
 export function isSolidName(name: string | null): boolean {

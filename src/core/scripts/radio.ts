@@ -60,4 +60,9 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   reefWarren: checkIn(["...coral everywhere. You're a whisper now..."]),
   reefHollow: checkIn(["...just glow and dark down there. Static..."]),
   reefCourt: checkIn(["...you're TALKING to the reef? ...only static."]),
+  pizzaDescent: checkIn(["...tomato pie? Down there? You're joking."]),
+  pizzaVent: checkIn(["...it's HOT down there. Lava? ...shhhk..."]),
+  pizzaApproach: checkIn(["...a RESTAURANT? Under the desert? Static..."]),
+  pizzeria: checkIn(["...a chef? A TORTOISE? I've lost it. Static."]),
+  pizzaAscent: checkIn(["—Joseph? JOSEPH! Clear as day! Coming UP—"]),
 };

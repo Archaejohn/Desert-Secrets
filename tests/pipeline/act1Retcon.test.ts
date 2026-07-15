@@ -247,7 +247,8 @@ describe("act1-retcon manifest", () => {
         "lurker",
         "middenmite",
         "sunwasp",
-        "reefstalker"
+        "reefstalker",
+        "testudo"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected

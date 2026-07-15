@@ -241,6 +241,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   private static readonly TILES4_COUNT = Object.keys(MANIFEST.tiles4.names).length;
   private static readonly TILES5_COUNT = Object.keys(MANIFEST.tiles5.names).length;
   private static readonly TILES6_COUNT = Object.keys(MANIFEST.tiles6.names).length;
+  private static readonly TILES7_COUNT = Object.keys(MANIFEST.tiles7.names).length;
   private static readonly TILES2_FIRSTGID = ZoneScene.TILES1_COUNT;
   private static readonly TILES3_FIRSTGID = ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT;
   private static readonly TILES4_FIRSTGID =
@@ -260,6 +261,14 @@ export abstract class ZoneScene extends Phaser.Scene {
     ZoneScene.TILES4_COUNT +
     ZoneScene.TILES5_COUNT +
     ZoneScene.TILES6_COUNT;
+  private static readonly TILES8_FIRSTGID =
+    ZoneScene.TILES1_COUNT +
+    ZoneScene.TILES2_COUNT +
+    ZoneScene.TILES3_COUNT +
+    ZoneScene.TILES4_COUNT +
+    ZoneScene.TILES5_COUNT +
+    ZoneScene.TILES6_COUNT +
+    ZoneScene.TILES7_COUNT;
 
   /** Resolve a tile name to a global index across the seven tilesets. */
   protected tileGid(name: string): number {
@@ -277,6 +286,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t6 !== undefined) return ZoneScene.TILES6_FIRSTGID + t6;
     const t7 = MANIFEST.tiles7.names[name];
     if (t7 !== undefined) return ZoneScene.TILES7_FIRSTGID + t7;
+    const t8 = MANIFEST.tiles8.names[name];
+    if (t8 !== undefined) return ZoneScene.TILES8_FIRSTGID + t8;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -294,7 +305,9 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t5 !== undefined) return { key: "tiles5", frame: t5 };
     const t6 = MANIFEST.tiles6.names[name];
     if (t6 !== undefined) return { key: "tiles6", frame: t6 };
-    return { key: "tiles7", frame: MANIFEST.tiles7.names[name] };
+    const t7 = MANIFEST.tiles7.names[name];
+    if (t7 !== undefined) return { key: "tiles7", frame: t7 };
+    return { key: "tiles8", frame: MANIFEST.tiles8.names[name] };
   }
 
   private buildMap(width: number, height: number): void {
@@ -306,7 +319,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     const ts5 = map.addTilesetImage("t5", "tiles5-img", TILE, TILE, 0, 0, ZoneScene.TILES5_FIRSTGID)!;
     const ts6 = map.addTilesetImage("t6", "tiles6-img", TILE, TILE, 0, 0, ZoneScene.TILES6_FIRSTGID)!;
     const ts7 = map.addTilesetImage("t7", "tiles7-img", TILE, TILE, 0, 0, ZoneScene.TILES7_FIRSTGID)!;
-    const sets = [ts1, ts2, ts3, ts4, ts5, ts6, ts7];
+    const ts8 = map.addTilesetImage("t8", "tiles8-img", TILE, TILE, 0, 0, ZoneScene.TILES8_FIRSTGID)!;
+    const sets = [ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;
     const overhead = map.createBlankLayer("overhead", sets)!;

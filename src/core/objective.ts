@@ -142,6 +142,8 @@ function act5ObjectiveFor(s: Act1State): string {
  */
 function act6ObjectiveFor(s: Act1State): string {
   const f = s.flags;
+  // Act 7 (the finale) takes over once the party descends toward the pizzeria.
+  if (f.act7Started || f.act7Complete) return act7ObjectiveFor(s);
   if (f.act6Complete) return "Act 6 complete!";
   switch (s.zone) {
     case "reefDescent":
@@ -159,5 +161,34 @@ function act6ObjectiveFor(s: Act1State): string {
     default:
       // Still in an Act 5 zone after the hand-off: get down to the reef.
       return "Descend into the drowned reef";
+  }
+}
+
+/**
+ * The Act 7 chain (La Pizzeria Sotterranea — the finale, the close of Part
+ * One), once act7Started is set. Each zone produces its own grounded objective
+ * line. ≤ 40 chars.
+ */
+function act7ObjectiveFor(s: Act1State): string {
+  const f = s.flags;
+  if (f.act7Complete) return "END OF PART ONE";
+  switch (s.zone) {
+    case "pizzaDescent":
+      return "Follow the smell of tomato pie down";
+    case "pizzaVent":
+      return "Cross the lava vents toward the glow";
+    case "pizzaApproach":
+      return "Through the temple's old kitchens";
+    case "pizzeria":
+      if (!f.metTestudo) return "Find who's cooking down here";
+      if (!f.pizzaBaked) return "Bake the pizza with Chef Testudo";
+      if (!f.piggyCaught) return "The smell is out — wait for Piggy";
+      if (!f.heardReveal) return "Hear Testudo's secret";
+      return "Carry Piggy home — head back up";
+    case "pizzaAscent":
+      return "Climb back up toward the surface";
+    default:
+      // Still in an Act 6 zone after the hand-off: get down there.
+      return "Descend, following the tomato-pie smell";
   }
 }

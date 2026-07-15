@@ -316,6 +316,52 @@ import {
   REEF_C_SPAWN,
   REEF_C_WIDTH
 } from "../../src/game/maps/reefCourtMap";
+import {
+  buildPizzaDescentMap,
+  PIZZA_D_ENTRY_TRIGGER,
+  PIZZA_D_EXIT_SOUTH,
+  PIZZA_D_HEIGHT,
+  PIZZA_D_SOUTH_GATES,
+  PIZZA_D_SPAWN,
+  PIZZA_D_WIDTH
+} from "../../src/game/maps/pizzaDescentMap";
+import {
+  buildPizzaVentMap,
+  PIZZA_V_BORDER_GATES,
+  PIZZA_V_EXIT_NORTH,
+  PIZZA_V_EXIT_SOUTH,
+  PIZZA_V_HEIGHT,
+  PIZZA_V_SPAWN,
+  PIZZA_V_WIDTH
+} from "../../src/game/maps/pizzaVentMap";
+import {
+  buildPizzaApproachMap,
+  PIZZA_A_BORDER_GATES,
+  PIZZA_A_EXIT_NORTH,
+  PIZZA_A_EXIT_SOUTH,
+  PIZZA_A_HEIGHT,
+  PIZZA_A_SPAWN,
+  PIZZA_A_WIDTH
+} from "../../src/game/maps/pizzaApproachMap";
+import {
+  buildPizzeriaMap,
+  PIZZA_P_EXIT_NORTH,
+  PIZZA_P_HEIGHT,
+  PIZZA_P_NORTH_GATES,
+  PIZZA_P_OVEN,
+  PIZZA_P_SPAWN,
+  PIZZA_P_TESTUDO,
+  PIZZA_P_WIDTH
+} from "../../src/game/maps/pizzeriaMap";
+import {
+  buildPizzaAscentMap,
+  PIZZA_ASCENT_FINALE_TRIGGER,
+  PIZZA_ASCENT_GAP_LOWER,
+  PIZZA_ASCENT_GAP_UPPER,
+  PIZZA_ASCENT_HEIGHT,
+  PIZZA_ASCENT_SPAWN,
+  PIZZA_ASCENT_WIDTH
+} from "../../src/game/maps/pizzaAscentMap";
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
@@ -324,7 +370,8 @@ const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles4.names),
   ...Object.keys(manifest.tiles5.names),
   ...Object.keys(manifest.tiles6.names),
-  ...Object.keys(manifest.tiles7.names)
+  ...Object.keys(manifest.tiles7.names),
+  ...Object.keys(manifest.tiles8.names)
 ]);
 
 interface Pt {
@@ -1694,5 +1741,128 @@ describe("reef court map (the diplomacy zone + the oldest mint row)", () => {
     expect(reachable(map, REEF_C_SPAWN, REEF_C_OLD_ROW)).toBe(true);
     expect(reachable(map, REEF_C_SPAWN, rectTile(REEF_C_EXIT_NORTH))).toBe(true);
     expect(map.ground.flat()).toContain("mintKelp");
+  });
+});
+
+// ---------- Act 7: La Pizzeria Sotterranea (the finale, a five-zone chain) ----------
+
+describe("pizza descent map (The Warm Deep — the Act 7 entry)", () => {
+  const map = buildPizzaDescentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, PIZZA_D_WIDTH, PIZZA_D_HEIGHT);
+  });
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+  it("is deterministic", () => {
+    expect(buildPizzaDescentMap()).toEqual(map);
+  });
+  it("is fully enclosed except the south gate on toward the vents", () => {
+    assertEnclosed(map, PIZZA_D_SOUTH_GATES);
+  });
+  it("keeps the spawn, the arrival beat and the south exit reachable", () => {
+    expect(reachable(map, PIZZA_D_SPAWN, rectTile(PIZZA_D_ENTRY_TRIGGER))).toBe(true);
+    expect(reachable(map, PIZZA_D_SPAWN, rectTile(PIZZA_D_EXIT_SOUTH))).toBe(true);
+  });
+});
+
+describe("pizza vent map (The Lava Vents)", () => {
+  const map = buildPizzaVentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, PIZZA_V_WIDTH, PIZZA_V_HEIGHT);
+  });
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+  it("is deterministic", () => {
+    expect(buildPizzaVentMap()).toEqual(map);
+  });
+  it("is fully enclosed except the north and south gates", () => {
+    assertEnclosed(map, PIZZA_V_BORDER_GATES);
+  });
+  it("has SOLID, animatable lava vents that never seal the north↔south path", () => {
+    expect(map.decor.flat()).toContain("lavaVent");
+    expect(reachable(map, rectTile(PIZZA_V_EXIT_NORTH), rectTile(PIZZA_V_EXIT_SOUTH))).toBe(true);
+    expect(reachable(map, PIZZA_V_SPAWN, rectTile(PIZZA_V_EXIT_SOUTH))).toBe(true);
+  });
+});
+
+describe("pizza approach map (The Old Kitchens)", () => {
+  const map = buildPizzaApproachMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, PIZZA_A_WIDTH, PIZZA_A_HEIGHT);
+  });
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+  it("is deterministic", () => {
+    expect(buildPizzaApproachMap()).toEqual(map);
+  });
+  it("is fully enclosed except the north and south gates", () => {
+    assertEnclosed(map, PIZZA_A_BORDER_GATES);
+  });
+  it("shows the 'built' turn (carved steps, columns, signage) and stays passable", () => {
+    expect(map.ground.flat()).toContain("carvedStep");
+    expect(map.decor.flat()).toContain("stoneColumn");
+    expect((map.overhead ?? []).flat()).toContain("hangSign");
+    expect(reachable(map, PIZZA_A_SPAWN, rectTile(PIZZA_A_EXIT_SOUTH))).toBe(true);
+    expect(reachable(map, PIZZA_A_SPAWN, rectTile(PIZZA_A_EXIT_NORTH))).toBe(true);
+  });
+});
+
+describe("pizzeria map (La Pizzeria Sotterranea — the restaurant)", () => {
+  const map = buildPizzeriaMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, PIZZA_P_WIDTH, PIZZA_P_HEIGHT);
+  });
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+  it("is deterministic", () => {
+    expect(buildPizzeriaMap()).toEqual(map);
+  });
+  it("is fully enclosed except the north gate back to the kitchens", () => {
+    assertEnclosed(map, PIZZA_P_NORTH_GATES);
+  });
+  it("keeps Testudo's tile walkable and reachable, with the oven behind him", () => {
+    expect(isSolidAt(map, PIZZA_P_TESTUDO.x, PIZZA_P_TESTUDO.y)).toBe(false);
+    expect(isSolidAt(map, PIZZA_P_OVEN.x, PIZZA_P_OVEN.y)).toBe(true); // the great oven is solid
+    expect(reachable(map, PIZZA_P_SPAWN, PIZZA_P_TESTUDO)).toBe(true);
+    expect(reachable(map, PIZZA_P_SPAWN, rectTile(PIZZA_P_EXIT_NORTH))).toBe(true);
+    // set tables + lava-vent light are present
+    expect(map.decor.flat()).toContain("pizzaTable");
+    expect(map.decor.flat()).toContain("lavaVent");
+  });
+});
+
+describe("pizza ascent map (The Long Way Up — the finale)", () => {
+  const map = buildPizzaAscentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, PIZZA_ASCENT_WIDTH, PIZZA_ASCENT_HEIGHT);
+  });
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+  it("is deterministic", () => {
+    expect(buildPizzaAscentMap()).toEqual(map);
+  });
+  it("is fully enclosed with NO gate (the only way out is the collapse)", () => {
+    assertEnclosed(map, []);
+  });
+  it("threads the switchback: the climb from the bottom reaches the top finale", () => {
+    // Both switchback gaps are walkable...
+    expect(isSolidAt(map, PIZZA_ASCENT_GAP_LOWER.x, PIZZA_ASCENT_GAP_LOWER.y)).toBe(false);
+    expect(isSolidAt(map, PIZZA_ASCENT_GAP_UPPER.x, PIZZA_ASCENT_GAP_UPPER.y)).toBe(false);
+    // ...and the climb from spawn to the top finale trigger connects through them.
+    expect(reachable(map, PIZZA_ASCENT_SPAWN, rectTile(PIZZA_ASCENT_FINALE_TRIGGER))).toBe(true);
+    // Blocking the lower gap cuts the climb off — proof the switchback is real.
+    expect(
+      reachable(map, PIZZA_ASCENT_SPAWN, rectTile(PIZZA_ASCENT_FINALE_TRIGGER), [PIZZA_ASCENT_GAP_LOWER])
+    ).toBe(false);
   });
 });

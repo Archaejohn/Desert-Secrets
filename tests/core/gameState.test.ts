@@ -6,6 +6,7 @@ import {
   ACT4_FLAGS,
   ACT5_FLAGS,
   ACT6_FLAGS,
+  ACT7_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
@@ -49,11 +50,20 @@ describe("newGame", () => {
       ...ACT4_FLAGS,
       ...ACT5_FLAGS,
       ...ACT6_FLAGS,
+      ...ACT7_FLAGS,
     ]) {
       expect(s.flags[flag]).toBe(false);
     }
     expect(Object.keys(s.flags).sort()).toEqual(
-      [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS, ...ACT4_FLAGS, ...ACT5_FLAGS, ...ACT6_FLAGS].sort(),
+      [
+        ...ACT1_FLAGS,
+        ...ACT2_FLAGS,
+        ...ACT3_FLAGS,
+        ...ACT4_FLAGS,
+        ...ACT5_FLAGS,
+        ...ACT6_FLAGS,
+        ...ACT7_FLAGS,
+      ].sort(),
     );
   });
 });

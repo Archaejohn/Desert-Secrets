@@ -18,6 +18,7 @@ import tiles4Url from "../../assets/generated/tiles4.png";
 import tiles5Url from "../../assets/generated/tiles5.png";
 import tiles6Url from "../../assets/generated/tiles6.png";
 import tiles7Url from "../../assets/generated/tiles7.png";
+import tiles8Url from "../../assets/generated/tiles8.png";
 import rosaUrl from "../../assets/generated/rosa.png";
 import piggyUrl from "../../assets/generated/piggy.png";
 import jackrabbitUrl from "../../assets/generated/jackrabbit.png";
@@ -43,6 +44,7 @@ import lurkerUrl from "../../assets/generated/lurker.png";
 import middenmiteUrl from "../../assets/generated/middenmite.png";
 import sunwaspUrl from "../../assets/generated/sunwasp.png";
 import reefstalkerUrl from "../../assets/generated/reefstalker.png";
+import testudoUrl from "../../assets/generated/testudo.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -72,7 +74,8 @@ const SHEET_URLS: Record<string, string> = {
   lurker: lurkerUrl,
   middenmite: middenmiteUrl,
   sunwasp: sunwaspUrl,
-  reefstalker: reefstalkerUrl
+  reefstalker: reefstalkerUrl,
+  testudo: testudoUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {
@@ -108,7 +111,12 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   reefGarden: "The Crawlers' Garden",
   reefWarren: "The Coral Warren",
   reefHollow: "The Glowing Hollow",
-  reefCourt: "The Crawler Court"
+  reefCourt: "The Crawler Court",
+  pizzaDescent: "The Warm Deep",
+  pizzaVent: "The Lava Vents",
+  pizzaApproach: "The Old Kitchens",
+  pizzeria: "La Pizzeria Sotterranea",
+  pizzaAscent: "The Long Way Up"
 };
 
 export class BootScene extends Phaser.Scene {
@@ -137,7 +145,8 @@ export class BootScene extends Phaser.Scene {
       ["tiles4", tiles4Url],
       ["tiles5", tiles5Url],
       ["tiles6", tiles6Url],
-      ["tiles7", tiles7Url]
+      ["tiles7", tiles7Url],
+      ["tiles8", tiles8Url]
     ] as const) {
       this.load.spritesheet(key, url, { frameWidth: 16, frameHeight: 16 });
       this.load.image(`${key}-img`, url);

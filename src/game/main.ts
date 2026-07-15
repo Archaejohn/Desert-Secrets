@@ -33,6 +33,11 @@ import { ReefGardenScene } from "./scenes/ReefGardenScene";
 import { ReefWarrenScene } from "./scenes/ReefWarrenScene";
 import { ReefHollowScene } from "./scenes/ReefHollowScene";
 import { ReefCourtScene } from "./scenes/ReefCourtScene";
+import { PizzaDescentScene } from "./scenes/PizzaDescentScene";
+import { PizzaVentScene } from "./scenes/PizzaVentScene";
+import { PizzaApproachScene } from "./scenes/PizzaApproachScene";
+import { PizzeriaScene } from "./scenes/PizzeriaScene";
+import { PizzaAscentScene } from "./scenes/PizzaAscentScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -86,6 +91,11 @@ const game = new Phaser.Game({
     ReefWarrenScene,
     ReefHollowScene,
     ReefCourtScene,
+    PizzaDescentScene,
+    PizzaVentScene,
+    PizzaApproachScene,
+    PizzeriaScene,
+    PizzaAscentScene,
     BattleScene
   ]
 });

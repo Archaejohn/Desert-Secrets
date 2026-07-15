@@ -26,6 +26,7 @@ import { LURKER_FRAME } from "./sprites/lurker";
 import { MIDDENMITE_FRAME } from "./sprites/middenmite";
 import { SUNWASP_FRAME } from "./sprites/sunwasp";
 import { REEFSTALKER_FRAME } from "./sprites/reefstalker";
+import { TESTUDO_FRAME } from "./sprites/testudo";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
@@ -33,6 +34,7 @@ import { TILE4_NAMES } from "./tileset4";
 import { TILE5_NAMES } from "./tileset5";
 import { TILE6_NAMES } from "./tileset6";
 import { TILE7_NAMES } from "./tileset7";
+import { TILE8_NAMES } from "./tileset8";
 
 export interface AnimationDef {
   frames: number[];
@@ -87,6 +89,7 @@ export interface Manifest {
     middenmite: SheetDef;
     sunwasp: SheetDef;
     reefstalker: SheetDef;
+    testudo: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
@@ -95,6 +98,7 @@ export interface Manifest {
   tiles5: TileSetDef;
   tiles6: TileSetDef;
   tiles7: TileSetDef;
+  tiles8: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -206,7 +210,8 @@ export function buildManifest(): Manifest {
       lurker: creatureSheet("lurker", LURKER_FRAME, "move", 2, 8),
       middenmite: creatureSheet("middenmite", MIDDENMITE_FRAME, "move", 3, 12),
       sunwasp: creatureSheet("sunwasp", SUNWASP_FRAME, "move", 3, 12),
-      reefstalker: creatureSheet("reefstalker", REEFSTALKER_FRAME, "move", 3, 10)
+      reefstalker: creatureSheet("reefstalker", REEFSTALKER_FRAME, "move", 3, 10),
+      testudo: creatureSheet("testudo", TESTUDO_FRAME, "move", 2, 6)
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },
@@ -214,6 +219,7 @@ export function buildManifest(): Manifest {
     tiles4: { file: "tiles4.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE4_NAMES) },
     tiles5: { file: "tiles5.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE5_NAMES) },
     tiles6: { file: "tiles6.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE6_NAMES) },
-    tiles7: { file: "tiles7.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE7_NAMES) }
+    tiles7: { file: "tiles7.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE7_NAMES) },
+    tiles8: { file: "tiles8.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE8_NAMES) }
   };
 }

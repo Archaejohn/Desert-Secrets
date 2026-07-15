@@ -190,3 +190,23 @@ describe("act6 asset byte-stability", () => {
     }
   });
 });
+
+describe("act7 asset byte-stability", () => {
+  // sha256 of the newly-generated Act 7 assets (docs/CONTRACTS.md "v18: La
+  // Pizzeria Sotterranea"): Chef Testudo the tortoise NPC plus the eighth
+  // (restaurant / lava-vent) tileset. Pinned once here so future refactors
+  // can't silently move a shipped pixel. Purely additive — no prior sheet's
+  // bytes change (asserted above).
+  const FROZEN = {
+    testudo: "bf6d3649f8c5af217aa6a174a1edb9ee2ff9b84f84096a14d7e3de718a1bffda",
+    tiles8: "a901f8c9f689519c56ef078e4fbf24caf973fb2febdae6bdb62f33c53bb29be0"
+  } as const;
+
+  it("testudo/tiles8 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

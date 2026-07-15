@@ -1085,6 +1085,33 @@
           "repeat": -1
         }
       }
+    },
+    "testudo": {
+      "file": "testudo.png",
+      "frameWidth": 24,
+      "frameHeight": 24,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "testudo-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 2,
+          "repeat": -1
+        },
+        "testudo-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 6,
+          "repeat": -1
+        }
+      }
     }
   },
   "tiles": {
@@ -1262,6 +1289,29 @@
       "kelpCanopy": 13,
       "seaAnemone": 14,
       "shellCluster": 15
+    }
+  },
+  "tiles8": {
+    "file": "tiles8.png",
+    "tileSize": 16,
+    "columns": 8,
+    "names": {
+      "emberFloor": 0,
+      "emberFloor2": 1,
+      "ashFloor": 2,
+      "carvedStep": 3,
+      "basaltWall": 4,
+      "lavaVent": 5,
+      "lavaVent2": 6,
+      "lavaCrust": 7,
+      "tileFloor": 8,
+      "tileFloor2": 9,
+      "pizzaTable": 10,
+      "pizzaOven": 11,
+      "stoneColumn": 12,
+      "hangSign": 13,
+      "ovenGlow": 14,
+      "steamCrack": 15
     }
   }
 }
