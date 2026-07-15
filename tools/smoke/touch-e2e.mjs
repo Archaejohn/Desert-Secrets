@@ -5,8 +5,9 @@
  * playthrough, because these bugs only reproduce with `isTouchDevice()`
  * true: (1) tapping to use an InteractPoint (bucket/spigot/coop) — the
  * tap-to-interact path only ever checked NPCs, so touch players got no
- * response at all; (2) the dialogue choice list's on-screen ▲/A/▼ buttons,
- * added because precisely tapping a tiny choice row was unreliable.
+ * response at all; (2) the dialogue choice list's on-screen ▲/✓/▼ buttons,
+ * added because precisely tapping a tiny choice row was unreliable; (3)
+ * the same ▲/✓/▼ column in the battle command/target menu.
  *
  * Usage:  npm run build && npm run smoke:touch
  */
@@ -118,20 +119,17 @@ if (dlgState.choices) {
   const btnScreen = await page.evaluate(() => {
     const w = window.__game.scene.getScene("oasis");
     const dlg = w.dialogue;
+    const btns = dlg["touchButtons"];
     const rect = window.__game.canvas.getBoundingClientRect();
     const scaleX = rect.width / window.__game.scale.width;
     const scaleY = rect.height / window.__game.scale.height;
     const cx = dlg["container"].x;
     const cy = dlg["container"].y;
-    const btnX = dlg["btnX"];
-    const btnTop = dlg["btnTop"];
-    const BTN_GAP = 24;
-    const BTN_SIZE = 22;
     const mid = (localY) => ({
-      x: rect.x + (cx + btnX + BTN_SIZE / 2) * scaleX,
-      y: rect.y + (cy + localY + BTN_SIZE / 2) * scaleY
+      x: rect.x + (cx + btns.x + btns.size / 2) * scaleX,
+      y: rect.y + (cy + localY + btns.size / 2) * scaleY
     });
-    return { up: mid(btnTop), a: mid(btnTop + BTN_GAP), down: mid(btnTop + BTN_GAP * 2) };
+    return { up: mid(btns.top), confirm: mid(btns.top + btns.gap), down: mid(btns.top + btns.gap * 2) };
   });
 
   const selAfter = async () =>
@@ -147,17 +145,148 @@ if (dlgState.choices) {
   const selUp = await selAfter();
   check("tapping ▲ moves the choice selection back up", selUp === 0, `selected=${selUp}`);
 
-  await page.touchscreen.tap(btnScreen.a.x, btnScreen.a.y);
+  await page.touchscreen.tap(btnScreen.confirm.x, btnScreen.confirm.y);
   await page.waitForTimeout(300);
-  const afterA = await page.evaluate(() => {
+  const afterConfirm = await page.evaluate(() => {
     const w = window.__game.scene.getScene("oasis");
     return { open: w.dialogue.isOpen, node: w.dialogue["runner"]?.currentNodeId ?? null };
   });
   check(
-    "tapping A confirms the highlighted choice and advances the conversation",
-    afterA.open === true && afterA.node !== null && afterA.node !== "hub",
-    JSON.stringify(afterA)
+    "tapping ✓ confirms the highlighted choice and advances the conversation",
+    afterConfirm.open === true && afterConfirm.node !== null && afterConfirm.node !== "hub",
+    JSON.stringify(afterConfirm)
   );
+
+  // Walk the rest of this conversation out via touch alone, ending on
+  // "Say goodbye" (▼▼✓), which triggers the tutorial battle on close.
+  for (let i = 0; i < 12; i++) {
+    const s = await page.evaluate(() => {
+      const w = window.__game.scene.getScene("oasis");
+      return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
+    });
+    if (!s.open) break;
+    if (s.choices) {
+      const btns = await page.evaluate(() => {
+        const w = window.__game.scene.getScene("oasis");
+        const dlg = w.dialogue;
+        const b = dlg["touchButtons"];
+        const rect = window.__game.canvas.getBoundingClientRect();
+        const scaleX = rect.width / window.__game.scale.width;
+        const scaleY = rect.height / window.__game.scale.height;
+        const cx = dlg["container"].x;
+        const cy = dlg["container"].y;
+        return {
+          down: { x: rect.x + (cx + b.x + b.size / 2) * scaleX, y: rect.y + (cy + b.top + b.gap * 2 + b.size / 2) * scaleY },
+          confirm: { x: rect.x + (cx + b.x + b.size / 2) * scaleX, y: rect.y + (cy + b.top + b.gap + b.size / 2) * scaleY }
+        };
+      });
+      const lastIndex = s.choices.length - 1;
+      for (let k = 0; k < lastIndex; k++) {
+        await page.touchscreen.tap(btns.down.x, btns.down.y);
+        await page.waitForTimeout(150);
+      }
+      await page.touchscreen.tap(btns.confirm.x, btns.confirm.y);
+    } else {
+      await tapRightSide();
+    }
+    await page.waitForTimeout(220);
+  }
+  const closed = await page.evaluate(() => window.__game.scene.getScene("oasis").dialogue.isOpen);
+  check("touch-only navigation reaches 'Say goodbye' and closes the conversation", closed === false);
+}
+
+// ---------- Battle menu: on-screen ▲ / ✓ / ▼ buttons ----------
+const battleUp = await page.evaluate(async () => {
+  const start = Date.now();
+  while (Date.now() - start < 6000) {
+    const scenes = window.__game.scene.getScenes(true).map((s) => s.scene.key);
+    if (scenes.includes("battle")) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return false;
+});
+check("closing the parent conversation starts the tutorial battle", battleUp === true);
+
+if (battleUp) {
+  // The hero's ATB gauge takes a few seconds to fill before the menu opens.
+  const menuState = await page.evaluate(async () => {
+    const b = window.__game.scene.getScene("battle");
+    const start = Date.now();
+    while (Date.now() - start < 8000) {
+      if (b["menuMode"] !== "hidden") break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return { mode: b["menuMode"], items: b["menuItems"]?.map((i) => i.label) ?? null, sel: b["menuSel"] };
+  });
+  check(
+    "battle opens the actions menu for the hero",
+    menuState.mode === "actions" && Array.isArray(menuState.items) && menuState.items.length > 0,
+    JSON.stringify(menuState)
+  );
+
+  const btnScreen =
+    menuState.mode === "actions"
+      ? await page.evaluate(() => {
+          const b = window.__game.scene.getScene("battle");
+          const btns = b["menuTouchButtons"];
+          const rect = window.__game.canvas.getBoundingClientRect();
+          const scaleX = rect.width / window.__game.scale.width;
+          const scaleY = rect.height / window.__game.scale.height;
+          const px = b["menuPanel"].x;
+          const py = b["menuPanel"].y;
+          const mid = (localY) => ({
+            x: rect.x + (px + btns.x + btns.size / 2) * scaleX,
+            y: rect.y + (py + localY + btns.size / 2) * scaleY
+          });
+          return { up: mid(btns.top), confirm: mid(btns.top + btns.gap), down: mid(btns.top + btns.gap * 2), present: !!btns };
+        })
+      : { present: false };
+  check("battle menu has a touch button column", btnScreen.present === true);
+
+  if (btnScreen.present) {
+    await page.touchscreen.tap(btnScreen.down.x, btnScreen.down.y);
+    await page.waitForTimeout(200);
+    const selDown = await page.evaluate(() => window.__game.scene.getScene("battle")["menuSel"]);
+    check("tapping ▼ moves the battle menu selection down", selDown === 1, `sel=${selDown}`);
+
+    await page.touchscreen.tap(btnScreen.up.x, btnScreen.up.y);
+    await page.waitForTimeout(200);
+    const selUp = await page.evaluate(() => window.__game.scene.getScene("battle")["menuSel"]);
+    check("tapping ▲ moves the battle menu selection back up", selUp === 0, `sel=${selUp}`);
+
+    // Confirm "Attack" (row 0) -> opens the target submenu with its own buttons.
+    await page.touchscreen.tap(btnScreen.confirm.x, btnScreen.confirm.y);
+    await page.waitForTimeout(250);
+    const targetState = await page.evaluate(() => {
+      const b = window.__game.scene.getScene("battle");
+      return { mode: b["menuMode"], present: !!b["menuTouchButtons"] };
+    });
+    check(
+      "tapping ✓ confirms Attack and opens the target menu, also with touch buttons",
+      targetState.mode === "targets" && targetState.present === true,
+      JSON.stringify(targetState)
+    );
+
+    if (targetState.mode === "targets") {
+      const targetBtn = await page.evaluate(() => {
+        const b = window.__game.scene.getScene("battle");
+        const btns = b["menuTouchButtons"];
+        const rect = window.__game.canvas.getBoundingClientRect();
+        const scaleX = rect.width / window.__game.scale.width;
+        const scaleY = rect.height / window.__game.scale.height;
+        const px = b["menuPanel"].x;
+        const py = b["menuPanel"].y;
+        return {
+          x: rect.x + (px + btns.x + btns.size / 2) * scaleX,
+          y: rect.y + (py + btns.top + btns.gap + btns.size / 2) * scaleY
+        };
+      });
+      await page.touchscreen.tap(targetBtn.x, targetBtn.y);
+      await page.waitForTimeout(300);
+      const afterTarget = await page.evaluate(() => window.__game.scene.getScene("battle")["menuMode"]);
+      check("tapping ✓ on the target menu commits the attack (menu closes)", afterTarget === "hidden", `mode=${afterTarget}`);
+    }
+  }
 }
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));

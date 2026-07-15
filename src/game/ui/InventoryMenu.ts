@@ -11,7 +11,8 @@
  * ESC key at all: without an on-screen close control there was no way
  * out of this menu on a phone. Manual hit-testing (not Phaser's
  * per-object interactivity) is used throughout, matching PerkMenu, so
- * the ✕ and the rows share one simple pointerdown handler.
+ * the ✕, the rows, and the ▲/✓/▼ column share one simple pointerdown
+ * handler.
  *
  * Styled to match PerkMenu: ink background, gold border and highlight,
  * self-contained input handlers torn down on close so the underlying
@@ -20,6 +21,7 @@
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import type { Act1State } from "../../core/gameState";
+import { isTouchDevice, TouchListButtons } from "./touch";
 
 const PANEL_W = 260;
 const ICON = 16;
@@ -28,6 +30,8 @@ const ROWS_TOP = 28;
 const DETAIL_H = 46;
 const FOOTER_H = 16;
 const CLOSE_SIZE = 18;
+const BTN_SIZE = 22;
+const BTN_GAP = 24;
 
 interface ItemRow {
   label: string;
@@ -65,6 +69,7 @@ function rowsFor(items: Act1State["items"]): ItemRow[] {
 
 export class InventoryMenu {
   private scene: Phaser.Scene;
+  private touch: boolean;
   private container: Phaser.GameObjects.Container;
   private rowTexts: Phaser.GameObjects.Text[] = [];
   private rowIcons: Array<Phaser.GameObjects.Sprite | null> = [];
@@ -72,6 +77,7 @@ export class InventoryMenu {
   private detailIcon: Phaser.GameObjects.Sprite | null = null;
   private detailText: Phaser.GameObjects.Text;
   private emptyText: Phaser.GameObjects.Text;
+  private touchButtons: TouchListButtons | null = null;
   private sel = 0;
   private rows: ItemRow[];
   private panelH: number;
@@ -90,6 +96,8 @@ export class InventoryMenu {
     this.onToggleBucket = onToggleBucket;
     this.onClose = onClose;
     this.rows = rowsFor(items);
+    const touch = isTouchDevice(scene);
+    this.touch = touch;
 
     const detailArea = this.rows.length > 0 ? DETAIL_H : 0;
     this.panelH = ROWS_TOP + Math.max(1, this.rows.length) * ROW_H + detailArea + FOOTER_H + 6;
@@ -139,11 +147,16 @@ export class InventoryMenu {
     });
 
     const footer = scene.add
-      .text(PANEL_W / 2, this.panelH - 14, "SPACE/tap equip · ESC, I or ✕ close", {
-        fontFamily: "monospace",
-        fontSize: "8px",
-        color: PALETTE.mauve
-      })
+      .text(
+        PANEL_W / 2,
+        this.panelH - 14,
+        touch ? "▲▼ move · ✓ or tap equip · ✕ close" : "SPACE/tap equip · ESC, I or ✕ close",
+        {
+          fontFamily: "monospace",
+          fontSize: "8px",
+          color: PALETTE.mauve
+        }
+      )
       .setOrigin(0.5, 0);
 
     this.container = scene.add.container(x, y, [
@@ -156,6 +169,18 @@ export class InventoryMenu {
       footer
     ]);
     this.container.setScrollFactor(0).setDepth(5000);
+
+    if (touch && this.rows.length > 0) {
+      // The fixed-size button column can be taller than a 1-2 row list
+      // (this menu only ever has at most two items) — clamp to ROWS_TOP
+      // rather than centering negative, which would push the buttons up
+      // into the title/close-button area.
+      const listH = this.rows.length * ROW_H;
+      const btnColH = BTN_GAP * 2 + BTN_SIZE;
+      const btnTop = ROWS_TOP + Math.max(0, Math.round((listH - btnColH) / 2));
+      this.touchButtons = new TouchListButtons(scene, PANEL_W - 8 - BTN_SIZE, btnTop, BTN_SIZE, BTN_GAP);
+      this.container.add(this.touchButtons.container);
+    }
 
     for (let i = 0; i < this.rows.length; i++) {
       const rowY = ROWS_TOP + i * ROW_H + ROW_H / 2;
@@ -204,6 +229,9 @@ export class InventoryMenu {
   private render(): void {
     const highlight = this.rowHighlight;
     highlight.clear();
+    // Leave room for the ▲/✓/▼ column on touch so the highlight bar never
+    // sits underneath it.
+    const rowW = PANEL_W - 12 - (this.touch && this.touchButtons ? BTN_SIZE + 8 : 0);
     for (let i = 0; i < this.rows.length; i++) {
       const row = this.rows[i];
       const selected = i === this.sel;
@@ -211,7 +239,7 @@ export class InventoryMenu {
       this.rowTexts[i].setText(`${row.label}${equippedTag}`).setColor(selected ? PALETTE.atbGold : PALETTE.bone);
       if (selected) {
         highlight.fillStyle(hexToInt(PALETTE.plum), 0.6);
-        highlight.fillRect(6, ROWS_TOP + i * ROW_H, PANEL_W - 12, ROW_H);
+        highlight.fillRect(6, ROWS_TOP + i * ROW_H, rowW, ROW_H);
       }
     }
     // Graphics redraw beneath everything each render(); keep icons/labels
@@ -241,6 +269,12 @@ export class InventoryMenu {
     if (localX >= PANEL_W - CLOSE_SIZE && localX <= PANEL_W && localY >= 0 && localY <= CLOSE_SIZE) {
       this.close();
       return;
+    }
+    if (this.touchButtons) {
+      const hit = this.touchButtons.hitTest(localX, localY);
+      if (hit === "up") return this.move(-1);
+      if (hit === "down") return this.move(1);
+      if (hit === "confirm") return this.activate();
     }
     if (localX < 0 || localX > PANEL_W || this.rows.length === 0) return;
     const row = Math.floor((localY - ROWS_TOP) / ROW_H);

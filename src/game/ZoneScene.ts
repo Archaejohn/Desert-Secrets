@@ -103,6 +103,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   private joyOrigin: Phaser.Math.Vector2 | null = null;
   private joyVector = new Phaser.Math.Vector2(0, 0);
   private joystickVisual: JoystickVisual | null = null;
+  private actionHint: Phaser.GameObjects.Container | null = null;
   private transitioning = false;
   private encounterClock: EncounterClock | null = null;
   private animatedTilePairs: Array<[number, number]> = [];
@@ -173,7 +174,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     addFullscreenButton(this);
     if (isTouchDevice(this)) {
       this.joystickVisual = new JoystickVisual(this);
-      addActionButtonHint(this);
+      this.actionHint = addActionButtonHint(this);
       addInventoryButton(this, () => this.openInventory());
     }
 
@@ -505,6 +506,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.player.play(`hero-idle-${this.facing}`, true);
     this.talkPrompt.setVisible(false);
+    this.actionHint?.setVisible(false);
     this.inventoryMenu = new InventoryMenu(
       this,
       getState(this).items,
@@ -583,6 +585,7 @@ export abstract class ZoneScene extends Phaser.Scene {
 
     if (this.inventoryMenu) {
       // The menu owns keyboard/pointer input while open; just idle the player.
+      this.actionHint?.setVisible(false);
       this.player.setVelocity(0, 0);
       return;
     }
@@ -596,6 +599,8 @@ export abstract class ZoneScene extends Phaser.Scene {
       (Phaser.Input.Keyboard.JustDown(this.keyInteract) || Phaser.Input.Keyboard.JustDown(this.keySpace));
 
     if (this.dialogue.isOpen) {
+      // The dialogue box occupies the same bottom-right area as this hint.
+      this.actionHint?.setVisible(false);
       this.player.setVelocity(0, 0);
       this.activeNpc?.sprite.setVelocity(0, 0);
       if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) this.dialogue.moveSelection(-1);
@@ -606,10 +611,13 @@ export abstract class ZoneScene extends Phaser.Scene {
     }
 
     if (this.inputLocked) {
+      this.actionHint?.setVisible(false);
       this.player.setVelocity(0, 0);
       this.onUpdate(dt);
       return;
     }
+
+    this.actionHint?.setVisible(true);
 
     // Talk prompt + interaction. NPCs take priority over interact points.
     const npc = this.nearestNpc();

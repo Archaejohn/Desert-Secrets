@@ -6,16 +6,14 @@
 import Phaser from "phaser";
 import { DialogueRunner, type DialogueScript } from "../../core/dialogue";
 import { PALETTE, hexToInt } from "../../shared/palette";
-import { isTouchDevice } from "./touch";
+import { isTouchDevice, TouchListButtons } from "./touch";
 
 const BOX_H = 100;
 const PAD = 8;
 /** Each choice row's tappable band — deliberately generous (was 12px). */
 const CHOICE_ROW_H = 18;
 const CHOICE_TOP = 30;
-/** On-touch ▲ / A / ▼ control column on the box's right edge, choices only. */
 const BTN_SIZE = 22;
-const BTN_GAP = 24;
 
 export class DialogueBox {
   private scene: Phaser.Scene;
@@ -26,9 +24,7 @@ export class DialogueBox {
   private choiceTexts: Phaser.GameObjects.Text[] = [];
   private choiceHighlight: Phaser.GameObjects.Graphics;
   private hintText: Phaser.GameObjects.Text;
-  private touchButtons: Phaser.GameObjects.Container;
-  private btnX: number;
-  private btnTop: number;
+  private touchButtons: TouchListButtons;
   private runner: DialogueRunner | null = null;
   private selected = 0;
   private onClose: ((endNodeId: string | null) => void) | null = null;
@@ -39,8 +35,6 @@ export class DialogueBox {
     this.touch = isTouchDevice(scene);
     const w = scene.scale.width;
     const h = scene.scale.height;
-    this.btnX = w - PAD - BTN_SIZE;
-    this.btnTop = CHOICE_TOP - 2;
 
     const bg = scene.add.graphics();
     bg.fillStyle(hexToInt(PALETTE.ink), 0.94);
@@ -69,7 +63,11 @@ export class DialogueBox {
       .setOrigin(1, 0);
 
     this.choiceHighlight = scene.add.graphics();
-    this.touchButtons = this.buildTouchButtons();
+    // ▲ / ✓ / ▼ column on the box's right edge — a reliable touch
+    // fallback to precisely tapping a choice row, hidden until a choice
+    // list is showing (and never shown on desktop; arrows + SPACE cover
+    // that). Hit-tested manually in tapAt(), same as PerkMenu/InventoryMenu.
+    this.touchButtons = new TouchListButtons(scene, w - PAD - BTN_SIZE, CHOICE_TOP - 2, BTN_SIZE).setVisible(false);
 
     this.container = scene.add.container(0, h - BOX_H - 4, [
       bg,
@@ -77,43 +75,9 @@ export class DialogueBox {
       this.speakerText,
       this.lineText,
       this.hintText,
-      this.touchButtons
+      this.touchButtons.container
     ]);
     this.container.setScrollFactor(0).setDepth(1000).setVisible(false);
-  }
-
-  /**
-   * Big (44px on-screen) ▲ / A / ▼ buttons — a reliable touch fallback to
-   * precisely tapping a choice row. Only shown on a touch device, and only
-   * while a choice list is up. Hit-tested manually in tapAt(), same as
-   * every other menu in this game (PerkMenu, InventoryMenu), rather than
-   * through Phaser's per-object interactivity.
-   */
-  private buildTouchButtons(): Phaser.GameObjects.Container {
-    const btns = this.scene.add.container(0, 0);
-    const glyphs: Array<[number, string]> = [
-      [0, "▲"],
-      [1, "A"],
-      [2, "▼"]
-    ];
-    for (const [row, glyph] of glyphs) {
-      const y = this.btnTop + row * BTN_GAP;
-      const g = this.scene.add.graphics();
-      g.fillStyle(hexToInt(PALETTE.plum), 0.85);
-      g.fillRect(this.btnX, y, BTN_SIZE, BTN_SIZE);
-      g.lineStyle(1, hexToInt(PALETTE.atbGold), 1);
-      g.strokeRect(this.btnX + 0.5, y + 0.5, BTN_SIZE - 1, BTN_SIZE - 1);
-      const t = this.scene.add
-        .text(this.btnX + BTN_SIZE / 2, y + BTN_SIZE / 2, glyph, {
-          fontFamily: "monospace",
-          fontSize: "11px",
-          color: PALETTE.atbGold
-        })
-        .setOrigin(0.5);
-      btns.add([g, t]);
-    }
-    btns.setVisible(false);
-    return btns;
   }
 
   get isOpen(): boolean {
@@ -152,7 +116,7 @@ export class DialogueBox {
 
   /**
    * Touch input. Plain lines: any tap advances. Choice lists: a tap on
-   * the ▲/A/▼ column always works (large, fixed-position targets); a tap
+   * the ▲/✓/▼ column always works (large, fixed-position targets); a tap
    * directly on a choice row also picks it. Taps elsewhere are ignored,
    * so a stray touch (e.g. a joystick-intent press) can't pick an option.
    */
@@ -166,19 +130,18 @@ export class DialogueBox {
     const localX = screenX - this.container.x;
     const localY = screenY - this.container.y;
     if (this.touch) {
-      if (localX >= this.btnX && localX <= this.btnX + BTN_SIZE) {
-        if (localY >= this.btnTop && localY <= this.btnTop + BTN_SIZE) {
-          this.moveSelection(-1);
-          return;
-        }
-        if (localY >= this.btnTop + BTN_GAP && localY <= this.btnTop + BTN_GAP + BTN_SIZE) {
-          this.confirm();
-          return;
-        }
-        if (localY >= this.btnTop + BTN_GAP * 2 && localY <= this.btnTop + BTN_GAP * 2 + BTN_SIZE) {
-          this.moveSelection(1);
-          return;
-        }
+      const hit = this.touchButtons.hitTest(localX, localY);
+      if (hit === "up") {
+        this.moveSelection(-1);
+        return;
+      }
+      if (hit === "down") {
+        this.moveSelection(1);
+        return;
+      }
+      if (hit === "confirm") {
+        this.confirm();
+        return;
       }
     }
     const row = Math.floor((localY - CHOICE_TOP) / CHOICE_ROW_H);

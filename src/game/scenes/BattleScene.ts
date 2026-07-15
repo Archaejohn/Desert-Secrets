@@ -25,7 +25,7 @@ import {
   type ZoneId
 } from "../../core/gameState";
 import { getState, setState } from "../state";
-import { addFullscreenButton, inFullscreenButtonZone } from "../ui/touch";
+import { addFullscreenButton, inFullscreenButtonZone, isTouchDevice, TouchListButtons } from "../ui/touch";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { MANIFEST, tileIndex } from "../manifest";
 import { PerkMenu } from "../ui/PerkMenu";
@@ -56,6 +56,12 @@ const HERO_ID = "hero";
 const SLITHER_ID = "slither";
 /** Vertical space reserved for the actor-name title inside the menu panel. */
 const MENU_TITLE_H = 13;
+const MENU_ROW_H = 14;
+/** Plain command/target panel width; widened on touch for the ▲/✓/▼ column. */
+const MENU_W = 130;
+const MENU_W_TOUCH = 160;
+const MENU_BTN_SIZE = 20;
+const MENU_BTN_GAP = 22;
 /** Sprite placement per party member id (party column on the right). */
 const PARTY_SLOTS: Record<
   string,
@@ -120,6 +126,8 @@ export class BattleScene extends Phaser.Scene {
   private menuPanel!: Phaser.GameObjects.Container;
   private menuBg!: Phaser.GameObjects.Graphics;
   private menuTitle!: Phaser.GameObjects.Text;
+  private menuTouchButtons: TouchListButtons | null = null;
+  private touch = false;
   private ending = false;
   private sceneData!: BattleSceneData;
 
@@ -399,6 +407,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Menu ---
 
   private buildMenuPanel(): void {
+    this.touch = isTouchDevice(this);
     this.menuBg = this.add.graphics();
     this.menuTitle = this.add.text(8, 4, "", {
       fontFamily: "monospace",
@@ -509,26 +518,51 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private layoutMenuPanel(): void {
-    const height = MENU_TITLE_H + this.menuItems.length * 14 + 10;
+    const width = this.touch ? MENU_W_TOUCH : MENU_W;
+    const listH = this.menuItems.length * MENU_ROW_H;
+    // The fixed-size ▲/✓/▼ column (its own height regardless of item
+    // count) can be TALLER than a short list (e.g. just Attack/Guard) —
+    // the panel must grow to fit whichever is taller, or the column
+    // overflows past the panel's bottom edge and off-canvas entirely,
+    // silently eating every tap aimed at it.
+    const btnColH = MENU_BTN_GAP * 2 + MENU_BTN_SIZE;
+    const contentH = this.touch ? Math.max(listH, btnColH) : listH;
+    const height = MENU_TITLE_H + contentH + 10;
     this.menuBg.clear();
     this.menuBg.fillStyle(hexToInt(PALETTE.ink), 0.94);
-    this.menuBg.fillRect(0, 0, 130, height);
+    this.menuBg.fillRect(0, 0, width, height);
     this.menuBg.lineStyle(1, hexToInt(PALETTE.atbGold), 1);
-    this.menuBg.strokeRect(0.5, 0.5, 129, height - 1);
-    this.menuPanel.setPosition(this.scale.width - 138, this.scale.height - height - 8);
+    this.menuBg.strokeRect(0.5, 0.5, width - 1, height - 1);
+    this.menuPanel.setPosition(this.scale.width - width - 8, this.scale.height - height - 8);
+
+    this.menuTouchButtons?.container.destroy();
+    this.menuTouchButtons = null;
+    if (this.touch && this.menuItems.length > 0) {
+      const btnTop = MENU_TITLE_H + 5 + Math.max(0, Math.round((contentH - btnColH) / 2));
+      this.menuTouchButtons = new TouchListButtons(
+        this,
+        width - 6 - MENU_BTN_SIZE,
+        btnTop,
+        MENU_BTN_SIZE,
+        MENU_BTN_GAP
+      );
+      this.menuPanel.add(this.menuTouchButtons.container);
+    }
   }
 
   private renderMenu(): void {
     this.menuTexts.forEach((t) => t.destroy());
+    const labelW = this.touch ? MENU_W_TOUCH - 16 - (MENU_BTN_SIZE + 8) : MENU_W - 16;
     this.menuTexts = this.menuItems.map((item, i) => {
       const t = this.add.text(
         8,
-        MENU_TITLE_H + 5 + i * 14,
+        MENU_TITLE_H + 5 + i * MENU_ROW_H,
         `${i === this.menuSel ? "▸ " : "  "}${item.label}`,
         {
           fontFamily: "monospace",
           fontSize: "10px",
-          color: i === this.menuSel ? PALETTE.atbGold : PALETTE.bone
+          color: i === this.menuSel ? PALETTE.atbGold : PALETTE.bone,
+          wordWrap: { width: labelW }
         }
       );
       this.menuPanel.add(t);
@@ -545,9 +579,16 @@ export class BattleScene extends Phaser.Scene {
 
   private tapMenu(p: Phaser.Input.Pointer): void {
     if (this.menuMode === "hidden") return;
-    const localY = p.y - this.menuPanel.y - (MENU_TITLE_H + 5);
-    const row = Math.floor(localY / 14);
-    if (p.x >= this.menuPanel.x && row >= 0 && row < this.menuItems.length) {
+    const localX = p.x - this.menuPanel.x;
+    const localY = p.y - this.menuPanel.y;
+    if (this.menuTouchButtons) {
+      const hit = this.menuTouchButtons.hitTest(localX, localY);
+      if (hit === "up") return this.moveMenu(-1);
+      if (hit === "down") return this.moveMenu(1);
+      if (hit === "confirm") return this.confirmMenu();
+    }
+    const row = Math.floor((localY - (MENU_TITLE_H + 5)) / MENU_ROW_H);
+    if (localX >= 0 && row >= 0 && row < this.menuItems.length) {
       this.menuSel = row;
       this.confirmMenu();
     }

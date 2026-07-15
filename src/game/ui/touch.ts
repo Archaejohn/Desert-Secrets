@@ -108,23 +108,100 @@ export class JoystickVisual {
   }
 }
 
-/** Passive "A" button hint bottom-right (the whole right half is tappable). */
-export function addActionButtonHint(scene: Phaser.Scene): void {
+/**
+ * Passive "A" button hint bottom-right (the whole right half is
+ * tappable). Returns the container so callers can hide it while a
+ * dialogue box or menu occupies the same screen region — it otherwise
+ * visually collides with the bottom of the dialogue box.
+ */
+export function addActionButtonHint(scene: Phaser.Scene): Phaser.GameObjects.Container {
   const x = scene.scale.width - 26;
   const y = scene.scale.height - 90;
-  const g = scene.add.graphics().setScrollFactor(0).setDepth(6500);
+  const g = scene.add.graphics();
   g.fillStyle(hexToInt(PALETTE.ink), 0.35);
   g.fillCircle(x, y, 15);
   g.lineStyle(1.5, hexToInt(PALETTE.atbGold), 0.7);
   g.strokeCircle(x, y, 15);
-  scene.add
+  const t = scene.add
     .text(x, y, "A", {
       fontFamily: "monospace",
       fontSize: "12px",
       color: PALETTE.atbGold
     })
     .setOrigin(0.5)
-    .setAlpha(0.85)
-    .setScrollFactor(0)
-    .setDepth(6501);
+    .setAlpha(0.85);
+  return scene.add.container(0, 0, [g, t]).setScrollFactor(0).setDepth(6500);
+}
+
+/**
+ * Reusable ▲ / ✓ / ▼ touch control column for any onscreen list where the
+ * player must move a selection and confirm it (dialogue choices, perk
+ * picks, battle commands/targets, inventory rows) — a fixed-position,
+ * generously-sized fallback to precisely tapping a specific row.
+ * Positioned and hit-tested in the CALLER's local coordinate space (e.g.
+ * relative to a menu's own container), not the scene's.
+ */
+export class TouchListButtons {
+  readonly container: Phaser.GameObjects.Container;
+  readonly x: number;
+  readonly top: number;
+  readonly size: number;
+  readonly gap: number;
+
+  constructor(scene: Phaser.Scene, x: number, top: number, size = 22, gap = 24) {
+    this.x = x;
+    this.top = top;
+    this.size = size;
+    this.gap = gap;
+    this.container = scene.add.container(0, 0);
+    const glyphs: Array<[number, "up" | "confirm" | "down"]> = [
+      [0, "up"],
+      [1, "confirm"],
+      [2, "down"]
+    ];
+    for (const [row, kind] of glyphs) {
+      const y = top + row * gap;
+      const g = scene.add.graphics();
+      g.fillStyle(hexToInt(PALETTE.plum), 0.85);
+      g.fillRect(x, y, size, size);
+      g.lineStyle(1, hexToInt(PALETTE.atbGold), 1);
+      g.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+      if (kind === "confirm") {
+        // A checkmark drawn with Graphics, not a font glyph: "✓" renders
+        // as a bare, broken diagonal stroke in some monospace fallbacks
+        // (missing its short left leg) — Graphics guarantees the same
+        // shape on every platform.
+        g.lineStyle(2, hexToInt(PALETTE.atbGold), 1);
+        g.beginPath();
+        g.moveTo(x + size * 0.26, y + size * 0.54);
+        g.lineTo(x + size * 0.44, y + size * 0.72);
+        g.lineTo(x + size * 0.76, y + size * 0.3);
+        g.strokePath();
+        this.container.add(g);
+        continue;
+      }
+      const t = scene.add
+        .text(x + size / 2, y + size / 2, kind === "up" ? "▲" : "▼", {
+          fontFamily: "monospace",
+          fontSize: "11px",
+          color: PALETTE.atbGold
+        })
+        .setOrigin(0.5);
+      this.container.add([g, t]);
+    }
+  }
+
+  setVisible(v: boolean): this {
+    this.container.setVisible(v);
+    return this;
+  }
+
+  /** Which button (if any) contains a point in the same local space as x/top. */
+  hitTest(localX: number, localY: number): "up" | "confirm" | "down" | null {
+    if (localX < this.x || localX > this.x + this.size) return null;
+    if (localY >= this.top && localY <= this.top + this.size) return "up";
+    if (localY >= this.top + this.gap && localY <= this.top + this.gap + this.size) return "confirm";
+    if (localY >= this.top + this.gap * 2 && localY <= this.top + this.gap * 2 + this.size) return "down";
+    return null;
+  }
 }

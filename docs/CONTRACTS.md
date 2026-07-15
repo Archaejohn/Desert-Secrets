@@ -777,7 +777,7 @@ choice lists:
   to 18px (36 screen px), and now renders a full-width highlight bar
   behind the selected row — a visibly bigger target, not just a
   functionally bigger one.
-- On a touch device, a persistent ▲ / A / ▼ button column (22px/44
+- On a touch device, a persistent ▲ / ✓ / ▼ button column (22px/44
   screen-px squares) appears on the box's right edge whenever a choice
   list is showing — a fixed-position fallback that doesn't require
   hitting a specific row at all. Hidden entirely on desktop (the
@@ -798,4 +798,101 @@ real touch-emulated browser context (`hasTouch: true, isMobile: true`).
 in a touch-emulated context — neither of these bugs was reachable from
 the keyboard-only main smoke test, which is exactly how they shipped
 unnoticed in v6. Covers: tapping an InteractPoint with no NPC nearby,
-and tapping ▲/▼/A to move and confirm a dialogue choice.
+and tapping ▲/▼/✓ to move and confirm a dialogue choice.
+
+# v8: the round "A" hint overlapping dialogue, a checkmark glyph, and ▲/✓/▼ everywhere there's a tappable list
+
+Two follow-up reports right after v7 shipped: the persistent round "A"
+action-button hint visually collided with the bottom of the dialogue
+box, and the request to use a ✓ instead of the letter "A" on the
+dialogue's touch column — plus a broader ask to put the same ▲/✓/▼
+pattern on every other tap-a-row-in-a-list screen, explicitly including
+battle.
+
+## The round "A" hint overlapping the dialogue box
+
+`addActionButtonHint()` draws a persistent circle+"A" hint at
+`(scale.width - 26, scale.height - 90)` — meant for the exploration
+"talk/interact" affordance. The dialogue box occupies the bottom
+`BOX_H` (100px) of the screen, i.e. y ∈ [166, 270] at the 480×270 game
+resolution — which contains y=180, exactly where the hint sits. It was
+never hidden while dialogue (or the inventory menu) was open, so it sat
+on top of — or under, depending on z-order — the new ▲/✓/▼ column added
+in v7.
+
+Fixed by having `addActionButtonHint()` return its container so
+`ZoneScene` can toggle it: hidden whenever `inventoryMenu` is set,
+`dialogue.isOpen`, or `inputLocked` is true (every one of `update()`'s
+early-return branches, plus `openInventory()` itself for an immediate
+hide rather than waiting a frame), shown again once none of those hold.
+
+## `TouchListButtons`: one reusable ▲ / ✓ / ▼ component
+
+Extracted from `DialogueBox`'s v7 button-drawing code into
+`src/game/ui/touch.ts` as `TouchListButtons` — a small class taking a
+scene and a local `(x, top, size?, gap?)`, exposing `.container` (add it
+into the caller's own container), `.setVisible()`, and
+`.hitTest(localX, localY): "up" | "confirm" | "down" | null`. Every
+consumer hit-tests it manually inside their existing `tapAt()`/`tapMenu()`
+pointerdown handler — same pattern as the row/close-button hit-testing
+already in `PerkMenu` and `InventoryMenu`, not Phaser's per-object
+interactivity.
+
+The confirm button is drawn as a checkmark via `Graphics` (two short
+line segments), not the Unicode "✓" glyph — the glyph rendered as a
+bare, broken diagonal stroke (missing its short left leg) in at least
+one monospace font fallback, illegible at this size. Graphics guarantees
+the same shape everywhere. The ▲/▼ arrows stay as text glyphs, which
+render fine.
+
+Rolled out everywhere a player must move a selection and confirm it:
+
+- `DialogueBox` — updated from its own inline v7 button code to use the
+  shared component (behavior unchanged, "A" glyph → checkmark graphic).
+- `PerkMenu` — a touch-only ▲/✓/▼ column beside the perk list. Tapping a
+  row still equips immediately (unchanged, one-step); the column is an
+  *additional* safer path (move, then confirm) for a choice that can't
+  be undone.
+- `InventoryMenu` — a touch-only column next to the item rows; ✓ toggles
+  equip on the selected row, same as SPACE/ENTER.
+- `BattleScene`'s action/target menu panel — widens from 130px to 160px
+  on touch to make room for the column; both submenus (`actions` and
+  `targets`) get it, since choosing an attack and then a target are both
+  tap-a-row-in-a-list moments.
+
+## The overflow bug this rollout hit twice
+
+Both `BattleScene` and `InventoryMenu` size their panel/button-column
+position off the number of list items — and both are cases where the
+list can be *shorter* than the fixed-size 3-button column (battle: as
+few as 2 commands early on; inventory: 1-2 items, always). Centering the
+button column within the list's height with an unclamped
+`(listH - btnColH) / 2` goes **negative** when the list is shorter than
+the column:
+
+- In `BattleScene`, the panel's own height was computed from the list
+  alone, so a negative offset pushed the column below the panel's
+  bottom edge — off the panel, and in the worst case (a very short list)
+  off the visible canvas entirely, silently eating every tap aimed at
+  it. Fixed by sizing the panel to `max(listHeight, buttonColumnHeight)`
+  instead of list height alone.
+- In `InventoryMenu`, the panel is already generously sized (it has a
+  detail pane below the list), so the negative offset couldn't push
+  buttons off-canvas — but it did push them up into the title/close-
+  button row, visually broken. Fixed by clamping the offset to `max(0,
+  ...)` instead of letting it go negative.
+
+Lesson generalized in the `TouchListButtons` rollout: any caller with a
+variable-length list must size its own layout against
+`max(listHeight, buttonColumnHeight)`, not list height alone — a fixed
+3-button column doesn't shrink with a short list.
+
+## New touch-e2e.mjs coverage
+
+Extended `tools/smoke/touch-e2e.mjs` (`npm run smoke:touch`) to walk a
+full conversation to its end using only the ▲/✓/▼ column (no row taps),
+triggering the tutorial battle, then exercises the battle's own
+touch column: moving the actions-menu selection, confirming an attack,
+and confirming a target — the exact scenario that caught the overflow
+bug above (the tutorial battle's 2-item Attack/Guard list is shorter
+than the button column).
