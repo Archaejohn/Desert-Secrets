@@ -28,7 +28,9 @@ export type ZoneId =
   | "maze"
   | "galleries"
   | "sanctum"
-  | "shed";
+  | "shed"
+  | "overworld"
+  | "mineEntrance";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";

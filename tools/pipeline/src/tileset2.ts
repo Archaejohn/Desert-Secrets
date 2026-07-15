@@ -1,7 +1,11 @@
 /**
- * Tileset 2 — twenty-four 16×16 Act 1 tiles in the exact contract order
+ * Tileset 2 — thirty-two 16×16 Act 1 tiles in the exact contract order
  * (docs/CONTRACTS.md §4): the crash-site highway, the gas station, the mine
- * and the frozen depths.
+ * and the frozen depths, plus (appended additively, docs/CONTRACTS.md "v9")
+ * eight desert mountain ridge variants used by the overworld POC — eight,
+ * not two, because composeSheet requires the frame count to exactly fill
+ * an 8-column grid, and the extra variety also reads better tiled densely
+ * (a mountain RANGE, not one tile stamped on repeat).
  *
  * Same rules as tileset.ts: every tile fully opaque, props stamped onto an
  * opaque base via a transparent outlined layer, deterministic speckle from
@@ -12,6 +16,7 @@
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
 import { TILE_SIZE } from "./tileset";
+import type { PaletteName } from "../../../src/shared/palette";
 
 /** Contract tile order (row-major indices 0..23). */
 export const TILE2_NAMES = [
@@ -38,7 +43,15 @@ export const TILE2_NAMES = [
   "iceWallCrack",
   "frostSand",
   "iceChip",
-  "eggCluster"
+  "eggCluster",
+  "mountain",
+  "mountain2",
+  "mountain3",
+  "mountain4",
+  "mountain5",
+  "mountain6",
+  "mountain7",
+  "mountain8"
 ] as const;
 
 export type Tile2Name = (typeof TILE2_NAMES)[number];
@@ -602,7 +615,39 @@ function eggCluster(): PixelGrid {
   return g;
 }
 
-/** All 24 tiles in contract order (see TILE2_NAMES). */
+/**
+ * A big desert mountain ridge, FF3/6 world-map style: diagonal shingled
+ * bands (lit face, shade transition, deep shadow) rather than a small
+ * boulder — reads as a slope you can't cross, not a rock you step around.
+ * `phase` shifts the band origin so the eight variants vary when the
+ * overworld tiles them densely, the same way sand/sand2/sand3 do.
+ */
+function mountainRidge(seed: number, phase: number): PixelGrid {
+  const g = tile();
+  const BAND = 8;
+  for (let y = 0; y < TILE_SIZE; y++) {
+    for (let x = 0; x < TILE_SIZE; x++) {
+      const d = ((x + y + phase) % BAND + BAND) % BAND;
+      let c: PaletteName;
+      if (d < 1) c = "amber"; // sunlit ridge crest
+      else if (d < 4) c = "clay"; // lit slope face
+      else if (d < 5) c = "rust"; // shade transition
+      else c = "plum"; // deep shadow face
+      g.px(x, y, c);
+    }
+  }
+  const rng = mulberry32(seed);
+  for (let i = 0; i < 10; i++) {
+    const x = Math.floor(rng() * TILE_SIZE);
+    const y = Math.floor(rng() * TILE_SIZE);
+    g.px(x, y, rng() < 0.5 ? "ink" : "mauve"); // rocky texture flecks
+  }
+  // dark base line, grounding the slope against whatever it stands on
+  g.rect(0, TILE_SIZE - 1, TILE_SIZE, 1, "ink");
+  return g;
+}
+
+/** All 32 tiles in contract order (see TILE2_NAMES). */
 export function tile2Frames(): PixelGrid[] {
   return [
     asphaltBase(20),
@@ -628,6 +673,14 @@ export function tile2Frames(): PixelGrid[] {
     iceWallCrack(),
     frostSand(),
     iceChip(),
-    eggCluster()
+    eggCluster(),
+    mountainRidge(42, 0),
+    mountainRidge(43, 1),
+    mountainRidge(44, 2),
+    mountainRidge(45, 3),
+    mountainRidge(46, 4),
+    mountainRidge(47, 5),
+    mountainRidge(48, 6),
+    mountainRidge(49, 7)
   ];
 }

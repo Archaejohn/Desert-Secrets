@@ -17,6 +17,7 @@ import {
   OASIS_COOP,
   OASIS_COOP_PEN,
   OASIS_EAST_EXIT,
+  OASIS_NORTH_EXIT,
   OASIS_PAMELA,
   OASIS_PARENTS,
   OASIS_SCARAB,
@@ -28,6 +29,7 @@ import {
 import { CRASH_EAST_SPAWN } from "../maps/crashMap";
 import { TRAIL_SPAWN } from "../maps/trailMap";
 import { SHED_SPAWN } from "../maps/shedMap";
+import { OVERWORLD_SOUTH_SPAWN } from "../maps/overworldMap";
 import { homeAct1Script } from "../../core/scripts/homeAct1";
 import { awardXp } from "../../core/gameState";
 import { getState, setState } from "../state";
@@ -72,6 +74,7 @@ export class OasisScene extends ZoneScene {
     this.addExit({ ...OASIS_WEST_EXIT }, "crash", CRASH_EAST_SPAWN);
     this.addExit({ ...OASIS_EAST_EXIT }, "trail", TRAIL_SPAWN);
     this.addExit({ ...OASIS_SOUTH_EXIT }, "shed", SHED_SPAWN);
+    this.addExit({ ...OASIS_NORTH_EXIT }, "overworld", OVERWORLD_SOUTH_SPAWN);
 
     const onCloseParent = (): void => {
       const s = getState(this);

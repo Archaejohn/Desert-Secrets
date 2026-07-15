@@ -10,9 +10,20 @@ export interface EncounterTable {
 }
 
 export const ENCOUNTERS: Record<
-  "trail" | "mine" | "maze" | "galleries",
+  "trail" | "mine" | "maze" | "galleries" | "overworld",
   EncounterTable
 > = {
+  overworld: {
+    zone: "overworld",
+    groups: [
+      ["scarab"],
+      ["jackrabbit"],
+      ["buzzard"],
+      ["scarab", "scarab"],
+      ["gila"],
+    ],
+    weights: [3, 3, 2, 2, 1],
+  },
   trail: {
     zone: "trail",
     groups: [

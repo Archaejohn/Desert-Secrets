@@ -3,6 +3,8 @@ import { BootScene } from "./scenes/BootScene";
 import { CrashScene } from "./scenes/CrashScene";
 import { OasisScene } from "./scenes/OasisScene";
 import { ShedScene } from "./scenes/ShedScene";
+import { OverworldScene } from "./scenes/OverworldScene";
+import { MineEntranceScene } from "./scenes/MineEntranceScene";
 import { TrailScene } from "./scenes/TrailScene";
 import { MineScene } from "./scenes/MineScene";
 import { DepthsScene } from "./scenes/DepthsScene";
@@ -33,6 +35,8 @@ const game = new Phaser.Game({
     CrashScene,
     OasisScene,
     ShedScene,
+    OverworldScene,
+    MineEntranceScene,
     TrailScene,
     MineScene,
     DepthsScene,

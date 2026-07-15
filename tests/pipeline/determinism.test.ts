@@ -41,7 +41,12 @@ describe("pre-act2 asset byte-stability", () => {
     gila: "3d9ca6c37e39482058290a45164e98fe642a88787c50e26da881ca23f227bd42",
     foreman: "a7842a7b01d4ad9457ef3fd13348773f4854af678f76365740d1bcf09dc0dfa2",
     queen: "e318e9e692c82efdf9223524b1cf57d35915b70fa196ac0631fae6d44491ce30",
-    tiles2: "84c78b7e8663f5e8b15630ad2ffa4538097454f8309a846ce4847823c26c9bc7"
+    // Deliberately re-pinned (docs/CONTRACTS.md "v9"): tiles2 grew a fourth
+    // row of eight mountain-ridge tiles for the overworld POC. The row was
+    // appended after every existing tile, so none of their indices moved —
+    // only the sheet's overall bytes/dimensions changed, which is exactly
+    // what re-pinning here is for.
+    tiles2: "5e85ceabae38fd349347a11cca04eb18bfdfc8d07062bbcefd4ca2edd9e904d1"
   } as const;
 
   it("all twelve pre-act2 sheets still encode to their committed bytes", () => {

@@ -206,16 +206,25 @@ export abstract class ZoneScene extends Phaser.Scene {
   // ---------- construction helpers ----------
 
   /**
-   * Resolve a tile name to a global index across the three tilesets
-   * (firstgids: tiles 0, tiles2 16, tiles3 40).
+   * Firstgids across the three tilesets, computed from each tileset's
+   * actual tile count rather than hardcoded — a hardcoded tiles3 offset
+   * (16 + a hardcoded tiles2 count) previously went stale the moment
+   * tiles2 grew (the overworld POC's mountain tiles), silently aliasing
+   * onto tiles3's GID range and rendering Act 1 mountains as Act 2 ice.
    */
+  private static readonly TILES1_COUNT = Object.keys(MANIFEST.tiles.names).length;
+  private static readonly TILES2_COUNT = Object.keys(MANIFEST.tiles2.names).length;
+  private static readonly TILES2_FIRSTGID = ZoneScene.TILES1_COUNT;
+  private static readonly TILES3_FIRSTGID = ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT;
+
+  /** Resolve a tile name to a global index across the three tilesets. */
   protected tileGid(name: string): number {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return t1;
     const t2 = MANIFEST.tiles2.names[name];
-    if (t2 !== undefined) return 16 + t2;
+    if (t2 !== undefined) return ZoneScene.TILES2_FIRSTGID + t2;
     const t3 = MANIFEST.tiles3.names[name];
-    if (t3 !== undefined) return 40 + t3;
+    if (t3 !== undefined) return ZoneScene.TILES3_FIRSTGID + t3;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -231,8 +240,8 @@ export abstract class ZoneScene extends Phaser.Scene {
   private buildMap(width: number, height: number): void {
     const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width, height });
     const ts1 = map.addTilesetImage("t1", "tiles-img", TILE, TILE, 0, 0, 0)!;
-    const ts2 = map.addTilesetImage("t2", "tiles2-img", TILE, TILE, 0, 0, 16)!;
-    const ts3 = map.addTilesetImage("t3", "tiles3-img", TILE, TILE, 0, 0, 40)!;
+    const ts2 = map.addTilesetImage("t2", "tiles2-img", TILE, TILE, 0, 0, ZoneScene.TILES2_FIRSTGID)!;
+    const ts3 = map.addTilesetImage("t3", "tiles3-img", TILE, TILE, 0, 0, ZoneScene.TILES3_FIRSTGID)!;
     const sets = [ts1, ts2, ts3];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;

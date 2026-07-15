@@ -23,6 +23,8 @@ import {
   OASIS_EAST_EXIT,
   OASIS_EAST_SPAWN,
   OASIS_HEIGHT,
+  OASIS_NORTH_EXIT,
+  OASIS_NORTH_SPAWN,
   OASIS_PAMELA,
   OASIS_PARENTS,
   OASIS_SCARAB,
@@ -42,6 +44,24 @@ import {
   SHED_SPAWN,
   SHED_WIDTH
 } from "../../src/game/maps/shedMap";
+import {
+  buildOverworldMap,
+  OVERWORLD_HEIGHT,
+  OVERWORLD_NORTH_EXIT,
+  OVERWORLD_NORTH_SPAWN,
+  OVERWORLD_SOUTH_EXIT,
+  OVERWORLD_SOUTH_SPAWN,
+  OVERWORLD_WIDTH
+} from "../../src/game/maps/overworldMap";
+import {
+  buildMineEntranceMap,
+  MINE_ENTRANCE_HEIGHT,
+  MINE_ENTRANCE_NORTH_EXIT,
+  MINE_ENTRANCE_SOUTH_EXIT,
+  MINE_ENTRANCE_SPAWN,
+  MINE_ENTRANCE_THRESHOLD,
+  MINE_ENTRANCE_WIDTH
+} from "../../src/game/maps/mineEntranceMap";
 import {
   buildTrailMap,
   TRAIL_CHIPS,
@@ -249,7 +269,8 @@ describe("oasis map (the homestead)", () => {
     assertEnclosed(map, [
       ...edgeGate(OASIS_WEST_EXIT, "west", map),
       ...edgeGate(OASIS_EAST_EXIT, "east", map),
-      ...edgeGate(OASIS_SOUTH_EXIT, "south", map)
+      ...edgeGate(OASIS_SOUTH_EXIT, "south", map),
+      ...edgeGate(OASIS_NORTH_EXIT, "north", map)
     ]);
   });
 
@@ -264,9 +285,11 @@ describe("oasis map (the homestead)", () => {
       OASIS_WEST_SPAWN,
       OASIS_EAST_SPAWN,
       OASIS_SOUTH_SPAWN,
+      OASIS_NORTH_SPAWN,
       rectTile(OASIS_WEST_EXIT),
       rectTile(OASIS_EAST_EXIT),
-      rectTile(OASIS_SOUTH_EXIT)
+      rectTile(OASIS_SOUTH_EXIT),
+      rectTile(OASIS_NORTH_EXIT)
     ]) {
       expect(isSolidAt(map, p.x, p.y)).toBe(false);
     }
@@ -279,6 +302,7 @@ describe("oasis map (the homestead)", () => {
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_WEST_EXIT))).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_EAST_EXIT))).toBe(true);
     expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_SOUTH_EXIT))).toBe(true);
+    expect(reachable(map, OASIS_SPAWN, rectTile(OASIS_NORTH_EXIT))).toBe(true);
   });
 
   it("fences the coop except for its south-facing entrance", () => {
@@ -341,6 +365,118 @@ describe("shed map (the shed)", () => {
   it("lets the player walk from spawn to the bucket and back out", () => {
     expect(reachable(map, SHED_SPAWN, SHED_BUCKET)).toBe(true);
     expect(reachable(map, SHED_SPAWN, rectTile(SHED_NORTH_EXIT))).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------ overworld
+
+describe("overworld map (the open desert, FF-style POC)", () => {
+  const map = buildOverworldMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildOverworldMap()).toEqual(map);
+  });
+
+  it("is fully enclosed by solid border tiles except its two stops", () => {
+    assertEnclosed(map, [
+      ...edgeGate(OVERWORLD_SOUTH_EXIT, "south", map),
+      ...edgeGate(OVERWORLD_NORTH_EXIT, "north", map)
+    ]);
+  });
+
+  it("keeps both spawns and both stops walkable", () => {
+    for (const p of [
+      OVERWORLD_SOUTH_SPAWN,
+      OVERWORLD_NORTH_SPAWN,
+      rectTile(OVERWORLD_SOUTH_EXIT),
+      rectTile(OVERWORLD_NORTH_EXIT)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player walk the whole pass between the two stops", () => {
+    expect(reachable(map, OVERWORLD_SOUTH_SPAWN, rectTile(OVERWORLD_NORTH_EXIT))).toBe(true);
+    expect(reachable(map, OVERWORLD_NORTH_SPAWN, rectTile(OVERWORLD_SOUTH_EXIT))).toBe(true);
+  });
+
+  it("is mostly mountain: the walkable pass is a small fraction of the map", () => {
+    const { width, height } = { width: OVERWORLD_WIDTH, height: OVERWORLD_HEIGHT };
+    let walkable = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!isSolidAt(map, x, y)) walkable++;
+      }
+    }
+    // The pass (plus its two clearings) should read as a narrow corridor
+    // through mountains, not an open field.
+    expect(walkable).toBeLessThan((width * height) / 3);
+  });
+
+  it("places the truck and spring near the south stop", () => {
+    const decorFlat = map.decor.flat();
+    expect(decorFlat).toContain("truckCab");
+    expect(decorFlat).toContain("truckBox");
+    expect(map.ground.flat()).toContain("water");
+  });
+
+  it("places mine-mouth flavor near the north stop", () => {
+    expect(map.decor.flat()).toContain("mineTimber");
+  });
+});
+
+// -------------------------------------------------------- mine entrance
+
+describe("mine entrance map (the threshold screen)", () => {
+  const map = buildMineEntranceMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, MINE_ENTRANCE_WIDTH, MINE_ENTRANCE_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildMineEntranceMap()).toEqual(map);
+  });
+
+  it("is fully enclosed by solid border tiles except its two exits", () => {
+    assertEnclosed(map, [
+      ...edgeGate(MINE_ENTRANCE_SOUTH_EXIT, "south", map),
+      ...edgeGate(MINE_ENTRANCE_NORTH_EXIT, "north", map)
+    ]);
+  });
+
+  it("keeps the spawn, the threshold and both exits walkable", () => {
+    for (const p of [
+      MINE_ENTRANCE_SPAWN,
+      MINE_ENTRANCE_THRESHOLD,
+      rectTile(MINE_ENTRANCE_SOUTH_EXIT),
+      rectTile(MINE_ENTRANCE_NORTH_EXIT)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player walk from spawn to the mine mouth and back out", () => {
+    expect(reachable(map, MINE_ENTRANCE_SPAWN, MINE_ENTRANCE_THRESHOLD)).toBe(true);
+    expect(reachable(map, MINE_ENTRANCE_SPAWN, rectTile(MINE_ENTRANCE_NORTH_EXIT))).toBe(true);
+    expect(reachable(map, MINE_ENTRANCE_SPAWN, rectTile(MINE_ENTRANCE_SOUTH_EXIT))).toBe(true);
+  });
+
+  it("fades ground from sand to mine floor toward the mouth", () => {
+    expect(map.ground.flat()).toContain("sand");
+    expect(map.ground.flat()).toContain("mineFloor");
   });
 });
 

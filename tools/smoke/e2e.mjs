@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -255,6 +255,89 @@ for (const r of crashTrigs) {
 s = await waitFor(page, (x) => x.zoneKey === "oasis");
 check("east exit reaches the oasis", s.zoneKey === "oasis");
 check("checkpoint updated to oasis", s.state.zone === "oasis");
+
+// ---------- Open Desert POC: a small side-trip before the main story ----------
+// Oasis -> Overworld -> Mine Entrance (sealed) -> Mine Entrance (open) -> Mine,
+// then back out through the Overworld to the Oasis. Optional, additive path;
+// doesn't touch any Act 1 story flags.
+{
+  const oasisExits = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("oasis");
+    return w["exits"].map((e) => ({ rect: e.rect, target: e.target }));
+  });
+  const toOverworld = oasisExits.find((e) => e.target === "overworld");
+  check("oasis has a north exit to the overworld", !!toOverworld, JSON.stringify(oasisExits.map((e) => e.target)));
+  await teleport(page, toOverworld.rect.x1, toOverworld.rect.y1);
+  s = await waitFor(page, (x) => x.zoneKey === "overworld", 8000);
+  check("oasis's north exit reaches the overworld", s.zoneKey === "overworld");
+
+  const owExits = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("overworld");
+    return w["exits"].map((e) => ({ rect: e.rect, target: e.target }));
+  });
+  const toMineEntrance = owExits.find((e) => e.target === "mineEntrance");
+  check(
+    "the overworld has exits back to the oasis and on to the mine entrance",
+    owExits.some((e) => e.target === "oasis") && !!toMineEntrance,
+    JSON.stringify(owExits.map((e) => e.target))
+  );
+  await teleport(page, toMineEntrance.rect.x1, toMineEntrance.rect.y1);
+  s = await waitFor(page, (x) => x.zoneKey === "mineEntrance", 8000);
+  check("the overworld's north exit reaches the mine entrance", s.zoneKey === "mineEntrance");
+
+  // Sealed: mineOpen is still false at this point in the playthrough.
+  const meTrigs = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("mineEntrance");
+    return w["triggers"].map((t) => t.rect);
+  });
+  await teleport(page, meTrigs[0].x1, meTrigs[0].y1);
+  await page.waitForTimeout(400);
+  s = await snapshot(page);
+  check(
+    "the mine entrance is sealed before Dusty opens the mine",
+    s.zoneKey === "mineEntrance" && s.dialogueOpen === true
+  );
+  if (s.dialogueOpen) await talkThrough(page);
+
+  // Force mineOpen (Dusty's flag) just for this check, then confirm the
+  // second door onto the mine actually opens too — restored after.
+  const beforeFlags = (await snapshot(page)).state.flags;
+  await page.evaluate(() => {
+    const st = window.__game.registry.get("act1");
+    window.__game.registry.set("act1", { ...st, flags: { ...st.flags, mineOpen: true } });
+  });
+  await teleport(page, meTrigs[0].x1, meTrigs[0].y1);
+  s = await waitFor(page, (x) => x.zoneKey === "mine", 8000);
+  check("once mineOpen, the mine entrance's threshold leads into Cinnabar Mine", s.zoneKey === "mine");
+  await page.evaluate((flags) => {
+    const st = window.__game.registry.get("act1");
+    window.__game.registry.set("act1", { ...st, flags });
+  }, beforeFlags); // restore: the real mine-open moment is still Dusty's, later on the Trail
+
+  // Back to the oasis via the overworld's own south exit. Explicitly stop
+  // every other active scene first — a bare global scene.start() (unlike
+  // the in-game goToZone(), which runs via the calling scene's own
+  // this.scene plugin) does NOT stop whatever scene is currently running,
+  // leaving stray scenes' input handlers alive to interfere with later
+  // steps (this caused the inventory-equip checks below to fail silently
+  // once, before this fix).
+  await page.evaluate(() => {
+    const g = window.__game;
+    for (const s of g.scene.getScenes(true)) {
+      if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+    }
+    g.scene.start("overworld", {});
+  });
+  await page.waitForTimeout(700);
+  const owExits2 = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("overworld");
+    return w["exits"].map((e) => ({ rect: e.rect, target: e.target }));
+  });
+  const toOasis = owExits2.find((e) => e.target === "oasis");
+  await teleport(page, toOasis.rect.x1, toOasis.rect.y1);
+  s = await waitFor(page, (x) => x.zoneKey === "oasis", 8000);
+  check("the overworld's south exit returns to the oasis", s.zoneKey === "oasis");
+}
 
 // Talk to John, exit via farewell (last choice), tutorial battle starts.
 const parentsOpened = await talkToNpc(page, "oasis", 0);

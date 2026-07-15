@@ -976,7 +976,15 @@
       "iceWallCrack": 20,
       "frostSand": 21,
       "iceChip": 22,
-      "eggCluster": 23
+      "eggCluster": 23,
+      "mountain": 24,
+      "mountain2": 25,
+      "mountain3": 26,
+      "mountain4": 27,
+      "mountain5": 28,
+      "mountain6": 29,
+      "mountain7": 30,
+      "mountain8": 31
     }
   },
   "tiles3": {

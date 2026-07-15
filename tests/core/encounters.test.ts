@@ -61,11 +61,24 @@ describe("ENCOUNTERS tables", () => {
     expect(ENCOUNTERS.galleries.weights).toEqual([3, 2, 2, 1]);
   });
 
-  it("exposes exactly the four contract zones", () => {
+  it("overworld matches the contract groups and weights", () => {
+    expect(ENCOUNTERS.overworld.zone).toBe("overworld");
+    expect(ENCOUNTERS.overworld.groups).toEqual([
+      ["scarab"],
+      ["jackrabbit"],
+      ["buzzard"],
+      ["scarab", "scarab"],
+      ["gila"],
+    ]);
+    expect(ENCOUNTERS.overworld.weights).toEqual([3, 3, 2, 2, 1]);
+  });
+
+  it("exposes exactly the five contract zones", () => {
     expect(Object.keys(ENCOUNTERS).sort()).toEqual([
       "galleries",
       "maze",
       "mine",
+      "overworld",
       "trail",
     ]);
   });

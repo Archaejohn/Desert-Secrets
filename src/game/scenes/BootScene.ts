@@ -69,7 +69,9 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   maze: "The Ice Maze",
   galleries: "The Galleries",
   sanctum: "The Sanctum",
-  shed: "The Shed"
+  shed: "The Shed",
+  overworld: "The Open Desert",
+  mineEntrance: "Mine Entrance"
 };
 
 export class BootScene extends Phaser.Scene {

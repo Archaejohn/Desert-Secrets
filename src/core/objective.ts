@@ -12,6 +12,8 @@ export function objectiveFor(s: Act1State): string {
   if (!f.metParents) return "Find your parents at the oasis";
   if (!f.tutorialBattleWon) return "Fight off the scarab!";
   if (s.zone === "oasis") return "Follow Piggy's trail east";
+  if (s.zone === "overworld") return "The mine lies north, past the wash";
+  if (s.zone === "mineEntrance") return "The mine's just ahead";
   if (!f.mineOpen) {
     return f.metDusty ? "Head to the mine (northeast)" : "Ask around at Last Chance Fuel";
   }

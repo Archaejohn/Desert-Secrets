@@ -896,3 +896,79 @@ touch column: moving the actions-menu selection, confirming an attack,
 and confirming a target — the exact scenario that caught the overflow
 bug above (the tutorial battle's 2-item Attack/Guard list is shorter
 than the button column).
+
+# v9: The Open Desert — a small FF3/FF6-style overworld POC
+
+A proof of concept for the "Part 2 open world" style planning in
+`docs/STORY_PARTS2-4.md`, scaled way down: one tiny world-map zone
+between two existing focused zones, not a real second world layer.
+Additive only — the existing crash → oasis → trail → mine path is
+completely unchanged; this is a second, optional route between the
+oasis and the mine.
+
+## Two new zones
+
+- **`overworld`** (`src/game/maps/overworldMap.ts`, `OverworldScene.ts`)
+  — 16×20 tiles, almost entirely solid mountain, with a single winding
+  3-tile-wide pass (a 6-waypoint spine, linearly interpolated per row,
+  giving a gentle S-curve rather than a straight corridor) connecting
+  exactly two stops: a south clearing (the wash/spring + the overturned
+  truck, flavor only — the literal spring is still the oasis's) exiting
+  back to `oasis`, and a north clearing (mine-mouth timber framing + an
+  abandoned cart) exiting into `mineEntrance`. `encounterZone:
+  "overworld"` gives it its own `ENCOUNTERS` table (scarab/jackrabbit/
+  buzzard/gila, same roster flavor as the Trail).
+- **`mineEntrance`** (`mineEntranceMap.ts`, `MineEntranceScene.ts`) — a
+  small 10×10 vestibule screen between the overworld and Cinnabar Mine
+  proper: ground fades from sand to mine floor as you approach a
+  timber-framed threshold. Sealed until `flags.mineOpen` (Dusty's flag
+  from the Trail) — exactly the Trail's own grate-closed pattern, not a
+  second way to unlock the mine, just a second door onto the same one.
+  Walking to the threshold before `mineOpen` shows a "shored up tight"
+  hint and blocks; after, it hands off to the existing `mine` zone at
+  the same `MINE_SPAWN` the Trail already uses — `MineScene` itself is
+  completely untouched.
+
+## Wiring into the existing world
+
+`OasisScene` gains a new `OASIS_NORTH_EXIT` (its north border was the
+only side without a gate) leading to `overworld`, reciprocated by
+`overworld`'s own south exit back to `OASIS_NORTH_SPAWN`. `ZoneId`,
+`radioLines`, and `BootScene`'s `ZONE_NAMES` (all exhaustive
+`Record<ZoneId, …>` types) gained entries for both new zones — TypeScript
+enforced every one of these; nothing here is optional or forgettable.
+
+## Eight new mountain tiles (`tileset2.ts`)
+
+The overworld's "everything blocked by mountains" terrain originally
+reused the existing `rock` tile (a small boulder prop) densely — this
+read as a boulder field, not a mountain range. Replaced with a purpose-
+built `mountainRidge(seed, phase)` generator: diagonal shingled bands
+(lit face / shade transition / deep shadow, desert palette) rather than
+a scattered prop, closer to the FF6 world-map reference's ridge look.
+Needed **eight** variants, not two, because `composeSheet` requires the
+frame count to exactly fill an 8-column grid — `tileset2.ts` grew from
+24 tiles (3 rows) to 32 (4 rows), appended after every existing tile so
+none of their indices moved. The determinism hash for `tiles2.png` was
+deliberately re-pinned in `tests/pipeline/determinism.test.ts` to match
+— extending a tileset is exactly what re-pinning is for, so long as it's
+purely additive (verified: `manifest.tiles2.names` keeps every original
+entry at its original index, only appending 24–31).
+
+## A real bug this surfaced: hardcoded tileset firstgids
+
+`ZoneScene.tileGid()`/`buildMap()` combine the three tilesets into one
+virtual global tile-ID space for Phaser's tilemap system, and previously
+hardcoded the offsets as *(tiles: 0, tiles2: 16, tiles3: 40)* — 40 being
+`16 (tiles.png count) + 24 (the old tiles2.png count)`, baked in as a
+magic number. The moment `tiles2.png` grew to 32 tiles, tiles3's real
+offset should have become 48, but the hardcoded 40 didn't move — so
+every tiles3 (Act 2 ice) tile silently aliased onto whatever now sat at
+`tiles2` indices 24–31 (the new mountain tiles), and the overworld's
+mountains rendered as Act 2 ice-cave art instead (the two tilesets'
+declared GID ranges now overlapped). Fixed by computing both firstgids
+from each tileset's actual tile count (`Object.keys(MANIFEST.tiles.names
+).length`, etc.) instead of hardcoding them, so this class of bug can't
+recur the next time any tileset grows. Caught by visual screenshot
+review, not by any existing test — the map-data tests only validate tile
+*names* and solidity, never which pixels a name resolves to.

@@ -31,7 +31,7 @@ const newSheets: Array<[string, PixelGrid, number, number]> = [
   ["gila", assets.gila, 144, 24],
   ["foreman", assets.foreman, 144, 24],
   ["queen", assets.queen, 192, 32],
-  ["tiles2", assets.tiles2, 128, 48]
+  ["tiles2", assets.tiles2, 128, 64]
 ];
 
 /** [name, frames, frameSize, min adjacent-motion diff, min opaque px] */
@@ -53,14 +53,14 @@ describe("act1 sheet layout (contract §4)", () => {
     expect(png.height).toBe(h);
   });
 
-  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 24 tiles", () => {
+  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 32 tiles", () => {
     expect(rosaFrames()).toHaveLength(24);
     for (const f of rosaFrames()) expect([f.width, f.height]).toEqual([16, 24]);
     for (const [, frames, size] of creatures) {
       expect(frames).toHaveLength(6);
       for (const f of frames) expect([f.width, f.height]).toEqual([size, size]);
     }
-    expect(tile2Frames()).toHaveLength(24);
+    expect(tile2Frames()).toHaveLength(32);
     for (const t of tile2Frames()) expect([t.width, t.height]).toEqual([16, 16]);
   });
 });
@@ -265,7 +265,15 @@ describe("act1 manifest", () => {
       iceWallCrack: 20,
       frostSand: 21,
       iceChip: 22,
-      eggCluster: 23
+      eggCluster: 23,
+      mountain: 24,
+      mountain2: 25,
+      mountain3: 26,
+      mountain4: 27,
+      mountain5: 28,
+      mountain6: 29,
+      mountain7: 30,
+      mountain8: 31
     });
   });
 
