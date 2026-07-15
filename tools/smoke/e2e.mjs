@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -790,9 +790,91 @@ if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act2Complete === true, 10_000);
 check("Act 2 completes (two penguins seen)", s.state.flags.act2Complete === true, JSON.stringify(s.state.flags));
 await page.waitForTimeout(800);
+// The Act 2 end card now DIVES into Act 3 (the crack Piggy vanished
+// through), keeping all progress — it no longer returns to the title.
+await tap(page, "Space");
+s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 9000);
+check(
+  "act 2 end card dives into the Sunless Sea with progress kept",
+  s.zoneKey === "sunlessSea" && s.state.flags.act3Started === true,
+  `zone=${s.zoneKey} act3Started=${s.state?.flags?.act3Started}`
+);
+
+// ---------- Act 3: The Sunless Sea ----------
+check("checkpoint updated to the sunless sea", s.state.zone === "sunlessSea");
+
+// The comic chase + the Fluffball glimpse are walk-over triggers; visiting
+// both fires their cutscenes and sets sawChase / metFluffball.
+await healUp(page);
+s = await driveTriggersUntil("sunlessSea", (x) => x.state.flags.sawChase && x.state.flags.metFluffball);
+check("Piggy's chase cutscene plays", s.state.flags.sawChase === true, JSON.stringify(s.state.flags));
+check("Fluffball glimpsed, drops the silverfin clue", s.state.flags.metFluffball === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "sunlessSea") s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 8000);
+
+// The flooded sun-temple ruin: an InteractPoint (press E) → lore beat.
+await teleport(page, 9, 18); // SEA_TEMPLE
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+s = await snapshot(page);
+check("the flooded sun-temple lore beat plays", s.state.flags.sawTemple === true, JSON.stringify(s.state.flags));
+
+// The silverfin fishing spot. First interaction: the Lurker mini-boss
+// steals the lure — a real ATB battle before the catch can work.
+await healUp(page);
+await teleport(page, 33, 19); // SEA_FISHING
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // lurker intro → battle
+s = await waitFor(page, (x) => x.battle, 6000);
+check("the Lurker mini-boss battle starts at the fishing spot", s.battle === true);
+s = await fightThrough(page, { timeoutMs: 180_000 });
+s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 12_000);
+check("the Lurker is fought off", s.state.flags.lurkerDefeated === true, JSON.stringify(s.state.flags));
+
+// Second interaction: cast the line and play the timing minigame. Read the
+// pure fishing state and only hook when the marker is well inside the glow
+// (exactly how a player lands it) — no misses, so it lands after 3 hits.
+await healUp(page);
+await teleport(page, 33, 19);
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+await talkThrough(page, { pickIndex: 0 }); // choose "Cast the line", then close cast-end → opens the gauge
+await page.waitForTimeout(300);
+const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("sunlessSea").fishingMenu);
+check("casting opens the fishing timing minigame", menuOpen === true);
+
+// Land it: tap only when the marker is inside the window.
+const fishDeadline = Date.now() + 40_000;
+let caught = false;
+while (Date.now() < fishDeadline) {
+  const fs = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("sunlessSea");
+    const m = w.fishingMenu;
+    if (!m) return { open: false, caught: window.__game.registry.get("act1").items.silverfin === true };
+    return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };
+  });
+  if (!fs.open) {
+    caught = fs.caught;
+    break;
+  }
+  if (Math.abs(fs.p - fs.t) < fs.w * 0.5) await tap(page, "Space", 30);
+  await page.waitForTimeout(25);
+}
+check("the fishing minigame lands the silverfin", caught === true);
+s = await snapshot(page);
+check("silverfin recorded in the inventory", s.state.items.silverfin === true && s.state.flags.silverfinCaught === true, JSON.stringify(s.state.items));
+
+// The Act 3 ending: dialogue → act3Complete → end card → back to title.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act3Complete === true, 8000);
+check("Act 3 completes (silverfin caught)", s.state.flags.act3Complete === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act3-end-card.png") }).catch(() => {});
+await page.waitForTimeout(600);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
-check("act 2 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
+check("act 3 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -801,4 +883,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 + Act 2 smoke checks passed");
+console.log("\nAll Act 1 + Act 2 + Act 3 smoke checks passed");

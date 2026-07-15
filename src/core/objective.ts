@@ -28,6 +28,8 @@ export function objectiveFor(s: Act1State): string {
 /** The Act 2 chain, once actComplete is set. Every string ≤ 40 chars. */
 function act2ObjectiveFor(s: Act1State): string {
   const f = s.flags;
+  // Act 3 takes over once the crack is followed into the sea.
+  if (f.act3Started || f.act3Complete) return act3ObjectiveFor(s);
   if (f.act2Complete) return "Act 2 complete!";
   if (!f.act2Started) return "Descend through the ice";
   if (s.zone === "crevasse") return "Find a way through the ice maze";
@@ -44,4 +46,14 @@ function act2ObjectiveFor(s: Act1State): string {
   }
   // Still in an Act 1 zone after the hand-off: get down there.
   return "Descend through the ice";
+}
+
+/** The Act 3 chain (The Sunless Sea), once act3Started is set. ≤ 40 chars. */
+function act3ObjectiveFor(s: Act1State): string {
+  const f = s.flags;
+  if (f.act3Complete) return "Act 3 complete!";
+  if (s.zone !== "sunlessSea") return "Descend into the Sunless Sea";
+  if (!f.metFluffball) return "Explore the Sunless Sea";
+  if (!f.silverfinCaught) return "Fish the deep kelp for silverfin";
+  return "You have the silverfin!";
 }

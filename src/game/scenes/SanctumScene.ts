@@ -18,9 +18,10 @@ import {
   SANCTUM_WARDEN
 } from "../maps/sanctumMap";
 import { GALLERIES_DOOR_SPAWN } from "../maps/galleriesMap";
+import { SEA_SPAWN } from "../maps/sunlessSeaMap";
 import { wardenIntroScript } from "../../core/scripts/wardenIntro";
 import { act2EndingScript } from "../../core/scripts/act2Ending";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
 
 /** How many recent player positions the follower trails behind. */
@@ -62,8 +63,18 @@ export class SanctumScene extends ZoneScene {
     } else if (!flags.act2Complete) {
       this.runEnding();
     } else {
-      // Epilogue: the quiet lake, already cracked, penguins long gone.
+      // Epilogue: the quiet lake, already cracked, penguins long gone. A
+      // reload at the Act 2 end card must not soft-lock Act 3 — walking to
+      // the tunnel the penguins dove through follows them into the sea.
       this.crackLake();
+      this.addTrigger(
+        { x1: SANCTUM_TUNNEL.x - 1, y1: SANCTUM_TUNNEL.y, x2: SANCTUM_TUNNEL.x + 1, y2: SANCTUM_TUNNEL.y + 1 },
+        () => {
+          const s = getState(this);
+          setState(this, { ...s, flags: { ...s.flags, act3Started: true } });
+          this.goToZone("sunlessSea", SEA_SPAWN);
+        }
+      );
     }
   }
 
@@ -157,7 +168,7 @@ export class SanctumScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     this.add
-      .text(w / 2, h / 2, "ACT 3: THE SUNLESS SEA — coming soon", {
+      .text(w / 2, h / 2, "ACT 3: THE SUNLESS SEA", {
         fontFamily: "monospace",
         fontSize: "11px",
         color: PALETTE.skyBlue
@@ -166,7 +177,7 @@ export class SanctumScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     this.add
-      .text(w / 2, h / 2 + 26, "SPACE — back to title", {
+      .text(w / 2, h / 2 + 26, "SPACE — follow the crack", {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone
@@ -175,15 +186,17 @@ export class SanctumScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
 
-    let done = false;
-    const backToTitle = (): void => {
-      if (done) return;
-      done = true;
-      resetGame(this);
-      this.scene.start("boot");
+    // The Act 3 hand-off: dive after the penguins, keeping all progress.
+    let descended = false;
+    const descend = (): void => {
+      if (descended) return;
+      descended = true;
+      const s = getState(this);
+      setState(this, { ...s, flags: { ...s.flags, act3Started: true } });
+      this.scene.start("sunlessSea", {});
     };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+    this.input.keyboard?.once("keydown-SPACE", descend);
+    this.input.once("pointerdown", descend);
   }
 
   /** Slither trails the player's recent positions (~14 frames back). */

@@ -217,7 +217,7 @@ describe("act1-retcon manifest", () => {
     });
   });
 
-  it("all twenty-one sheets are present, prior entries untouched", () => {
+  it("all sheets are present, prior entries untouched", () => {
     expect(Object.keys(manifest.sheets).sort()).toEqual(
       [
         "hero",
@@ -241,7 +241,10 @@ describe("act1-retcon manifest", () => {
         "crystalcrawler",
         "frostscarab",
         "warden",
-        "spigot"
+        "spigot",
+        "anglerfish",
+        "reefeel",
+        "lurker"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected

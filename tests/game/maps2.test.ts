@@ -83,11 +83,23 @@ import {
   SANCTUM_WEST_GATES,
   SANCTUM_WIDTH
 } from "../../src/game/maps/sanctumMap";
+import {
+  buildSunlessSeaMap,
+  SEA_CHASE_TRIGGER,
+  SEA_FISHING,
+  SEA_FLUFFBALL,
+  SEA_FLUFFBALL_ENTRANCE,
+  SEA_HEIGHT,
+  SEA_SPAWN,
+  SEA_TEMPLE,
+  SEA_WIDTH
+} from "../../src/game/maps/sunlessSeaMap";
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
   ...Object.keys(manifest.tiles2.names),
-  ...Object.keys(manifest.tiles3.names)
+  ...Object.keys(manifest.tiles3.names),
+  ...Object.keys(manifest.tiles4.names)
 ]);
 
 interface Pt {
@@ -536,5 +548,83 @@ describe("sanctum map (The Sanctum)", () => {
       expect(isSolidAt(map, c.x, c.y)).toBe(false);
     }
     expect(map.ground[SANCTUM_WARDEN.y][SANCTUM_WARDEN.x]).toBe("lakeIce");
+  });
+});
+
+// ----------------------------------------------------- sunless sea (Act 3)
+
+describe("sunless sea map (The Sunless Sea)", () => {
+  const map = buildSunlessSeaMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, SEA_WIDTH, SEA_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets (incl. tiles4)", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildSunlessSeaMap()).toEqual(map);
+  });
+
+  it("is fully enclosed by solid water on every border (no exits — end card)", () => {
+    assertEnclosed(map);
+  });
+
+  it("keeps spawn and every landmark walkable", () => {
+    for (const p of [
+      SEA_SPAWN,
+      SEA_FLUFFBALL,
+      SEA_FLUFFBALL_ENTRANCE,
+      SEA_TEMPLE,
+      SEA_FISHING,
+      rectTile(SEA_CHASE_TRIGGER)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player hop the floes from spawn to every beat", () => {
+    expect(reachable(map, SEA_SPAWN, SEA_FLUFFBALL)).toBe(true);
+    expect(reachable(map, SEA_SPAWN, SEA_TEMPLE)).toBe(true);
+    expect(reachable(map, SEA_SPAWN, SEA_FISHING)).toBe(true);
+    expect(reachable(map, SEA_SPAWN, rectTile(SEA_CHASE_TRIGGER))).toBe(true);
+  });
+
+  it("makes Fluffball's kelp bed a true cul-de-sac behind one entrance tile", () => {
+    assertCulDeSac(map, SEA_SPAWN, SEA_FLUFFBALL, SEA_FLUFFBALL_ENTRANCE);
+  });
+
+  it("threads a narrow floe path — most of the sea is solid dark water", () => {
+    let walkable = 0;
+    for (let y = 0; y < SEA_HEIGHT; y++) {
+      for (let x = 0; x < SEA_WIDTH; x++) if (!isSolidAt(map, x, y)) walkable++;
+    }
+    // Floe paths through solid water read as hop-corridors, not open ocean.
+    expect(walkable).toBeLessThan((SEA_WIDTH * SEA_HEIGHT) / 2);
+  });
+
+  it("gives a second (loop) route from the hub to the deep bed via the reef", () => {
+    // Blocking the east corridor's mouth alone must NOT cut off the fishing
+    // spot — the reef offers an alternate way round.
+    expect(reachable(map, SEA_SPAWN, SEA_FISHING, [{ x: 28, y: 13 }])).toBe(true);
+  });
+
+  it("builds the themed floors: floe path, kelp beds, temple, reef, bubbles", () => {
+    const g = map.ground.flat();
+    expect(g).toContain("floe");
+    expect(g).toContain("kelpBed");
+    expect(g).toContain("templeFloor");
+    expect(g).toContain("templeGlyph");
+    expect(g).toContain("reefGlow");
+    expect(g).toContain("seaWater");
+    // Solid sea decor and rising bubbles overhead.
+    const d = map.decor.flat();
+    expect(d).toContain("kelpStalk");
+    expect(d).toContain("templePillar");
+    expect(map.overhead?.flat()).toContain("bubbles");
+    expect(map.decor[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe(null); // glyph is a ground tile
+    expect(map.ground[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe("templeGlyph");
   });
 });

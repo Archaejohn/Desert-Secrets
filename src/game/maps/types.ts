@@ -51,7 +51,14 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "crystalBig",
   "chasm",
   "lanternPost",
-  "doorRime"
+  "doorRime",
+  // tiles4.png (Act 3 — the Sunless Sea)
+  "seaWater",
+  "seaWater2",
+  "kelpStalk",
+  "coral",
+  "templePillar",
+  "mossRock"
 ];
 
 export function isSolidName(name: string | null): boolean {

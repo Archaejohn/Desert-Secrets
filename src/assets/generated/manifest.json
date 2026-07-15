@@ -923,6 +923,87 @@
           "repeat": 0
         }
       }
+    },
+    "anglerfish": {
+      "file": "anglerfish.png",
+      "frameWidth": 24,
+      "frameHeight": 24,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "anglerfish-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 3,
+          "repeat": -1
+        },
+        "anglerfish-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 8,
+          "repeat": -1
+        }
+      }
+    },
+    "reefeel": {
+      "file": "reefeel.png",
+      "frameWidth": 24,
+      "frameHeight": 24,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "reefeel-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 3,
+          "repeat": -1
+        },
+        "reefeel-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 10,
+          "repeat": -1
+        }
+      }
+    },
+    "lurker": {
+      "file": "lurker.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "lurker-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 2,
+          "repeat": -1
+        },
+        "lurker-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 8,
+          "repeat": -1
+        }
+      }
     }
   },
   "tiles": {
@@ -1008,6 +1089,29 @@
       "doorOpen": 13,
       "shard": 14,
       "mossGlow": 15
+    }
+  },
+  "tiles4": {
+    "file": "tiles4.png",
+    "tileSize": 16,
+    "columns": 8,
+    "names": {
+      "seaWater": 0,
+      "seaWater2": 1,
+      "floe": 2,
+      "floe2": 3,
+      "floeEdge": 4,
+      "kelpBed": 5,
+      "reefGlow": 6,
+      "templeFloor": 7,
+      "kelpStalk": 8,
+      "coral": 9,
+      "templePillar": 10,
+      "templeGlyph": 11,
+      "anemone": 12,
+      "seaSparkle": 13,
+      "bubbles": 14,
+      "mossRock": 15
     }
   }
 }

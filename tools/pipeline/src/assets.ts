@@ -26,9 +26,13 @@ import { crystalcrawlerFrames } from "./sprites/crystalcrawler";
 import { frostscarabFrames } from "./sprites/frostscarab";
 import { wardenFrames } from "./sprites/warden";
 import { spigotFrames } from "./sprites/spigot";
+import { anglerfishFrames } from "./sprites/anglerfish";
+import { reefeelFrames } from "./sprites/reefeel";
+import { lurkerFrames } from "./sprites/lurker";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
+import { tile4Frames } from "./tileset4";
 import { buildManifest, type Manifest } from "./manifest";
 
 export interface BuiltAssets {
@@ -54,9 +58,13 @@ export interface BuiltAssets {
   frostscarab: PixelGrid;
   warden: PixelGrid;
   spigot: PixelGrid;
+  anglerfish: PixelGrid;
+  reefeel: PixelGrid;
+  lurker: PixelGrid;
   tiles: PixelGrid;
   tiles2: PixelGrid;
   tiles3: PixelGrid;
+  tiles4: PixelGrid;
   manifest: Manifest;
 }
 
@@ -84,9 +92,13 @@ export const SHEET_KEYS = [
   "frostscarab",
   "warden",
   "spigot",
+  "anglerfish",
+  "reefeel",
+  "lurker",
   "tiles",
   "tiles2",
-  "tiles3"
+  "tiles3",
+  "tiles4"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -113,9 +125,13 @@ export function buildAssets(): BuiltAssets {
     frostscarab: composeSheet(frostscarabFrames(), 6),
     warden: composeSheet(wardenFrames(), 6),
     spigot: composeSheet(spigotFrames(), 1),
+    anglerfish: composeSheet(anglerfishFrames(), 6),
+    reefeel: composeSheet(reefeelFrames(), 6),
+    lurker: composeSheet(lurkerFrames(), 6),
     tiles: composeSheet(tileFrames(), 8),
     tiles2: composeSheet(tile2Frames(), 8),
     tiles3: composeSheet(tile3Frames(), 8),
+    tiles4: composeSheet(tile4Frames(), 8),
     manifest: buildManifest()
   };
 }

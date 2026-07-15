@@ -20,9 +20,13 @@ import { CRYSTALCRAWLER_FRAME } from "./sprites/crystalcrawler";
 import { FROSTSCARAB_FRAME } from "./sprites/frostscarab";
 import { WARDEN_FRAME } from "./sprites/warden";
 import { SPIGOT_FRAME } from "./sprites/spigot";
+import { ANGLERFISH_FRAME } from "./sprites/anglerfish";
+import { REEFEEL_FRAME } from "./sprites/reefeel";
+import { LURKER_FRAME } from "./sprites/lurker";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
+import { TILE4_NAMES } from "./tileset4";
 
 export interface AnimationDef {
   frames: number[];
@@ -71,10 +75,14 @@ export interface Manifest {
     frostscarab: SheetDef;
     warden: SheetDef;
     spigot: SheetDef;
+    anglerfish: SheetDef;
+    reefeel: SheetDef;
+    lurker: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
   tiles3: TileSetDef;
+  tiles4: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -180,10 +188,14 @@ export function buildManifest(): Manifest {
       crystalcrawler: creatureSheet("crystalcrawler", CRYSTALCRAWLER_FRAME, "move", 3, 8),
       frostscarab: creatureSheet("frostscarab", FROSTSCARAB_FRAME, "move", 3, 10),
       warden: creatureSheet("warden", WARDEN_FRAME, "move", 2, 8),
-      spigot: propSheet("spigot", SPIGOT_FRAME, [["idle", 0]])
+      spigot: propSheet("spigot", SPIGOT_FRAME, [["idle", 0]]),
+      anglerfish: creatureSheet("anglerfish", ANGLERFISH_FRAME, "move", 3, 8),
+      reefeel: creatureSheet("reefeel", REEFEEL_FRAME, "move", 3, 10),
+      lurker: creatureSheet("lurker", LURKER_FRAME, "move", 2, 8)
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },
-    tiles3: { file: "tiles3.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE3_NAMES) }
+    tiles3: { file: "tiles3.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE3_NAMES) },
+    tiles4: { file: "tiles4.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE4_NAMES) }
   };
 }

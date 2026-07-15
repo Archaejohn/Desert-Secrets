@@ -227,10 +227,13 @@ export abstract class ZoneScene extends Phaser.Scene {
    */
   private static readonly TILES1_COUNT = Object.keys(MANIFEST.tiles.names).length;
   private static readonly TILES2_COUNT = Object.keys(MANIFEST.tiles2.names).length;
+  private static readonly TILES3_COUNT = Object.keys(MANIFEST.tiles3.names).length;
   private static readonly TILES2_FIRSTGID = ZoneScene.TILES1_COUNT;
   private static readonly TILES3_FIRSTGID = ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT;
+  private static readonly TILES4_FIRSTGID =
+    ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT + ZoneScene.TILES3_COUNT;
 
-  /** Resolve a tile name to a global index across the three tilesets. */
+  /** Resolve a tile name to a global index across the four tilesets. */
   protected tileGid(name: string): number {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return t1;
@@ -238,6 +241,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t2 !== undefined) return ZoneScene.TILES2_FIRSTGID + t2;
     const t3 = MANIFEST.tiles3.names[name];
     if (t3 !== undefined) return ZoneScene.TILES3_FIRSTGID + t3;
+    const t4 = MANIFEST.tiles4.names[name];
+    if (t4 !== undefined) return ZoneScene.TILES4_FIRSTGID + t4;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -247,7 +252,9 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t1 !== undefined) return { key: "tiles", frame: t1 };
     const t2 = MANIFEST.tiles2.names[name];
     if (t2 !== undefined) return { key: "tiles2", frame: t2 };
-    return { key: "tiles3", frame: MANIFEST.tiles3.names[name] };
+    const t3 = MANIFEST.tiles3.names[name];
+    if (t3 !== undefined) return { key: "tiles3", frame: t3 };
+    return { key: "tiles4", frame: MANIFEST.tiles4.names[name] };
   }
 
   private buildMap(width: number, height: number): void {
@@ -255,7 +262,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     const ts1 = map.addTilesetImage("t1", "tiles-img", TILE, TILE, 0, 0, 0)!;
     const ts2 = map.addTilesetImage("t2", "tiles2-img", TILE, TILE, 0, 0, ZoneScene.TILES2_FIRSTGID)!;
     const ts3 = map.addTilesetImage("t3", "tiles3-img", TILE, TILE, 0, 0, ZoneScene.TILES3_FIRSTGID)!;
-    const sets = [ts1, ts2, ts3];
+    const ts4 = map.addTilesetImage("t4", "tiles4-img", TILE, TILE, 0, 0, ZoneScene.TILES4_FIRSTGID)!;
+    const sets = [ts1, ts2, ts3, ts4];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;
     const overhead = map.createBlankLayer("overhead", sets)!;

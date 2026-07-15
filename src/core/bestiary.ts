@@ -49,6 +49,10 @@ export const BESTIARY: Record<string, EnemyDef> = {
   icebat: def("icebat", "Ice Bat", "icebat", 2.5, 20, 10, 2, 16, 16),
   crystalcrawler: def("crystalcrawler", "Crystal Crawler", "crystalcrawler", 2.5, 38, 11, 6, 8, 20),
   warden: def("warden", "Rime Warden", "warden", 3, 130, 13, 6, 9, 80),
+  // Act 3 — the Sunless Sea.
+  anglerfish: def("anglerfish", "Anglerfish", "anglerfish", 2.5, 30, 12, 4, 12, 22),
+  reefeel: def("reefeel", "Reef Eel", "reefeel", 2.5, 26, 13, 3, 17, 24),
+  lurker: def("lurker", "The Lurker", "lurker", 3, 150, 15, 7, 10, 90),
 };
 
 function lookup(id: string): EnemyDef {

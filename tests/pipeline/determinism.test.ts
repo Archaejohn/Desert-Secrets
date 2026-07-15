@@ -110,3 +110,24 @@ describe("spigot asset byte-stability", () => {
     }
   });
 });
+
+describe("act3 asset byte-stability", () => {
+  // sha256 of the newly-generated Act 3 sheets/tileset (docs/CONTRACTS.md
+  // "v12: The Sunless Sea"): the three sea enemies plus the fourth tileset.
+  // Pinned once here so future refactors can't silently move a shipped pixel.
+  // Purely additive — no prior sheet's bytes change (asserted above).
+  const FROZEN = {
+    anglerfish: "71c1b7097f22fa8156a859add847ad21e43da7b294f6e949ae9948503ab4314a",
+    reefeel: "ae3638b677ad4c33d1db03b226834d639e8c1efc4636d525672c566b4cc8ff34",
+    lurker: "27a52932ab8f6c5419cea0b0409e0e7bf46869b997816487afa5286c2fdaae58",
+    tiles4: "4eba3ae62821a53e8f6a80b493c87da78dc954ea7c559c3bf406b5023c2e9460"
+  } as const;
+
+  it("anglerfish/reefeel/lurker/tiles4 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

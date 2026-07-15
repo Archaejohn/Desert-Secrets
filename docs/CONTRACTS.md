@@ -1139,3 +1139,144 @@ with no bounds set, there is nothing left to re-clamp it. Larger zones
 `camera.scrollX/scrollY` directly in a headless Playwright check (shed:
 `(-112, -39)`; mine entrance: `(-160, -55)` — both match the hand-computed
 centering values) and by screenshot.
+
+---
+
+# v12: Act 3 — The Sunless Sea (fish, the fishing minigame, a fourth tileset)
+
+Act 3 of Part One. Joseph and Slither follow the crack Piggy vanished
+through (`flags.act2Complete`) under the glacier into a bioluminescent
+cavern ocean: mint-glow reefs, kelp forests, drifting ice floes over dark
+water. One new zone (`sunlessSea`) carries every beat — the comic chase, a
+Fluffball glimpse, a flooded sun-temple ruin, and a fishing minigame gated
+by a mini-boss — and ends on the Act 4 card. Additive only; nothing in
+Acts 1–2 changed except the Act-2-ending wiring (below).
+
+## The Act 2 → Act 3 hand-off (the one Act-2 change)
+
+`SanctumScene`'s end card no longer `resetGame()`s back to the title. Its
+"SPACE — follow the crack" now `scene.start("sunlessSea")` keeping all
+progress and setting `flags.act3Started` — exactly the Act 1 → Act 2
+pattern (`DepthsScene` → crevasse). The sanctum's epilogue branch (a
+reload landing on the already-cracked lake) also gains a descend trigger
+at the tunnel the penguins dove through, so a reload can't soft-lock Act 3.
+The keyboard smoke's old "act 2 end card returns to the title" check became
+"…dives into the Sunless Sea with progress kept".
+
+## New zone: `sunlessSea` (`sunlessSeaMap.ts`, `SunlessSeaScene.ts`)
+
+40×28, `encounterZone: "sunlessSea"`, `battleBg: "ice"`. **Floe-hopping
+traversal is pure tile-grid**, not new physics: the map is filled with
+SOLID `seaWater`, and walkable `floe`/`floe2` tiles are carved through it
+as hop-corridors (same solid/walkable convention as every prior zone;
+`seaWater`/`seaWater2` and the sea decor solids were added to
+`SOLID_TILE_NAMES`). Themed walkable floors — `kelpBed`, `reefGlow`,
+`templeFloor`, `templeGlyph` — mark the beats; `kelpStalk`/`coral`/
+`templePillar`/`mossRock` are solid walk-arounds; `bubbles` is the one
+OVERHEAD tile. A reef room gives a **second (loop) route** from the hub to
+the deep bed (BFS-verified: blocking the east-corridor mouth alone does not
+cut off the fishing spot). Beats:
+
+- **The chase** (walk-over trigger, `sawChase`): Piggy is spotted playing
+  tag with a small gray shape out on the ice; two cosmetic penguin sprites
+  skate off and vanish; `piggyChase` dialogue lands the joke ("Fassster in
+  water than you"). No minigame.
+- **Fluffball, glimpsed** (`metFluffball`): a one-time trigger in a
+  dead-end kelp bed. Fluffball speaks **exactly one line** (the silverfin
+  clue), then bolts (tween-away + destroy). Cul-de-sac is BFS-proven:
+  solidifying its single entrance tile makes the bed unreachable. He does
+  **not** join here (that's Act 5).
+- **The flooded sun-temple** (`sawTemple`): an `InteractPoint` on a carved
+  `templeGlyph` amid submerged `templePillar`s; `templeLore` establishes
+  "the desert was hiding an ecosystem, not treasure."
+- **The fishing spot** (`InteractPoint` at the deepest kelp bed): first
+  interaction → `lurkerIntro` → **the Lurker** mini-boss (a real
+  `BattleScene` fight, `victoryFlag: "lurkerDefeated"`, party = hero +
+  Slither). After it's beaten off → `fishingCast` choice ("Cast the line"
+  / "Not yet") → the timing minigame. Landing the catch sets
+  `items.silverfin` + `flags.silverfinCaught`, then the `act3Ending`
+  dialogue and the end card (→ title; Act 4's zone is a teammate's next
+  task). Slither trails the player as a world follower throughout (same
+  trail rig as the galleries/sanctum).
+
+## The fishing minigame (`src/core/fishing.ts`, pure + unit-tested)
+
+Engine-agnostic like `atb.ts`: a marker slides 0..1, bouncing off both
+ends (`tickFishing(state, cfg, dt)` — no `Date.now`/`Math.random`, time is
+a parameter); `hookFishing(state, cfg)` registers a tap — inside
+`[target ± windowHalf]` is a hit (lands after `requiredHits`), outside is a
+miss (snaps the line after `maxMisses`). `DEFAULT_FISHING` = speed 0.9,
+target 0.5, windowHalf 0.14, 3 hits / 5 misses. Fully covered by
+`tests/core/fishing.test.ts` (bounce reflection incl. multi-bounce steps,
+window edges, landing/snapping, no-op once resolved, determinism). The
+thin Phaser UI is `src/game/ui/FishingMenu.ts` — a gauge with the glowing
+target band, a marker, hit pips, and a HOOK button; it self-manages its
+own `UPDATE`/keydown/pointerdown listeners (like PerkMenu/InventoryMenu)
+and hooks on SPACE or any tap. **The pre-cast choice list uses the
+existing `DialogueBox`** (hence `TouchListButtons`); the hook action is a
+single confirm, not a list — consistent with battle/dialogue tap handling.
+A subtlety fixed during bring-up: the ending must set `inputLocked = false`
+before opening its dialogue (a locked scene never forwards confirm to the
+box — same rule the Act 1/2 endings already follow), and the winning tap
+stays input-locked straight through to the ending so it can't also refire
+the fishing InteractPoint on the next frame.
+
+## New art (`tools/pipeline/`, palette-locked, sha256-pinned)
+
+- **`tiles4.ts`** — 16 sea tiles (2 rows × 8, exact `composeSheet`
+  column-multiple discipline). Contract order: `seaWater seaWater2 floe
+  floe2 floeEdge kelpBed reefGlow templeFloor` / `kelpStalk coral
+  templePillar templeGlyph anemone seaSparkle bubbles mossRock`. `floe`
+  (bright bone/skyBlue) reads clearly walkable against the dark
+  `seaWater` (tealDeep/indigo with mint plankton glints); `bubbles` is the
+  only non-opaque (overhead) tile. Manifest gains a top-level `tiles4`
+  entry shaped like `tiles`/`tiles2`/`tiles3`.
+- **Three enemy sheets** — `anglerfish` (24×24, lure esca), `reefeel`
+  (24×24, undulating eel) and `lurker` (32×32 mini-boss, stolen lure in
+  its jaw), all side-on facing LEFT (the battle scene flips enemies) with
+  the standard idle[0,1]/move[2..5] layout.
+
+`tiles4`/`anglerfish`/`reefeel`/`lurker` are appended after every existing
+sheet — **no prior sheet's bytes change** (the pre-Act-2 frozen hashes
+still hold), and the four new hashes are pinned in
+`tests/pipeline/determinism.test.ts` ("act3 asset byte-stability").
+
+## The 4th-tileset firstgid (extending the v9 dynamic-offset fix)
+
+Adding a fourth tileset is exactly the case CONTRACTS v9 warned about.
+`ZoneScene` now derives `TILES4_FIRSTGID` the same way as the others —
+`tiles1+tiles2+tiles3` counts from `MANIFEST.*.names` lengths, never a
+hardcoded magic number — and `buildMap()` registers a fourth
+`addTilesetImage("t4", "tiles4-img", …, TILES4_FIRSTGID)`. Screenshot
+review confirmed the sea renders with its own art (no aliasing onto the
+ice/mountain GID ranges).
+
+## Core / plumbing (same checklist as every prior zone addition)
+
+- `gameState.ts`: `ZoneId += "sunlessSea"`; new `ACT3_FLAGS`
+  (`act3Started, sawChase, metFluffball, sawTemple, lurkerDefeated,
+  silverfinCaught, act3Complete`) init false in `newGame()`;
+  `items.silverfin: boolean` (init false).
+- `bestiary.ts`: `anglerfish` (30/12/4/12, xp 22), `reefeel` (26/13/3/17,
+  xp 24), `lurker` (150/15/7/10, xp 90).
+- `encounters.ts`: `ENCOUNTERS.sunlessSea` (anglerfish/reefeel groups,
+  weights [3,3,2,2]); the `Record` key union widened to six zones.
+- `objective.ts`: an Act 3 chain (gated on `act3Started` so "Act 2
+  complete!" survives until the crack is followed); every line ≤ 40 chars.
+- `scripts/radio.ts`: exhaustive `radioLines` gains `sunlessSea`.
+- Six new dialogue scripts (`piggyChase, fluffballMeet, templeLore,
+  lurkerIntro, fishingCast, act3Ending`), all `validateScript`-clean, ≤ 48
+  chars/line, Slither hissing where he speaks — covered by
+  `tests/core/scriptsAct3.test.ts` (incl. Fluffball speaks exactly once,
+  fishingCast's `cast-end`/`leave-end` terminals, act3Ending's Act 4 card).
+- `BootScene` `ZONE_NAMES` + preload (`tiles4` and the three sheets);
+  `main.ts` registers `SunlessSeaScene`.
+- `tests/game/maps2.test.ts`: full BFS suite for `sunlessSea` (enclosure,
+  landmark reachability, the cul-de-sac, the loop route, themed floors);
+  `KNOWN_NAMES` gains `tiles4`.
+- `tools/smoke/e2e.mjs`: plays Act 3 end-to-end (chase, Fluffball, temple,
+  Lurker fight, cast + land the silverfin by reading the pure fishing
+  state and only hooking inside the window, ending → title). 76 checks.
+- `tools/smoke/touch-e2e.mjs`: touch coverage of the fishing flow — tap the
+  InteractPoint, confirm the cast choice with the ✓ column, tap HOOK inside
+  the glow to land the catch. 18 checks.

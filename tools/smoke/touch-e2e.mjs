@@ -289,6 +289,97 @@ if (battleUp) {
   }
 }
 
+// ---------- Act 3: the fishing minigame via touch ----------
+// Jump straight to the sea with the Lurker already beaten off, so the next
+// interaction with the fishing spot opens the cast choice and the timing
+// minigame — exercising: tapping an InteractPoint, confirming a dialogue
+// choice with the ✓ column, and tapping HOOK to land the catch.
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, sawChase: true, metFluffball: true,
+    sawTemple: true, lurkerDefeated: true
+  };
+  g.registry.set("act1", { ...st, zone: "sunlessSea", hp: 999, flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("sunlessSea", {});
+});
+await page.waitForTimeout(1300);
+await page.evaluate(() => window.__game.scene.getScene("sunlessSea").player.body.reset(33 * 16 + 8, 19 * 16 + 8));
+await page.waitForTimeout(300);
+
+// Tap the right side to use the fishing InteractPoint → the cast choice.
+{
+  const rect = await canvasRect();
+  await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+}
+await page.waitForTimeout(400);
+const castChoice = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("sunlessSea");
+  return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
+});
+check(
+  "tapping the fishing spot opens the cast choice via touch",
+  castChoice.open === true && Array.isArray(castChoice.choices),
+  JSON.stringify(castChoice)
+);
+
+if (castChoice.choices) {
+  // Confirm "Cast the line" (row 0, already selected) with the ✓ column.
+  const confirmBtn = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("sunlessSea");
+    const dlg = w.dialogue;
+    const b = dlg["touchButtons"];
+    const rect = window.__game.canvas.getBoundingClientRect();
+    const sx = rect.width / window.__game.scale.width;
+    const sy = rect.height / window.__game.scale.height;
+    const cx = dlg["container"].x;
+    const cy = dlg["container"].y;
+    return {
+      x: rect.x + (cx + b.x + b.size / 2) * sx,
+      y: rect.y + (cy + b.top + b.gap + b.size / 2) * sy
+    };
+  });
+  await page.touchscreen.tap(confirmBtn.x, confirmBtn.y);
+  await page.waitForTimeout(300);
+  // Advance the cast-end line (a plain line — any tap advances it).
+  {
+    const rect = await canvasRect();
+    await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+  }
+  await page.waitForTimeout(400);
+}
+
+const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("sunlessSea").fishingMenu);
+check("casting opens the fishing minigame via touch", menuOpen === true);
+
+if (menuOpen) {
+  const rect = await canvasRect();
+  const deadline = Date.now() + 40_000;
+  let caught = false;
+  while (Date.now() < deadline) {
+    const fs = await page.evaluate(() => {
+      const w = window.__game.scene.getScene("sunlessSea");
+      const m = w.fishingMenu;
+      if (!m) return { open: false, caught: window.__game.registry.get("act1").items.silverfin === true };
+      return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };
+    });
+    if (!fs.open) {
+      caught = fs.caught;
+      break;
+    }
+    // Tap (anywhere / the HOOK button) only when the marker is in the glow.
+    if (Math.abs(fs.p - fs.t) < fs.w * 0.5) {
+      await page.touchscreen.tap(rect.x + rect.width * 0.5, rect.y + rect.height * 0.45);
+    }
+    await page.waitForTimeout(30);
+  }
+  check("tapping HOOK inside the glow lands the silverfin (touch)", caught === true);
+}
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

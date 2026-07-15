@@ -249,6 +249,7 @@ describe("radioLines", () => {
       "overworld",
       "sanctum",
       "shed",
+      "sunlessSea",
       "trail",
     ]);
   });

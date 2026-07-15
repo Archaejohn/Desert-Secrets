@@ -73,12 +73,24 @@ describe("ENCOUNTERS tables", () => {
     expect(ENCOUNTERS.overworld.weights).toEqual([3, 3, 2, 2, 1]);
   });
 
-  it("exposes exactly the five contract zones", () => {
+  it("sunlessSea matches the contract groups and weights", () => {
+    expect(ENCOUNTERS.sunlessSea.zone).toBe("sunlessSea");
+    expect(ENCOUNTERS.sunlessSea.groups).toEqual([
+      ["anglerfish"],
+      ["reefeel"],
+      ["anglerfish", "anglerfish"],
+      ["reefeel", "anglerfish"],
+    ]);
+    expect(ENCOUNTERS.sunlessSea.weights).toEqual([3, 3, 2, 2]);
+  });
+
+  it("exposes exactly the six contract zones", () => {
     expect(Object.keys(ENCOUNTERS).sort()).toEqual([
       "galleries",
       "maze",
       "mine",
       "overworld",
+      "sunlessSea",
       "trail",
     ]);
   });

@@ -10,7 +10,7 @@ export interface EncounterTable {
 }
 
 export const ENCOUNTERS: Record<
-  "trail" | "mine" | "maze" | "galleries" | "overworld",
+  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea",
   EncounterTable
 > = {
   overworld: {
@@ -59,6 +59,16 @@ export const ENCOUNTERS: Record<
       ["crystalcrawler", "icebat"],
     ],
     weights: [3, 2, 2, 1],
+  },
+  sunlessSea: {
+    zone: "sunlessSea",
+    groups: [
+      ["anglerfish"],
+      ["reefeel"],
+      ["anglerfish", "anglerfish"],
+      ["reefeel", "anglerfish"],
+    ],
+    weights: [3, 3, 2, 2],
   },
 };
 

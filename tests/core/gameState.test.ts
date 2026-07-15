@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ACT1_FLAGS,
   ACT2_FLAGS,
+  ACT3_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
@@ -23,17 +24,23 @@ describe("newGame", () => {
     expect(s.hero).toEqual({ xp: 0, perks: [] });
     expect(s.hp).toBe(32); // level 1 maxHp
     expect(s.pendingPerks).toBe(0);
-    expect(s.items).toEqual({ coldPack: false, shinies: 0, bucket: "none", equipped: null });
+    expect(s.items).toEqual({
+      coldPack: false,
+      shinies: 0,
+      bucket: "none",
+      equipped: null,
+      silverfin: false,
+    });
   });
 
   it("initialises every scene flag to false", () => {
     const s = newGame();
     expect(ACT1_FLAGS.length).toBe(17);
-    for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS]) {
+    for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS]) {
       expect(s.flags[flag]).toBe(false);
     }
     expect(Object.keys(s.flags).sort()).toEqual(
-      [...ACT1_FLAGS, ...ACT2_FLAGS].sort(),
+      [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS].sort(),
     );
   });
 });
@@ -182,7 +189,13 @@ describe("respawn", () => {
     expect(after.hp).toBe(statsForBuild(s.hero).maxHp);
     expect(after.zone).toBe("mine");
     expect(after.hero).toEqual(s.hero);
-    expect(after.items).toEqual({ coldPack: true, shinies: 2, bucket: "filled", equipped: "bucket" });
+    expect(after.items).toEqual({
+      coldPack: true,
+      shinies: 2,
+      bucket: "filled",
+      equipped: "bucket",
+      silverfin: false,
+    });
     expect(after.flags.foremanDefeated).toBe(true);
     expect(after.pendingPerks).toBe(s.pendingPerks);
   });

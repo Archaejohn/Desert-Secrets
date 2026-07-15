@@ -21,6 +21,10 @@ describe("BESTIARY", () => {
       ["icebat", 2.5, 20, 10, 2, 16, 16],
       ["crystalcrawler", 2.5, 38, 11, 6, 8, 20],
       ["warden", 3, 130, 13, 6, 9, 80],
+      // Act 3
+      ["anglerfish", 2.5, 30, 12, 4, 12, 22],
+      ["reefeel", 2.5, 26, 13, 3, 17, 24],
+      ["lurker", 3, 150, 15, 7, 10, 90],
     ];
     expect(Object.keys(BESTIARY).sort()).toEqual(
       rows.map(([id]) => id).sort(),
@@ -46,6 +50,9 @@ describe("BESTIARY", () => {
     expect(BESTIARY.icebat.sheet).toBe("icebat");
     expect(BESTIARY.crystalcrawler.sheet).toBe("crystalcrawler");
     expect(BESTIARY.warden.sheet).toBe("warden");
+    expect(BESTIARY.anglerfish.sheet).toBe("anglerfish");
+    expect(BESTIARY.reefeel.sheet).toBe("reefeel");
+    expect(BESTIARY.lurker.sheet).toBe("lurker");
   });
 
   it("names the Act 2 enemies for the battle HUD", () => {
@@ -53,6 +60,12 @@ describe("BESTIARY", () => {
     expect(BESTIARY.icebat.name).toBe("Ice Bat");
     expect(BESTIARY.crystalcrawler.name).toBe("Crystal Crawler");
     expect(BESTIARY.warden.name).toBe("Rime Warden");
+  });
+
+  it("names the Act 3 sea enemies for the battle HUD", () => {
+    expect(BESTIARY.anglerfish.name).toBe("Anglerfish");
+    expect(BESTIARY.reefeel.name).toBe("Reef Eel");
+    expect(BESTIARY.lurker.name).toBe("The Lurker");
   });
 
   it("queenWeakened is the queen at 45 maxHp with the same xp", () => {
@@ -120,6 +133,9 @@ describe("makeEnemyParty", () => {
       ["icebat", "icebat"],
       ["crystalcrawler", "icebat"],
       ["warden"],
+      ["anglerfish", "anglerfish"],
+      ["reefeel", "anglerfish"],
+      ["lurker"],
     ];
     for (const group of groups) {
       const ids = makeEnemyParty(group).map((c) => c.id);
@@ -155,6 +171,14 @@ describe("xpForParty", () => {
     expect(xpForParty(["icebat", "frostscarab"])).toBe(30);
     expect(xpForParty(["crystalcrawler", "icebat"])).toBe(36);
     expect(xpForParty(["warden"])).toBe(80);
+  });
+
+  it("sums the Act 3 sea groups", () => {
+    expect(xpForParty(["anglerfish"])).toBe(22);
+    expect(xpForParty(["reefeel"])).toBe(24);
+    expect(xpForParty(["anglerfish", "anglerfish"])).toBe(44);
+    expect(xpForParty(["reefeel", "anglerfish"])).toBe(46);
+    expect(xpForParty(["lurker"])).toBe(90);
   });
 
   it("is 0 for an empty group and throws on unknown ids", () => {

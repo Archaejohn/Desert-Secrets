@@ -14,6 +14,7 @@ import scarabUrl from "../../assets/generated/scarab.png";
 import tilesUrl from "../../assets/generated/tiles.png";
 import tiles2Url from "../../assets/generated/tiles2.png";
 import tiles3Url from "../../assets/generated/tiles3.png";
+import tiles4Url from "../../assets/generated/tiles4.png";
 import rosaUrl from "../../assets/generated/rosa.png";
 import piggyUrl from "../../assets/generated/piggy.png";
 import jackrabbitUrl from "../../assets/generated/jackrabbit.png";
@@ -33,6 +34,9 @@ import pamelaUrl from "../../assets/generated/pamela.png";
 import chickenUrl from "../../assets/generated/chicken.png";
 import bucketUrl from "../../assets/generated/bucket.png";
 import spigotUrl from "../../assets/generated/spigot.png";
+import anglerfishUrl from "../../assets/generated/anglerfish.png";
+import reefeelUrl from "../../assets/generated/reefeel.png";
+import lurkerUrl from "../../assets/generated/lurker.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -56,7 +60,10 @@ const SHEET_URLS: Record<string, string> = {
   pamela: pamelaUrl,
   chicken: chickenUrl,
   bucket: bucketUrl,
-  spigot: spigotUrl
+  spigot: spigotUrl,
+  anglerfish: anglerfishUrl,
+  reefeel: reefeelUrl,
+  lurker: lurkerUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {
@@ -71,7 +78,8 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   sanctum: "The Sanctum",
   shed: "The Shed",
   overworld: "The Open Desert",
-  mineEntrance: "Mine Entrance"
+  mineEntrance: "Mine Entrance",
+  sunlessSea: "The Sunless Sea"
 };
 
 export class BootScene extends Phaser.Scene {
@@ -96,7 +104,8 @@ export class BootScene extends Phaser.Scene {
     for (const [key, url] of [
       ["tiles", tilesUrl],
       ["tiles2", tiles2Url],
-      ["tiles3", tiles3Url]
+      ["tiles3", tiles3Url],
+      ["tiles4", tiles4Url]
     ] as const) {
       this.load.spritesheet(key, url, { frameWidth: 16, frameHeight: 16 });
       this.load.image(`${key}-img`, url);

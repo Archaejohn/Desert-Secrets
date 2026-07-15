@@ -12,6 +12,7 @@ import { CrevasseScene } from "./scenes/CrevasseScene";
 import { MazeScene } from "./scenes/MazeScene";
 import { GalleriesScene } from "./scenes/GalleriesScene";
 import { SanctumScene } from "./scenes/SanctumScene";
+import { SunlessSeaScene } from "./scenes/SunlessSeaScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -44,6 +45,7 @@ const game = new Phaser.Game({
     MazeScene,
     GalleriesScene,
     SanctumScene,
+    SunlessSeaScene,
     BattleScene
   ]
 });
