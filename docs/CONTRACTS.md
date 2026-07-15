@@ -972,3 +972,142 @@ from each tileset's actual tile count (`Object.keys(MANIFEST.tiles.names
 recur the next time any tileset grows. Caught by visual screenshot
 review, not by any existing test — the map-data tests only validate tile
 *names* and solidity, never which pixels a name resolves to.
+
+---
+
+# v10: true SNES-Mode-7 perspective terrain for the overworld
+
+The Open Desert (v9) is now rendered as a real Mode-7 perspective ground
+plane — sky above a horizon line, a flat painted map receding obliquely
+into the distance below it — instead of the flat top-down tilemap every
+other zone uses. This affects **`OverworldScene` only**. Crash, oasis,
+shed, trail, mine, depths, crevasse, maze, galleries, sanctum, the mine
+entrance and battle all render exactly as before; nothing in the shared
+`ZoneScene` render path changed, and this section is purely a rendering
+swap — movement, collision, exits, triggers and encounters still run in
+ordinary tile-grid space, unchanged.
+
+## What Mode 7 is (and what it deliberately isn't)
+
+Mode 7 (FF6's world map, F-Zero) paints **one flat 2D texture** as a
+ground plane seen from a fixed pitch. There is no heightmap and no 3D
+geometry: the "mountains" are just the same shaded 2D ridge art from v9,
+viewed obliquely. Per screen pixel below the horizon we invert the
+perspective to find the ground point it looks at. The camera is
+**north-up and never rotates** (FF6-faithful) — walking turns the player
+sprite but not the world; rotation was intentionally left out of this v1
+as it's not needed for a correct, well-scoped result. The player is a
+normal fixed 2D sprite drawn on top, not part of the transform.
+
+## The math (`src/core/mode7.ts`, pure + unit-tested)
+
+Engine-agnostic, no Phaser import, like every other `src/core/*.ts`.
+`projectGround(cam, sx, sy)` is the inverse-perspective core. With the
+horizon at screen-Y `H` and a pixel `p = sy − H` scanlines below it:
+
+```
+depth = min(cameraHeight * focal / p, maxDepth)      // forward distance
+right = (sx − screenW/2) * depth / focal             // lateral offset
+worldX = camX + right
+worldY = camY − depth                                // −y == north == "forward"
+```
+
+As `p → 0` (approaching the horizon) `depth → ∞`, so it's **clamped to
+`maxDepth`** and the horizon maps to a finite far point rather than
+infinity; pixels *on or above* the horizon return `null` (that's sky,
+no ground). Larger `p` (nearer the bottom) → smaller `depth` → the
+ground point is closer to the camera and each pixel steps further across
+the texture — the classic "stretched at the horizon, magnified up close"
+look. `makeCamera()` builds the camera from the player position and the
+exported constants; the GLSL fragment shader re-implements the identical
+formula, fed these same constants as uniforms so there's one source of
+truth. Fully covered by `tests/core/mode7.test.ts` (horizon → clamped
+maxDepth, bottom → near, center column dead-ahead, symmetric spread,
+monotonic depth, predictable translation under camera moves,
+determinism, UV clamping).
+
+### Constants and why these values (desert-overworld defaults)
+
+- `MODE7_HORIZON_FRACTION = 0.42` — horizon 42% down the 270px screen
+  (~113px). Leaves a generous ground band while keeping room for the
+  dusk sky + ridge silhouette.
+- `MODE7_FOCAL_LENGTH = 160` (screen px) — 2/3 of the 240px half-width,
+  a natural ~74° horizontal FOV / moderate pitch. Larger = flatter,
+  narrower; smaller = steeper, wider.
+- `MODE7_CAMERA_HEIGHT = 24` (world px, 1.5 tiles) — eye height above
+  the plane. Low enough that near tiles loom large, high enough to see a
+  fair distance ahead.
+- `MODE7_MAX_DEPTH = 640` (world px) — the horizon-distance clamp. Past
+  the 256×320px map this lands on the edge tiles (see edge-clamp below),
+  which reads correctly as far mountains.
+- `MODE7_CAMERA_BACK = 32` (world px) — the camera sits this far *behind*
+  (south of) the player so the player's own tile appears a little up
+  from the very bottom edge instead of directly under (and off) the
+  camera; keeps the fixed avatar visually standing on its own terrain.
+
+## The ground texture (`src/game/gfx/Mode7Ground.ts`, presentation)
+
+At `OverworldScene` create, `buildOverworldMap()`'s ground+decor grids
+are painted **once** into an offscreen `CanvasTexture` (256×320px = the
+16×20 tile map at 16px/tile) via `CanvasTexture.drawFrame` from the
+already-loaded `tiles`/`tiles2`/`tiles3` spritesheets — ground first,
+then decor on top, so mountains/water/props all bake into one flat
+top-down "map image". No art is regenerated through the Node pipeline at
+runtime; this only composes textures Phaser already has. That canvas is
+the `iChannel0` sampler the shader reads.
+
+## The shader path (Phaser `GameObjects.Shader`, WebGL)
+
+Rendered with a full-screen `Phaser.GameObjects.Shader` quad (Phaser
+3.87's idiomatic "custom fragment shader on a quad with a sampler2D"
+API) at `scrollFactor 0`, depth `-100`, covering 480×270. Chosen over a
+`PostFXPipeline` because PostFX runs *after* the scene is drawn and would
+have to key the player sprite back out of its own output to composite;
+a background quad lets ordinary sprites (the avatar, HUD, dialogue) draw
+on top in normal display-list order with zero compositing tricks. The
+one shader draws **both** halves: below the horizon it inverse-projects
+and samples the ground texture; above it, a vertical dusk gradient
+(`indigo` → `amber`, from `PALETTE`) plus a **static** distant ridge
+silhouette (summed sines, `mauve`, deterministic — no `Math.random`).
+Far ground is hazed toward the horizon `amber` to hide the clamp seam.
+
+- **UV addressing: edge-clamp** (`clamp(uv, 0, 1)`), not wrap. The desert
+  is a walled mountain pass, so sampling past an edge holding the border
+  mountains is thematically right — and it's also required for
+  correctness here: the 320px map height is non-power-of-two, and `REPEAT`
+  on an NPOT texture is illegal in WebGL1 (would render black). The
+  sampler is uploaded `flipY:false` + `NEAREST` (crisp SNES pixels) via
+  the Shader's `textureData`.
+- Each frame `Mode7Ground.update(player.x, player.y)` pushes fresh
+  `uCamX`/`uCamY`/`uHorizon` uniforms; the **camera world position tracks
+  the player**, so the plane scrolls and reveals under the fixed avatar
+  instead of a `Camera` scrolling a tilemap.
+
+## Player representation
+
+The real physics player sprite stays the source of truth for
+position/collision/exits/encounters (and for the smoke test's
+`w.player.x/y` + `body.reset` teleports) — it's just made invisible. A
+separate fixed-screen **avatar** (the same `hero` sheet + shared
+walk/idle anims, `scrollFactor 0`, horizontally centered, feet ~66% down
+the ground band, scale 2.5) mirrors the player's current animation each
+frame. Input still updates the real player's continuous world position
+exactly as `ZoneScene.update()` always did.
+
+## Fallback safety
+
+`OverworldScene.setupMode7()` no-ops on a non-WebGL renderer and wraps
+shader/texture creation in try/catch: on any failure it `console.warn`s,
+tears down anything half-built, re-shows the flat tilemap + real player,
+and the zone renders identically to every other zone. It degrades, never
+throws. (The smoke playthrough's "no page errors" check exercises this:
+whichever path the headless renderer takes, the scene must not crash.)
+
+## Integration footprint
+
+`ZoneScene.ts` was **not** touched — `OverworldScene` does everything
+from its existing `populate()`/`onUpdate()` hooks using already-protected
+members (`player`, `groundLayer`, `decorLayer`, `cfg`, `facing`), so the
+diff against the shared base class is zero. New files: `src/core/mode7.ts`,
+`tests/core/mode7.test.ts`, `src/game/gfx/Mode7Ground.ts`; changed:
+`src/game/scenes/OverworldScene.ts` only.
