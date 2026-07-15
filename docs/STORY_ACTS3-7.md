@@ -30,7 +30,7 @@ sets it up directly: the walk out doesn't go the way anyone expects.
 |---|---|---|---|---|
 | 3 | Fish | The Sunless Sea | glimpsed, gives clue #1, won't approach | floe-hopping traversal + fishing minigame |
 | 4 | Stinky socks | The Miners' Camp | glimpsed again, clue #2, still won't approach | favor-quest + a "reeks" inventory item that changes NPC/enemy behavior |
-| 5 | Oranges | Sahra's Hidden Grove | **joins the party**, clue #3 | dialogue that reacts to Act 1–2 choices; first real bonding scene |
+| 5 | Oranges | The Sunlit Cave-In (Cinnabar Mine) | **joins the party**, clue #3 | dialogue that reacts to Act 1–2 choices; first real bonding scene |
 | 6 | Seaweed | The Reef | traveling with the party, clue #4 | trade-not-fight diplomacy (Slither + Fluffball broker it) |
 | 7 | — (the pizza) | La Pizzeria Sotterranea | full party member | cooking/timing minigame; the actual catch |
 
@@ -80,11 +80,21 @@ lights, a laundry line. New location, not a revisit of Act 2's map.
 
 **End card: ACT 5 — SAHRA'S GROVE.**
 
-## Act 5 — "The Hidden Grove" (~30 min)
+## Act 5 — "The Sunlit Cave-In" (~30 min)
 
-Back to the surface — a tonal breather after two underground/aquatic
-acts. Sahra keeps a small hidden orange grove behind the oasis, watered
-by the same spring.
+Not a return to the surface — a tonal breather found *inside* the mine
+instead. Deep in a disused Cinnabar gallery, part of the ceiling gave way
+long ago, opening a shaft straight up to the desert floor. Sunlight pours
+down through it, and an underground river (the same water table that
+feeds the oasis spring) has turned the chamber floor into the lushest,
+greenest place in the whole game — moss, ferns, vines up the collapsed
+rock — one bright, living room buried in all that stone and ice. **One
+orange tree grows at the center of the chamber**, the only one for miles,
+watered by the river and lit by the hole in the roof. Sahra keeps it —
+she found the cave-in years ago and has quietly tended the grove ever
+since, the desert's actual best-kept secret. It reads as a surface
+beat (light, green, alive) without leaving the mine geographically,
+which keeps Act 5 tied to the same underground thread as Acts 2–4 and 6.
 
 - **The chase:** Piggy beat them here — he's already in the grove,
   snacking. The near-catch fails when he waddle-sprints into a patch of
@@ -106,9 +116,9 @@ by the same spring.
 
 ## Act 6 — "The Reef" (~30–35 min)
 
-Back underground and underwater, to the crystal-crawler territory glimpsed
-in Act 2's galleries — their actual home, a garden of glowing kelp they
-farm.
+Deeper still, and back underwater, to the crystal-crawler territory
+glimpsed in Act 2's galleries — their actual home, a garden of glowing
+kelp they farm.
 
 - **The chase, and the turn:** this is the last ingredient before the
   finale, so the near-catch here has to land harder than any before it.

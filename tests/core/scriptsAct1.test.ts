@@ -106,43 +106,57 @@ describe("rosaCrash", () => {
 });
 
 describe("homeAct1", () => {
-  it("offers the Thomas / chickens / goodbye hub", () => {
-    const { choiceLists } = playThrough(homeAct1Script, [2]);
+  it("offers the Thomas / chickens / scarabs / goodbye hub", () => {
+    const { choiceLists } = playThrough(homeAct1Script, [3]);
     expect(choiceLists[0]).toEqual([
       "Ask about Thomas",
       "Ask about the chickens",
+      "Ask about the scarabs",
       "Say goodbye",
     ]);
   });
 
   it("reinforces the Thomas thread on that branch", () => {
-    const { lines } = playThrough(homeAct1Script, [0, 2]);
+    const { lines } = playThrough(homeAct1Script, [0, 3]);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/Thomas/);
   });
 
-  it("hints the chicken side quest and the coop's location", () => {
-    const { lines } = playThrough(homeAct1Script, [1, 2]);
+  it("hints the chicken side quest and the coop's location, opened by Pamela", () => {
+    const { lines } = playThrough(homeAct1Script, [1, 3]);
+    const chickenNode = lines.find((l) => /chickens/i.test(l.text));
+    expect(chickenNode?.speaker).toBe("Pamela");
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/chickens/i);
     expect(all).toMatch(/trough/i);
   });
 
-  it("Thomas and chickens branches loop back to the hub", () => {
-    const { choiceLists, runner } = playThrough(homeAct1Script, [0, 1, 2]);
-    expect(choiceLists.length).toBe(3); // hub seen three times
+  it("has John explain the scarabs are a local nickname, not a known species", () => {
+    const { lines } = playThrough(homeAct1Script, [2, 3]);
+    const scarabLines = lines.filter((l) => l.speaker === "John");
+    const johnText = scarabLines.map((l) => l.text).join(" ");
+    expect(johnText).toMatch(/scarabs/i);
+    expect(johnText).toMatch(/call/i);
+    expect(johnText).not.toMatch(/planet|alien|space/i);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/legs|shell/i);
+  });
+
+  it("Thomas, chickens and scarabs branches loop back to the hub", () => {
+    const { choiceLists, runner } = playThrough(homeAct1Script, [0, 1, 2, 3]);
+    expect(choiceLists.length).toBe(4); // hub seen four times
     expect(runner.active).toBe(false);
   });
 
   it("preserves the frost-on-the-flats hint that motivates the trail", () => {
-    const { lines } = playThrough(homeAct1Script, [2]);
+    const { lines } = playThrough(homeAct1Script, [3]);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/ice/i);
     expect(all).toMatch(/flats/i);
   });
 
   it("mentions Piggy headed east and the scarabs stirring", () => {
-    const { lines } = playThrough(homeAct1Script, [2]);
+    const { lines } = playThrough(homeAct1Script, [3]);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/east/i);
     expect(all).toMatch(/scarabs/i);

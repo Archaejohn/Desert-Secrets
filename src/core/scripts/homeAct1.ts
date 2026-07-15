@@ -5,10 +5,14 @@ import type { DialogueScript } from "../dialogue";
  * Pamela (Joseph's parents) replace Sahra in this beat entirely — the
  * frost mystery is carried by Rosa's crash-site dialogue instead, and
  * the sun-temple/old-ocean lore is seeded fresh later (Act 2's miners,
- * and — if it's ever built — Act 5). Choice hub: Thomas / chickens /
- * goodbye. Functionally preserves what the old Sahra beat set up: Piggy
- * headed east, the scarabs are stirring, and there's unmelted ice out on
- * the flats (the trail's three-ice-chip quest).
+ * and Act 5's grove). Choice hub: Thomas / chickens / scarabs / goodbye,
+ * split by parent — Pamela owns the chickens, John owns the scarabs — so
+ * each parent has a subject that's actually theirs. Functionally
+ * preserves what the old Sahra beat set up: Piggy headed east, the
+ * scarabs are stirring, and there's unmelted ice out on the flats (the
+ * trail's three-ice-chip quest). "Scarab" is the family's own name for
+ * the bugs, not a real species ID — John says so outright, but the
+ * alien angle stays unconfirmed here (see CLAUDE.md).
  */
 export const homeAct1Script: DialogueScript = {
   start: "greet",
@@ -29,7 +33,8 @@ export const homeAct1Script: DialogueScript = {
         { speaker: "John", text: "Saw a little thing waddle past at dawn." },
         { speaker: "John", text: "Headed east, out past the wash." },
         { speaker: "Pamela", text: "Ground's been humming since the crash, too." },
-        { speaker: "Pamela", text: "Scarabs, probably. Mind yourself out there." },
+        { speaker: "John", text: "Scarabs are out early too." },
+        { speaker: "John", text: "Ask me if you want the story." },
       ],
       next: "hub",
     },
@@ -39,6 +44,7 @@ export const homeAct1Script: DialogueScript = {
       choices: [
         { text: "Ask about Thomas", next: "thomas" },
         { text: "Ask about the chickens", next: "chickens" },
+        { text: "Ask about the scarabs", next: "scarabs" },
         { text: "Say goodbye", next: "farewell" },
       ],
     },
@@ -60,6 +66,20 @@ export const homeAct1Script: DialogueScript = {
         { speaker: "John", text: "Fill it at the spigot, then the trough west." },
         { speaker: "Pamela", text: "Equip it from your bag first, or it won't fill." },
         { speaker: "Pamela", text: "Do it before you go. They get dramatic." },
+      ],
+      next: "hub",
+    },
+    {
+      id: "scarabs",
+      lines: [
+        { speaker: "Joseph", text: "What's the deal with the scarabs, anyway?" },
+        { speaker: "John", text: "\"Scarab\" is just what we call 'em." },
+        { speaker: "John", text: "Cracked a dead one open, out by the fence line." },
+        { speaker: "John", text: "Wrong number of legs. Shell's all wrong too." },
+        { speaker: "John", text: "Not like any bug I've ever known." },
+        { speaker: "Pamela", text: "He didn't sleep right for a week after." },
+        { speaker: "John", text: "Don't know where they came from." },
+        { speaker: "John", text: "Just don't go poking at a live one." },
       ],
       next: "hub",
     },
