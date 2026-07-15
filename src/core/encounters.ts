@@ -10,7 +10,7 @@ export interface EncounterTable {
 }
 
 export const ENCOUNTERS: Record<
-  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea",
+  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea" | "minersCamp",
   EncounterTable
 > = {
   overworld: {
@@ -70,7 +70,39 @@ export const ENCOUNTERS: Record<
     ],
     weights: [3, 3, 2, 2],
   },
+  minersCamp: {
+    zone: "minersCamp",
+    groups: [
+      ["middenmite", "middenmite", "middenmite"],
+      ["frostscarab"],
+      ["middenmite", "middenmite"],
+      ["frostscarab", "middenmite"],
+    ],
+    weights: [3, 3, 2, 2],
+  },
 };
+
+/**
+ * Enemy ids that shy away from the reek of stinky socks. While the party
+ * carries the socks (Act 4's "reeks" mechanic), any group containing one of
+ * these is far less likely to appear — its weight drops to 1. Midden mites
+ * are drawn TO the reek, not repelled, so they are deliberately absent here.
+ */
+export const REEK_AVERSE: ReadonlySet<string> = new Set(["frostscarab"]);
+
+/**
+ * Return a copy of `table` reweighted for a party that reeks of stinky
+ * socks: every group holding a REEK_AVERSE enemy has its weight cut to 1
+ * (reek-loving groups keep their weight). Pure; the original table is
+ * untouched. A scene passes this to the EncounterClock while the socks are
+ * held so the frost scarabs give the stinking party a wide berth.
+ */
+export function reekAdjusted(table: EncounterTable): EncounterTable {
+  const weights = table.groups.map((group, i) =>
+    group.some((id) => REEK_AVERSE.has(id)) ? 1 : table.weights[i],
+  );
+  return { zone: table.zone, groups: table.groups, weights };
+}
 
 export interface EncounterClockOptions {
   /** Seconds of moving time between encounter checks. Default 1. */

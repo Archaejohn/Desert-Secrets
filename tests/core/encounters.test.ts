@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ENCOUNTERS,
   EncounterClock,
+  REEK_AVERSE,
+  reekAdjusted,
   type EncounterTable,
 } from "../../src/core/encounters";
 import { makeRng } from "../../src/core/rng";
@@ -84,11 +86,23 @@ describe("ENCOUNTERS tables", () => {
     expect(ENCOUNTERS.sunlessSea.weights).toEqual([3, 3, 2, 2]);
   });
 
-  it("exposes exactly the six contract zones", () => {
+  it("minersCamp matches the contract groups and weights", () => {
+    expect(ENCOUNTERS.minersCamp.zone).toBe("minersCamp");
+    expect(ENCOUNTERS.minersCamp.groups).toEqual([
+      ["middenmite", "middenmite", "middenmite"],
+      ["frostscarab"],
+      ["middenmite", "middenmite"],
+      ["frostscarab", "middenmite"],
+    ]);
+    expect(ENCOUNTERS.minersCamp.weights).toEqual([3, 3, 2, 2]);
+  });
+
+  it("exposes exactly the seven contract zones", () => {
     expect(Object.keys(ENCOUNTERS).sort()).toEqual([
       "galleries",
       "maze",
       "mine",
+      "minersCamp",
       "overworld",
       "sunlessSea",
       "trail",
@@ -99,6 +113,43 @@ describe("ENCOUNTERS tables", () => {
     for (const table of Object.values(ENCOUNTERS)) {
       expect(table.groups.length).toBe(table.weights.length);
     }
+  });
+});
+
+describe("reekAdjusted — the Act 4 'reeks' mechanic", () => {
+  it("cuts reek-averse groups' weight to 1 while the socks are held", () => {
+    const adjusted = reekAdjusted(ENCOUNTERS.minersCamp);
+    ENCOUNTERS.minersCamp.groups.forEach((group, i) => {
+      const averse = group.some((id) => REEK_AVERSE.has(id));
+      expect(adjusted.weights[i]).toBe(averse ? 1 : ENCOUNTERS.minersCamp.weights[i]);
+    });
+    // frost scarabs are averse; midden mites are drawn to the reek.
+    expect(REEK_AVERSE.has("frostscarab")).toBe(true);
+    expect(REEK_AVERSE.has("middenmite")).toBe(false);
+  });
+
+  it("leaves midden-mite-only groups at their full weight", () => {
+    const adjusted = reekAdjusted(ENCOUNTERS.minersCamp);
+    expect(adjusted.groups[0]).toEqual(["middenmite", "middenmite", "middenmite"]);
+    expect(adjusted.weights[0]).toBe(3); // unchanged — mites love the smell
+    expect(adjusted.weights[2]).toBe(2);
+  });
+
+  it("makes frost-scarab encounters strictly rarer overall", () => {
+    const base = ENCOUNTERS.minersCamp;
+    const adjusted = reekAdjusted(base);
+    const share = (t: EncounterTable, id: string) => {
+      const total = t.weights.reduce((a, b) => a + b, 0);
+      const hit = t.groups.reduce((a, g, i) => a + (g.includes(id) ? t.weights[i] : 0), 0);
+      return hit / total;
+    };
+    expect(share(adjusted, "frostscarab")).toBeLessThan(share(base, "frostscarab"));
+  });
+
+  it("is pure — the original table is untouched", () => {
+    const before = JSON.stringify(ENCOUNTERS.minersCamp);
+    reekAdjusted(ENCOUNTERS.minersCamp);
+    expect(JSON.stringify(ENCOUNTERS.minersCamp)).toBe(before);
   });
 });
 

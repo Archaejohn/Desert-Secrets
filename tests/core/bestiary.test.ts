@@ -25,6 +25,8 @@ describe("BESTIARY", () => {
       ["anglerfish", 2.5, 30, 12, 4, 12, 22],
       ["reefeel", 2.5, 26, 13, 3, 17, 24],
       ["lurker", 3, 150, 15, 7, 10, 90],
+      // Act 4
+      ["middenmite", 2, 9, 6, 1, 13, 6],
     ];
     expect(Object.keys(BESTIARY).sort()).toEqual(
       rows.map(([id]) => id).sort(),
@@ -53,6 +55,7 @@ describe("BESTIARY", () => {
     expect(BESTIARY.anglerfish.sheet).toBe("anglerfish");
     expect(BESTIARY.reefeel.sheet).toBe("reefeel");
     expect(BESTIARY.lurker.sheet).toBe("lurker");
+    expect(BESTIARY.middenmite.sheet).toBe("middenmite");
   });
 
   it("names the Act 2 enemies for the battle HUD", () => {
@@ -66,6 +69,15 @@ describe("BESTIARY", () => {
     expect(BESTIARY.anglerfish.name).toBe("Anglerfish");
     expect(BESTIARY.reefeel.name).toBe("Reef Eel");
     expect(BESTIARY.lurker.name).toBe("The Lurker");
+  });
+
+  it("the midden mite is a small, low-HP swarm pest (AOE-rewarding)", () => {
+    const m = BESTIARY.middenmite;
+    expect(m.name).toBe("Midden Mite");
+    expect(m.scale).toBe(2); // small
+    expect(m.stats.maxHp).toBeLessThanOrEqual(12); // clears fast
+    expect(m.stats.defense).toBe(1);
+    expect(m.xp).toBe(6);
   });
 
   it("queenWeakened is the queen at 45 maxHp with the same xp", () => {
@@ -136,6 +148,8 @@ describe("makeEnemyParty", () => {
       ["anglerfish", "anglerfish"],
       ["reefeel", "anglerfish"],
       ["lurker"],
+      ["middenmite", "middenmite", "middenmite"],
+      ["frostscarab", "middenmite"],
     ];
     for (const group of groups) {
       const ids = makeEnemyParty(group).map((c) => c.id);
@@ -179,6 +193,12 @@ describe("xpForParty", () => {
     expect(xpForParty(["anglerfish", "anglerfish"])).toBe(44);
     expect(xpForParty(["reefeel", "anglerfish"])).toBe(46);
     expect(xpForParty(["lurker"])).toBe(90);
+  });
+
+  it("sums the Act 4 midden-mite swarms", () => {
+    expect(xpForParty(["middenmite"])).toBe(6);
+    expect(xpForParty(["middenmite", "middenmite", "middenmite"])).toBe(18);
+    expect(xpForParty(["frostscarab", "middenmite"])).toBe(20);
   });
 
   it("is 0 for an empty group and throws on unknown ids", () => {

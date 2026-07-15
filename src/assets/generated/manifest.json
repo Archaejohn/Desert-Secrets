@@ -1004,6 +1004,33 @@
           "repeat": -1
         }
       }
+    },
+    "middenmite": {
+      "file": "middenmite.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "middenmite-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 3,
+          "repeat": -1
+        },
+        "middenmite-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 12,
+          "repeat": -1
+        }
+      }
     }
   },
   "tiles": {
@@ -1112,6 +1139,29 @@
       "seaSparkle": 13,
       "bubbles": 14,
       "mossRock": 15
+    }
+  },
+  "tiles5": {
+    "file": "tiles5.png",
+    "tileSize": 16,
+    "columns": 8,
+    "names": {
+      "campFloor": 0,
+      "campFloor2": 1,
+      "campRug": 2,
+      "campWall": 3,
+      "crate": 4,
+      "crateStack": 5,
+      "barrel": 6,
+      "washtub": 7,
+      "bedroll": 8,
+      "stove": 9,
+      "campPost": 10,
+      "sockBasket": 11,
+      "frostPrint": 12,
+      "crateOpen": 13,
+      "stringLights": 14,
+      "laundryLine": 15
     }
   }
 }

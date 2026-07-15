@@ -31,7 +31,8 @@ export type ZoneId =
   | "shed"
   | "overworld"
   | "mineEntrance"
-  | "sunlessSea";
+  | "sunlessSea"
+  | "minersCamp";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";
@@ -85,6 +86,16 @@ export const ACT3_FLAGS = [
   "act3Complete",
 ] as const;
 
+/** Act 4 quest flags (Dirty Laundry — the Miners' Camp), all false at newGame(). */
+export const ACT4_FLAGS = [
+  "act4Started",
+  "sawCrateChase",
+  "fluffballLedge",
+  "middenCleared",
+  "gotSocks",
+  "act4Complete",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -100,6 +111,8 @@ export interface Act1State {
     equipped: "bucket" | null;
     /** Act 3: the silverfin caught in the Sunless Sea (Piggy's favorite). */
     silverfin: boolean;
+    /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
+    stinkySocks: boolean;
   };
   flags: Record<string, boolean>;
 }
@@ -109,13 +122,22 @@ export function newGame(): Act1State {
   for (const f of ACT1_FLAGS) flags[f] = false;
   for (const f of ACT2_FLAGS) flags[f] = false;
   for (const f of ACT3_FLAGS) flags[f] = false;
+  for (const f of ACT4_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },
     hp: baseStatsForLevel(1).maxHp,
     pendingPerks: 0,
-    // Rosa grants the cold pack in dialogue; silverfin caught in Act 3.
-    items: { coldPack: false, shinies: 0, bucket: "none", equipped: null, silverfin: false },
+    // Rosa grants the cold pack in dialogue; silverfin caught in Act 3;
+    // stinky socks earned in Act 4.
+    items: {
+      coldPack: false,
+      shinies: 0,
+      bucket: "none",
+      equipped: null,
+      silverfin: false,
+      stinkySocks: false,
+    },
     flags,
   };
 }

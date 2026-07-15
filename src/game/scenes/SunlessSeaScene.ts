@@ -23,8 +23,9 @@ import { templeLoreScript } from "../../core/scripts/templeLore";
 import { lurkerIntroScript } from "../../core/scripts/lurkerIntro";
 import { fishingCastScript } from "../../core/scripts/fishingCast";
 import { act3EndingScript } from "../../core/scripts/act3Ending";
+import { CAMP_SPAWN } from "../maps/minersCampMap";
 import { FishingMenu } from "../ui/FishingMenu";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE, hexToInt } from "../../shared/palette";
 
@@ -69,6 +70,22 @@ export class SunlessSeaScene extends ZoneScene {
     this.placeFluffball();
     this.placeTemple();
     this.placeFishingSpot();
+
+    // Epilogue: a reload that lands on the finished act (act3Complete but the
+    // tunnels not yet climbed) must not soft-lock Act 4 — walking back to the
+    // north overlook the party dropped through climbs up to the miners' camp.
+    // Mirrors the Act 2 sanctum's own reload-safe descend trigger.
+    const s = getState(this);
+    if (s.flags.act3Complete && !s.flags.act4Started) {
+      this.addTrigger(
+        { x1: SEA_SPAWN.x - 2, y1: SEA_SPAWN.y - 1, x2: SEA_SPAWN.x + 2, y2: SEA_SPAWN.y + 1 },
+        () => {
+          const cur = getState(this);
+          setState(this, { ...cur, flags: { ...cur.flags, act4Started: true } });
+          this.goToZone("minersCamp", CAMP_SPAWN);
+        }
+      );
+    }
   }
 
   // --- The comic chase ---
@@ -229,7 +246,7 @@ export class SunlessSeaScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     this.add
-      .text(w / 2, h / 2 + 26, "SPACE — back to title", {
+      .text(w / 2, h / 2 + 26, "SPACE — up through the tunnels", {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone
@@ -238,15 +255,18 @@ export class SunlessSeaScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
 
-    let done = false;
-    const backToTitle = (): void => {
-      if (done) return;
-      done = true;
-      resetGame(this);
-      this.scene.start("boot");
+    // The Act 4 hand-off: climb back up to the miners' camp, keeping all
+    // progress — exactly the Act 2 → Act 3 pattern (sanctum → sunlessSea).
+    let ascended = false;
+    const ascend = (): void => {
+      if (ascended) return;
+      ascended = true;
+      const s = getState(this);
+      setState(this, { ...s, flags: { ...s.flags, act4Started: true } });
+      this.scene.start("minersCamp", {});
     };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+    this.input.keyboard?.once("keydown-SPACE", ascend);
+    this.input.once("pointerdown", ascend);
   }
 
   // --- Slither follower (trails the player, like the galleries/sanctum) ---

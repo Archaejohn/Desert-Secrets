@@ -53,6 +53,9 @@ export const BESTIARY: Record<string, EnemyDef> = {
   anglerfish: def("anglerfish", "Anglerfish", "anglerfish", 2.5, 30, 12, 4, 12, 22),
   reefeel: def("reefeel", "Reef Eel", "reefeel", 2.5, 26, 13, 3, 17, 24),
   lurker: def("lurker", "The Lurker", "lurker", 3, 150, 15, 7, 10, 90),
+  // Act 4 — the Miners' Camp. Small, numerous, low-HP swarm pest: single-
+  // target commands clear a nest of them fast (AOE-rewarding by design).
+  middenmite: def("middenmite", "Midden Mite", "middenmite", 2, 9, 6, 1, 13, 6),
 };
 
 function lookup(id: string): EnemyDef {

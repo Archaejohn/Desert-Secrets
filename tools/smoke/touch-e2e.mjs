@@ -380,6 +380,42 @@ if (menuOpen) {
   check("tapping HOOK inside the glow lands the silverfin (touch)", caught === true);
 }
 
+// ---------- Act 4: the midden-mite nest InteractPoint via touch ----------
+// Jump to the miners' camp (mites still nesting) and confirm that tapping the
+// right side at the laundry-nook nest — a brand-new InteractPoint with no NPC
+// nearby — opens its intro dialogue on a touch device (the same tap-to-
+// interact path that only ever checked NPCs before v7).
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
+    act4Started: true, sawCrateChase: true, fluffballLedge: true
+  };
+  g.registry.set("act1", { ...st, zone: "minersCamp", hp: 999, flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("minersCamp", {});
+});
+await page.waitForTimeout(1300);
+await page.evaluate(() => window.__game.scene.getScene("minersCamp").player.body.reset(4 * 16 + 8, 16 * 16 + 8));
+await page.waitForTimeout(300);
+{
+  const rect = await canvasRect();
+  await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+}
+await page.waitForTimeout(400);
+const nestTap = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("minersCamp");
+  return { open: w.dialogue.isOpen, cleared: window.__game.registry.get("act1").flags.middenCleared };
+});
+check(
+  "tapping the nest InteractPoint opens the mite-nest intro via touch",
+  nestTap.open === true && nestTap.cleared !== true,
+  JSON.stringify(nestTap)
+);
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

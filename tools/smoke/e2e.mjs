@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","minersCamp"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","minersCamp"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -865,16 +865,90 @@ check("the fishing minigame lands the silverfin", caught === true);
 s = await snapshot(page);
 check("silverfin recorded in the inventory", s.state.items.silverfin === true && s.state.flags.silverfinCaught === true, JSON.stringify(s.state.items));
 
-// The Act 3 ending: dialogue → act3Complete → end card → back to title.
+// The Act 3 ending: dialogue → act3Complete → end card → climbs into Act 4.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act3Complete === true, 8000);
 check("Act 3 completes (silverfin caught)", s.state.flags.act3Complete === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../act3-end-card.png") }).catch(() => {});
 await page.waitForTimeout(600);
+// The Act 3 end card now CLIMBS up to the miners' camp (Act 4), keeping all
+// progress — it no longer returns to the title.
+await tap(page, "Space");
+s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 9000);
+check(
+  "act 3 end card climbs into the Miners' Camp with progress kept",
+  s.zoneKey === "minersCamp" && s.state.flags.act4Started === true,
+  `zone=${s.zoneKey} act4Started=${s.state?.flags?.act4Started}`
+);
+
+// ---------- Act 4: Dirty Laundry (the Miners' Camp) ----------
+check("checkpoint updated to the miners' camp", s.state.zone === "minersCamp");
+
+// The crate chase (walk-over trigger) and the Fluffball ledge glimpse
+// (walk-over trigger) fire their cutscenes, setting sawCrateChase /
+// fluffballLedge.
+await healUp(page);
+s = await driveTriggersUntil("minersCamp", (x) => x.state.flags.sawCrateChase && x.state.flags.fluffballLedge);
+check("Piggy's crate-raid chase plays", s.state.flags.sawCrateChase === true, JSON.stringify(s.state.flags));
+check("Fluffball glimpsed on the ledge, drops clue #2", s.state.flags.fluffballLedge === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "minersCamp") s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 8000);
+
+// Talk to a miner: the favor-quest hook (clear the mites for the socks).
+const favorOpened = await talkToNpc(page, "minersCamp", 0);
+check("a miner explains the favor-quest", favorOpened);
+if (favorOpened) await talkThrough(page);
+
+// The midden-mite nest: an InteractPoint (press E) → forced swarm battle.
+await healUp(page);
+await teleport(page, 4, 16); // CAMP_NEST
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // nest intro → battle
+s = await waitFor(page, (x) => x.battle, 6000);
+check("the midden-mite nest battle starts at the laundry nook", s.battle === true);
+await page.screenshot({ path: path.join(root, "../act4-mite-fight.png") }).catch(() => {});
+s = await fightThrough(page, { timeoutMs: 120_000 });
+s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 12_000);
+check("the midden-mite nest is cleared", s.state.flags.middenCleared === true, JSON.stringify(s.state.flags));
+
+// The sock line: an InteractPoint that hands over the reeking socks.
+await teleport(page, 6, 14); // CAMP_SOCKS
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // reward dialogue
+s = await waitFor(page, (x) => x.state.flags.gotSocks === true, 8000);
+check(
+  "the miners hand over the stinky socks (a new inventory item)",
+  s.state.flags.gotSocks === true && s.state.items.stinkySocks === true,
+  JSON.stringify(s.state.items)
+);
+
+// The "reeks" mechanic has a concrete, testable effect on encounters: while
+// the socks are held, the scene swaps in the reek-adjusted table, dropping
+// every frost-scarab group's weight to 1 (mites, who love the smell, keep
+// their weight). encounterTable() is the live source the encounter clock uses.
+const reekEffect = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("minersCamp");
+  const held = w.encounterTable(); // reads items.stinkySocks live
+  return { weights: held.weights, stinky: window.__game.registry.get("act1").items.stinkySocks };
+});
+check(
+  "carrying the socks reweights encounters so frost scarabs avoid the party",
+  reekEffect.stinky === true && JSON.stringify(reekEffect.weights) === JSON.stringify([3, 1, 2, 1]),
+  JSON.stringify(reekEffect)
+);
+
+// The Act 4 ending: dialogue → act4Complete → end card → back to title.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act4Complete === true, 8000);
+check("Act 4 completes (stinky socks earned)", s.state.flags.act4Complete === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act4-end-card.png") }).catch(() => {});
+await page.waitForTimeout(600);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
-check("act 3 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
+check("act 4 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -883,4 +957,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 + Act 2 + Act 3 smoke checks passed");
+console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 smoke checks passed");

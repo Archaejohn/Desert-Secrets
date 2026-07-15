@@ -1280,3 +1280,139 @@ ice/mountain GID ranges).
 - `tools/smoke/touch-e2e.mjs`: touch coverage of the fishing flow — tap the
   InteractPoint, confirm the cast choice with the ✓ column, tap HOOK inside
   the glow to land the catch. 18 checks.
+
+---
+
+# v13: Act 4 — Dirty Laundry (the miners' camp, midden mites, the "reeks" item)
+
+Act 4 of Part One. Joseph and Slither climb back up through the tunnels to
+where Mo, Edda and Gus — rescued in Act 2 — now actually live: a scrappy home
+built into an abandoned Cinnabar gallery, strung with lights and a laundry
+line. One new zone (`minersCamp`) carries every beat: the comic crate chase,
+a Fluffball ledge glimpse (clue #2), a favor-quest fight against a nest of
+midden mites, and the reward — the ripest, reekiest socks in camp, which
+become a real inventory item that changes how NPCs and some enemies react.
+Ends on the Act 5 card. Additive only; nothing in Acts 1–3 changed except the
+Act-3-ending wiring (below).
+
+## The Act 3 → Act 4 hand-off (the one Act-3 change)
+
+`SunlessSeaScene`'s end card no longer returns to the title. Its "SPACE —
+up through the tunnels" now `scene.start("minersCamp")` keeping all progress
+and setting `flags.act4Started` — exactly the Act 2 → Act 3 pattern (sanctum
+→ sunlessSea). The sea's populate() also gains a reload-safe epilogue trigger
+at the north overlook: if a reload lands on the finished act (`act3Complete`
+but `!act4Started`), walking back to the crack the party dropped through
+climbs up to the camp, so a reload can't soft-lock Act 4. The keyboard
+smoke's old "act 3 end card returns to the title" check became "…climbs into
+the Miners' Camp with progress kept".
+
+## New zone: `minersCamp` (`minersCampMap.ts`, `MinersCampScene.ts`)
+
+32×20, `encounterZone: "minersCamp"`, `battleBg: "mine"`. A warm central hall
+(the miners around a stove on a woven rug, string lights and a laundry line
+overhead) reached from the north tunnel mouth. Fully **enclosed** by solid
+`campWall` — no zone exits, the act ends on a card (Act 5's zone is a
+teammate's next task). Beats:
+
+- **The crate chase** (walk-over trigger, `sawCrateChase`): Piggy is caught
+  sniffing the supply crates in the NE; a cosmetic penguin burrows into the
+  crate stack and pops out the far side; `crateChase` dialogue. No minigame.
+- **Fluffball, glimpsed** (`fluffballLedge`): a one-time trigger in the NW.
+  He speaks **exactly one line** (clue #2 — the RIPEST socks, not just any
+  socks), then bolts (tween-away + destroy). He does **not** join here
+  (that's Act 5), same glimpse-and-flee structure as Act 3's `fluffballMeet`.
+- **The favor-quest**: the three miners (NPCs, `minersFavor`) will trade the
+  socks only once a nest of **midden mites** is cleared out of the laundry
+  nook. The nook is a BFS-proven **cul-de-sac** in the SW behind one entrance
+  tile (`CAMP_NOOK_ENTRANCE`) — the nest and the sock line both live inside
+  it, so the whole quest happens in one sealed room. An `InteractPoint` on
+  the nest (`CAMP_NEST`) → `nestIntro` → a real `BattleScene` fight against a
+  swarm of **four** midden mites (`victoryFlag: "middenCleared"`). No new AOE
+  combat mechanic — a swarm of several low-HP, low-defense enemies is
+  "AOE-rewarding" purely by encounter design; the existing single-target
+  commands clear them fast, and `makeEnemyParty()` already names duplicates
+  (Midden Mite A/B/C/D).
+- **The socks** (`InteractPoint` at `CAMP_SOCKS`, gated on `middenCleared`):
+  first use → `minersReward` → sets `items.stinkySocks` + `flags.gotSocks`,
+  then the `act4Ending` dialogue and the end card (→ title). Slither trails
+  the player as a world follower throughout (same trail rig as Act 3).
+
+## The "reeks" item and its concrete, testable effects
+
+`items.stinkySocks: boolean` (init false in `newGame()`). Carrying the socks
+has two held-item-dependent effects, one presentation and one pure/tested:
+
+- **NPC reaction**: talking to a miner while the socks are held swaps their
+  line to `minersReek` ("that SMELL… stand downwind"), distinct from the calm
+  camp chatter — the scene's `minerScript()` branches on `items.stinkySocks`.
+- **Encounter avoidance** (pure, unit-tested): `encounters.ts` gains
+  `REEK_AVERSE` (currently `frostscarab`) and `reekAdjusted(table)`, which
+  returns a copy with every reek-averse group's weight cut to 1 (mites, drawn
+  TO the smell, keep their weight — and are deliberately absent from the
+  averse set). `ZoneScene` gains an overridable `encounterTable()` hook
+  (defaults to `ENCOUNTERS[zone]`); `MinersCampScene` overrides it to apply
+  `reekAdjusted` while the socks are held, so frost scarabs give the stinking
+  party a wide berth. Deliberately the minimal "reeks" system the story doc
+  anticipates — not a general status-effect engine.
+
+## New art (`tools/pipeline/`, palette-locked, sha256-pinned)
+
+- **`middenmite`** sprite — 16×16, the standard idle[0,1]/move[2..5] layout;
+  a deliberately tiny (~half-tile) mauve/rust pest with a single amber
+  eye-glint and thin ink legs, so a nest of them reads as small and numerous.
+  `BESTIARY.middenmite` = 9/6/1/13, xp 6, scale 2 (small).
+- **`tiles5.ts`** — 16 miners'-camp tiles (2 rows × 8, exact `composeSheet`
+  column discipline). Contract order: `campFloor campFloor2 campRug campWall
+  crate crateStack barrel washtub` / `bedroll stove campPost sockBasket
+  frostPrint crateOpen stringLights laundryLine`. The warm plank `campFloor`
+  reads clearly brighter than the solid `campWall`; `crate/crateStack/barrel/
+  washtub/stove/campPost/crateOpen` are solid walk-arounds; **`stringLights`
+  and `laundryLine` are the two OVERHEAD tiles** — transparent background,
+  drawn above the actors. Manifest gains a top-level `tiles5` entry.
+
+`middenmite`/`tiles5` are appended after every existing sheet — **no prior
+sheet's bytes change** — and the two new hashes are pinned in
+`tests/pipeline/determinism.test.ts` ("act4 asset byte-stability").
+
+## The 5th-tileset firstgid (extending the v9 dynamic-offset fix)
+
+Adding a fifth tileset is the v9/v12 case again: `ZoneScene` derives
+`TILES5_FIRSTGID` from the prior tilesets' `MANIFEST.*.names` counts (never a
+hardcoded magic number) and `buildMap()` registers a fifth
+`addTilesetImage("t5", "tiles5-img", …, TILES5_FIRSTGID)`. `tileGid`/
+`tileFrame` gain a fifth branch. Screenshot review confirmed the camp renders
+with its own art and the dialogue box (depth 5500) draws cleanly over the new
+overhead string-lights/laundry decor (depth 5000) — no reintroduction of the
+overhead-over-dialogue bug fixed before Act 3.
+
+## Core / plumbing (same checklist as every prior zone addition)
+
+- `gameState.ts`: `ZoneId += "minersCamp"`; new `ACT4_FLAGS` (`act4Started,
+  sawCrateChase, fluffballLedge, middenCleared, gotSocks, act4Complete`) init
+  false in `newGame()`; `items.stinkySocks: boolean` (init false).
+- `bestiary.ts`: `middenmite` (9/6/1/13, xp 6, scale 2).
+- `encounters.ts`: `ENCOUNTERS.minersCamp` (midden-mite swarms + a frost
+  scarab, weights [3,3,2,2]); the `Record` key union widened to seven zones;
+  `REEK_AVERSE` + `reekAdjusted()`.
+- `objective.ts`: an Act 4 chain (gated on `act4Started` so "Act 3 complete!"
+  survives until the tunnels are climbed); every line ≤ 40 chars.
+- `scripts/radio.ts`: exhaustive `radioLines` gains `minersCamp`.
+- Six new dialogue scripts (`crateChase, fluffballLedge, minersFavor,
+  minersReward, minersReek, act4Ending`), all `validateScript`-clean, ≤ 48
+  chars/line, Slither hissing where he speaks — covered by
+  `tests/core/scriptsAct4.test.ts` (incl. Fluffball speaks exactly once,
+  act4Ending's Act 5 card).
+- `BootScene` `ZONE_NAMES` + preload (`tiles5` and the `middenmite` sheet);
+  `main.ts` registers `MinersCampScene`.
+- `tests/game/maps2.test.ts`: full BFS suite for `minersCamp` (enclosure,
+  landmark reachability, the laundry-nook cul-de-sac, themed floors, overhead
+  non-solidity); `KNOWN_NAMES` gains `tiles5`.
+- `tests/pipeline/act4.test.ts`: layout/palette/legibility for `tiles5` +
+  `middenmite` (warm floor vs dark wall, overhead transparency, the small
+  pest silhouette).
+- `tools/smoke/e2e.mjs`: plays Act 4 end-to-end (crate chase, Fluffball
+  ledge, the favor-quest, the midden-mite swarm fight, the sock reward, the
+  reek-adjusted encounter table, ending → title).
+- `tools/smoke/touch-e2e.mjs`: touch coverage of the new nest InteractPoint
+  (tap-to-interact with no NPC nearby opens the intro dialogue).

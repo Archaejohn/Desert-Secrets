@@ -40,4 +40,5 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   overworld: checkIn(["Nothing but rock out there. Watch your step."]),
   mineEntrance: checkIn(["Careful going in. Radio dies fast underground."]),
   sunlessSea: checkIn(["...only the sea answers now. Static... waves..."]),
+  minersCamp: checkIn(["...string lights? Down there? Static..."]),
 };

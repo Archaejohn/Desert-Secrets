@@ -14,7 +14,7 @@ import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import type { ZoneId } from "../core/gameState";
-import { EncounterClock, ENCOUNTERS } from "../core/encounters";
+import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
 import { PALETTE } from "../shared/palette";
 import {
@@ -118,6 +118,16 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected abstract populate(): void;
   /** Per-frame hook for subclasses (runs unless input is locked). */
   protected onUpdate(_dt: number): void {}
+
+  /**
+   * The random-encounter table currently in force, or null if this zone has
+   * no encounters. Defaults to the zone's static ENCOUNTERS entry; a subclass
+   * can override to reweight it from run state (e.g. Act 4's "reeks" mechanic,
+   * where carrying the stinky socks makes some enemies avoid the party).
+   */
+  protected encounterTable(): EncounterTable | null {
+    return this.cfg.encounterZone ? ENCOUNTERS[this.cfg.encounterZone] : null;
+  }
 
   init(data: ZoneEntryData): void {
     this.entry = data ?? {};
@@ -228,12 +238,15 @@ export abstract class ZoneScene extends Phaser.Scene {
   private static readonly TILES1_COUNT = Object.keys(MANIFEST.tiles.names).length;
   private static readonly TILES2_COUNT = Object.keys(MANIFEST.tiles2.names).length;
   private static readonly TILES3_COUNT = Object.keys(MANIFEST.tiles3.names).length;
+  private static readonly TILES4_COUNT = Object.keys(MANIFEST.tiles4.names).length;
   private static readonly TILES2_FIRSTGID = ZoneScene.TILES1_COUNT;
   private static readonly TILES3_FIRSTGID = ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT;
   private static readonly TILES4_FIRSTGID =
     ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT + ZoneScene.TILES3_COUNT;
+  private static readonly TILES5_FIRSTGID =
+    ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT + ZoneScene.TILES3_COUNT + ZoneScene.TILES4_COUNT;
 
-  /** Resolve a tile name to a global index across the four tilesets. */
+  /** Resolve a tile name to a global index across the five tilesets. */
   protected tileGid(name: string): number {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return t1;
@@ -243,6 +256,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t3 !== undefined) return ZoneScene.TILES3_FIRSTGID + t3;
     const t4 = MANIFEST.tiles4.names[name];
     if (t4 !== undefined) return ZoneScene.TILES4_FIRSTGID + t4;
+    const t5 = MANIFEST.tiles5.names[name];
+    if (t5 !== undefined) return ZoneScene.TILES5_FIRSTGID + t5;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -254,7 +269,9 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t2 !== undefined) return { key: "tiles2", frame: t2 };
     const t3 = MANIFEST.tiles3.names[name];
     if (t3 !== undefined) return { key: "tiles3", frame: t3 };
-    return { key: "tiles4", frame: MANIFEST.tiles4.names[name] };
+    const t4 = MANIFEST.tiles4.names[name];
+    if (t4 !== undefined) return { key: "tiles4", frame: t4 };
+    return { key: "tiles5", frame: MANIFEST.tiles5.names[name] };
   }
 
   private buildMap(width: number, height: number): void {
@@ -263,7 +280,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     const ts2 = map.addTilesetImage("t2", "tiles2-img", TILE, TILE, 0, 0, ZoneScene.TILES2_FIRSTGID)!;
     const ts3 = map.addTilesetImage("t3", "tiles3-img", TILE, TILE, 0, 0, ZoneScene.TILES3_FIRSTGID)!;
     const ts4 = map.addTilesetImage("t4", "tiles4-img", TILE, TILE, 0, 0, ZoneScene.TILES4_FIRSTGID)!;
-    const sets = [ts1, ts2, ts3, ts4];
+    const ts5 = map.addTilesetImage("t5", "tiles5-img", TILE, TILE, 0, 0, ZoneScene.TILES5_FIRSTGID)!;
+    const sets = [ts1, ts2, ts3, ts4, ts5];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;
     const overhead = map.createBlankLayer("overhead", sets)!;
@@ -691,11 +709,14 @@ export abstract class ZoneScene extends Phaser.Scene {
     }
 
     // Random encounters while moving.
-    if (moving && this.encounterClock && this.cfg.encounterZone) {
-      const group = this.encounterClock.advance(dt, ENCOUNTERS[this.cfg.encounterZone]);
-      if (group) {
-        this.startBattle(group);
-        return;
+    if (moving && this.encounterClock) {
+      const table = this.encounterTable();
+      if (table) {
+        const group = this.encounterClock.advance(dt, table);
+        if (group) {
+          this.startBattle(group);
+          return;
+        }
       }
     }
 

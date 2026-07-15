@@ -51,9 +51,21 @@ function act2ObjectiveFor(s: Act1State): string {
 /** The Act 3 chain (The Sunless Sea), once act3Started is set. ≤ 40 chars. */
 function act3ObjectiveFor(s: Act1State): string {
   const f = s.flags;
+  // Act 4 takes over once the party climbs back up to the miners' camp.
+  if (f.act4Started || f.act4Complete) return act4ObjectiveFor(s);
   if (f.act3Complete) return "Act 3 complete!";
   if (s.zone !== "sunlessSea") return "Descend into the Sunless Sea";
   if (!f.metFluffball) return "Explore the Sunless Sea";
   if (!f.silverfinCaught) return "Fish the deep kelp for silverfin";
   return "You have the silverfin!";
+}
+
+/** The Act 4 chain (Dirty Laundry), once act4Started is set. ≤ 40 chars. */
+function act4ObjectiveFor(s: Act1State): string {
+  const f = s.flags;
+  if (f.act4Complete) return "Act 4 complete!";
+  if (s.zone !== "minersCamp") return "Head up to the miners' camp";
+  if (!f.middenCleared) return "Clear the mites from the laundry nook";
+  if (!f.gotSocks) return "Take the ripe socks off the line";
+  return "You have the stinky socks!";
 }

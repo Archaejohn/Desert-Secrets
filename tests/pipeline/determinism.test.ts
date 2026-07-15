@@ -131,3 +131,22 @@ describe("act3 asset byte-stability", () => {
     }
   });
 });
+
+describe("act4 asset byte-stability", () => {
+  // sha256 of the newly-generated Act 4 assets (docs/CONTRACTS.md "v13:
+  // Dirty Laundry"): the midden-mite swarm enemy plus the fifth (miners'
+  // camp) tileset. Pinned once here so future refactors can't silently move
+  // a shipped pixel. Purely additive — no prior sheet's bytes change.
+  const FROZEN = {
+    middenmite: "03a1629bb638bd1824cfd79aa53470ac3624394a3be49b1276c46b585ee3f50e",
+    tiles5: "ff50a00d741c3823c7620fc4df5d619850291325ed1520528850c5e1c0132d0b"
+  } as const;
+
+  it("middenmite/tiles5 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

@@ -58,7 +58,16 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "kelpStalk",
   "coral",
   "templePillar",
-  "mossRock"
+  "mossRock",
+  // tiles5.png (Act 4 — the Miners' Camp)
+  "campWall",
+  "crate",
+  "crateStack",
+  "barrel",
+  "washtub",
+  "stove",
+  "campPost",
+  "crateOpen"
 ];
 
 export function isSolidName(name: string | null): boolean {

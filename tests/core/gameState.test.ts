@@ -3,6 +3,7 @@ import {
   ACT1_FLAGS,
   ACT2_FLAGS,
   ACT3_FLAGS,
+  ACT4_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
@@ -30,17 +31,18 @@ describe("newGame", () => {
       bucket: "none",
       equipped: null,
       silverfin: false,
+      stinkySocks: false,
     });
   });
 
   it("initialises every scene flag to false", () => {
     const s = newGame();
     expect(ACT1_FLAGS.length).toBe(17);
-    for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS]) {
+    for (const flag of [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS, ...ACT4_FLAGS]) {
       expect(s.flags[flag]).toBe(false);
     }
     expect(Object.keys(s.flags).sort()).toEqual(
-      [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS].sort(),
+      [...ACT1_FLAGS, ...ACT2_FLAGS, ...ACT3_FLAGS, ...ACT4_FLAGS].sort(),
     );
   });
 });
@@ -195,6 +197,7 @@ describe("respawn", () => {
       bucket: "filled",
       equipped: "bucket",
       silverfin: false,
+      stinkySocks: false,
     });
     expect(after.flags.foremanDefeated).toBe(true);
     expect(after.pendingPerks).toBe(s.pendingPerks);

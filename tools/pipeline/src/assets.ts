@@ -29,10 +29,12 @@ import { spigotFrames } from "./sprites/spigot";
 import { anglerfishFrames } from "./sprites/anglerfish";
 import { reefeelFrames } from "./sprites/reefeel";
 import { lurkerFrames } from "./sprites/lurker";
+import { middenmiteFrames } from "./sprites/middenmite";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
 import { tile4Frames } from "./tileset4";
+import { tile5Frames } from "./tileset5";
 import { buildManifest, type Manifest } from "./manifest";
 
 export interface BuiltAssets {
@@ -61,10 +63,12 @@ export interface BuiltAssets {
   anglerfish: PixelGrid;
   reefeel: PixelGrid;
   lurker: PixelGrid;
+  middenmite: PixelGrid;
   tiles: PixelGrid;
   tiles2: PixelGrid;
   tiles3: PixelGrid;
   tiles4: PixelGrid;
+  tiles5: PixelGrid;
   manifest: Manifest;
 }
 
@@ -95,10 +99,12 @@ export const SHEET_KEYS = [
   "anglerfish",
   "reefeel",
   "lurker",
+  "middenmite",
   "tiles",
   "tiles2",
   "tiles3",
-  "tiles4"
+  "tiles4",
+  "tiles5"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -128,10 +134,12 @@ export function buildAssets(): BuiltAssets {
     anglerfish: composeSheet(anglerfishFrames(), 6),
     reefeel: composeSheet(reefeelFrames(), 6),
     lurker: composeSheet(lurkerFrames(), 6),
+    middenmite: composeSheet(middenmiteFrames(), 6),
     tiles: composeSheet(tileFrames(), 8),
     tiles2: composeSheet(tile2Frames(), 8),
     tiles3: composeSheet(tile3Frames(), 8),
     tiles4: composeSheet(tile4Frames(), 8),
+    tiles5: composeSheet(tile5Frames(), 8),
     manifest: buildManifest()
   };
 }

@@ -245,6 +245,7 @@ describe("radioLines", () => {
       "maze",
       "mine",
       "mineEntrance",
+      "minersCamp",
       "oasis",
       "overworld",
       "sanctum",

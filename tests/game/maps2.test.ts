@@ -94,12 +94,27 @@ import {
   SEA_TEMPLE,
   SEA_WIDTH
 } from "../../src/game/maps/sunlessSeaMap";
+import {
+  buildMinersCampMap,
+  CAMP_CRATE_TRIGGER,
+  CAMP_EDDA,
+  CAMP_FLUFFBALL,
+  CAMP_GUS,
+  CAMP_HEIGHT,
+  CAMP_MO,
+  CAMP_NEST,
+  CAMP_NOOK_ENTRANCE,
+  CAMP_SOCKS,
+  CAMP_SPAWN,
+  CAMP_WIDTH
+} from "../../src/game/maps/minersCampMap";
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
   ...Object.keys(manifest.tiles2.names),
   ...Object.keys(manifest.tiles3.names),
-  ...Object.keys(manifest.tiles4.names)
+  ...Object.keys(manifest.tiles4.names),
+  ...Object.keys(manifest.tiles5.names)
 ]);
 
 interface Pt {
@@ -626,5 +641,86 @@ describe("sunless sea map (The Sunless Sea)", () => {
     expect(map.overhead?.flat()).toContain("bubbles");
     expect(map.decor[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe(null); // glyph is a ground tile
     expect(map.ground[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe("templeGlyph");
+  });
+});
+
+// -------------------------------------------------- miners' camp (Act 4)
+
+describe("miners' camp map (The Miners' Camp)", () => {
+  const map = buildMinersCampMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, CAMP_WIDTH, CAMP_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets (incl. tiles5)", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildMinersCampMap()).toEqual(map);
+  });
+
+  it("is fully enclosed by camp wall on every border (no exits — end card)", () => {
+    assertEnclosed(map);
+  });
+
+  it("keeps the spawn and every landmark walkable", () => {
+    for (const p of [
+      CAMP_SPAWN,
+      CAMP_MO,
+      CAMP_EDDA,
+      CAMP_GUS,
+      CAMP_NEST,
+      CAMP_SOCKS,
+      CAMP_NOOK_ENTRANCE,
+      CAMP_FLUFFBALL,
+      rectTile(CAMP_CRATE_TRIGGER)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach every beat from the spawn", () => {
+    expect(reachable(map, CAMP_SPAWN, CAMP_MO)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, CAMP_EDDA)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, CAMP_GUS)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, CAMP_FLUFFBALL)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, rectTile(CAMP_CRATE_TRIGGER))).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, CAMP_NEST)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, CAMP_SOCKS)).toBe(true);
+  });
+
+  it("seals the laundry nook (nest + socks) as a cul-de-sac behind one entrance", () => {
+    assertCulDeSac(map, CAMP_SPAWN, CAMP_NEST, CAMP_NOOK_ENTRANCE);
+    // The sock line is inside the same sealed nook.
+    expect(reachable(map, CAMP_SPAWN, CAMP_SOCKS, [CAMP_NOOK_ENTRANCE])).toBe(false);
+  });
+
+  it("builds the camp: warm floor, a walled nook, string lights and laundry overhead", () => {
+    const g = map.ground.flat();
+    expect(g).toContain("campFloor");
+    expect(g).toContain("campRug");
+    const d = map.decor.flat();
+    expect(d).toContain("campWall");
+    expect(d).toContain("crateStack");
+    expect(d).toContain("stove");
+    expect(d).toContain("washtub");
+    expect(d).toContain("sockBasket");
+    const o = map.overhead?.flat() ?? [];
+    expect(o).toContain("stringLights");
+    expect(o).toContain("laundryLine");
+    // The sock basket marks the sock line and stays walkable.
+    expect(map.decor[CAMP_SOCKS.y][CAMP_SOCKS.x]).toBe("sockBasket");
+    expect(isSolidAt(map, CAMP_SOCKS.x, CAMP_SOCKS.y)).toBe(false);
+  });
+
+  it("keeps the overhead camp decor non-solid (never blocks movement)", () => {
+    for (let y = 0; y < CAMP_HEIGHT; y++) {
+      for (let x = 0; x < CAMP_WIDTH; x++) {
+        const o = map.overhead?.[y]?.[x];
+        if (o) expect(isSolidAt(map, x, y)).toBe(false);
+      }
+    }
   });
 });
