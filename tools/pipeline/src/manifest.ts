@@ -35,6 +35,7 @@ import { TILE5_NAMES } from "./tileset5";
 import { TILE6_NAMES } from "./tileset6";
 import { TILE7_NAMES } from "./tileset7";
 import { TILE8_NAMES } from "./tileset8";
+import { OW_BILLBOARD_H, OW_BILLBOARD_NAMES, OW_BILLBOARD_W } from "./sprites/owBillboards";
 
 export interface AnimationDef {
   frames: number[];
@@ -54,6 +55,16 @@ export interface SheetDef {
 export interface TileSetDef {
   file: string;
   tileSize: number;
+  columns: number;
+  names: Record<string, number>;
+}
+
+/** A billboard sheet: named, equal-sized, non-square standing-sprite frames
+ *  (no animations — each name is one static frame). */
+export interface BillboardSheetDef {
+  file: string;
+  frameWidth: number;
+  frameHeight: number;
   columns: number;
   names: Record<string, number>;
 }
@@ -99,6 +110,7 @@ export interface Manifest {
   tiles6: TileSetDef;
   tiles7: TileSetDef;
   tiles8: TileSetDef;
+  owBillboards: BillboardSheetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -220,6 +232,13 @@ export function buildManifest(): Manifest {
     tiles5: { file: "tiles5.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE5_NAMES) },
     tiles6: { file: "tiles6.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE6_NAMES) },
     tiles7: { file: "tiles7.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE7_NAMES) },
-    tiles8: { file: "tiles8.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE8_NAMES) }
+    tiles8: { file: "tiles8.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE8_NAMES) },
+    owBillboards: {
+      file: "owBillboards.png",
+      frameWidth: OW_BILLBOARD_W,
+      frameHeight: OW_BILLBOARD_H,
+      columns: 6,
+      names: tileNames(OW_BILLBOARD_NAMES)
+    }
   };
 }

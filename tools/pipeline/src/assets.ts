@@ -33,6 +33,7 @@ import { middenmiteFrames } from "./sprites/middenmite";
 import { sunwaspFrames } from "./sprites/sunwasp";
 import { reefstalkerFrames } from "./sprites/reefstalker";
 import { testudoFrames } from "./sprites/testudo";
+import { owBillboardFrames } from "./sprites/owBillboards";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -82,6 +83,7 @@ export interface BuiltAssets {
   tiles7: PixelGrid;
   tiles8: PixelGrid;
   manifest: Manifest;
+  owBillboards: PixelGrid;
 }
 
 /** Every sheet key that becomes a PNG (manifest excluded). */
@@ -122,7 +124,8 @@ export const SHEET_KEYS = [
   "tiles5",
   "tiles6",
   "tiles7",
-  "tiles8"
+  "tiles8",
+  "owBillboards"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -164,6 +167,7 @@ export function buildAssets(): BuiltAssets {
     tiles6: composeSheet(tile6Frames(), 8),
     tiles7: composeSheet(tile7Frames(), 8),
     tiles8: composeSheet(tile8Frames(), 8),
-    manifest: buildManifest()
+    manifest: buildManifest(),
+    owBillboards: composeSheet(owBillboardFrames(), 6)
   };
 }

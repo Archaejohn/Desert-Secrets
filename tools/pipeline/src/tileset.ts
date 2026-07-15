@@ -5,9 +5,16 @@
  * holes. Props (rock, cactus, pot, pillar, palm) are stamped onto the base:
  * drawn on their own transparent grid, ink-outlined, then blitted — which is
  * how they get contours without outlining the whole tile.
+ *
+ * 2.5D art pass (docs/ART_DIRECTION.md §4a, Phase O): the sand family and
+ * water were redrawn in place. Sand is now a calm plain crossed by paired
+ * dune ridge lines instead of per-pixel speckle (G5/G6), and water is a
+ * 3-value indigo/slate/skyBlue ramp with loose horizontal wave dashes.
+ * tiles.png's sha256 is deliberately re-pinned in
+ * tests/pipeline/determinism.test.ts for this pass.
  */
 import { PixelGrid } from "./grid";
-import { mulberry32 } from "./rng";
+import { scatterMotifs, type Motif } from "./fx";
 
 export const TILE_SIZE = 16;
 
@@ -37,17 +44,72 @@ function tile(): PixelGrid {
   return new PixelGrid(TILE_SIZE, TILE_SIZE);
 }
 
-/** Sand base with deterministic speckle. Each caller passes its own seed so
- *  the three sand variants (and every prop tile) get distinct grain. */
-function sandBase(seed: number, speckles = 14): PixelGrid {
+// ---------------------------------------------------------------------------
+// The dune-ridge sand recipe (§4a) — shared by tileset2's sand-based tiles.
+// ---------------------------------------------------------------------------
+
+/**
+ * How the sand variants tile together (position-independent continuity):
+ * every sand-family tile draws the SAME two dune ridge lanes — fixed lanes at
+ * baseY 4 and 11, whose crest height is a sum of sines with periods 16 and 8
+ * (both dividing the 16px tile exactly, so crest(x=0) === crest(x=16)). Any
+ * sand tile therefore continues any neighbour's ridges seamlessly no matter
+ * which variant the map placed where (overworldMap picks variants by cell
+ * hash). Variants differ only in their seeded interior motif clusters, never
+ * in ridge geometry. fx.ridgeLine's half-frequency harmonic has period
+ * 2×wavelength, which cannot divide 16 while keeping a calm one-undulation
+ * crest — hence this exact-period local parameterisation of the same recipe.
+ */
+function duneRidge(g: PixelGrid, baseY: number, phi1: number, phi2: number): void {
+  for (let x = 0; x < TILE_SIZE; x++) {
+    const t = (x / TILE_SIZE) * Math.PI * 2;
+    const y = Math.round(baseY + 1.7 * Math.sin(t + phi1) + 0.8 * Math.sin(2 * t + phi2));
+    g.px(x, y, "sandLight"); // crest catches the NNW light (G1)
+    g.px(x, y + 1, "amber"); // wind-shadow directly beneath (§4a pair)
+  }
+}
+
+/** The two fixed ridge lanes every sand-family tile shares. */
+function duneRidges(g: PixelGrid): void {
+  duneRidge(g, 4, 0.7, 2.1);
+  duneRidge(g, 11, 3.9, 0.6);
+}
+
+function motifStamp(cells: Array<[number, number, Parameters<PixelGrid["px"]>[2]]>): PixelGrid {
+  const w = Math.max(...cells.map(([x]) => x)) + 1;
+  const h = Math.max(...cells.map(([, y]) => y)) + 1;
+  const m = new PixelGrid(w, h);
+  for (const [x, y, c] of cells) m.px(x, y, c);
+  return m;
+}
+
+/** 2×2-minimum motif clusters (G5/G6): a light windblown patch, a pebble. */
+const SAND_MOTIFS: readonly Motif[] = [
+  motifStamp([
+    [0, 0, "sandLight"],
+    [1, 0, "sandLight"],
+    [0, 1, "sandLight"],
+    [1, 1, "sandLight"]
+  ]),
+  motifStamp([
+    [0, 0, "amber"],
+    [1, 0, "amber"],
+    [0, 1, "amber"],
+    [1, 1, "sandShade"]
+  ])
+];
+
+/**
+ * Sand base: calm plain + the two shared ridge lanes + 2 seeded motif
+ * clusters (G5 — replaces the old per-pixel speckle). Exported so
+ * tileset2's sand-based tiles share the identical recipe and tile
+ * seamlessly against these.
+ */
+export function sandBase(seed: number, motifCount = 2): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "sand");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < speckles; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "amber" : "sandLight");
-  }
+  scatterMotifs(g, seed, SAND_MOTIFS, motifCount, { margin: 2, minSpacing: 6 });
+  duneRidges(g); // ridges last so the lanes stay unbroken across tiles
   return g;
 }
 
@@ -61,7 +123,7 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
 }
 
 function duneEdge(): PixelGrid {
-  const g = sandBase(4, 8);
+  const g = sandBase(4, 1);
   for (let x = 0; x < TILE_SIZE; x++) {
     const y = 7 - Math.floor(x / 5); // gentle diagonal crest
     g.px(x, y - 1, "sandLight");
@@ -72,7 +134,7 @@ function duneEdge(): PixelGrid {
 }
 
 function rock(): PixelGrid {
-  return stamp(sandBase(5, 8), (l) => {
+  return stamp(sandBase(5, 1), (l) => {
     l.rect(4, 6, 8, 6, "mauve");
     l.rect(5, 5, 6, 1, "mauve");
     l.rect(5, 12, 6, 1, "mauve");
@@ -88,7 +150,7 @@ function rock(): PixelGrid {
 }
 
 function cactus(): PixelGrid {
-  return stamp(sandBase(6, 8), (l) => {
+  return stamp(sandBase(6, 1), (l) => {
     l.rect(7, 2, 2, 12, "jade"); // trunk
     // left arm (out then up)
     l.px(6, 8, "jade");
@@ -154,31 +216,41 @@ function brickCracked(): PixelGrid {
   return g;
 }
 
-function water(phase: 0 | 1): PixelGrid {
+/**
+ * Water (§4a): 3-value ramp — indigo body, slate wave dashes with a skyBlue
+ * lit crest above each (2px-tall features, G6), loosely row-aligned so
+ * neighbouring tiles read as one body of water. One small bone glint per
+ * tile. `phase` drifts the dashes so water/water2 animate/alternate.
+ * Exported for tileset2's coast-ring tiles (they must seam into this art).
+ */
+export function water(phase: 0 | 1): PixelGrid {
   const g = tile();
-  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "tealDeep");
-  // ripple bands drift one pixel between the two frames
-  const d = phase;
-  for (const [ry, len, rx] of [
-    [3, 5, 2],
-    [4, 3, 9],
-    [8, 4, 5],
-    [9, 3, 12],
-    [13, 5, 1],
-    [12, 3, 10]
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "indigo");
+  const d = phase * 2;
+  // [row, startX, len] — dashes 3..5px, two-ish per band row
+  for (const [ry, rx, len] of [
+    [3, 2, 5],
+    [3, 11, 3],
+    [8, 6, 4],
+    [8, 13, 3],
+    [13, 1, 4],
+    [13, 9, 4]
   ] as const) {
-    const y = (ry + d) % TILE_SIZE;
-    for (let i = 0; i < len; i++) g.px((rx + i + d) % TILE_SIZE, y, "teal");
+    for (let i = 0; i < len; i++) {
+      const x = (rx + i + d) % TILE_SIZE;
+      g.px(x, ry, "skyBlue"); // lit crest
+      g.px(x, ry + 1, "slate"); // wave body
+    }
   }
-  // sky glints on the crests
-  g.px((3 + d) % TILE_SIZE, (3 + d) % TILE_SIZE, "skyBlue");
-  g.px((13 + d) % TILE_SIZE, 9, "skyBlue");
-  g.px((6 + d) % TILE_SIZE, (13 + d) % TILE_SIZE, "skyBlue");
+  // one glint where a crest catches the dusk light (2px wide, G6)
+  const gx = (4 + d) % TILE_SIZE;
+  g.px(gx, 8, "bone");
+  g.px((gx + 1) % TILE_SIZE, 8, "bone");
   return g;
 }
 
 function palmTrunk(): PixelGrid {
-  return stamp(sandBase(7, 8), (l) => {
+  return stamp(sandBase(7, 1), (l) => {
     l.rect(6, 0, 4, 16, "clay");
     for (const y of [2, 5, 8, 11, 14]) l.rect(6, y, 4, 1, "rust"); // ring bands
     for (let y = 0; y < 16; y++) if (y % 3 !== 2) l.px(6, y, "amber"); // lit edge
@@ -186,7 +258,7 @@ function palmTrunk(): PixelGrid {
 }
 
 function palmTop(): PixelGrid {
-  return stamp(sandBase(8, 8), (l) => {
+  return stamp(sandBase(8, 1), (l) => {
     // crown centre over the trunk line
     l.rect(7, 9, 2, 2, "clay");
     // fronds: sideways, upward and drooping diagonals
@@ -216,7 +288,7 @@ function palmTop(): PixelGrid {
 }
 
 function pot(): PixelGrid {
-  return stamp(sandBase(9, 8), (l) => {
+  return stamp(sandBase(9, 1), (l) => {
     l.rect(6, 3, 4, 1, "rust"); // rim
     l.rect(6, 4, 4, 2, "clay"); // neck
     l.rect(5, 6, 6, 5, "clay"); // belly
@@ -233,7 +305,7 @@ function pot(): PixelGrid {
 
 function bones(): PixelGrid {
   // half-buried remains: soft rust shadows instead of hard ink outlines
-  const g = sandBase(10, 8);
+  const g = sandBase(10, 1);
   g.rect(3, 8, 9, 1, "bone"); // spine
   for (const x of [4, 6, 8, 10]) {
     g.px(x, 6, "bone");
@@ -252,7 +324,7 @@ function bones(): PixelGrid {
 }
 
 function ruinPillar(): PixelGrid {
-  return stamp(sandBase(11, 8), (l) => {
+  return stamp(sandBase(11, 1), (l) => {
     l.rect(4, 0, 8, 2, "mauve"); // capital
     l.rect(5, 2, 6, 12, "mauve"); // shaft
     l.rect(4, 14, 8, 2, "mauve"); // base
@@ -268,21 +340,20 @@ function ruinPillar(): PixelGrid {
   });
 }
 
+/** A four-point glint cluster (3×3 diamond — one feature, not speckle). */
+function glint(g: PixelGrid, x: number, y: number): void {
+  g.px(x, y, "white");
+  g.px(x - 1, y, "mint");
+  g.px(x + 1, y, "mint");
+  g.px(x, y - 1, "mint");
+  g.px(x, y + 1, "mint");
+}
+
 function sandSparkle(): PixelGrid {
-  const g = sandBase(12, 10);
-  // four-point glints — something is buried here
-  g.px(4, 5, "white");
-  g.px(3, 5, "mint");
-  g.px(5, 5, "mint");
-  g.px(4, 4, "mint");
-  g.px(4, 6, "mint");
-  g.px(11, 11, "white");
-  g.px(10, 11, "mint");
-  g.px(12, 11, "mint");
-  g.px(11, 10, "mint");
-  g.px(11, 12, "mint");
-  g.px(12, 3, "mint");
-  g.px(7, 13, "mint");
+  const g = sandBase(12, 1);
+  // two glint clusters — something is buried here
+  glint(g, 4, 7);
+  glint(g, 11, 13);
   return g;
 }
 

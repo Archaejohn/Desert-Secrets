@@ -60,6 +60,7 @@ follows them exactly.
 | `tiles.png` | 16×16 | 8×2 | 16 named desert tiles |
 | `tiles2.png` | 16×16 | 8×3 | 24 named Act 1 tiles (highway/truck, joshua tree, gas station, mine, rail/cart/lever, ice wall + frost) — see `tileset2.ts` |
 | `tiles3.png` | 16×16 | 8×2 | 16 named Act 2 ice-maze tiles (dark iceFloor vs bright iceWallDeep, crystals, overhead icicle with transparent background, near-black chasm, snowdrift, amber lanternPost, lakeIce/lakeCrack, bridgePlank, doorRime/doorOpen, shard, mossGlow) — see `tileset3.ts` |
+| `owBillboards.png` | 48×40 | 6×1 | Phase O Mode-7 overworld billboards (docs/CONTRACTS.md "Phase O"): three mountain-mass variants, joshuaTree, mineMouth, truckWreck — bottom-anchored standing sprites, sel-out contours, ink only at the ground contact. tiles2.png also grew a Phase O appendix (indices 32–55: scree/screeShade/sandShade, the coast surf ring, the sand↔scree finger set) and is now 8×7 |
 
 ## Layout
 

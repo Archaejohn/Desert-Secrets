@@ -27,6 +27,16 @@ export interface TilesetDef {
   names: Record<string, number>;
 }
 
+/** A billboard sheet: named, equal-sized, non-square standing-sprite frames
+ *  (no animations — each name is one static frame). Phase O appendix. */
+export interface BillboardsDef {
+  file: string;
+  frameWidth: number;
+  frameHeight: number;
+  columns: number;
+  names: Record<string, number>;
+}
+
 export interface Manifest {
   palette: Record<string, string>;
   sheets: Record<string, SheetDef>;
@@ -38,6 +48,7 @@ export interface Manifest {
   tiles6: TilesetDef;
   tiles7: TilesetDef;
   tiles8: TilesetDef;
+  owBillboards: BillboardsDef;
 }
 
 export const MANIFEST = manifestJson as unknown as Manifest;

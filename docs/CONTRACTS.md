@@ -2248,3 +2248,150 @@ decorative tile/prop as the anchor, no new art:
   full-heals via tap-to-interact (the same touch path bucket/spigot/nest use).
 - Story/dialogue untouched beyond the five flavor lines; Acts 1–2 and the
   Mode-7 overworld are deliberately left alone (short enough not to need this).
+
+# Phase O: the overworld art pass — re-authored Mode-7 ground + the billboard layer
+
+The 2.5D art upgrade's overworld slice (docs/ART_DIRECTION.md §4, §1
+G-rules, §7 constraints). Two halves: the flat art the Mode-7 plane
+samples was re-authored (§4a), and the mountains/landmarks now *stand up*
+as perspective-scaled billboard sprites over that plane (§4b). Everything
+below is additive or an in-place redraw with a deliberate hash re-pin;
+no frame index moved anywhere.
+
+## Re-authored ground tiles
+
+- **`tiles.png` (redrawn in place, re-pinned):** `sand/sand2/sand3` are
+  now a calm plain crossed by two paired dune-ridge lanes — 1px
+  `sandLight` crest over a 1px `amber` wind-shadow, S-curving as a sum of
+  sines whose periods (16px and 8px) divide the tile exactly. Because
+  every sand-family tile draws the SAME two lanes with the same phase,
+  `crest(0) === crest(16)` and any variant continues any neighbour's
+  ridges seamlessly regardless of which variant the map's cell-hash
+  placed — that's the position-independent §4a "phase continuity" design.
+  Variants differ only in seeded 2×2 motif clusters (light patch /
+  pebble; G5 — the old per-pixel speckle is gone from the whole sheet,
+  including under every prop tile). `sandSparkle` keeps its buried-glint
+  read as two 3×3 diamond clusters. `water/water2` are a 3-value ramp:
+  `indigo` body, 3–5px `slate` wave dashes with a `skyBlue` lit crest
+  (2px-tall features, G6), loosely row-aligned, one 2px `bone` glint;
+  the two frames drift by 2px. The shared sand recipe is exported as
+  `sandBase(seed, motifCount)` (plus `water(phase)`) from `tileset.ts`
+  and consumed by `tileset2.ts`, so both sheets' sand-based tiles seam.
+- **`tiles2.png` mountains 1–8 (redrawn in place, re-pinned):** the FF6
+  3/4-view recipe — an irregular main peak (apex position/height keyed
+  off the variant) plus a lower shoulder on even variants, rising from a
+  `plum` inter-peak shadow mass; umber/plum zigzag along the crest
+  silhouette, lit NW flank (`sand` near the crest, `clay` below), shaded
+  SE flank (`rust` into `plum`, ~half the mass), `sandLight` apex caps,
+  a broken `umber` south-foot line, and seeded 2×2 crag clusters instead
+  of the old flecks. These remain the flat-tilemap fallback and the
+  distant plane texture; the near-field 3D read is the billboards.
+- **`tiles2.png` appendix (indices 32..55, additive):**
+  `scree`/`scree2` (clay ground, 2×2 mauve/rust/sand pebble clusters),
+  `screeShade` (shadow-LUT scree whose south edge hands off into sand
+  with shaded fingers — the §4a mountain foot-shadow band tile),
+  `sandShade` (shadow-LUT sand), the coast surf ring
+  `coastN/E/S/W`, `coastNE/NW/SE/SW`, `coastInNE/InNW/InSE/InSW`
+  (built with `tilecraft.makeEdgeSet` style `"surf"`: umber land lip →
+  broken bone fringe → skyBlue shallows → open water matching the water
+  tile; the letters name where the water is, `In*` = water only
+  diagonal; land owns the border per G9), and the sand↔scree transition
+  `screeSandN/E/S/W`, `screeSandNE/NW/SE/SW` (`makeEdgeSet` style
+  `"fingers"`, scree owns the border, letters name where the sand is).
+  All appended tiles are walkable ground names — `SOLID_TILE_NAMES`
+  needed no change.
+
+## The overworld autotile pass (`overworldMap.ts`)
+
+`buildOverworldMap()` now ends with a pure `applyOverworldAutotile`
+selection pass over the finished layout (deterministic — cell data in,
+cell data out): (1) scree-family ground under every mountain decor cell,
+(2) `screeShade` on open non-water cells directly south of a mountain,
+(3) `screeSand*` finger tiles on mountain cells whose N/E/W side faces
+open sand (south faces meet the shade band, whose sand hand-off is baked
+into the tile), (4) the coast ring on every land cell 4-adjacent (or
+only diagonally adjacent → `coastIn*`) to the spring pool, applied last
+so the surf wins where the pool touches a shadow row. The pool moved one
+tile west (x 9–10, rows 16–17) so it has land on all sides for a full
+ring; three `joshuaTrunk` decors were added beside the clearings (solid,
+like all trunks) as billboard landmarks; the creosote/bones scatter now
+keeps off the shore. Enclosure, both gates, BFS reachability and
+walkable < ⅓ all still hold (asserted in tests/game/maps.test.ts along
+with new dressing assertions).
+
+## `worldToScreen` — the forward projection (`src/core/mode7.ts`)
+
+The exact inverse of `projectGround`, added for billboards:
+
+```
+depth = camY − wy                 // forward = −y = north
+null if depth ≤ 0 (behind camera) or depth > maxDepth (past the far haze)
+scale = focal / depth             // screen px per world px
+x = screenW/2 + (wx − camX) · scale
+y = horizon + cameraHeight · scale   // always strictly below the horizon
+```
+
+Off-screen-lateral points are returned, not nulled — lateral/below-screen
+culling is the caller's job; only depth invalidates a point. Unit-tested
+against `projectGround` round-trips both ways, the maxDepth boundary
+(non-null exactly at the clamp, null past it), behind-camera nulls,
+horizon unreachability, scale monotonicity and determinism.
+
+## `owBillboards.png` — the billboard sheet contract
+
+Six bottom-anchored **48×40** frames in one 6-column row (sheet 288×40),
+transparent ground, sel-out contours (`plum` rock / `umber` wood /
+`tealDeep` foliage) with `ink` only along the bottom contact edge:
+
+| index | name | content |
+|---|---|---|
+| 0 | `mountainMassA` | one dominant peak + right shoulder |
+| 1 | `mountainMassB` | twin peaks with a saddle |
+| 2 | `mountainMassC` | long low three-bump ridge |
+| 3 | `joshuaTree` | forked trunk, three spiky rosettes |
+| 4 | `mineMouth` | rock mound, dark opening, timber portal |
+| 5 | `truckWreck` | overturned box truck, wheels in the air |
+
+Manifest: a new top-level `owBillboards` entry (`BillboardSheetDef`:
+file/frameWidth/frameHeight/columns/names — appended at the end of the
+schema, nothing existing moved). The sheet is covered by the standard
+determinism (via `SHEET_KEYS`), palette, layout and non-emptiness suites
+(tests/pipeline/owBillboards.test.ts) and is loaded by
+`OverworldScene.preload()` (it's the only consumer, so it does not join
+BootScene's global preload).
+
+## Billboard rendering (`Mode7Ground` + `OverworldScene`)
+
+- Decor name → frame registry (frozen): `mountain..mountain8` → masses
+  A/B/C cyclically, `joshuaTrunk` → 3, `mineTimber` → 4, `truckCab` → 5;
+  `truckBox` is skipped and merges into the cab's single truck billboard.
+- Registered decor is **not baked** into the flat ground texture (the
+  autotile pass guarantees scree beneath, so no holes); each becomes a
+  `Phaser.GameObjects.Image` positioned/scaled every frame from
+  `worldToScreen`, `origin (0.5, 1)` at the footprint's south edge.
+- 2×2 blocks of mountain decor merge greedily into one larger billboard
+  (apparent world width 52px vs 30px for singles), keeping the POC map
+  around a hundred sprites; loose cells stand alone.
+- Depth = screen y (painter's order); the avatar's depth is its feet
+  screen-y so masses sort correctly around it. Presentation-side haze:
+  `setAlpha(1 − 0.75·(depth/maxDepth)^0.7)` plus a multiply tint from
+  white toward `amber`, matching the shader's ground haze. Culled when
+  `worldToScreen` returns null or the sprite is fully off-screen.
+- If the billboard texture is missing, `Mode7Ground` bakes decor flat
+  exactly as before (pre-Phase-O behaviour); the non-WebGL flat-tilemap
+  fallback is untouched and still renders the tile mountains — the whole
+  Mode-7 path remains wrapped in OverworldScene's try/catch and degrades,
+  never throws.
+- Beyond `maxDepth` there are deliberately no billboards *and* the ground
+  is ~90% hazed, so the far field reads as dusk haze under the shader's
+  static ridge silhouette rather than popping sprites.
+
+## Verification
+
+`tsc --noEmit`, full `vitest run` (1246 tests: new worldToScreen suite,
+owBillboards suite, overworld dressing assertions, act1 tiles2 layout
+updated to 56 tiles / 128×112), `npm run build`. `tiles.png` and
+`tiles2.png` sha256 pins deliberately re-pinned for this pass (comments
+in tests/pipeline/determinism.test.ts name it); every other sheet's pin
+is byte-identical. Visual gate previews live in `preview/` on the phase
+branch (`preview/render.mts` regenerates them).
