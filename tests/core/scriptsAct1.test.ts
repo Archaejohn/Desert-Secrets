@@ -240,8 +240,11 @@ describe("radioLines", () => {
     expect(Object.keys(radioLines).sort()).toEqual([
       "crash",
       "crevasse",
+      "deepBed",
       "depths",
+      "fluffballBed",
       "galleries",
+      "kelpForest",
       "maze",
       "mine",
       "mineEntrance",
@@ -249,7 +252,9 @@ describe("radioLines", () => {
       "oasis",
       "overworld",
       "sanctum",
+      "seaAscent",
       "shed",
+      "sunTemple",
       "sunlessSea",
       "trail",
     ]);

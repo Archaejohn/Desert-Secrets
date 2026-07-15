@@ -86,14 +86,73 @@ import {
 import {
   buildSunlessSeaMap,
   SEA_CHASE_TRIGGER,
-  SEA_FISHING,
-  SEA_FLUFFBALL,
-  SEA_FLUFFBALL_ENTRANCE,
+  SEA_EXIT_SOUTH,
   SEA_HEIGHT,
+  SEA_KELP_RETURN_SPAWN,
+  SEA_SOUTH_GATES,
   SEA_SPAWN,
-  SEA_TEMPLE,
   SEA_WIDTH
 } from "../../src/game/maps/sunlessSeaMap";
+import {
+  buildKelpForestMap,
+  KELP_BORDER_GATES,
+  KELP_DEEP_RETURN_SPAWN,
+  KELP_EXIT_EAST,
+  KELP_EXIT_NORTH,
+  KELP_EXIT_SOUTH,
+  KELP_EXIT_WEST,
+  KELP_FALSE_ENTRANCE,
+  KELP_FALSE_LEAD,
+  KELP_FLUFF_ENTRANCE,
+  KELP_FLUFF_RETURN_SPAWN,
+  KELP_HEIGHT,
+  KELP_PINCH_A,
+  KELP_PINCH_B,
+  KELP_SPAWN,
+  KELP_TEMPLE_ENTRANCE,
+  KELP_TEMPLE_RETURN_SPAWN,
+  KELP_WIDTH
+} from "../../src/game/maps/kelpForestMap";
+import {
+  buildSunTempleMap,
+  SUNTEMPLE_EAST_GATES,
+  SUNTEMPLE_EXIT_EAST,
+  SUNTEMPLE_GLYPH,
+  SUNTEMPLE_HEIGHT,
+  SUNTEMPLE_SANCTUM,
+  SUNTEMPLE_SPAWN,
+  SUNTEMPLE_WIDTH
+} from "../../src/game/maps/sunTempleMap";
+import {
+  buildFluffballBedMap,
+  FLUFFBED_EXIT_NORTH,
+  FLUFFBED_FLUFFBALL,
+  FLUFFBED_HEIGHT,
+  FLUFFBED_NORTH_GATES,
+  FLUFFBED_SPAWN,
+  FLUFFBED_TRIGGER,
+  FLUFFBED_WIDTH
+} from "../../src/game/maps/fluffballBedMap";
+import {
+  buildDeepBedMap,
+  DEEP_EXIT_WEST,
+  DEEP_FAR,
+  DEEP_FISHING,
+  DEEP_HEIGHT,
+  DEEP_SPAWN,
+  DEEP_WEST_GATES,
+  DEEP_WIDTH
+} from "../../src/game/maps/deepBedMap";
+import {
+  buildSeaAscentMap,
+  ASCENT_EXIT_TOP,
+  ASCENT_HEIGHT,
+  ASCENT_LEDGE,
+  ASCENT_SPAWN,
+  ASCENT_TOP_GATES,
+  ASCENT_TRIGGER,
+  ASCENT_WIDTH
+} from "../../src/game/maps/seaAscentMap";
 import {
   buildMinersCampMap,
   CAMP_CRATE_TRIGGER,
@@ -566,9 +625,9 @@ describe("sanctum map (The Sanctum)", () => {
   });
 });
 
-// ----------------------------------------------------- sunless sea (Act 3)
+// ------------------------------------------ sunless sea entry (Act 3, zone 1)
 
-describe("sunless sea map (The Sunless Sea)", () => {
+describe("sunless sea map (entry overlook)", () => {
   const map = buildSunlessSeaMap();
 
   it("has the declared dimensions", () => {
@@ -583,64 +642,257 @@ describe("sunless sea map (The Sunless Sea)", () => {
     expect(buildSunlessSeaMap()).toEqual(map);
   });
 
-  it("is fully enclosed by solid water on every border (no exits — end card)", () => {
-    assertEnclosed(map);
+  it("is fully enclosed by solid water except the south gate on to the kelp forest", () => {
+    assertEnclosed(map, SEA_SOUTH_GATES);
   });
 
-  it("keeps spawn and every landmark walkable", () => {
+  it("keeps spawn, the return spawn, the chase and the exit walkable", () => {
     for (const p of [
       SEA_SPAWN,
-      SEA_FLUFFBALL,
-      SEA_FLUFFBALL_ENTRANCE,
-      SEA_TEMPLE,
-      SEA_FISHING,
-      rectTile(SEA_CHASE_TRIGGER)
+      SEA_KELP_RETURN_SPAWN,
+      rectTile(SEA_CHASE_TRIGGER),
+      rectTile(SEA_EXIT_SOUTH)
     ]) {
       expect(isSolidAt(map, p.x, p.y)).toBe(false);
     }
   });
 
-  it("lets the player hop the floes from spawn to every beat", () => {
-    expect(reachable(map, SEA_SPAWN, SEA_FLUFFBALL)).toBe(true);
-    expect(reachable(map, SEA_SPAWN, SEA_TEMPLE)).toBe(true);
-    expect(reachable(map, SEA_SPAWN, SEA_FISHING)).toBe(true);
+  it("lets the player descend from spawn past the chase to the south gate", () => {
     expect(reachable(map, SEA_SPAWN, rectTile(SEA_CHASE_TRIGGER))).toBe(true);
+    expect(reachable(map, SEA_SPAWN, rectTile(SEA_EXIT_SOUTH))).toBe(true);
   });
 
-  it("makes Fluffball's kelp bed a true cul-de-sac behind one entrance tile", () => {
-    assertCulDeSac(map, SEA_SPAWN, SEA_FLUFFBALL, SEA_FLUFFBALL_ENTRANCE);
-  });
-
-  it("threads a narrow floe path — most of the sea is solid dark water", () => {
+  it("threads a narrow floe path — most of the overlook is solid dark water", () => {
     let walkable = 0;
     for (let y = 0; y < SEA_HEIGHT; y++) {
       for (let x = 0; x < SEA_WIDTH; x++) if (!isSolidAt(map, x, y)) walkable++;
     }
-    // Floe paths through solid water read as hop-corridors, not open ocean.
     expect(walkable).toBeLessThan((SEA_WIDTH * SEA_HEIGHT) / 2);
   });
+});
 
-  it("gives a second (loop) route from the hub to the deep bed via the reef", () => {
-    // Blocking the east corridor's mouth alone must NOT cut off the fishing
-    // spot — the reef offers an alternate way round.
-    expect(reachable(map, SEA_SPAWN, SEA_FISHING, [{ x: 28, y: 13 }])).toBe(true);
+// --------------------------------------------- kelp forest (Act 3, zone 2)
+
+describe("kelp forest map (the traversal fork)", () => {
+  const map = buildKelpForestMap();
+  const eastExit = rectTile(KELP_EXIT_EAST);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, KELP_WIDTH, KELP_HEIGHT);
   });
 
-  it("builds the themed floors: floe path, kelp beds, temple, reef, bubbles", () => {
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildKelpForestMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its four declared gates", () => {
+    assertEnclosed(map, KELP_BORDER_GATES);
+  });
+
+  it("keeps spawn, spawn-backs, pinches, entrances and every exit walkable", () => {
+    for (const p of [
+      KELP_SPAWN,
+      KELP_TEMPLE_RETURN_SPAWN,
+      KELP_FLUFF_RETURN_SPAWN,
+      KELP_DEEP_RETURN_SPAWN,
+      KELP_PINCH_A,
+      KELP_PINCH_B,
+      KELP_TEMPLE_ENTRANCE,
+      KELP_FLUFF_ENTRANCE,
+      KELP_FALSE_ENTRANCE,
+      KELP_FALSE_LEAD,
+      rectTile(KELP_EXIT_NORTH),
+      rectTile(KELP_EXIT_WEST),
+      rectTile(KELP_EXIT_SOUTH),
+      eastExit
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("reaches all four gates from the spawn", () => {
+    expect(reachable(map, KELP_SPAWN, rectTile(KELP_EXIT_NORTH))).toBe(true);
+    expect(reachable(map, KELP_SPAWN, rectTile(KELP_EXIT_WEST))).toBe(true);
+    expect(reachable(map, KELP_SPAWN, rectTile(KELP_EXIT_SOUTH))).toBe(true);
+    expect(reachable(map, KELP_SPAWN, eastExit)).toBe(true);
+  });
+
+  it("offers a true fork east: both routes reach the deep bed, either pinch survives", () => {
+    expect(reachable(map, KELP_SPAWN, eastExit, [KELP_PINCH_A])).toBe(true);
+    expect(reachable(map, KELP_SPAWN, eastExit, [KELP_PINCH_B])).toBe(true);
+  });
+
+  it("loses the deep-bed exit only when BOTH route pinches are shut (routes disjoint)", () => {
+    expect(reachable(map, KELP_SPAWN, eastExit, [KELP_PINCH_A, KELP_PINCH_B])).toBe(false);
+  });
+
+  it("keeps the temple spur a true cul-de-sac behind its entrance tile", () => {
+    assertCulDeSac(map, KELP_SPAWN, rectTile(KELP_EXIT_WEST), KELP_TEMPLE_ENTRANCE);
+  });
+
+  it("keeps the Fluffball spur a true cul-de-sac behind its entrance tile", () => {
+    assertCulDeSac(map, KELP_SPAWN, rectTile(KELP_EXIT_SOUTH), KELP_FLUFF_ENTRANCE);
+  });
+
+  it("keeps the false-lead alcove a true dead end behind its entrance tile", () => {
+    assertCulDeSac(map, KELP_SPAWN, KELP_FALSE_LEAD, KELP_FALSE_ENTRANCE);
+  });
+});
+
+// ------------------------------------------ sun-temple ruin (Act 3, zone 3)
+
+describe("sun-temple map (a dead-end pocket)", () => {
+  const map = buildSunTempleMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, SUNTEMPLE_WIDTH, SUNTEMPLE_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildSunTempleMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the east gate back to the kelp forest", () => {
+    assertEnclosed(map, SUNTEMPLE_EAST_GATES);
+  });
+
+  it("keeps spawn, the glyph, the inner sanctum and the exit walkable", () => {
+    for (const p of [SUNTEMPLE_SPAWN, SUNTEMPLE_GLYPH, SUNTEMPLE_SANCTUM, rectTile(SUNTEMPLE_EXIT_EAST)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player explore in to the glyph and the sanctum and back out", () => {
+    expect(reachable(map, SUNTEMPLE_SPAWN, SUNTEMPLE_GLYPH)).toBe(true);
+    expect(reachable(map, SUNTEMPLE_SPAWN, SUNTEMPLE_SANCTUM)).toBe(true);
+    expect(reachable(map, SUNTEMPLE_SPAWN, rectTile(SUNTEMPLE_EXIT_EAST))).toBe(true);
+  });
+
+  it("carves the sun-glyph as a ground tile amid drowned pillars", () => {
+    expect(map.ground[SUNTEMPLE_GLYPH.y][SUNTEMPLE_GLYPH.x]).toBe("templeGlyph");
+    expect(map.ground.flat()).toContain("templeFloor");
+    expect(map.decor.flat()).toContain("templePillar");
+  });
+});
+
+// ------------------------------------- Fluffball's kelp bed (Act 3, zone 4)
+
+describe("fluffball bed map (a dead-end pocket)", () => {
+  const map = buildFluffballBedMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, FLUFFBED_WIDTH, FLUFFBED_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildFluffballBedMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the north gate back to the kelp forest", () => {
+    assertEnclosed(map, FLUFFBED_NORTH_GATES);
+  });
+
+  it("keeps spawn, Fluffball's spot, the glimpse trigger and the exit walkable", () => {
+    for (const p of [
+      FLUFFBED_SPAWN,
+      FLUFFBED_FLUFFBALL,
+      rectTile(FLUFFBED_TRIGGER),
+      rectTile(FLUFFBED_EXIT_NORTH)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach Fluffball and the exit from the spawn", () => {
+    expect(reachable(map, FLUFFBED_SPAWN, FLUFFBED_FLUFFBALL)).toBe(true);
+    expect(reachable(map, FLUFFBED_SPAWN, rectTile(FLUFFBED_EXIT_NORTH))).toBe(true);
+  });
+});
+
+// -------------------------------------------- deep kelp bed (Act 3, zone 5)
+
+describe("deep bed map (the fishing climax)", () => {
+  const map = buildDeepBedMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, DEEP_WIDTH, DEEP_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildDeepBedMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the west gate back to the kelp forest", () => {
+    assertEnclosed(map, DEEP_WEST_GATES);
+  });
+
+  it("keeps spawn, the fishing spot, the far corner and the exit walkable", () => {
+    for (const p of [DEEP_SPAWN, DEEP_FISHING, DEEP_FAR, rectTile(DEEP_EXIT_WEST)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach the fishing spot, the far corner and the exit", () => {
+    expect(reachable(map, DEEP_SPAWN, DEEP_FISHING)).toBe(true);
+    expect(reachable(map, DEEP_SPAWN, DEEP_FAR)).toBe(true);
+    expect(reachable(map, DEEP_SPAWN, rectTile(DEEP_EXIT_WEST))).toBe(true);
+  });
+
+  it("reads as deep water: kelp, reef glow and rising bubbles", () => {
     const g = map.ground.flat();
-    expect(g).toContain("floe");
     expect(g).toContain("kelpBed");
-    expect(g).toContain("templeFloor");
-    expect(g).toContain("templeGlyph");
     expect(g).toContain("reefGlow");
     expect(g).toContain("seaWater");
-    // Solid sea decor and rising bubbles overhead.
-    const d = map.decor.flat();
-    expect(d).toContain("kelpStalk");
-    expect(d).toContain("templePillar");
     expect(map.overhead?.flat()).toContain("bubbles");
-    expect(map.decor[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe(null); // glyph is a ground tile
-    expect(map.ground[SEA_TEMPLE.y][SEA_TEMPLE.x]).toBe("templeGlyph");
+  });
+});
+
+// ----------------------------------------------- the ascent (Act 3, zone 6)
+
+describe("sea ascent map (the climb out to Act 4)", () => {
+  const map = buildSeaAscentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, ASCENT_WIDTH, ASCENT_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildSeaAscentMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the top gate up to the miners' camp", () => {
+    assertEnclosed(map, ASCENT_TOP_GATES);
+  });
+
+  it("keeps the foot spawn, the ledge, the climb trigger and the top gate walkable", () => {
+    for (const p of [ASCENT_SPAWN, ASCENT_LEDGE, rectTile(ASCENT_TRIGGER), rectTile(ASCENT_EXIT_TOP)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the party climb from the foot up past the ledge to the top gate", () => {
+    expect(reachable(map, ASCENT_SPAWN, ASCENT_LEDGE)).toBe(true);
+    expect(reachable(map, ASCENT_SPAWN, rectTile(ASCENT_EXIT_TOP))).toBe(true);
   });
 });
 

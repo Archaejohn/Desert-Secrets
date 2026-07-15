@@ -32,6 +32,11 @@ export type ZoneId =
   | "overworld"
   | "mineEntrance"
   | "sunlessSea"
+  | "kelpForest"
+  | "sunTemple"
+  | "fluffballBed"
+  | "deepBed"
+  | "seaAscent"
   | "minersCamp";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
@@ -75,14 +80,19 @@ export const ACT2_FLAGS = [
   "shard2",
 ] as const;
 
-/** Act 3 quest flags (The Sunless Sea), also all false at newGame(). */
+/** Act 3 quest flags (The Sunless Sea, now a six-zone chain), all false at newGame(). */
 export const ACT3_FLAGS = [
   "act3Started",
   "sawChase",
-  "metFluffball",
+  "sawKelpForest",
+  "sawTempleEntry",
   "sawTemple",
+  "sawFluffbed",
+  "metFluffball",
+  "sawDeepBed",
   "lurkerDefeated",
   "silverfinCaught",
+  "sawAscent",
   "act3Complete",
 ] as const;
 

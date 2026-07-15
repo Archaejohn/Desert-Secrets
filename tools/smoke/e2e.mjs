@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","minersCamp"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","minersCamp"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -800,56 +800,100 @@ check(
   `zone=${s.zoneKey} act3Started=${s.state?.flags?.act3Started}`
 );
 
-// ---------- Act 3: The Sunless Sea ----------
-check("checkpoint updated to the sunless sea", s.state.zone === "sunlessSea");
+// ---------- Act 3: The Sunless Sea (a six-zone chain) ----------
+check("checkpoint updated to the sunless sea entry", s.state.zone === "sunlessSea");
 
-// The comic chase + the Fluffball glimpse are walk-over triggers; visiting
-// both fires their cutscenes and sets sawChase / metFluffball.
+// Zone 1 (entry overlook): the comic Piggy-chase is a walk-over trigger.
 await healUp(page);
-s = await driveTriggersUntil("sunlessSea", (x) => x.state.flags.sawChase && x.state.flags.metFluffball);
-check("Piggy's chase cutscene plays", s.state.flags.sawChase === true, JSON.stringify(s.state.flags));
-check("Fluffball glimpsed, drops the silverfin clue", s.state.flags.metFluffball === true, JSON.stringify(s.state.flags));
+s = await driveTriggersUntil("sunlessSea", (x) => x.state.flags.sawChase);
+check("Piggy's chase cutscene plays in the entry overlook", s.state.flags.sawChase === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "sunlessSea") s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 8000);
 
-// The flooded sun-temple ruin: an InteractPoint (press E) → lore beat.
-await teleport(page, 9, 18); // SEA_TEMPLE
+// Zone 1 → Zone 2: the south gate leads on into the kelp forest.
+s = await exitTo("sunlessSea", "kelpForest");
+check("the entry overlook leads into the kelp forest", s.zoneKey === "kelpForest", `zone=${s.zoneKey}`);
+check("checkpoint updated to the kelp forest", s.state.zone === "kelpForest");
+
+// Zone 2 (kelp forest): the entry cutscene grounds the player in the traversal zone.
+await healUp(page);
+s = await driveTriggersUntil("kelpForest", (x) => x.state.flags.sawKelpForest);
+check("the kelp forest entry beat plays", s.state.flags.sawKelpForest === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "kelpForest") s = await waitFor(page, (x) => x.zoneKey === "kelpForest", 8000);
+
+// Zone 2 → Zone 3 (dead-end pocket): the west spur drops into the sun-temple ruin.
+s = await exitTo("kelpForest", "sunTemple");
+check("the west spur reaches the flooded sun-temple", s.zoneKey === "sunTemple", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("sunTemple", (x) => x.state.flags.sawTempleEntry);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+// Inspect the carved sun-glyph for the lore beat.
+await teleport(page, 7, 7); // SUNTEMPLE_GLYPH
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
 if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
 s = await snapshot(page);
 check("the flooded sun-temple lore beat plays", s.state.flags.sawTemple === true, JSON.stringify(s.state.flags));
 
-// The silverfin fishing spot. First interaction: the Lurker mini-boss
-// steals the lure — a real ATB battle before the catch can work.
+// Back to the kelp forest, then down the south spur to Fluffball's kelp bed.
+s = await exitTo("sunTemple", "kelpForest");
+check("the sun-temple leads back to the kelp forest", s.zoneKey === "kelpForest", `zone=${s.zoneKey}`);
+s = await exitTo("kelpForest", "fluffballBed");
+check("the south spur reaches Fluffball's kelp bed", s.zoneKey === "fluffballBed", `zone=${s.zoneKey}`);
 await healUp(page);
-await teleport(page, 33, 19); // SEA_FISHING
+s = await driveTriggersUntil("fluffballBed", (x) => x.state.flags.metFluffball);
+check("Fluffball glimpsed, drops the silverfin clue", s.state.flags.metFluffball === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "fluffballBed") s = await waitFor(page, (x) => x.zoneKey === "fluffballBed", 8000);
+
+// Back to the kelp forest, then the east fork on to the deep kelp bed.
+s = await exitTo("fluffballBed", "kelpForest");
+check("Fluffball's bed leads back to the kelp forest", s.zoneKey === "kelpForest", `zone=${s.zoneKey}`);
+s = await exitTo("kelpForest", "deepBed");
+check("the east fork reaches the deep kelp bed", s.zoneKey === "deepBed", `zone=${s.zoneKey}`);
+
+// Zone 5 (deep bed): the fishing climax, with the fixed pacing. The player
+// CASTS FIRST; the Lurker steals the line (that theft is what starts the
+// fight); once it's beaten off the line is intact and a recast lands the fish.
+await healUp(page);
+s = await driveTriggersUntil("deepBed", (x) => x.state.flags.sawDeepBed);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+if (s.zoneKey !== "deepBed") s = await waitFor(page, (x) => x.zoneKey === "deepBed", 8000);
+await healUp(page);
+await teleport(page, 15, 9); // DEEP_FISHING
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
-if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // lurker intro → battle
+// seaFirstCast ("the line goes taut...") → lurkerIntro (the steal) → the fight.
+for (let i = 0; i < 8; i++) {
+  const d = await snapshot(page);
+  if (d.battle) break;
+  if (d.dialogueOpen) await talkThrough(page);
+  await page.waitForTimeout(200);
+}
 s = await waitFor(page, (x) => x.battle, 6000);
-check("the Lurker mini-boss battle starts at the fishing spot", s.battle === true);
+check("casting first makes the Lurker steal the line and start the fight", s.battle === true);
 s = await fightThrough(page, { timeoutMs: 180_000 });
-s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 12_000);
-check("the Lurker is fought off", s.state.flags.lurkerDefeated === true, JSON.stringify(s.state.flags));
+s = await waitFor(page, (x) => x.zoneKey === "deepBed", 12_000);
+check(
+  "the Lurker is fought off with the line still intact (no fish yet)",
+  s.state.flags.lurkerDefeated === true && s.state.items.silverfin !== true,
+  JSON.stringify(s.state.flags)
+);
 
-// Second interaction: cast the line and play the timing minigame. Read the
-// pure fishing state and only hook when the marker is well inside the glow
-// (exactly how a player lands it) — no misses, so it lands after 3 hits.
+// Recast: cast the line again and play the timing minigame. Read the pure
+// fishing state and only hook when the marker is well inside the glow.
 await healUp(page);
-await teleport(page, 33, 19);
+await teleport(page, 15, 9);
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
-await talkThrough(page, { pickIndex: 0 }); // choose "Cast the line", then close cast-end → opens the gauge
+await talkThrough(page, { pickIndex: 0 }); // "Cast the line" → cast-end → opens the gauge
 await page.waitForTimeout(300);
-const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("sunlessSea").fishingMenu);
-check("casting opens the fishing timing minigame", menuOpen === true);
+const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("deepBed").fishingMenu);
+check("recasting opens the fishing timing minigame", menuOpen === true);
 
-// Land it: tap only when the marker is inside the window.
 const fishDeadline = Date.now() + 40_000;
 let caught = false;
 while (Date.now() < fishDeadline) {
   const fs = await page.evaluate(() => {
-    const w = window.__game.scene.getScene("sunlessSea");
+    const w = window.__game.scene.getScene("deepBed");
     const m = w.fishingMenu;
     if (!m) return { open: false, caught: window.__game.registry.get("act1").items.silverfin === true };
     return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };
@@ -865,19 +909,22 @@ check("the fishing minigame lands the silverfin", caught === true);
 s = await snapshot(page);
 check("silverfin recorded in the inventory", s.state.items.silverfin === true && s.state.flags.silverfinCaught === true, JSON.stringify(s.state.items));
 
-// The Act 3 ending: dialogue → act3Complete → end card → climbs into Act 4.
+// The catch beat → act3Complete → the party climbs out via the ascent zone.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act3Complete === true, 8000);
 check("Act 3 completes (silverfin caught)", s.state.flags.act3Complete === true, JSON.stringify(s.state.flags));
-await page.screenshot({ path: path.join(root, "../act3-end-card.png") }).catch(() => {});
-await page.waitForTimeout(600);
-// The Act 3 end card now CLIMBS up to the miners' camp (Act 4), keeping all
-// progress — it no longer returns to the title.
-await tap(page, "Space");
-s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 9000);
+s = await waitFor(page, (x) => x.zoneKey === "seaAscent", 9000);
+check("the catch hands off to the ascent zone (a real zone, not an end card)", s.zoneKey === "seaAscent", `zone=${s.zoneKey}`);
+await page.screenshot({ path: path.join(root, "../act3-ascent.png") }).catch(() => {});
+
+// Zone 6 (ascent): the climb beat plays, then the top gate hands off to Act 4.
+await healUp(page);
+s = await driveTriggersUntil("seaAscent", (x) => x.state.flags.sawAscent || x.zoneKey === "minersCamp");
+check("the ascent climb beat plays", s.state.flags.sawAscent === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "minersCamp") s = await exitTo("seaAscent", "minersCamp");
 check(
-  "act 3 end card climbs into the Miners' Camp with progress kept",
+  "the ascent's top gate climbs into the Miners' Camp with progress kept",
   s.zoneKey === "minersCamp" && s.state.flags.act4Started === true,
   `zone=${s.zoneKey} act4Started=${s.state?.flags?.act4Started}`
 );

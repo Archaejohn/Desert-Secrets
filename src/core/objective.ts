@@ -48,16 +48,34 @@ function act2ObjectiveFor(s: Act1State): string {
   return "Descend through the ice";
 }
 
-/** The Act 3 chain (The Sunless Sea), once act3Started is set. ≤ 40 chars. */
+/**
+ * The Act 3 chain (The Sunless Sea, a six-zone chain), once act3Started is
+ * set. Each zone produces its own grounded objective line. ≤ 40 chars.
+ */
 function act3ObjectiveFor(s: Act1State): string {
   const f = s.flags;
   // Act 4 takes over once the party climbs back up to the miners' camp.
   if (f.act4Started || f.act4Complete) return act4ObjectiveFor(s);
   if (f.act3Complete) return "Act 3 complete!";
-  if (s.zone !== "sunlessSea") return "Descend into the Sunless Sea";
-  if (!f.metFluffball) return "Explore the Sunless Sea";
-  if (!f.silverfinCaught) return "Fish the deep kelp for silverfin";
-  return "You have the silverfin!";
+  switch (s.zone) {
+    case "sunlessSea":
+      return "Press on into the kelp forest";
+    case "kelpForest":
+      return f.metFluffball ? "Head east to the deep kelp beds" : "Explore the kelp forest";
+    case "sunTemple":
+      return "Search the drowned sun-temple";
+    case "fluffballBed":
+      return "Corner the chick in the kelp bed";
+    case "deepBed":
+      if (!f.lurkerDefeated) return "Fish the deep bed for silverfin";
+      if (!f.silverfinCaught) return "Cast again — land the silverfin";
+      return "Climb up, out of the sea";
+    case "seaAscent":
+      return "Climb the shaft to the surface";
+    default:
+      // Still in an Act 1/2 zone after the hand-off: get down there.
+      return "Descend into the Sunless Sea";
+  }
 }
 
 /** The Act 4 chain (Dirty Laundry), once act4Started is set. ≤ 40 chars. */

@@ -13,6 +13,11 @@ import { MazeScene } from "./scenes/MazeScene";
 import { GalleriesScene } from "./scenes/GalleriesScene";
 import { SanctumScene } from "./scenes/SanctumScene";
 import { SunlessSeaScene } from "./scenes/SunlessSeaScene";
+import { KelpForestScene } from "./scenes/KelpForestScene";
+import { SunTempleScene } from "./scenes/SunTempleScene";
+import { FluffballBedScene } from "./scenes/FluffballBedScene";
+import { DeepBedScene } from "./scenes/DeepBedScene";
+import { SeaAscentScene } from "./scenes/SeaAscentScene";
 import { MinersCampScene } from "./scenes/MinersCampScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
@@ -47,6 +52,11 @@ const game = new Phaser.Game({
     GalleriesScene,
     SanctumScene,
     SunlessSeaScene,
+    KelpForestScene,
+    SunTempleScene,
+    FluffballBedScene,
+    DeepBedScene,
+    SeaAscentScene,
     MinersCampScene,
     BattleScene
   ]

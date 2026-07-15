@@ -5,18 +5,30 @@ import {
   type DialogueScript,
 } from "../../src/core/dialogue";
 import { piggyChaseScript } from "../../src/core/scripts/piggyChase";
+import { kelpForestEntryScript } from "../../src/core/scripts/kelpForestEntry";
+import { sunTempleEntryScript } from "../../src/core/scripts/sunTempleEntry";
+import { fluffballBedEntryScript } from "../../src/core/scripts/fluffballBedEntry";
 import { fluffballMeetScript } from "../../src/core/scripts/fluffballMeet";
 import { templeLoreScript } from "../../src/core/scripts/templeLore";
+import { deepBedEntryScript } from "../../src/core/scripts/deepBedEntry";
+import { seaFirstCastScript } from "../../src/core/scripts/seaFirstCast";
 import { lurkerIntroScript } from "../../src/core/scripts/lurkerIntro";
 import { fishingCastScript } from "../../src/core/scripts/fishingCast";
+import { seaAscentScript } from "../../src/core/scripts/seaAscent";
 import { act3EndingScript } from "../../src/core/scripts/act3Ending";
 
 const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["piggyChase", piggyChaseScript],
+  ["kelpForestEntry", kelpForestEntryScript],
+  ["sunTempleEntry", sunTempleEntryScript],
+  ["fluffballBedEntry", fluffballBedEntryScript],
   ["fluffballMeet", fluffballMeetScript],
   ["templeLore", templeLoreScript],
+  ["deepBedEntry", deepBedEntryScript],
+  ["seaFirstCast", seaFirstCastScript],
   ["lurkerIntro", lurkerIntroScript],
   ["fishingCast", fishingCastScript],
+  ["seaAscent", seaAscentScript],
   ["act3Ending", act3EndingScript],
 ];
 
@@ -66,7 +78,18 @@ describe("Act 3 script validation", () => {
 
 describe("Slither's hissing esses (Act 3)", () => {
   it("hisses in every Act 3 script where he speaks", () => {
-    for (const script of [piggyChaseScript, fluffballMeetScript, templeLoreScript, lurkerIntroScript, act3EndingScript]) {
+    for (const script of [
+      piggyChaseScript,
+      kelpForestEntryScript,
+      sunTempleEntryScript,
+      fluffballBedEntryScript,
+      fluffballMeetScript,
+      templeLoreScript,
+      deepBedEntryScript,
+      lurkerIntroScript,
+      seaAscentScript,
+      act3EndingScript
+    ]) {
       const slitherLines = script.nodes
         .flatMap((n) => n.lines)
         .filter((l) => l.speaker === "Slither")
@@ -121,12 +144,39 @@ describe("fishingCast", () => {
   });
 });
 
-describe("act3Ending", () => {
-  it("ends on the Act 4 title card", () => {
-    const { lines, runner } = playThrough(act3EndingScript);
-    expect(lines[lines.length - 1].text).toBe("ACT 4: THE MINERS' CAMP");
-    expect(lines[lines.length - 2].text).toBe("END OF ACT 3");
+describe("seaFirstCast", () => {
+  it("has the player cast first and the line go taut before the Lurker strikes", () => {
+    const text = allText(seaFirstCastScript);
+    expect(text).toMatch(/cast/i);
+    expect(text).toMatch(/taut/i);
+    expect(text).toMatch(/too heavy/i);
+    // No Lurker/battle text here — the theft is its own beat (lurkerIntro).
+    expect(text).not.toMatch(/lurker/i);
+  });
+
+  it("terminates cleanly (leads into the lurkerIntro beat, then the fight)", () => {
+    const { runner } = playThrough(seaFirstCastScript);
     expect(runner.active).toBe(false);
+  });
+});
+
+describe("seaAscent", () => {
+  it("answers how the party gets off the ice, up toward the camp", () => {
+    const text = allText(seaAscentScript);
+    expect(text).toMatch(/ladder/i);
+    expect(text).toMatch(/off the ice/i);
+    expect(text).toMatch(/miners' camp/i);
+  });
+});
+
+describe("act3Ending", () => {
+  it("lands the catch and points the party up out of the sea (no end card)", () => {
+    const { lines, runner } = playThrough(act3EndingScript);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(runner.active).toBe(false);
+    expect(all).not.toMatch(/END OF ACT 3/);
+    expect(all).not.toMatch(/ACT 4:/);
+    expect(all).toMatch(/out of the sssea/i);
   });
 
   it("names the silverfin as one of four things Piggy loves", () => {

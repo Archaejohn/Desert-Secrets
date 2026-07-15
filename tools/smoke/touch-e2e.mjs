@@ -290,25 +290,26 @@ if (battleUp) {
 }
 
 // ---------- Act 3: the fishing minigame via touch ----------
-// Jump straight to the sea with the Lurker already beaten off, so the next
-// interaction with the fishing spot opens the cast choice and the timing
-// minigame — exercising: tapping an InteractPoint, confirming a dialogue
-// choice with the ✓ column, and tapping HOOK to land the catch.
+// Jump straight to the deep kelp bed (the climax zone) with the Lurker already
+// beaten off, so the next interaction with the fishing spot opens the cast
+// choice and the timing minigame — exercising: tapping an InteractPoint,
+// confirming a dialogue choice with the ✓ column, and tapping HOOK to land it.
 await page.evaluate(() => {
   const g = window.__game;
   const st = g.registry.get("act1");
   const flags = {
     ...st.flags,
     actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
-    slitherJoined: true, act3Started: true, sawChase: true, metFluffball: true,
-    sawTemple: true, lurkerDefeated: true
+    slitherJoined: true, act3Started: true, sawChase: true, sawKelpForest: true,
+    sawTempleEntry: true, sawTemple: true, sawFluffbed: true, metFluffball: true,
+    sawDeepBed: true, lurkerDefeated: true
   };
-  g.registry.set("act1", { ...st, zone: "sunlessSea", hp: 999, flags });
+  g.registry.set("act1", { ...st, zone: "deepBed", hp: 999, flags });
   for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-  g.scene.start("sunlessSea", {});
+  g.scene.start("deepBed", {});
 });
 await page.waitForTimeout(1300);
-await page.evaluate(() => window.__game.scene.getScene("sunlessSea").player.body.reset(33 * 16 + 8, 19 * 16 + 8));
+await page.evaluate(() => window.__game.scene.getScene("deepBed").player.body.reset(15 * 16 + 8, 9 * 16 + 8));
 await page.waitForTimeout(300);
 
 // Tap the right side to use the fishing InteractPoint → the cast choice.
@@ -318,7 +319,7 @@ await page.waitForTimeout(300);
 }
 await page.waitForTimeout(400);
 const castChoice = await page.evaluate(() => {
-  const w = window.__game.scene.getScene("sunlessSea");
+  const w = window.__game.scene.getScene("deepBed");
   return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
 });
 check(
@@ -330,7 +331,7 @@ check(
 if (castChoice.choices) {
   // Confirm "Cast the line" (row 0, already selected) with the ✓ column.
   const confirmBtn = await page.evaluate(() => {
-    const w = window.__game.scene.getScene("sunlessSea");
+    const w = window.__game.scene.getScene("deepBed");
     const dlg = w.dialogue;
     const b = dlg["touchButtons"];
     const rect = window.__game.canvas.getBoundingClientRect();
@@ -353,7 +354,7 @@ if (castChoice.choices) {
   await page.waitForTimeout(400);
 }
 
-const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("sunlessSea").fishingMenu);
+const menuOpen = await page.evaluate(() => !!window.__game.scene.getScene("deepBed").fishingMenu);
 check("casting opens the fishing minigame via touch", menuOpen === true);
 
 if (menuOpen) {
@@ -362,7 +363,7 @@ if (menuOpen) {
   let caught = false;
   while (Date.now() < deadline) {
     const fs = await page.evaluate(() => {
-      const w = window.__game.scene.getScene("sunlessSea");
+      const w = window.__game.scene.getScene("deepBed");
       const m = w.fishingMenu;
       if (!m) return { open: false, caught: window.__game.registry.get("act1").items.silverfin === true };
       return { open: true, p: m.state.position, t: m.cfg.target, w: m.cfg.windowHalf };

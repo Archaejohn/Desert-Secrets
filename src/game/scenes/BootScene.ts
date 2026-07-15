@@ -83,6 +83,11 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   overworld: "The Open Desert",
   mineEntrance: "Mine Entrance",
   sunlessSea: "The Sunless Sea",
+  kelpForest: "The Kelp Forest",
+  sunTemple: "The Sun-Temple Ruin",
+  fluffballBed: "The Kelp Bed",
+  deepBed: "The Deep Kelp Bed",
+  seaAscent: "The Ascent",
   minersCamp: "The Miners' Camp"
 };
 

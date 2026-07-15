@@ -1144,6 +1144,15 @@ centering values) and by screenshot.
 
 # v12: Act 3 — The Sunless Sea (fish, the fishing minigame, a fourth tileset)
 
+> **Superseded in part by v14.** The single-`sunlessSea`-zone structure and
+> the end-card hand-off described below were the shipped v12 build; **v14
+> retrofits Act 3 into a six-zone chain** and replaces the end card with a
+> real ascent-zone exit. The fishing minigame, the `tiles4` art, the
+> bestiary/encounter entries and the fishing-flow bring-up notes here are
+> all still current — only the zone topology and the fishing PACING (cast
+> first, THEN the Lurker steals the line) changed. Read v14 for the current
+> Act 3 shape.
+
 Act 3 of Part One. Joseph and Slither follow the crack Piggy vanished
 through (`flags.act2Complete`) under the glacier into a bioluminescent
 cavern ocean: mint-glow reefs, kelp forests, drifting ice floes over dark
@@ -1416,3 +1425,115 @@ overhead-over-dialogue bug fixed before Act 3.
   reek-adjusted encounter table, ending → title).
 - `tools/smoke/touch-e2e.mjs`: touch coverage of the new nest InteractPoint
   (tap-to-interact with no NPC nearby opens the intro dialogue).
+
+---
+
+# v14: Act 3 retrofit — The Sunless Sea becomes a six-zone chain
+
+Playtester feedback on the shipped v12 Act 3 ("act 3 is only 1 map? those
+should be 4-6 maps"; "scene 3 fights the boss before fishing mini game";
+"dialogue feels ungrounded") drove a structural retrofit that brings Act 3
+up to the Act 1/2 quality bar (connected zones, each a distinct place with
+grounding entry dialogue, dead-end pockets as true BFS cul-de-sacs). **No
+new art, bestiary, encounter or fishing-core changes** — this reuses every
+v12 asset and the `sunlessSea` encounter table; it only re-shapes zones,
+scenes, wiring and the Lurker/fishing pacing. Additive to Acts 1/2/4 except
+the Act-3-internal wiring and the ascent→camp hand-off (below).
+
+## The six zones and how they connect
+
+The single `sunlessSea` map is replaced by six connected zones. `sunlessSea`
+is **kept as the id of the entry zone** so the Act 2 → Act 3 hand-off in
+`SanctumScene` (`scene.start("sunlessSea")` / `goToZone("sunlessSea",
+SEA_SPAWN)`) is unchanged; `SEA_SPAWN` is still exported from
+`sunlessSeaMap.ts`.
+
+1. **`sunlessSea`** (entry overlook, 24×16) — first sight of the cavern sea;
+   the comic **Piggy-chase** beat (`piggyChase`, `sawChase`) plays here.
+   South gate → `kelpForest`.
+2. **`kelpForest`** (traversal, 40×26) — the through-route. A hub with a
+   **true fork east** to the deep bed: routes A (y=12) and B (y=15) are
+   vertex-disjoint (`KELP_PINCH_A/B` — block one, the other survives; block
+   both, the deep-bed exit is cut off), plus a false-lead dead-end alcove.
+   Four gates: north back to `sunlessSea`, **west spur → `sunTemple`**,
+   **south spur → `fluffballBed`** (both spurs BFS-proven cul-de-sacs behind
+   `KELP_TEMPLE_ENTRANCE` / `KELP_FLUFF_ENTRANCE`), east fork → `deepBed`.
+   Entry beat `kelpForestEntry` (`sawKelpForest`).
+3. **`sunTemple`** (dead-end pocket, 22×16) — the flooded sun-temple, now a
+   few rooms (antechamber → pillared hall → inner sanctum). Entry beat
+   `sunTempleEntry` (`sawTempleEntry`); the carved `templeGlyph` is an
+   InteractPoint that plays `templeLore` (`sawTemple`). East gate back to
+   `kelpForest`; otherwise enclosed (a cul-de-sac ZONE).
+4. **`fluffballBed`** (dead-end pocket, 18×14) — the glimmering kelp bed
+   where Fluffball is cornered. Entry beat `fluffballBedEntry`
+   (`sawFluffbed`); the glimpse trigger plays `fluffballMeet` (`metFluffball`)
+   and he bolts. North gate back to `kelpForest`.
+5. **`deepBed`** (fishing climax, 28×20) — past where the light gives out.
+   Entry beat `deepBedEntry` (`sawDeepBed`). **The pacing fix lives here**
+   (see below). West gate back to `kelpForest`; the way onward is opened
+   narratively once the fish is landed (the scene hands off to `seaAscent`),
+   so the map is otherwise enclosed.
+6. **`seaAscent`** (ascent/exit, 20×18) — the narrated way OUT (an old
+   miners' service ladder, answering the never-explained "how do I get off
+   the ice?"). Entry-ledge beat `seaAscent` (`sawAscent`); the **top gate is
+   the Act 3 → Act 4 hand-off** (a real zone exit, not an end card): a
+   trigger sets `act4Started` and `goToZone("minersCamp", CAMP_SPAWN)`.
+
+## The Lurker/fishing pacing fix (the "boss before the mini game" bug)
+
+The shipped v12 walked the player straight into the Lurker fight with no
+cast-first beat. Now, at the `deepBed` fishing InteractPoint:
+
+- **First interaction** (`!lurkerDefeated`): `seaFirstCast` plays — the
+  player CASTS, the line drifts, then "snaps taut" on something far too
+  heavy. On its close, `lurkerIntro` plays (the Lurker steals the lure — the
+  theft is what starts the fight), then the mini-boss `BattleScene`
+  (`victoryFlag: "lurkerDefeated"`, hero + Slither).
+- **After the fight** (`lurkerDefeated`, `!silverfinCaught`): the line is
+  intact — re-interacting opens the existing `fishingCast` choice → the
+  timing minigame (`FishingMenu`) → lands the silverfin
+  (`items.silverfin` + `silverfinCaught`).
+- Then `act3Ending` plays (its end-card lines removed; it now points the
+  party up out of the sea), sets `act3Complete`, and `goToZone("seaAscent")`.
+  `deepBed.populate()` has a reload guard: `silverfinCaught && !act4Started`
+  → straight to `seaAscent`, so a reload after the catch can't soft-lock.
+
+## Slither follower, factored out
+
+The per-scene follower rig (trail ~14 frames back, flip + depth-sort) is now
+`src/game/SlitherFollower.ts` — one `new SlitherFollower(this)` per
+`populate()`, `spawn()` when `flags.slitherJoined`, pumped from `onUpdate()`.
+All six Act 3 zones use it (Slither is with the party the whole act). The
+Act 2/4 scenes keep their inline copies (out of scope).
+
+## Plumbing (same checklist as every zone addition)
+
+- `gameState.ts`: `ZoneId += kelpForest, sunTemple, fluffballBed, deepBed,
+  seaAscent`; `ACT3_FLAGS` gains the per-zone entry flags (`sawKelpForest,
+  sawTempleEntry, sawFluffbed, sawDeepBed, sawAscent`). No new items.
+- `objective.ts`: the Act 3 chain is now per-zone (a `switch (s.zone)`),
+  every line ≤ 40 chars; the deep-bed line walks Lurker → recast → climb.
+- `scripts/radio.ts`: `radioLines` gains all five new zones (exhaustive
+  `Record<ZoneId, …>`).
+- Six new scripts (`kelpForestEntry, sunTempleEntry, fluffballBedEntry,
+  deepBedEntry, seaFirstCast, seaAscent`) + `act3Ending` revised (no end
+  card); all `validateScript`-clean, ≤ 48 chars/line, Slither hissing.
+- `BootScene` `ZONE_NAMES` + `main.ts` register the five new scenes.
+- Encounters reuse `ENCOUNTERS.sunlessSea` (via `encounterZone:
+  "sunlessSea"` on `kelpForest`/`deepBed`) — no `encounters.ts` change.
+- `tests/game/maps2.test.ts`: full BFS suite per new zone (enclosure with
+  gates, landmark reachability, the fork's disjoint routes, both spur
+  cul-de-sacs + the false-lead dead end proven behind single entrance tiles).
+- `tests/core/objectiveAct3.test.ts` + `scriptsAct3.test.ts` rewritten;
+  `scriptsAct1.test.ts` radio list extended.
+- `tools/smoke/e2e.mjs`: Act 3 now walks the full six-zone chain end to end,
+  including cast → Lurker-steals-it → fight → recast → catch and the ascent
+  → `minersCamp` hand-off. `touch-e2e.mjs` fishing coverage retargeted to
+  `deepBed`.
+
+## Act 4 entry (unchanged internals)
+
+`MinersCampScene` is entered exactly as before — spawned at `CAMP_SPAWN`
+with `act4Started` set — so no Act 4 internals changed; only the SOURCE of
+that entry moved from the old sea end card to `seaAscent`'s top gate. (Act
+4's own multi-zone retrofit is a separate task.)
