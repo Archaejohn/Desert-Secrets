@@ -97,9 +97,10 @@ describe("ENCOUNTERS tables", () => {
     expect(ENCOUNTERS.minersCamp.weights).toEqual([3, 3, 2, 2]);
   });
 
-  it("exposes exactly the seven contract zones", () => {
+  it("exposes exactly the eight contract zones", () => {
     expect(Object.keys(ENCOUNTERS).sort()).toEqual([
       "galleries",
+      "grove",
       "maze",
       "mine",
       "minersCamp",
@@ -107,6 +108,11 @@ describe("ENCOUNTERS tables", () => {
       "sunlessSea",
       "trail",
     ]);
+  });
+
+  it("guards Sahra's grove with sunwasp swarms (Act 5)", () => {
+    expect(ENCOUNTERS.grove.groups.flat().every((id) => id === "sunwasp")).toBe(true);
+    expect(ENCOUNTERS.grove.groups.length).toBe(ENCOUNTERS.grove.weights.length);
   });
 
   it("keeps groups and weights parallel", () => {

@@ -41,7 +41,12 @@ export type ZoneId =
   | "campProper"
   | "laundryNook"
   | "campGallery"
-  | "campLedge";
+  | "campLedge"
+  | "groveDescent"
+  | "groveApproach"
+  | "groveGrotto"
+  | "groveChamber"
+  | "sahraGrove";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";
@@ -120,6 +125,26 @@ export const ACT4_FLAGS = [
   "act4Complete",
 ] as const;
 
+/**
+ * Act 5 quest flags (The Sunlit Cave-In — Sahra's underground orange grove,
+ * a five-zone chain), all false at newGame(). The `saw*` flags are per-zone
+ * entry beats (mirrors Act 3/4's retrofits); `sawGroveChase` (the scared
+ * near-catch), `fluffballJoined` (Fluffball joins for real) and `gotOranges`
+ * (Sahra's reactive trade) are the story beats they gate.
+ */
+export const ACT5_FLAGS = [
+  "act5Started",
+  "sawGroveDescent",
+  "sawGroveApproach",
+  "sawGroveGrotto",
+  "sawGroveChase",
+  "sawGroveChamber",
+  "fluffballJoined",
+  "sawSahraGrove",
+  "gotOranges",
+  "act5Complete",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -137,6 +162,8 @@ export interface Act1State {
     silverfin: boolean;
     /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
     stinkySocks: boolean;
+    /** Act 5: oranges from the oldest row of Sahra's grove (Piggy's favorite). */
+    oranges: boolean;
   };
   flags: Record<string, boolean>;
 }
@@ -147,13 +174,14 @@ export function newGame(): Act1State {
   for (const f of ACT2_FLAGS) flags[f] = false;
   for (const f of ACT3_FLAGS) flags[f] = false;
   for (const f of ACT4_FLAGS) flags[f] = false;
+  for (const f of ACT5_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },
     hp: baseStatsForLevel(1).maxHp,
     pendingPerks: 0,
     // Rosa grants the cold pack in dialogue; silverfin caught in Act 3;
-    // stinky socks earned in Act 4.
+    // stinky socks earned in Act 4; grove oranges traded from Sahra in Act 5.
     items: {
       coldPack: false,
       shinies: 0,
@@ -161,6 +189,7 @@ export function newGame(): Act1State {
       equipped: null,
       silverfin: false,
       stinkySocks: false,
+      oranges: false,
     },
     flags,
   };

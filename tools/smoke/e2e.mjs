@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -1029,16 +1029,141 @@ check(
   JSON.stringify(reekEffect)
 );
 
-// The Act 4 ending: dialogue → act4Complete → end card → back to title.
+// The Act 4 ending now HANDS OFF into Act 5 (a real zone, not an end card) —
+// dialogue → act4Complete + act5Started → the grove's warm descent.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act4Complete === true, 8000);
 check("Act 4 completes (stinky socks earned)", s.state.flags.act4Complete === true, JSON.stringify(s.state.flags));
-await page.screenshot({ path: path.join(root, "../act4-end-card.png") }).catch(() => {});
+s = await waitFor(page, (x) => x.zoneKey === "groveDescent", 12_000);
+check(
+  "the camp hands off into Act 5 (a real zone, not an end card), progress kept",
+  s.zoneKey === "groveDescent" && s.state.flags.act5Started === true,
+  `zone=${s.zoneKey} act5Started=${s.state?.flags?.act5Started}`
+);
+check("checkpoint updated to the warm descent", s.state.zone === "groveDescent");
+
+// ---------- Act 5: The Sunlit Cave-In (Sahra's grove, a five-zone chain) ----------
+
+// Zone 1 (descent): the arrival beat grounds the warm-air/first-light reveal.
+await healUp(page);
+s = await driveTriggersUntil("groveDescent", (x) => x.state.flags.sawGroveDescent);
+check("the warm-descent arrival beat plays", s.state.flags.sawGroveDescent === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "groveDescent") s = await waitFor(page, (x) => x.zoneKey === "groveDescent", 8000);
+await page.screenshot({ path: path.join(root, "../act5-descent.png") }).catch(() => {});
+
+// Zone 1 → Zone 2: the south gate leads on into the grove approach.
+s = await exitTo("groveDescent", "groveApproach");
+check("the descent leads into the grove approach", s.zoneKey === "groveApproach", `zone=${s.zoneKey}`);
+check("checkpoint updated to the grove approach", s.state.zone === "groveApproach");
+
+// Zone 2 (approach): entry beat + the scared near-catch chase (Piggy bolts
+// into the needle-cactus, and for once it isn't funny).
+await healUp(page);
+s = await driveTriggersUntil("groveApproach", (x) => x.state.flags.sawGroveApproach && x.state.flags.sawGroveChase);
+check("the grove-approach entry beat plays", s.state.flags.sawGroveApproach === true, JSON.stringify(s.state.flags));
+check("the scared near-catch chase plays (Piggy bolts, not playing)", s.state.flags.sawGroveChase === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "groveApproach") s = await waitFor(page, (x) => x.zoneKey === "groveApproach", 8000);
+await page.screenshot({ path: path.join(root, "../act5-approach-chase.png") }).catch(() => {});
+
+// Zone 2 → Zone 3: the south gate drops into the river grotto.
+s = await exitTo("groveApproach", "groveGrotto");
+check("the approach leads into the river grotto", s.zoneKey === "groveGrotto", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("groveGrotto", (x) => x.state.flags.sawGroveGrotto);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("the river-grotto entry beat plays", s.state.flags.sawGroveGrotto === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "groveGrotto") s = await waitFor(page, (x) => x.zoneKey === "groveGrotto", 8000);
+
+// Zone 3 → Zone 4: the south gate opens into the sunlit chamber.
+s = await exitTo("groveGrotto", "groveChamber");
+check("the grotto leads into the sunlit cave-in", s.zoneKey === "groveChamber", `zone=${s.zoneKey}`);
+check("checkpoint updated to the sunlit cave-in", s.state.zone === "groveChamber");
+
+// Zone 4 (chamber): the reveal beat + Fluffball JOINS for real at the tree.
+await healUp(page);
+s = await driveTriggersUntil("groveChamber", (x) => x.state.flags.sawGroveChamber && x.state.flags.fluffballJoined);
+check("the sunlit-cave-in reveal beat plays", s.state.flags.sawGroveChamber === true, JSON.stringify(s.state.flags));
+check("Fluffball joins the party in the grove chamber", s.state.flags.fluffballJoined === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "groveChamber") s = await waitFor(page, (x) => x.zoneKey === "groveChamber", 8000);
+await page.screenshot({ path: path.join(root, "../act5-chamber-tree.png") }).catch(() => {});
+
+// Fluffball is a NON-COMBAT companion: joining must NOT change the battle
+// party. Force a grove encounter and confirm the party is hero + Slither only.
+await page.evaluate(() => window.__game.scene.getScene("groveChamber").startBattle(["sunwasp"]));
+s = await waitFor(page, (x) => x.battle, 6000);
+check("a sunwasp guards the grove (Act 5 encounter starts)", s.battle === true);
+const partyKeys = await page.evaluate(() =>
+  Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
+);
+check(
+  "Fluffball is non-combat: the battle party stays hero + Slither only",
+  partyKeys.includes("hero") && partyKeys.includes("slither") && !partyKeys.includes("fluffball"),
+  JSON.stringify(partyKeys)
+);
+await page.screenshot({ path: path.join(root, "../act5-sunwasp-fight.png") }).catch(() => {});
+s = await fightThrough(page, { timeoutMs: 120_000 });
+s = await waitFor(page, (x) => x.zoneKey === "groveChamber", 12_000);
+
+// Zone 4 → Zone 5: the east gate leads on to Sahra's corner.
+s = await exitTo("groveChamber", "sahraGrove");
+check("the chamber leads on to Sahra's grove", s.zoneKey === "sahraGrove", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("sahraGrove", (x) => x.state.flags.sawSahraGrove);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("Sahra's-grove entry beat plays", s.state.flags.sawSahraGrove === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "sahraGrove") s = await waitFor(page, (x) => x.zoneKey === "sahraGrove", 8000);
+
+// Sahra's REACTIVE dialogue spot-check: her lines change with Act 1 choices.
+// Read her live script under two different Act-1 flag sets and confirm the
+// text genuinely differs (the game's first real callback payoff).
+async function sahraTextWith(flags) {
+  await page.evaluate((f) => {
+    const st = window.__game.registry.get("act1");
+    window.__game.registry.set("act1", { ...st, flags: { ...st.flags, ...f } });
+  }, flags);
+  return page.evaluate(() => {
+    const w = window.__game.scene.getScene("sahraGrove");
+    const script = w.sahraScript();
+    return script.nodes.flatMap((n) => n.lines.map((l) => l.text)).join(" ");
+  });
+}
+const mercyParley = await sahraTextWith({ rabbitTradedColdPack: true, rabbitResolved: false, parleyed: true, queenResolved: false });
+check(
+  "Sahra reacts to mercy (traded cold pack) + parley (talked to the Queen)",
+  /mercy/i.test(mercyParley) && /(talked|words)/i.test(mercyParley),
+  mercyParley
+);
+const gritForce = await sahraTextWith({ rabbitTradedColdPack: false, rabbitResolved: true, parleyed: false, queenResolved: true });
+check(
+  "Sahra reacts differently to grit (kept the ice) + force (fought the Queen)",
+  /practical/i.test(gritForce) && /(fought|muscle)/i.test(gritForce) && gritForce !== mercyParley,
+  gritForce
+);
+
+// Complete the trade (leave the grit+force flags in place): talk to Sahra,
+// take the oranges, roll the ending.
+await teleport(page, 11, 6); // just north of SAHRA_NPC (11,7)
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.gotOranges === true, 8000);
+check(
+  "Sahra trades the oldest-row oranges (a new inventory item)",
+  s.state.flags.gotOranges === true && s.state.items.oranges === true,
+  JSON.stringify(s.state.items)
+);
+
+// The Act 5 ending: dialogue → act5Complete → the Act 6 end card → title.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act5Complete === true, 9000);
+check("Act 5 completes (grove oranges earned)", s.state.flags.act5Complete === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act5-end-card.png") }).catch(() => {});
 await page.waitForTimeout(600);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
-check("act 4 end card returns to the title", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
+check("the Act 5 end card returns to the title (Act 6 is a teammate's task)", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -1047,4 +1172,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 smoke checks passed");
+console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 + Act 5 smoke checks passed");

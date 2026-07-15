@@ -150,3 +150,23 @@ describe("act4 asset byte-stability", () => {
     }
   });
 });
+
+describe("act5 asset byte-stability", () => {
+  // sha256 of the newly-generated Act 5 assets (docs/CONTRACTS.md "v16: The
+  // Sunlit Cave-In"): the grove-guardian sunwasp enemy plus the sixth
+  // (underground orange grove) tileset. Pinned once here so future refactors
+  // can't silently move a shipped pixel. Purely additive — no prior sheet's
+  // bytes change (asserted above).
+  const FROZEN = {
+    sunwasp: "de23f39059f6070b1af957854fcfa8966d9b31e7881dd9d29a60791eb047c46b",
+    tiles6: "80aa215f2f5b2ea55fca962075f716141ffd98f5ea13c954af0b903a0447a9d4"
+  } as const;
+
+  it("sunwasp/tiles6 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

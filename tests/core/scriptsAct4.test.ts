@@ -114,10 +114,13 @@ describe("minersReek", () => {
 });
 
 describe("act4Ending", () => {
-  it("ends on the Act 5 title card", () => {
+  it("no longer prints an end card — it points on down into the grove", () => {
     const { lines, runner } = playThrough(act4EndingScript);
-    expect(lines[lines.length - 1].text).toBe("ACT 5: THE SUNLIT CAVE-IN");
-    expect(lines[lines.length - 2].text).toBe("END OF ACT 4");
+    const text = lines.map((l) => l.text).join(" ");
+    // The old single-zone title card is gone (campProper now hands off to Act 5).
+    expect(text).not.toContain("END OF ACT 4");
+    expect(text).not.toContain("ACT 5: THE SUNLIT CAVE-IN");
+    expect(text).toMatch(/down/i);
     expect(runner.active).toBe(false);
   });
 

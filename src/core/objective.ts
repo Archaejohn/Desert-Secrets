@@ -85,6 +85,8 @@ function act3ObjectiveFor(s: Act1State): string {
  */
 function act4ObjectiveFor(s: Act1State): string {
   const f = s.flags;
+  // Act 5 takes over once the party descends from the camp into the grove.
+  if (f.act5Started || f.act5Complete) return act5ObjectiveFor(s);
   if (f.act4Complete) return "Act 4 complete!";
   switch (s.zone) {
     case "minersCamp":
@@ -102,5 +104,31 @@ function act4ObjectiveFor(s: Act1State): string {
     default:
       // Still in an Act 3 zone after the hand-off: get up to the camp.
       return "Head up to the miners' camp";
+  }
+}
+
+/**
+ * The Act 5 chain (The Sunlit Cave-In — Sahra's underground orange grove, a
+ * five-zone chain), once act5Started is set. Each zone produces its own
+ * grounded objective line. ≤ 40 chars.
+ */
+function act5ObjectiveFor(s: Act1State): string {
+  const f = s.flags;
+  if (f.act5Complete) return "Act 5 complete!";
+  switch (s.zone) {
+    case "groveDescent":
+      return "Follow the warmth toward the light";
+    case "groveApproach":
+      return f.sawGroveChase ? "Press on into the grove" : "Find Piggy near the grove";
+    case "groveGrotto":
+      return "Follow the river to the grove";
+    case "groveChamber":
+      return f.fluffballJoined ? "Find Sahra, keeper of the grove" : "Reach the tree at the center";
+    case "sahraGrove":
+      if (!f.gotOranges) return "Trade Sahra your news for oranges";
+      return "You have the grove oranges!";
+    default:
+      // Still in an Act 4 zone after the hand-off: get down to the grove.
+      return "Descend toward the buried grove";
   }
 }

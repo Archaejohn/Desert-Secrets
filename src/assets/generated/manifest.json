@@ -1031,6 +1031,33 @@
           "repeat": -1
         }
       }
+    },
+    "sunwasp": {
+      "file": "sunwasp.png",
+      "frameWidth": 24,
+      "frameHeight": 24,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "sunwasp-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 3,
+          "repeat": -1
+        },
+        "sunwasp-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 12,
+          "repeat": -1
+        }
+      }
     }
   },
   "tiles": {
@@ -1162,6 +1189,29 @@
       "crateOpen": 13,
       "stringLights": 14,
       "laundryLine": 15
+    }
+  },
+  "tiles6": {
+    "file": "tiles6.png",
+    "tileSize": 16,
+    "columns": 8,
+    "names": {
+      "groveGrass": 0,
+      "groveGrass2": 1,
+      "groveMoss": 2,
+      "sunbeam": 3,
+      "caveWall": 4,
+      "collapsedRock": 5,
+      "vineRock": 6,
+      "fern": 7,
+      "groveWater": 8,
+      "groveWater2": 9,
+      "riverStone": 10,
+      "orangeTreeTrunk": 11,
+      "orangeTreeCanopy": 12,
+      "oldOrange": 13,
+      "needleCactus": 14,
+      "groveFlower": 15
     }
   }
 }

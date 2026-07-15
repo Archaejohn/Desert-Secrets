@@ -24,11 +24,13 @@ import { ANGLERFISH_FRAME } from "./sprites/anglerfish";
 import { REEFEEL_FRAME } from "./sprites/reefeel";
 import { LURKER_FRAME } from "./sprites/lurker";
 import { MIDDENMITE_FRAME } from "./sprites/middenmite";
+import { SUNWASP_FRAME } from "./sprites/sunwasp";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
 import { TILE4_NAMES } from "./tileset4";
 import { TILE5_NAMES } from "./tileset5";
+import { TILE6_NAMES } from "./tileset6";
 
 export interface AnimationDef {
   frames: number[];
@@ -81,12 +83,14 @@ export interface Manifest {
     reefeel: SheetDef;
     lurker: SheetDef;
     middenmite: SheetDef;
+    sunwasp: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
   tiles3: TileSetDef;
   tiles4: TileSetDef;
   tiles5: TileSetDef;
+  tiles6: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -196,12 +200,14 @@ export function buildManifest(): Manifest {
       anglerfish: creatureSheet("anglerfish", ANGLERFISH_FRAME, "move", 3, 8),
       reefeel: creatureSheet("reefeel", REEFEEL_FRAME, "move", 3, 10),
       lurker: creatureSheet("lurker", LURKER_FRAME, "move", 2, 8),
-      middenmite: creatureSheet("middenmite", MIDDENMITE_FRAME, "move", 3, 12)
+      middenmite: creatureSheet("middenmite", MIDDENMITE_FRAME, "move", 3, 12),
+      sunwasp: creatureSheet("sunwasp", SUNWASP_FRAME, "move", 3, 12)
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },
     tiles3: { file: "tiles3.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE3_NAMES) },
     tiles4: { file: "tiles4.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE4_NAMES) },
-    tiles5: { file: "tiles5.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE5_NAMES) }
+    tiles5: { file: "tiles5.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE5_NAMES) },
+    tiles6: { file: "tiles6.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE6_NAMES) }
   };
 }

@@ -28,6 +28,7 @@ import {
 import { CAMP_RETURN_SPAWN } from "../maps/minersCampMap";
 import { NOOK_SPAWN } from "../maps/laundryNookMap";
 import { GALLERY_SPAWN } from "../maps/campGalleryMap";
+import { DESCENT_SPAWN } from "../maps/groveDescentMap";
 import { campProperEntryScript } from "../../core/scripts/campProperEntry";
 import { crateChaseScript } from "../../core/scripts/crateChase";
 import { minersFavorScript } from "../../core/scripts/minersFavor";
@@ -35,10 +36,10 @@ import { minersRewardScript } from "../../core/scripts/minersReward";
 import { minersReekScript } from "../../core/scripts/minersReek";
 import { act4EndingScript } from "../../core/scripts/act4Ending";
 import { SlitherFollower } from "../SlitherFollower";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import { ENCOUNTERS, reekAdjusted, type EncounterTable } from "../../core/encounters";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE, hexToInt } from "../../shared/palette";
+import { PALETTE } from "../../shared/palette";
 
 /** Camp chatter once the socks are handed over (and not currently reeking). */
 const campChatter: DialogueScript = {
@@ -97,11 +98,12 @@ export class CampProperScene extends ZoneScene {
   protected populate(): void {
     this.slither = new SlitherFollower(this);
 
-    // Epilogue: a reload that lands on the finished act mustn't soft-lock —
-    // re-show the end card rather than dropping the player into a dead camp.
+    // Epilogue: once Act 4 is done the camp hands off into Act 5 (a real zone
+    // exit, not an end card — the Act 3 → 4 pattern). A reload that somehow
+    // lands back here after the hand-off re-arms it rather than soft-locking.
     if (getState(this).flags.act4Complete) {
       this.inputLocked = true;
-      this.showEndCard();
+      this.enterAct5();
       return;
     }
 
@@ -207,62 +209,29 @@ export class CampProperScene extends ZoneScene {
     });
   }
 
-  // --- Act 4 ending ---
+  // --- Act 4 ending → Act 5 hand-off ---
 
   private runEnding(): void {
     // Unlock so the ending box can be advanced (movement stays blocked while
-    // the dialogue is open); relock before the end card. Same pattern as the
+    // the dialogue is open); relock before the hand-off. Same pattern as the
     // Act 1/2/3 endings — a locked scene never forwards confirm to the box.
     this.inputLocked = false;
     this.openScript(act4EndingScript, () => {
       this.inputLocked = true;
-      const s = getState(this);
-      setState(this, { ...s, flags: { ...s.flags, act4Complete: true } });
-      this.showEndCard();
+      this.enterAct5();
     });
   }
 
-  private showEndCard(): void {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    this.add.rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 0.94).setScrollFactor(0).setDepth(7000);
-    this.add
-      .text(w / 2, h / 2 - 28, "END OF ACT 4", {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: PALETTE.atbGold
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2, "ACT 5: THE SUNLIT CAVE-IN — coming soon", {
-        fontFamily: "monospace",
-        fontSize: "11px",
-        color: PALETTE.jade
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2 + 26, "SPACE — back to title", {
-        fontFamily: "monospace",
-        fontSize: "9px",
-        color: PALETTE.bone
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-
-    let done = false;
-    const backToTitle = (): void => {
-      if (done) return;
-      done = true;
-      resetGame(this);
-      this.scene.start("boot");
-    };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+  /**
+   * Descend into Act 5 (The Sunlit Cave-In), keeping progress — the real
+   * hand-off that replaces the old "coming soon" title card, mirroring the
+   * Act 2 → 3 and Act 3 → 4 hand-offs. Sets `act4Complete` (record) and
+   * `act5Started`, then drops the party into the grove's entry zone.
+   */
+  private enterAct5(): void {
+    const s = getState(this);
+    setState(this, { ...s, flags: { ...s.flags, act4Complete: true, act5Started: true } });
+    this.goToZone("groveDescent", DESCENT_SPAWN);
   }
 
   protected onUpdate(): void {

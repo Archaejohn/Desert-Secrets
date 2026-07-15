@@ -1668,3 +1668,154 @@ CAVE-IN — coming soon" end card (→ title), with a reload-safe epilogue guard
 (`act4Complete` re-shows the card). Act 5's own multi-zone build is a separate
 task; this stays a title-card placeholder until it's ready to hand off, the
 same way Act 3 did before v14.
+
+*(Superseded by v16 below — the placeholder is now a real hand-off.)*
+
+---
+
+# v16: Act 5 — The Sunlit Cave-In, built as a five-zone chain
+
+Act 5 ("The Sunlit Cave-In") is built at the Act 3/4 density from the start —
+five connected zones, each a distinct grounded place with real entry dialogue,
+dead-end/gate structure BFS-verified, and a narrated hand-off in and out — NOT
+the single-zone shape a shipped-then-retrofitted draft would have. The grove is
+**underground, inside Cinnabar Mine** (per CLAUDE.md): a gallery whose ceiling
+caved in long ago, letting a shaft of desert sun down onto the greenest place
+in the game, watered by the underground river (the oasis spring's source). One
+orange tree grows at the dead centre of the chamber. Sahra keeps it.
+
+Reuses the good writing from an unmerged single-zone draft (Sahra's reactive
+dialogue, Fluffball's join, the scared chase) redistributed across the new
+zones; only the single-zone structure was the problem.
+
+## The five zones and how they connect
+
+1. **`groveDescent`** (The Warm Descent, 20×14) — the Act 4 → Act 5 entry zone
+   (the hand-off spawns the party here at `DESCENT_SPAWN`). The camp's cold
+   plank floor greens into moss and a warm `sunbeam` glow at the south gate —
+   the first hint of the chamber below. One gate, south, on into the approach;
+   otherwise enclosed. Entry beat `groveDescentEntry` (`sawGroveDescent`). No
+   random encounters. Mirrors Act 4's `minersCamp` single-forward-gate shape.
+2. **`groveApproach`** (The Grove Approach, 30×18) — first real green, a
+   windfall of oranges, and a dense **needle-cactus thicket** (solid). The
+   **scared near-catch chase** plays here (`APPROACH_CHASE_TRIGGER` →
+   `groveChase` → `sawGroveChase`): Piggy bolts into the thicket, too dense to
+   follow, and for the first time it isn't funny. A real traversal zone
+   (`encounterZone: "grove"`, sunwasps). Two gates: north back to the descent,
+   south on to the grotto. Entry beat `groveApproachEntry` (`sawGroveApproach`).
+3. **`groveGrotto`** (The River Grotto, 22×16) — a quiet connecting cavern
+   where the underground river wells up and runs on toward the light (the same
+   water table that feeds the oasis spring — the geography that ties the
+   underground together). Solid `groveWater`/`groveWater2` river with a
+   `riverStone` stepping-stone crossing keeping both banks reachable. Two gates
+   (north↔approach, south↔chamber); no encounters. Entry beat `groveGrottoEntry`
+   (`sawGroveGrotto`). A breather beat between the tense chase and the reveal.
+4. **`groveChamber`** (The Sunlit Cave-In, 30×20) — THE chamber: the cave-in,
+   the river, and **one orange tree at the dead centre** (`CHAMBER_TREE`, a
+   solid trunk under an OVERHEAD `orangeTreeCanopy` the party walks beneath,
+   framed by the `sunbeam` shaft). **Fluffball JOINS here** (`CHAMBER_JOIN_
+   TRIGGER` at the foot of the tree → `fluffballJoin` → `fluffballJoined`),
+   following the chase he witnessed; his follower sprite is spawned LIVE. A
+   traversal zone (`encounterZone: "grove"`). Two gates: north back to the
+   grotto, east on to Sahra's corner. Entry beat `groveChamberEntry`
+   (`sawGroveChamber`).
+5. **`sahraGrove`** (Sahra's Grove, 22×16) — the keeper's tended corner just
+   east of the tree (drying racks, the oldest orange row). Sahra's **reactive
+   trade** (see below) sets `gotOranges` + `items.oranges` and rolls the Act 5
+   ending on its Act 6 title card. One gate, west, back to the chamber;
+   otherwise enclosed (the way on to Act 6 is the end card — a teammate's task).
+   No encounters. Entry beat `sahraGroveEntry` (`sawSahraGrove`).
+
+Chain: `groveDescent` →(S)→ `groveApproach` →(S)→ `groveGrotto` →(S)→
+`groveChamber` →(E)→ `sahraGrove`, each with a back-gate the way it came.
+
+## The Act 4 → Act 5 hand-off (replaces the placeholder card)
+
+`CampProperScene`'s sock hand-over no longer shows an end card. `runEnding()`
+plays the (de-carded) `act4Ending` script, then `enterAct5()` sets
+`act4Complete` **and** `act5Started` and `goToZone("groveDescent",
+DESCENT_SPAWN)` — the same real-zone hand-off as Act 2→3 and Act 3→4. The
+epilogue reload guard (`act4Complete`) re-arms the hand-off instead of a card.
+`act4Ending`'s terminal title-card lines were removed (like `act3Ending` in
+v14); it now points the party "down" into the warm air.
+
+## Sahra's reactive dialogue (the first real callback payoff)
+
+`scripts/sahraGrove.ts` exports a **pure** `sahraGroveScript(flags)` that
+branches on Act 1–2 choices: the cold pack (`rabbitTradedColdPack` = mercy vs.
+`rabbitResolved` = grit) and the Dust Queen (`parleyed` = words vs.
+`queenResolved` = force), each dimension yielding two full, distinct lines (not
+a one-word swap), plus a neutral fallback when a thread wasn't resolved. Unit-
+tested to differ across ≥2 flag combinations (`scriptsAct5.test.ts`), and the
+smoke test spot-checks two live combinations in `sahraGrove`. `SahraGroveScene`
+picks the script from run state (`groveChatter` once traded; `meetFirst`
+defensively before the join; else the reactive trade) and, on the reactive-
+trade close, sets `gotOranges` + `items.oranges` and rolls the ending.
+
+## Fluffball follower rig (reusable by Acts 6–7)
+
+`src/game/FluffballFollower.ts` — the twin of `SlitherFollower`, factored the
+same way so it can be copied into every future zone. Fluffball is a **non-
+combat companion**: he appears ONLY as a world follower (this rig) and in
+dialogue/camp scenes — `partyFor()` and `BattleScene` are deliberately
+untouched (verified in the smoke test: the grove battle party stays hero +
+Slither). He trails 26 frames back (vs Slither's 14) so the two line up
+single-file. Unlike Slither (present from Act 2), he may join MID-ACT, so
+`spawn()` is idempotent and called both live from the join callback and from
+`populate()` on a reload landing after the join. Every Act 5 zone instantiates
+both rigs, spawns each per `flags.slitherJoined` / `flags.fluffballJoined`, and
+pumps both from `onUpdate()`. **Acts 6–7: copy both rigs into your new zones,
+exactly as Slither's has been copied since Act 2.**
+
+## New generated art (additive; prior sheets byte-identical)
+
+- `sunwasp.png` (24×24, 6×1) — grove guardian, `sunwasp-idle` [0,1] /
+  `sunwasp-move` [2..5]; hot amber/ink body, skyBlue/slate wings. Bestiary
+  `sunwasp` (scale 2.5, 22/11/3/16, xp 16).
+- `tiles6.png` (16×16, **8 cols × 2 rows**), manifest `tiles6`. Row-major
+  names: `groveGrass groveGrass2 groveMoss sunbeam caveWall collapsedRock
+  vineRock fern groveWater groveWater2 riverStone orangeTreeTrunk
+  orangeTreeCanopy oldOrange needleCactus groveFlower`. Solid additions to
+  `SOLID_TILE_NAMES`: `caveWall, collapsedRock, vineRock, fern, groveWater,
+  groveWater2, orangeTreeTrunk, needleCactus`. `orangeTreeCanopy` is the one
+  OVERHEAD tile; `groveWater`↔`groveWater2` animate. Both sheets re-pinned in
+  `tests/pipeline/determinism.test.ts` ("act5 asset byte-stability"). `ZoneScene`
+  gains the `tiles6` firstgid/`tileGid`/`tileFrame`/`buildMap` wiring; `BootScene`
+  loads `tiles6`/`sunwasp`.
+
+## Plumbing (same checklist as every zone addition)
+
+- `gameState.ts`: `ZoneId += groveDescent, groveApproach, groveGrotto,
+  groveChamber, sahraGrove`; `ACT5_FLAGS` (`act5Started`, the five `saw*` entry
+  beats, `sawGroveChase`, `fluffballJoined`, `gotOranges`, `act5Complete`), all
+  false at `newGame()`; `items.oranges: boolean` (false at `newGame()`).
+- `objective.ts`: the Act 5 chain (`act5ObjectiveFor`, a `switch (s.zone)`),
+  hooked in after Act 4's (`act5Started || act5Complete` delegates); ≤ 40 chars.
+- `bestiary.ts` `sunwasp`; `encounters.ts` `grove` table (sunwasp swarms,
+  weights `[3,3,2,1]`), `ENCOUNTERS` key union gains `"grove"`.
+- `scripts/`: reused `sahraGrove`, `fluffballJoin`, `groveChase`, `act5Ending`
+  (adapted from the draft); five new entry scripts. `radio.ts` `radioLines`
+  gains all five zones (exhaustive `Record<ZoneId, …>`). `BootScene` `ZONE_NAMES`
+  + `main.ts` register the five new scenes.
+- `tests/game/maps2.test.ts`: full BFS suite per new zone (enclosure with gates,
+  landmark reachability, the river crossing, the tree centred + its canopy
+  non-solid, the needle thicket solid). `scriptsAct5.test.ts` +
+  `objectiveAct5.test.ts` new; `scriptsAct1.test.ts` radio list, `bestiary`,
+  `encounters`, `gameState`, `act1Retcon`/`bucket` manifest lists, and
+  `scriptsAct4` (act4Ending de-carded) extended.
+- `tools/smoke/e2e.mjs`: the Act 4 hand-off now lands in `groveDescent`, then
+  the full five-zone Act 5 chain (descent → approach chase → grotto → chamber
+  reveal + Fluffball join + a forced sunwasp battle confirming the non-combat
+  party → Sahra's reactive-dialogue spot-check + oranges trade → ending → Act 6
+  card → title). `touch-e2e.mjs` gains an Act 5 InteractPoint/tap check.
+- Screenshot review confirmed each zone renders with its own `tiles6` art, the
+  orange tree centred in its sunbeam shaft, and the dialogue box (depth 5500)
+  drawing cleanly over the overhead canopy (depth 5000) — no overhead-over-
+  dialogue regression.
+
+## Act 6 entry (a placeholder, same pattern as Acts 3/4 before their retrofits)
+
+`SahraGroveScene`'s trade rolls `act5Ending` and the "ACT 6: THE REEF — coming
+soon" end card (→ title), with a reload-safe epilogue guard (`act5Complete`
+re-shows the card). Act 6's multi-zone build is a teammate's next task; this
+stays a title-card placeholder until it's ready to hand off.

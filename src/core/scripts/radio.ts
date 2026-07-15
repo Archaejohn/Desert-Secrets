@@ -50,4 +50,9 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   laundryNook: checkIn(["...bugs in the laundry? Ugh. Static..."]),
   campGallery: checkIn(["...climbing again? You're fading. Static..."]),
   campLedge: checkIn(["...that gray one, up high? Static... gone..."]),
+  groveDescent: checkIn(["...warmer down there? That's... odd. Static..."]),
+  groveApproach: checkIn(["...is that SUNLIGHT? Underground? Static..."]),
+  groveGrotto: checkIn(["...running water? Down THERE? ...shhhk..."]),
+  groveChamber: checkIn(["...a garden? In the MINE? ...static..."]),
+  sahraGrove: checkIn(["...someone LIVES down there? ...static..."]),
 };

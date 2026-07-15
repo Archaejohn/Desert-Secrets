@@ -35,6 +35,7 @@ export interface Manifest {
   tiles3: TilesetDef;
   tiles4: TilesetDef;
   tiles5: TilesetDef;
+  tiles6: TilesetDef;
 }
 
 export const MANIFEST = manifestJson as unknown as Manifest;

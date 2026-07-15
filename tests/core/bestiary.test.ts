@@ -27,6 +27,8 @@ describe("BESTIARY", () => {
       ["lurker", 3, 150, 15, 7, 10, 90],
       // Act 4
       ["middenmite", 2, 9, 6, 1, 13, 6],
+      // Act 5
+      ["sunwasp", 2.5, 22, 11, 3, 16, 16],
     ];
     expect(Object.keys(BESTIARY).sort()).toEqual(
       rows.map(([id]) => id).sort(),

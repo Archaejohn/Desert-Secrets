@@ -23,6 +23,11 @@ import { CampProperScene } from "./scenes/CampProperScene";
 import { LaundryNookScene } from "./scenes/LaundryNookScene";
 import { CampGalleryScene } from "./scenes/CampGalleryScene";
 import { CampLedgeScene } from "./scenes/CampLedgeScene";
+import { GroveDescentScene } from "./scenes/GroveDescentScene";
+import { GroveApproachScene } from "./scenes/GroveApproachScene";
+import { GroveGrottoScene } from "./scenes/GroveGrottoScene";
+import { GroveChamberScene } from "./scenes/GroveChamberScene";
+import { SahraGroveScene } from "./scenes/SahraGroveScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -66,6 +71,11 @@ const game = new Phaser.Game({
     LaundryNookScene,
     CampGalleryScene,
     CampLedgeScene,
+    GroveDescentScene,
+    GroveApproachScene,
+    GroveGrottoScene,
+    GroveChamberScene,
+    SahraGroveScene,
     BattleScene
   ]
 });

@@ -56,6 +56,9 @@ export const BESTIARY: Record<string, EnemyDef> = {
   // Act 4 — the Miners' Camp. Small, numerous, low-HP swarm pest: single-
   // target commands clear a nest of them fast (AOE-rewarding by design).
   middenmite: def("middenmite", "Midden Mite", "middenmite", 2, 9, 6, 1, 13, 6),
+  // Act 5 — Sahra's grove. A sunstung wasp that swarms to guard the fruit;
+  // the tonal-breather register — a fast nuisance, not a monster.
+  sunwasp: def("sunwasp", "Sunwasp", "sunwasp", 2.5, 22, 11, 3, 16, 16),
 };
 
 function lookup(id: string): EnemyDef {

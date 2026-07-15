@@ -67,7 +67,16 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "washtub",
   "stove",
   "campPost",
-  "crateOpen"
+  "crateOpen",
+  // tiles6.png (Act 5 — the Sunlit Cave-In / Sahra's grove)
+  "caveWall",
+  "collapsedRock",
+  "vineRock",
+  "fern",
+  "groveWater",
+  "groveWater2",
+  "orangeTreeTrunk",
+  "needleCactus"
 ];
 
 export function isSolidName(name: string | null): boolean {

@@ -207,12 +207,69 @@ import {
   LEDGE_WIDTH
 } from "../../src/game/maps/campLedgeMap";
 
+import {
+  buildGroveDescentMap,
+  DESCENT_EXIT_SOUTH,
+  DESCENT_HEIGHT,
+  DESCENT_RETURN_SPAWN,
+  DESCENT_SOUTH_GATES,
+  DESCENT_SPAWN,
+  DESCENT_WIDTH
+} from "../../src/game/maps/groveDescentMap";
+import {
+  APPROACH_BORDER_GATES,
+  APPROACH_CHASE_TRIGGER,
+  APPROACH_EXIT_NORTH,
+  APPROACH_EXIT_SOUTH,
+  APPROACH_HEIGHT,
+  APPROACH_NEEDLE,
+  APPROACH_OLD_ROW,
+  APPROACH_RETURN_SPAWN,
+  APPROACH_SPAWN,
+  APPROACH_WIDTH,
+  buildGroveApproachMap
+} from "../../src/game/maps/groveApproachMap";
+import {
+  buildGroveGrottoMap,
+  GROTTO_BORDER_GATES,
+  GROTTO_EXIT_NORTH,
+  GROTTO_EXIT_SOUTH,
+  GROTTO_HEIGHT,
+  GROTTO_POOL,
+  GROTTO_RETURN_SPAWN,
+  GROTTO_SPAWN,
+  GROTTO_WIDTH
+} from "../../src/game/maps/groveGrottoMap";
+import {
+  buildGroveChamberMap,
+  CHAMBER_BORDER_GATES,
+  CHAMBER_EXIT_EAST,
+  CHAMBER_EXIT_NORTH,
+  CHAMBER_HEIGHT,
+  CHAMBER_JOIN_TRIGGER,
+  CHAMBER_RETURN_SPAWN,
+  CHAMBER_SPAWN,
+  CHAMBER_TREE,
+  CHAMBER_WIDTH
+} from "../../src/game/maps/groveChamberMap";
+import {
+  buildSahraGroveMap,
+  SAHRA_EXIT_WEST,
+  SAHRA_HEIGHT,
+  SAHRA_NPC,
+  SAHRA_OLD_ROW,
+  SAHRA_SPAWN,
+  SAHRA_WEST_GATES,
+  SAHRA_WIDTH
+} from "../../src/game/maps/sahraGroveMap";
+
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
   ...Object.keys(manifest.tiles2.names),
   ...Object.keys(manifest.tiles3.names),
   ...Object.keys(manifest.tiles4.names),
-  ...Object.keys(manifest.tiles5.names)
+  ...Object.keys(manifest.tiles5.names),
+  ...Object.keys(manifest.tiles6.names)
 ]);
 
 interface Pt {
@@ -1163,5 +1220,232 @@ describe("overlook ledge map (Fluffball's vantage)", () => {
   it("lets the player reach Fluffball's perch and the exit from the spawn", () => {
     expect(reachable(map, LEDGE_SPAWN, LEDGE_FLUFFBALL)).toBe(true);
     expect(reachable(map, LEDGE_SPAWN, rectTile(LEDGE_EXIT_SOUTH))).toBe(true);
+  });
+});
+
+// ============================ Act 5 — The Sunlit Cave-In (Sahra's grove) =====
+
+// -------------------------------- grove descent (Act 5, zone 1: the entry)
+
+describe("grove descent map (the Act 5 entry from the camp)", () => {
+  const map = buildGroveDescentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, DESCENT_WIDTH, DESCENT_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets (incl. tiles6)", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildGroveDescentMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the south gate on into the approach", () => {
+    assertEnclosed(map, DESCENT_SOUTH_GATES);
+  });
+
+  it("keeps both spawns and the south gate walkable", () => {
+    for (const p of [DESCENT_SPAWN, DESCENT_RETURN_SPAWN, rectTile(DESCENT_EXIT_SOUTH)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the party cross from the entry spawn to the south gate", () => {
+    expect(reachable(map, DESCENT_SPAWN, rectTile(DESCENT_EXIT_SOUTH))).toBe(true);
+    expect(reachable(map, DESCENT_RETURN_SPAWN, rectTile(DESCENT_EXIT_SOUTH))).toBe(true);
+  });
+
+  it("greens and warms as it descends: moss and the sunbeam glow appear", () => {
+    const g = map.ground.flat();
+    expect(g).toContain("groveMoss");
+    expect(g).toContain("sunbeam");
+  });
+});
+
+// ------------------------------ grove approach (Act 5, zone 2: the chase)
+
+describe("grove approach map (the needle-cactus + scared chase)", () => {
+  const map = buildGroveApproachMap();
+  const northExit = rectTile(APPROACH_EXIT_NORTH);
+  const southExit = rectTile(APPROACH_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, APPROACH_WIDTH, APPROACH_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildGroveApproachMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, APPROACH_BORDER_GATES);
+  });
+
+  it("keeps the spawns, the chase beat, the windfall and both gates walkable", () => {
+    for (const p of [
+      APPROACH_SPAWN,
+      APPROACH_RETURN_SPAWN,
+      rectTile(APPROACH_CHASE_TRIGGER),
+      APPROACH_OLD_ROW,
+      northExit,
+      southExit
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("reaches the chase beat and both gates from the spawn", () => {
+    expect(reachable(map, APPROACH_SPAWN, rectTile(APPROACH_CHASE_TRIGGER))).toBe(true);
+    expect(reachable(map, APPROACH_SPAWN, APPROACH_OLD_ROW)).toBe(true);
+    expect(reachable(map, APPROACH_SPAWN, northExit)).toBe(true);
+    expect(reachable(map, APPROACH_SPAWN, southExit)).toBe(true);
+  });
+
+  it("plants a dense needle-cactus thicket, too solid to follow Piggy into", () => {
+    expect(map.decor.flat()).toContain("needleCactus");
+    expect(isSolidAt(map, APPROACH_NEEDLE.x, APPROACH_NEEDLE.y)).toBe(true);
+    expect(map.ground.flat()).toContain("oldOrange");
+  });
+});
+
+// -------------------------------- grove grotto (Act 5, zone 3: the river)
+
+describe("grove grotto map (the underground river breather)", () => {
+  const map = buildGroveGrottoMap();
+  const northExit = rectTile(GROTTO_EXIT_NORTH);
+  const southExit = rectTile(GROTTO_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, GROTTO_WIDTH, GROTTO_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildGroveGrottoMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, GROTTO_BORDER_GATES);
+  });
+
+  it("keeps the spawns, the pool and both gates walkable", () => {
+    for (const p of [GROTTO_SPAWN, GROTTO_RETURN_SPAWN, GROTTO_POOL, northExit, southExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("keeps both banks connected across the river via the stepping stones", () => {
+    // The river is solid water, but the stepping-stone crossing keeps the
+    // south gate reachable from the north spawn (and vice versa).
+    expect(reachable(map, GROTTO_SPAWN, southExit)).toBe(true);
+    expect(reachable(map, GROTTO_RETURN_SPAWN, northExit)).toBe(true);
+    expect(map.decor.flat()).toContain("groveWater");
+    expect(map.ground.flat()).toContain("riverStone");
+  });
+});
+
+// ---------------------- grove chamber (Act 5, zone 4: the tree at the centre)
+
+describe("grove chamber map (the sunlit cave-in, one tree dead centre)", () => {
+  const map = buildGroveChamberMap();
+  const northExit = rectTile(CHAMBER_EXIT_NORTH);
+  const eastExit = rectTile(CHAMBER_EXIT_EAST);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, CHAMBER_WIDTH, CHAMBER_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildGroveChamberMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, CHAMBER_BORDER_GATES);
+  });
+
+  it("stands one orange tree at (near) the dead centre of the chamber", () => {
+    // The trunk is solid and sits at the geometric centre of the room; the
+    // leafy canopy is an OVERHEAD (non-solid) tile the party walks beneath.
+    expect(map.decor[CHAMBER_TREE.y][CHAMBER_TREE.x]).toBe("orangeTreeTrunk");
+    expect(isSolidAt(map, CHAMBER_TREE.x, CHAMBER_TREE.y)).toBe(true);
+    expect(Math.abs(CHAMBER_TREE.x - CHAMBER_WIDTH / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(CHAMBER_TREE.y - CHAMBER_HEIGHT / 2)).toBeLessThanOrEqual(1);
+    const overhead = (map.overhead ?? []).flat();
+    expect(overhead).toContain("orangeTreeCanopy");
+    // Exactly one tree: the trunk is two tiles tall and nothing else uses it.
+    const trunks = map.decor.flat().filter((c) => c === "orangeTreeTrunk").length;
+    expect(trunks).toBe(2);
+  });
+
+  it("frames the tree in the sunbeam shaft, walkable right up to the trunk", () => {
+    expect(map.ground.flat()).toContain("sunbeam");
+    // The tree is approachable from all four sides (its base cell excepted).
+    expect(reachable(map, CHAMBER_SPAWN, { x: CHAMBER_TREE.x, y: CHAMBER_TREE.y - 1 })).toBe(true);
+    expect(reachable(map, CHAMBER_SPAWN, rectTile(CHAMBER_JOIN_TRIGGER))).toBe(true);
+  });
+
+  it("keeps the spawns and both gates walkable and reachable", () => {
+    for (const p of [CHAMBER_SPAWN, CHAMBER_RETURN_SPAWN, northExit, eastExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+    expect(reachable(map, CHAMBER_SPAWN, northExit)).toBe(true);
+    expect(reachable(map, CHAMBER_SPAWN, eastExit)).toBe(true);
+  });
+
+  it("keeps the overhead canopy non-solid (the party walks under the tree)", () => {
+    for (let y = 0; y < CHAMBER_HEIGHT; y++) {
+      for (let x = 0; x < CHAMBER_WIDTH; x++) {
+        const o = map.overhead?.[y]?.[x];
+        if (o) expect(isSolidAt(map, x, y)).toBe(false);
+      }
+    }
+  });
+});
+
+// -------------------------------- Sahra's grove (Act 5, zone 5: the trade)
+
+describe("sahra's grove map (the keeper's corner + oldest row)", () => {
+  const map = buildSahraGroveMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, SAHRA_WIDTH, SAHRA_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildSahraGroveMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the west gate back to the chamber", () => {
+    assertEnclosed(map, SAHRA_WEST_GATES);
+  });
+
+  it("keeps the spawn, Sahra, the oldest row and the exit walkable", () => {
+    for (const p of [SAHRA_SPAWN, SAHRA_NPC, SAHRA_OLD_ROW, rectTile(SAHRA_EXIT_WEST)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach Sahra and the oldest row from the spawn", () => {
+    expect(reachable(map, SAHRA_SPAWN, SAHRA_NPC)).toBe(true);
+    expect(reachable(map, SAHRA_SPAWN, SAHRA_OLD_ROW)).toBe(true);
+    expect(reachable(map, SAHRA_SPAWN, rectTile(SAHRA_EXIT_WEST))).toBe(true);
+    expect(map.ground.flat()).toContain("oldOrange");
   });
 });

@@ -418,6 +418,57 @@ check(
   JSON.stringify(nestTap)
 );
 
+// ---------- Act 5: Sahra's reactive trade via touch ----------
+// Jump to Sahra's grove (Fluffball already joined) and confirm that tapping to
+// talk opens Sahra's dialogue on a touch device — and that her lines react to
+// the Act 1 choices (mercy + parley here), the game's first callback payoff.
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
+    act4Started: true, act4Complete: true, gotSocks: true,
+    act5Started: true, sawGroveDescent: true, sawGroveApproach: true, sawGroveChase: true,
+    sawGroveGrotto: true, sawGroveChamber: true, fluffballJoined: true, sawSahraGrove: true,
+    rabbitTradedColdPack: true, parleyed: true
+  };
+  g.registry.set("act1", { ...st, zone: "sahraGrove", hp: 999, flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("sahraGrove", {});
+});
+await page.waitForTimeout(1300);
+
+// Reactive spot-check: read Sahra's live script under the mercy+parley flags.
+const sahraReactive = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("sahraGrove");
+  return w.sahraScript().nodes.flatMap((n) => n.lines.map((l) => l.text)).join(" ");
+});
+check(
+  "Sahra's dialogue reacts to Act 1 choices (mercy + parley branch)",
+  /mercy/i.test(sahraReactive) && /(talked|words)/i.test(sahraReactive),
+  sahraReactive
+);
+
+// Stand next to Sahra and tap the right side to talk to her via touch.
+await page.evaluate(() => {
+  const w = window.__game.scene.getScene("sahraGrove");
+  const n = w["npcs"][0]; // Sahra, keeper of the grove
+  w.player.body.reset(n.sprite.x, n.sprite.y + 14);
+});
+await page.waitForTimeout(250);
+{
+  const rect = await canvasRect();
+  await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+}
+await page.waitForTimeout(400);
+const sahraTap = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("sahraGrove");
+  return { open: w.dialogue.isOpen };
+});
+check("tapping to talk opens Sahra's reactive trade via touch", sahraTap.open === true, JSON.stringify(sahraTap));
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

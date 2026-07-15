@@ -10,7 +10,7 @@ export interface EncounterTable {
 }
 
 export const ENCOUNTERS: Record<
-  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea" | "minersCamp",
+  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea" | "minersCamp" | "grove",
   EncounterTable
 > = {
   overworld: {
@@ -79,6 +79,18 @@ export const ENCOUNTERS: Record<
       ["frostscarab", "middenmite"],
     ],
     weights: [3, 3, 2, 2],
+  },
+  // Act 5 — Sahra's grove. Sunwasps swarm to guard the fruit; larger swarms
+  // are rarer. The tonal-breather register: a fast, low-stakes nuisance.
+  grove: {
+    zone: "grove",
+    groups: [
+      ["sunwasp"],
+      ["sunwasp", "sunwasp"],
+      ["sunwasp", "sunwasp"],
+      ["sunwasp", "sunwasp", "sunwasp"],
+    ],
+    weights: [3, 3, 2, 1],
   },
 };
 
