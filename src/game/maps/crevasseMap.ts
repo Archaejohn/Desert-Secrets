@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const CREVASSE_WIDTH = 20;
 export const CREVASSE_HEIGHT = 16;
@@ -90,6 +91,20 @@ export function buildCrevasseMap(): ZoneMap {
 
   // Chasm pits in the lower hall.
   for (const c of CREVASSE_CHASMS) decor[c.y][c.x] = "chasm";
+  // Hand nudge: keep the ground beside every pit plain ice so the dressing
+  // pass can lip the whole rim (mossGlow has no chasm-lip variants).
+  for (const c of CREVASSE_CHASMS) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ] as const) {
+      const nx = c.x + dx;
+      const ny = c.y + dy;
+      if (ground[ny]?.[nx] === "mossGlow") ground[ny][nx] = "iceFloor";
+    }
+  }
 
   // The miner camp corner: a drift to sleep on, an amber lantern.
   decor[1][5] = "snowdrift";
@@ -111,5 +126,5 @@ export function buildCrevasseMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

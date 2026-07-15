@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const REEF_W_WIDTH = 26;
 export const REEF_W_HEIGHT = 18;
@@ -79,7 +80,12 @@ export function buildReefWarrenMap(): ZoneMap {
     overhead.push([]);
     for (let x = 0; x < REEF_W_WIDTH; x++) {
       const h = cellHash(x, y);
-      ground[y].push(h % 6 === 0 ? "glowMoss" : h % 3 === 0 ? "reefFloor" : "reefSilt");
+      // Blockwise patches (4x4) rather than per-cell scatter, so the silt
+      // owns real, authored borders against the floor pockets (§2/G9).
+      const b = cellHash(x >> 2, y >> 2);
+      ground[y].push(
+        b % 6 === 0 ? "glowMoss" : b % 3 === 0 ? (h % 3 === 0 ? "reefFloor2" : "reefFloor") : "reefSilt"
+      );
       decor[y].push(null);
       overhead[y].push(null);
     }
@@ -111,5 +117,5 @@ export function buildReefWarrenMap(): ZoneMap {
   for (const [x, y] of CORAL) decor[y][x] = "coralHead";
   for (const [x, y] of WILD_KELP) decor[y][x] = "wildKelp";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

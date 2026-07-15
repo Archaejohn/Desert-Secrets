@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const REEF_D_WIDTH = 20;
 export const REEF_D_HEIGHT = 14;
@@ -52,7 +53,9 @@ export function buildReefDescentMap(): ZoneMap {
       let g: string;
       if (y >= 10) g = "glowMoss"; // the garden's glow from below
       else if (y >= 6) g = h % 3 === 0 ? "reefFloor2" : "reefFloor";
-      else g = h % 4 === 0 ? "reefSilt" : "reefFloor";
+      // Silt drifts in clustered patches (4x4 blocks) so the dressing pass
+      // can author real silt↔floor transitions (§2/G9).
+      else g = cellHash(x >> 2, y >> 2) % 3 === 0 ? "reefSilt" : "reefFloor";
       ground[y].push(g);
       decor[y].push(null);
       overhead[y].push(null);
@@ -73,5 +76,5 @@ export function buildReefDescentMap(): ZoneMap {
   // Solid coral (walk-arounds — placed clear of the central corridor).
   for (const [x, y] of CORAL) decor[y][x] = "coralHead";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

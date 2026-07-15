@@ -19,6 +19,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const KELP_WIDTH = 40;
 export const KELP_HEIGHT = 26;
@@ -200,5 +201,5 @@ export function buildKelpForestMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const LEDGE_WIDTH = 18;
 export const LEDGE_HEIGHT = 14;
@@ -80,5 +81,5 @@ export function buildCampLedgeMap(): ZoneMap {
   // Overhead: string lights of the camp glimpsed below the ledge (never solid).
   for (const x of [10, 13]) overhead[10][x] = "stringLights";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

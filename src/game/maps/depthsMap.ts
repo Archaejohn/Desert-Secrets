@@ -6,6 +6,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const DEPTHS_WIDTH = 26;
 export const DEPTHS_HEIGHT = 16;
@@ -83,5 +84,5 @@ export function buildDepthsMap(): ZoneMap {
   decor[10][4] = "eggCluster";
   decor[3][21] = "eggCluster";
 
-  return { ground, decor };
+  return dressMap({ ground, decor });
 }

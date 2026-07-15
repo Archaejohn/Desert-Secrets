@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const REEF_H_WIDTH = 22;
 export const REEF_H_HEIGHT = 16;
@@ -121,5 +122,5 @@ export function buildReefHollowMap(): ZoneMap {
   for (const [x, y] of CORAL) decor[y][x] = "coralHead";
   for (const [x, y] of WILD_KELP) decor[y][x] = "wildKelp";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

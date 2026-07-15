@@ -45,7 +45,9 @@ function luminance(g: PixelGrid): number {
 describe("act4 sheet layout (contract §13)", () => {
   const sheets: Array<[string, PixelGrid, number, number]> = [
     ["middenmite", assets.middenmite, 96, 16],
-    ["tiles5", assets.tiles5, 128, 32]
+    // tiles5 grew one appended row in the Phase Z 2.5D art pass (dressing
+    // tiles 16..23) — contract indices 0..15 are unchanged.
+    ["tiles5", assets.tiles5, 128, 48]
   ];
 
   it.each(sheets)("%s sheet is %ix%i", (_name, grid, w, h) => {
@@ -56,10 +58,11 @@ describe("act4 sheet layout (contract §13)", () => {
     expect(png.height).toBe(h);
   });
 
-  it("middenmite is 6 square frames; tiles5 is 16 tiles", () => {
+  it("middenmite is 6 square frames; tiles5 is 24 tiles", () => {
     expect(middenmiteFrames()).toHaveLength(6);
     for (const f of middenmiteFrames()) expect([f.width, f.height]).toEqual([16, 16]);
-    expect(tile5Frames()).toHaveLength(16);
+    // 16 contract tiles + the 8 Phase Z dressing tiles (appended only).
+    expect(tile5Frames()).toHaveLength(24);
     for (const t of tile5Frames()) expect([t.width, t.height]).toEqual([16, 16]);
   });
 });
@@ -177,11 +180,14 @@ describe("act4 manifest", () => {
     });
   });
 
-  it("tiles5 has the complete contract name→index map", () => {
+  it("tiles5 keeps the contract name→index map (dressing tiles appended after)", () => {
     expect(manifest.tiles5.file).toBe("tiles5.png");
     expect(manifest.tiles5.tileSize).toBe(16);
     expect(manifest.tiles5.columns).toBe(8);
-    expect(manifest.tiles5.names).toEqual({
+    // The original 16 contract indices are frozen; the Phase Z dressing
+    // tiles append after them (additive only, ART_DIRECTION §7).
+    expect(Object.keys(manifest.tiles5.names)).toHaveLength(24);
+    expect(manifest.tiles5.names).toMatchObject({
       campFloor: 0,
       campFloor2: 1,
       campRug: 2,

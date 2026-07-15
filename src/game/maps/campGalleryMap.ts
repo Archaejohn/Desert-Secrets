@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const GALLERY_WIDTH = 20;
 export const GALLERY_HEIGHT = 18;
@@ -105,5 +106,5 @@ export function buildCampGalleryMap(): ZoneMap {
   // Overhead: a strand of string lights spilling up from the camp (never solid).
   for (const x of [8, 11]) overhead[15][x] = "stringLights";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

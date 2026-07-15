@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const FLUFFBED_WIDTH = 18;
 export const FLUFFBED_HEIGHT = 14;
@@ -119,5 +120,5 @@ export function buildFluffballBedMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

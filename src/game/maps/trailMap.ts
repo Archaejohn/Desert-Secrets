@@ -6,6 +6,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const TRAIL_WIDTH = 48;
 export const TRAIL_HEIGHT = 20;
@@ -160,5 +161,5 @@ export function buildTrailMap(): ZoneMap {
     decor[0][TRAIL_MINE_EXIT.x2 + 1] = "mineTimber";
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

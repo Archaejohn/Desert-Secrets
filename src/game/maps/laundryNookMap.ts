@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const NOOK_WIDTH = 18;
 export const NOOK_HEIGHT = 14;
@@ -85,5 +86,5 @@ export function buildLaundryNookMap(): ZoneMap {
   // Overhead: the laundry line strung across the damp nook (never solid).
   for (let x = 2; x <= 8; x++) overhead[2][x] = "laundryLine";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

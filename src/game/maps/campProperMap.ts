@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const CAMPP_WIDTH = 34;
 export const CAMPP_HEIGHT = 20;
@@ -165,5 +166,5 @@ export function buildCampProperMap(): ZoneMap {
   for (let x = 5; x <= 27; x++) overhead[2][x] = "stringLights";
   for (let x = 4; x <= 9; x++) overhead[5][x] = "laundryLine";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

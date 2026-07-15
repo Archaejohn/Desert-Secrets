@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const MINE_WIDTH = 30;
 export const MINE_HEIGHT = 22;
@@ -99,5 +100,5 @@ export function buildMineMap(): ZoneMap {
   // A few bones for flavor in the entry chamber.
   decor[17][16] = "bones";
 
-  return { ground, decor };
+  return dressMap({ ground, decor });
 }

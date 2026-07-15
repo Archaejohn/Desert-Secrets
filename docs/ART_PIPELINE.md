@@ -59,7 +59,12 @@ follows them exactly.
 | `warden.png` | 32×32 | 6×1 | Rime Warden boss: queen-scale beetle-construct — slate/indigo plates under a bone ice sheath, bone frost prongs, and a single amber core pixel that flares white on idle frame 1 |
 | `tiles.png` | 16×16 | 8×2 | 16 named desert tiles |
 | `tiles2.png` | 16×16 | 8×3 | 24 named Act 1 tiles (highway/truck, joshua tree, gas station, mine, rail/cart/lever, ice wall + frost) — see `tileset2.ts` |
-| `tiles3.png` | 16×16 | 8×2 | 16 named Act 2 ice-maze tiles (dark iceFloor vs bright iceWallDeep, crystals, overhead icicle with transparent background, near-black chasm, snowdrift, amber lanternPost, lakeIce/lakeCrack, bridgePlank, doorRime/doorOpen, shard, mossGlow) — see `tileset3.ts` |
+| `tiles3.png` | 16×16 | 8×4 | 16 named Act 2 ice-maze tiles (dark iceFloor vs bright iceWallDeep, crystals, overhead icicle with transparent background, near-black chasm, snowdrift, amber lanternPost, lakeIce/lakeCrack, bridgePlank, doorRime/doorOpen, shard, mossGlow) + 16 Phase Z dressing tiles (iceWallDeep cap/face pairs, floor shades, the 8-tile chasm lip set) — see `tileset3.ts` |
+| `tiles4.png` | 16×16 | 8×4 | 16 named Act 3 Sunless Sea tiles + 16 Phase Z dressing tiles (12-tile floe↔seaWater coast ring incl. inner corners, temple/floe/kelp shades) — see `tileset4.ts` |
+| `tiles5.png` | 16×16 | 8×3 | 16 named Act 4 Miners' Camp tiles + 8 Phase Z dressing tiles (campWall cap/face pairs, floor/rug/frost shades) — see `tileset5.ts` |
+| `tiles6.png` | 16×16 | 8×6 | 16 named Act 5 grove tiles + 32 Phase Z dressing tiles (caveWall cap/face pairs, shades, moss↔grass + grass↔water + sunbeam↔grass 8-tile sets) — see `tileset6.ts` |
+| `tiles7.png` | 16×16 | 8×4 | 16 named Act 6 Reef tiles + 16 Phase Z dressing tiles (reefWall cap/face pairs, shades, silt↔floor 8-tile set) — see `tileset7.ts` |
+| `tiles8.png` | 16×16 | 8×4 | 16 named Act 7 pizzeria/lava tiles + 16 Phase Z dressing tiles (basaltWall cap/face pairs, shades, ash↔ember edge set) — see `tileset8.ts` |
 
 ## Layout
 
@@ -74,7 +79,7 @@ follows them exactly.
 | `tools/pipeline/src/tilecraft.ts` | tile-role composers on fx.ts (ART_DIRECTION §2/§4a): `makeCap`, `makeFace`, `makeShadeVariant`, `makeEdgeSet` transition sets (lip/fingers/surf) |
 | `tools/pipeline/src/tileset.ts` | the 16 named v1 tiles |
 | `tools/pipeline/src/tileset2.ts` | the 24 named Act 1 tiles |
-| `tools/pipeline/src/tileset3.ts` | the 16 named Act 2 tiles |
+| `tools/pipeline/src/tileset3.ts`–`tileset8.ts` | the Act 2–7 zone tilesets (16 contract tiles each + the Phase Z dressing appends) |
 | `tools/pipeline/src/manifest.ts` | manifest builder |
 | `tools/pipeline/src/assets.ts` | pure assembly of sheets + manifest |
 | `tools/pipeline/src/index.ts` | the only module that touches disk |

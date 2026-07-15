@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const OASIS_WIDTH = 32;
 export const OASIS_HEIGHT = 20;
@@ -172,5 +173,5 @@ export function buildOasisMap(): ZoneMap {
     ground[1][x] = "sand2";
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

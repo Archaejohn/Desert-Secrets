@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const DEEP_WIDTH = 28;
 export const DEEP_HEIGHT = 20;
@@ -118,5 +119,5 @@ export function buildDeepBedMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

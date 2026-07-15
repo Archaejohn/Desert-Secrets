@@ -12,9 +12,12 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { clusterDither, hLine } from "./fx";
+import { makeCap, makeEdgeSet, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
-/** Contract tile order (row-major indices 0..15). */
+/** Contract tile order (row-major indices 0..15), plus the 2.5D dressing
+ *  append (indices 16..31, docs/ART_DIRECTION.md §2/§5 — additive only). */
 export const TILE3_NAMES = [
   "iceFloor",
   "iceFloor2",
@@ -31,7 +34,24 @@ export const TILE3_NAMES = [
   "doorRime",
   "doorOpen",
   "shard",
-  "mossGlow"
+  "mossGlow",
+  // --- 2.5D dressing append (Phase Z) ---
+  "iceWallDeepCap",
+  "iceWallDeepCap2",
+  "iceWallDeepFace",
+  "iceWallDeepFace2",
+  "iceFloorShade",
+  "iceFloor2Shade",
+  "mossGlowShade",
+  "lakeIceShade",
+  "iceFloorChasmN",
+  "iceFloorChasmE",
+  "iceFloorChasmS",
+  "iceFloorChasmW",
+  "iceFloorChasmNE",
+  "iceFloorChasmNW",
+  "iceFloorChasmSE",
+  "iceFloorChasmSW"
 ] as const;
 
 export type Tile3Name = (typeof TILE3_NAMES)[number];
@@ -49,52 +69,51 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
   return base;
 }
 
-/** Walkable maze ground: deep teal with indigo rubble — clearly darker than
- *  every wall tile so the path always reads. */
+/** Walkable maze ground: deep teal with lantern-sheen bands and a few
+ *  indigo rubble chips — clearly darker than every wall tile so the path
+ *  always reads. Redrawn for the 2.5D pass (G5): the per-pixel speckle is
+ *  replaced by two horizontal sheen bands (light skidding across the ice)
+ *  plus 2–3 rubble motif clusters. */
 function iceFloorBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "tealDeep");
   const rng = mulberry32(seed);
-  for (let i = 0; i < 10; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.7 ? "indigo" : "teal");
+  // two sheen bands, upper and lower half, jittered per grain
+  for (const bandY of [3, 10] as const) {
+    const y = bandY + Math.floor(rng() * 3);
+    const x = 1 + Math.floor(rng() * 7);
+    const len = 4 + Math.floor(rng() * 3);
+    hLine(g, x, y, len, "teal");
+    hLine(g, x + 1, y + 1, Math.max(2, len - 3), "teal");
   }
-  // a faint sheen streak where lantern light skids across the ice
-  g.px(3, 5, "teal");
-  g.px(4, 5, "teal");
-  g.px(11, 12, "teal");
+  // 2–3 indigo rubble chips (2x2 clusters, never single pixels)
+  const chips = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < chips; i++) {
+    const x = 1 + Math.floor(rng() * (TILE_SIZE - 3));
+    const y = 1 + Math.floor(rng() * (TILE_SIZE - 3));
+    g.rect(x, y, 2, 2, "indigo");
+  }
   return g;
 }
 
-/** Solid deep-ice wall: bright skyBlue/bone facets so it pops against the
- *  dark floor, with an ink undercut so it reads as standing rock. */
+/** Solid deep-ice wall — redrawn for the 2.5D pass as the calm TOP of the
+ *  ice mass (its south facade now comes from `iceWallDeepFace`): bright
+ *  skyBlue body with two quiet bone planes and a mint pane, hairline slate
+ *  seams — no white-glint speckle, no undercut band, so large wall masses
+ *  read as one surface instead of noise. Still clearly brighter than the
+ *  dark walkable floor (contract §7 legibility). */
 function iceWallDeep(): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "skyBlue");
-  // facet planes
-  g.rect(1, 1, 5, 4, "bone");
-  g.rect(9, 2, 6, 3, "mint");
-  g.rect(2, 7, 4, 4, "mint");
-  g.rect(8, 7, 6, 4, "bone");
-  g.rect(4, 12, 7, 2, "bone");
-  // facet edges
-  g.px(6, 3, "slate");
-  g.px(7, 6, "slate");
-  g.px(6, 9, "slate");
-  g.px(12, 6, "slate");
-  g.px(3, 11, "slate");
-  const rng = mulberry32(102);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * 12);
-    g.px(x, y, "white"); // glints
-  }
-  g.px(2, 2, "white");
-  g.px(9, 8, "white");
-  // dark undercut at the foot so it reads solid against the floor
-  g.rect(0, 14, TILE_SIZE, 1, "slate");
-  g.rect(0, 15, TILE_SIZE, 1, "ink");
+  // two quiet facet planes + one mint pane, asymmetric
+  g.rect(2, 2, 6, 4, "bone");
+  g.rect(9, 8, 5, 4, "bone");
+  g.rect(11, 3, 3, 3, "mint");
+  g.rect(3, 11, 4, 2, "mint");
+  // hairline frozen seams
+  hLine(g, 8, 4, 2, "slate");
+  hLine(g, 5, 9, 3, "slate");
+  hLine(g, 10, 13, 2, "slate");
   return g;
 }
 
@@ -405,8 +424,59 @@ function mossGlow(): PixelGrid {
   return g;
 }
 
-/** All 16 tiles in contract order (see TILE3_NAMES). */
+// ---------------------------------------------------------------------------
+// 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5).
+// ---------------------------------------------------------------------------
+
+/** 3x2 facet chip motif for the wall cap tops. */
+function facetChip(c: "bone" | "mint"): PixelGrid {
+  const m = new PixelGrid(3, 2);
+  m.rect(0, 0, 3, 2, c);
+  return m;
+}
+
+/** The lit top of a deep-ice wall run (§2 Cap): skyBlue body, bone/mint
+ *  facet chips, and the bone lit lip along the south edge. */
+function iceWallDeepCap(seed: number): PixelGrid {
+  const g = makeCap({
+    base: "skyBlue",
+    lip: "bone",
+    lipThickness: 2,
+    seed,
+    motifs: [facetChip("bone"), facetChip("mint")],
+    motifCount: 3
+  });
+  // hairline frozen seams between facets
+  hLine(g, 2 + (seed % 3), 6, 2, "slate");
+  hLine(g, 10, 9 + (seed % 2), 2, "slate");
+  // thin dark north edge (§2: north-facing edges stay thin — cap + edge line)
+  g.rect(0, 0, TILE_SIZE, 1, "slate");
+  return g;
+}
+
+/** The vertical south face of a deep-ice wall (§2 Face, G10): skyBlue →
+ *  slate → indigo gradient, broken strata courses, ink foot line. */
+function iceWallDeepFace(seed: number): PixelGrid {
+  const g = makeFace({ top: "skyBlue", mid: "slate", bottom: "indigo", foot: "ink", seed });
+  // break the gradient's band boundaries with 2px cluster dither (G7) so the
+  // face reads as one shaded surface, not three stripes
+  clusterDither(g, { x: 0, y: 4, w: TILE_SIZE, h: 3 }, "skyBlue", "slate", seed ^ 0x55, {
+    density: 0.5
+  });
+  clusterDither(g, { x: 0, y: 9, w: TILE_SIZE, h: 3 }, "slate", "indigo", seed ^ 0x66, {
+    density: 0.5
+  });
+  return g;
+}
+
+/** All contract tiles in order (see TILE3_NAMES). */
 export function tile3Frames(): PixelGrid[] {
+  const chasmLips = makeEdgeSet(iceFloorBase(100), chasm(), {
+    style: "lip",
+    lipColor: "ink",
+    lipThickness: 2,
+    seed: 330
+  });
   return [
     iceFloorBase(100),
     iceFloorBase(101),
@@ -423,6 +493,23 @@ export function tile3Frames(): PixelGrid[] {
     doorRime(),
     doorOpen(),
     shard(),
-    mossGlow()
+    mossGlow(),
+    // --- 2.5D dressing append (Phase Z) ---
+    iceWallDeepCap(301),
+    iceWallDeepCap(302),
+    iceWallDeepFace(311),
+    iceWallDeepFace(312),
+    makeShadeVariant(iceFloorBase(100)),
+    makeShadeVariant(iceFloorBase(101)),
+    makeShadeVariant(mossGlow()),
+    makeShadeVariant(lakeIce()),
+    chasmLips.edges.n,
+    chasmLips.edges.e,
+    chasmLips.edges.s,
+    chasmLips.edges.w,
+    chasmLips.outerCorners.ne,
+    chasmLips.outerCorners.nw,
+    chasmLips.outerCorners.se,
+    chasmLips.outerCorners.sw
   ];
 }

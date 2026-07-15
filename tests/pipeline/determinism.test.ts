@@ -120,7 +120,12 @@ describe("act3 asset byte-stability", () => {
     anglerfish: "71c1b7097f22fa8156a859add847ad21e43da7b294f6e949ae9948503ab4314a",
     reefeel: "ae3638b677ad4c33d1db03b226834d639e8c1efc4636d525672c566b4cc8ff34",
     lurker: "27a52932ab8f6c5419cea0b0409e0e7bf46869b997816487afa5286c2fdaae58",
-    tiles4: "4eba3ae62821a53e8f6a80b493c87da78dc954ea7c559c3bf406b5023c2e9460"
+    // tiles4 deliberately re-pinned for the Phase Z 2.5D art pass
+    // (docs/ART_DIRECTION.md §5): seaWater redrawn to the wave recipe,
+    // floe/templeFloor speckle replaced by motif clusters, templePillar
+    // reads base-lit, and 16 dressing tiles appended (floe coast ring +
+    // shades). Additive — no existing tile index moved.
+    tiles4: "4a2790ec1bbe8152783c6e94df54949645e12a9ac9cd064c35e758d5d0636d8e"
   } as const;
 
   it("anglerfish/reefeel/lurker/tiles4 encode to their committed bytes", () => {
@@ -144,7 +149,11 @@ describe("act4 asset byte-stability", () => {
   // tile's pixels changed.
   const FROZEN = {
     middenmite: "03a1629bb638bd1824cfd79aa53470ac3624394a3be49b1276c46b585ee3f50e",
-    tiles5: "d0465acec6c4a59e74d6be77761f2fce3db3349d82c083dd576af99025c930e5"
+    // tiles5 deliberately re-pinned again for the Phase Z 2.5D art pass:
+    // plank floor gains a lit board subgrid, campWall becomes a wall-top
+    // texture, crates/barrel get lit tops (G1), and 8 dressing tiles are
+    // appended (campWall cap/face + floor shades). Additive only.
+    tiles5: "ddd5285a1664d846e752dada130e0db3c93fc391ba4ee912bb5aed6f786003f3"
   } as const;
 
   it("middenmite/tiles5 encode to their committed bytes", () => {
@@ -164,7 +173,11 @@ describe("act5 asset byte-stability", () => {
   // bytes change (asserted above).
   const FROZEN = {
     sunwasp: "de23f39059f6070b1af957854fcfa8966d9b31e7881dd9d29a60791eb047c46b",
-    tiles6: "80aa215f2f5b2ea55fca962075f716141ffd98f5ea13c954af0b903a0447a9d4"
+    // tiles6 deliberately re-pinned for the Phase Z 2.5D art pass: the SoM
+    // organic showcase — grass/moss/sunbeam redrawn as motif clusters and
+    // rounded lobes, and 24 dressing tiles appended (caveWall cap/face,
+    // shades, moss↔grass fingers, riverbank lips). Additive only.
+    tiles6: "766b9c45c2a1d9e0e999bb1842823a23d433c20d0c5273c999ce547159a9cd85"
   } as const;
 
   it("sunwasp/tiles6 encode to their committed bytes", () => {
@@ -184,7 +197,11 @@ describe("act6 asset byte-stability", () => {
   // change (asserted above).
   const FROZEN = {
     reefstalker: "3733e41a2dd2372260fb8e325d9e913bbc69bbc8bede60da728dee45606c0492",
-    tiles7: "5cc6584328754c7bb17b39939e731f3fa0bc2ee796c489f2de660f50d70c60e5"
+    // tiles7 deliberately re-pinned for the Phase Z 2.5D art pass: reef
+    // floors/water/glow-moss redrawn to motif clusters and rounded lobes,
+    // and 16 dressing tiles appended (reefWall cap/face, shades, silt↔floor
+    // fingers). Additive only.
+    tiles7: "6b14ed102c35f474a7f03fc637570504c4973b8a7e2666e0ccc2c3ceee8f2e03"
   } as const;
 
   it("reefstalker/tiles7 encode to their committed bytes", () => {
@@ -204,10 +221,33 @@ describe("act7 asset byte-stability", () => {
   // bytes change (asserted above).
   const FROZEN = {
     testudo: "bf6d3649f8c5af217aa6a174a1edb9ee2ff9b84f84096a14d7e3de718a1bffda",
-    tiles8: "a901f8c9f689519c56ef078e4fbf24caf973fb2febdae6bdb62f33c53bb29be0"
+    // tiles8 deliberately re-pinned for the Phase Z 2.5D art pass: the
+    // lavaVent glow ramp (rust→amber→bone heart), ember/ash motif clusters,
+    // checker-floor bevel subgrid, and 16 dressing tiles appended
+    // (basaltWall cap/face, shades, ash↔ember seams). Additive only.
+    tiles8: "dbacee609aa1d566410a5252192e8dc32aedafa8c984e8795574ae6b78a42e1c"
   } as const;
 
   it("testudo/tiles8 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});
+
+describe("phase-z zone-dressing asset byte-stability", () => {
+  // sha256 pinned for the Phase Z 2.5D art pass (docs/ART_DIRECTION.md §2/§5,
+  // docs/CONTRACTS.md "v20"). tiles3 had never been pinned before; it is
+  // pinned here alongside its Phase Z redraw: iceFloor sheen bands replace
+  // speckle, and 16 dressing tiles are appended (iceWallDeep cap/face,
+  // floor shades, the chasm lip set). Additive — no existing index moved.
+  const FROZEN = {
+    tiles3: "52a1cf9ee85c47ddf49c20f07820f5042ae1bfd7e1c44dff89a062e086d1b9f2"
+  } as const;
+
+  it("tiles3 encodes to its committed bytes", () => {
     const assets = buildAssets();
     for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
       const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");

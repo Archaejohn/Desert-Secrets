@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const GALLERIES_WIDTH = 36;
 export const GALLERIES_HEIGHT = 20;
@@ -125,5 +126,5 @@ export function buildGalleriesMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }
