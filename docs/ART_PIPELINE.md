@@ -70,6 +70,8 @@ follows them exactly.
 | `tools/pipeline/src/png.ts` | `PixelGrid` → PNG buffer via pngjs + the master palette |
 | `tools/pipeline/src/rng.ts` | seeded mulberry32 |
 | `tools/pipeline/src/sprites/*.ts` | pure frame builders (hero, npc, rosa, miner, john, pamela, scarab, foreman, frostscarab, piggy, fluffball, chicken, slither, jackrabbit, buzzard, icebat, gila, crystalcrawler, queen, warden) + shared pose table (`poses.ts`) |
+| `tools/pipeline/src/fx.ts` | shared drawing techniques (ART_DIRECTION §1/§3): the `shadowOf` LUT, `shadeGrid`/`shadeTopRows`, motif scatter, cluster dither, ridge/lobe/strata/edge-finger generators |
+| `tools/pipeline/src/tilecraft.ts` | tile-role composers on fx.ts (ART_DIRECTION §2/§4a): `makeCap`, `makeFace`, `makeShadeVariant`, `makeEdgeSet` transition sets (lip/fingers/surf) |
 | `tools/pipeline/src/tileset.ts` | the 16 named v1 tiles |
 | `tools/pipeline/src/tileset2.ts` | the 24 named Act 1 tiles |
 | `tools/pipeline/src/tileset3.ts` | the 16 named Act 2 tiles |
