@@ -77,7 +77,10 @@ export class DialogueBox {
       this.hintText,
       this.touchButtons.container
     ]);
-    this.container.setScrollFactor(0).setDepth(1000).setVisible(false);
+    // Above the zone's overhead decor layer (depth 5000 in ZoneScene) — a
+    // dialogue box must never render under ice/kelp/decor tiles drawn over
+    // the player's head.
+    this.container.setScrollFactor(0).setDepth(5500).setVisible(false);
   }
 
   get isOpen(): boolean {
