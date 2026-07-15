@@ -1819,3 +1819,170 @@ exactly as Slither's has been copied since Act 2.**
 soon" end card (→ title), with a reload-safe epilogue guard (`act5Complete`
 re-shows the card). Act 6's multi-zone build is a teammate's next task; this
 stays a title-card placeholder until it's ready to hand off.
+
+*(Superseded by v17 below — the placeholder is now a real hand-off, and the
+`act5Ending` card lines are gone.)*
+
+---
+
+# v17: Act 6 — The Reef (the crawlers' garden, trade-not-fight diplomacy)
+
+Act 6 ("The Reef") is built at the Act 3/4/5 density from the start — five
+connected zones, each a distinct grounded place with real entry dialogue,
+dead-end/gate structure BFS-verified, and a narrated hand-off in and out. Deeper
+still and back underwater, past where Act 2's galleries only glimpsed
+crystal-crawler territory, into their actual home: a garden of glowing kelp the
+crawlers **farm on purpose**. The act's new mechanic is **trade, not a fight** —
+a diplomacy branch point modelled on Act 1's Dust Queen (`queenParley`/
+`queenFight`). Both Slither and Fluffball travel with the party (Fluffball
+joined in Act 5, non-combat); this is where Fluffball's stated knack for
+"getting through to reef life a little" first pays off.
+
+## The five zones and how they connect
+
+1. **`reefDescent`** (The Drowned Stair, 20×14) — the Act 5 → Act 6 entry zone
+   (the hand-off spawns the party here at `REEF_D_SPAWN`). Back underwater: dry
+   reef silt greens into the garden's bioluminescent `glowMoss` at the south
+   gate. One gate, south, on into the garden; otherwise enclosed. Entry beat
+   `reefDescentEntry` (`sawReefDescent`). No encounters. Mirrors Act 5's
+   `groveDescent` single-forward-gate shape.
+2. **`reefGarden`** (The Crawlers' Garden, 30×18) — the farmed kelp: CULTIVATED
+   `mintKelp` in tidy WALKABLE rows (the crop the party is after) set against
+   SOLID tangled `wildKelp`, `kelpTrellis` farm frames, and an OVERHEAD
+   `kelpCanopy` the party swims under. Establishes the crawlers as territorial
+   farmers, not monsters. A real traversal zone (`encounterZone: "reef"`,
+   reefstalkers). Two gates: north back to the descent, south on to the warren.
+   Entry beat `reefGardenEntry` (`sawReefGarden`).
+3. **`reefWarren`** (The Coral Warren, 26×18) — a coral maze; the **tense
+   chase-and-turn** plays here (`REEF_W_CHASE_TRIGGER` → `reefChase` →
+   `sawReefChase`). The near-catch stops being cute: Piggy is cornered for real
+   in a coral dead-end (a BFS-proven cul-de-sac behind `REEF_W_ALCOVE_ENTRANCE`),
+   **frightened, not playful**, and slips through a gap too thin for Joseph — and
+   it is **Fluffball, not Joseph, who calls after him** (his voice cracking;
+   nobody laughs). `reefChase` also carries **clue #4**: the exact seaweed, the
+   MINT kelp the crawlers cultivate (distinct from the wild growth). A cosmetic
+   Piggy bolts from the corner through the gap while the beat plays. Traversal
+   zone (`encounterZone: "reef"`). Two gates: north back to the garden, south on
+   to the hollow. Entry beat `reefWarrenEntry` (`sawReefWarren`).
+4. **`reefHollow`** (The Glowing Hollow, 22×16) — a quiet breather cavern: a
+   still bioluminescent pool and a cold `reefWater`/`reefWater2` channel with a
+   `reefStone` stepping-stone crossing keeping both banks reachable; the
+   cultivated mint beds run down toward the crawler elders. A beat to let the
+   tense chase settle before the diplomacy. Two gates (north↔warren,
+   south↔court); no encounters. Entry beat `reefHollowEntry` (`sawReefHollow`).
+5. **`reefCourt`** (The Crawler Court, 22×16) — the diplomacy zone. The crawler
+   warden (a `crystalcrawler`-sheet NPC) stands by the oldest mint row; the
+   trade (below) sets `gotSeaweed` + `items.seaweed` and rolls the Act 6 ending
+   on its Act 7 title card. One gate, north, back to the hollow; otherwise
+   enclosed (the way on to Act 7 is the end card — a teammate's task, with a
+   reload-safe `act6Complete` epilogue guard). No encounters. Entry beat
+   `reefCourtEntry` (`sawReefCourt`).
+
+Chain: `reefDescent` →(S)→ `reefGarden` →(S)→ `reefWarren` →(S)→ `reefHollow`
+→(S)→ `reefCourt`, each with a back-gate the way it came.
+
+## The trade-not-fight diplomacy (the new mechanic)
+
+`scripts/reefParley.ts` is a single script with **choices**, shaped like Act 1's
+Dust Queen branch point. Talking to the warden (`ReefCourtScene`) opens it;
+Slither negotiates, Fluffball translates/vouches. Two decision points, and ANY
+wrong pick routes to the terminal node **`affront`**; both good picks reach
+**`trade-end`**. The scene branches on the dialogue's end-node id exactly as
+`DepthsScene` branches on `parley-end`:
+
+- **`trade-end`** (good approach) → a peaceful trade: `gotSeaweed` +
+  `items.seaweed`, then `act6Ending`.
+- **`affront`** (bad approach) → the crawlers call a reef predator down: an
+  **avoidable** `BattleScene` (`["reefstalker","reefstalker"]`, `victoryFlag:
+  "reefFought"`), NOT an instant one. After winning, the warden relents
+  (`reefYield`) and gives the kelp anyway — so both paths reach the seaweed, the
+  peaceful one without a fight. On the post-fight talk the scene reads `yield`'s
+  close the same success way as `trade-end`.
+
+`ReefCourtScene.wardenScript()` picks the script from run state
+(`courtChatter` once traded; `reefYield` after a fight; else `reefParley`).
+
+## Follower rigs (both reused, exactly as Act 5 established)
+
+Every Act 6 zone instantiates `SlitherFollower` **and** `FluffballFollower`,
+spawns each per `flags.slitherJoined` / `flags.fluffballJoined`, and pumps both
+from `onUpdate()`. Fluffball stays a **non-combat** companion: `partyFor()` and
+`BattleScene` are untouched (verified in the smoke — the reef battle party stays
+hero + Slither).
+
+## New generated art (additive; prior sheets byte-identical)
+
+- `reefstalker.png` (24×24, 6×1) — the reef predator, `reefstalker-idle` [0,1] /
+  `reefstalker-move` [2..5]; a bulky slate/tealDeep armoured fish with a bone
+  gulper maw, rust/amber dorsal spines, an hpRed eye, and skyBlue/mint
+  biolights — deliberately distinct from Act 3's slim jade Reef Eel and the
+  crab-shaped Crystal Crawler. Bestiary `reefstalker` (scale 2.5, 38/14/5/13,
+  xp 22).
+- `tiles7.png` (16×16, **8 cols × 2 rows**), manifest `tiles7`. Row-major names:
+  `reefFloor reefFloor2 reefSilt glowMoss reefWall coralHead crystalCluster
+  mintKelp reefWater reefWater2 reefStone wildKelp kelpTrellis kelpCanopy
+  seaAnemone shellCluster`. A glowing cultivated-garden look (cold mint/skyBlue
+  bioluminescence over dark tealDeep/indigo reef, warm coral accents) that reads
+  DIFFERENTLY from Act 3's wild kelp sea (`tiles4`): cultivated `mintKelp` is a
+  bright WALKABLE crop, wild `wildKelp` a dim SOLID tangle. Solid additions to
+  `SOLID_TILE_NAMES`: `reefWall, coralHead, crystalCluster, reefWater,
+  reefWater2, wildKelp, kelpTrellis`. `kelpCanopy` is the one OVERHEAD tile;
+  `reefWater`↔`reefWater2` animate. Both sheets sha256-pinned in
+  `tests/pipeline/determinism.test.ts` ("act6 asset byte-stability").
+  `ZoneScene` gains the `tiles7` firstgid/`tileGid`/`tileFrame`/`buildMap`
+  wiring; `BootScene` loads `tiles7`/`reefstalker`.
+
+## The Act 5 → Act 6 hand-off (replaces the placeholder card)
+
+`SahraGroveScene`'s trade no longer shows an end card. `runEnding()` plays the
+(de-carded) `act5Ending` script, then `enterAct6()` sets `act5Complete` **and**
+`act6Started` and `goToZone("reefDescent", REEF_D_SPAWN)` — the same real-zone
+hand-off as Acts 2→3, 3→4 and 4→5. The epilogue reload guard (`act5Complete`)
+re-arms the hand-off. `act5Ending`'s terminal title-card lines were removed
+(like `act3Ending`/`act4Ending`); it now points the party "down, back to cold
+water".
+
+## Plumbing (same checklist as every zone addition)
+
+- `gameState.ts`: `ZoneId += reefDescent, reefGarden, reefWarren, reefHollow,
+  reefCourt`; `ACT6_FLAGS` (`act6Started`, the five `saw*` entry beats,
+  `sawReefChase`, `reefFought`, `gotSeaweed`, `act6Complete`), all false at
+  `newGame()`; `items.seaweed: boolean` (false at `newGame()`).
+- `objective.ts`: the Act 6 chain (`act6ObjectiveFor`, a `switch (s.zone)`),
+  hooked in after Act 5's (`act6Started || act6Complete` delegates); ≤ 40 chars.
+- `bestiary.ts` `reefstalker`; `encounters.ts` `reef` table (reefstalker,
+  weights `[3,3,2,1]`), `ENCOUNTERS` key union gains `"reef"`.
+- `scripts/`: five entry scripts (`reefDescentEntry`…`reefCourtEntry`),
+  `reefChase` (the tense turn + clue #4), `reefParley` (the branch point),
+  `reefYield` (post-fight), `act6Ending`; all `validateScript`-clean, ≤ 48
+  chars/line, Slither hissing. `radio.ts` `radioLines` gains all five zones
+  (exhaustive `Record<ZoneId, …>`). `BootScene` `ZONE_NAMES` + `main.ts`
+  register the five new scenes.
+- `tests/game/maps2.test.ts`: full BFS suite per new zone (enclosure with gates,
+  landmark reachability, the warren's cul-de-sac, the hollow's channel crossing,
+  the cultivated-vs-wild kelp distinction, the overhead canopy non-solid).
+  `scriptsAct6.test.ts` + `objectiveAct6.test.ts` new (parley terminates on both
+  branches, good→`trade-end`, bad→`affront`, Fluffball not Joseph calls after);
+  `scriptsAct1.test.ts` radio list, `bestiary`, `encounters`, `gameState`,
+  `act1Retcon`/`bucket` manifest sheet lists, and `determinism` extended.
+- `tools/smoke/e2e.mjs`: the Act 5 hand-off now lands in `reefDescent`, then the
+  full five-zone Act 6 chain (descent → garden entry + a forced reefstalker
+  battle confirming the non-combat party → warren chase-and-turn → hollow →
+  court), then BOTH diplomacy outcomes: the parley's branches are introspected
+  (good→`trade-end`, bad→`affront`), the avoidable fight is driven in-engine
+  (bad approach → reefstalker battle → win → `reefFought`), then the post-fight
+  trade completes (`gotSeaweed` + `items.seaweed`) → ending → Act 7 card → title.
+  `touch-e2e.mjs` gains an Act 6 check: tapping to talk opens the parley and its
+  trade-vs-fight choice list navigates via the ▲/✓/▼ column.
+- Screenshot review confirmed each zone renders with its own `tiles7` art (a
+  distinct glowing reef garden), the tense chase beat, the diplomacy choice list,
+  and the dialogue box (depth 5500) drawing cleanly over the overhead kelp
+  canopy (depth 5000) — no overhead-over-dialogue regression.
+
+## Act 7 entry (a placeholder, same pattern as Acts 3–5 before their builds)
+
+`ReefCourtScene`'s trade rolls `act6Ending` and the "ACT 7: LA PIZZERIA
+SOTTERRANEA — coming soon" end card (→ title), with a reload-safe epilogue guard
+(`act6Complete` re-shows the card). Act 7 (the finale — the actual catch, and
+the close of Part One) is the last teammate's next task; this stays a title-card
+placeholder until it's ready to hand off.

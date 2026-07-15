@@ -59,6 +59,10 @@ export const BESTIARY: Record<string, EnemyDef> = {
   // Act 5 — Sahra's grove. A sunstung wasp that swarms to guard the fruit;
   // the tonal-breather register — a fast nuisance, not a monster.
   sunwasp: def("sunwasp", "Sunwasp", "sunwasp", 2.5, 22, 11, 3, 16, 16),
+  // Act 6 — The Reef. A bulky ambush predator that hunts the crawlers' kelp
+  // rows — the reef's actual danger, distinct from the (peaceful) crawlers
+  // themselves; also the avoidable fallback fight if the trade goes badly.
+  reefstalker: def("reefstalker", "Reef Stalker", "reefstalker", 2.5, 38, 14, 5, 13, 22),
 };
 
 function lookup(id: string): EnemyDef {

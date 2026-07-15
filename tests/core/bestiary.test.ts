@@ -29,6 +29,8 @@ describe("BESTIARY", () => {
       ["middenmite", 2, 9, 6, 1, 13, 6],
       // Act 5
       ["sunwasp", 2.5, 22, 11, 3, 16, 16],
+      // Act 6
+      ["reefstalker", 2.5, 38, 14, 5, 13, 22],
     ];
     expect(Object.keys(BESTIARY).sort()).toEqual(
       rows.map(([id]) => id).sort(),
@@ -58,6 +60,17 @@ describe("BESTIARY", () => {
     expect(BESTIARY.reefeel.sheet).toBe("reefeel");
     expect(BESTIARY.lurker.sheet).toBe("lurker");
     expect(BESTIARY.middenmite.sheet).toBe("middenmite");
+    expect(BESTIARY.sunwasp.sheet).toBe("sunwasp");
+    expect(BESTIARY.reefstalker.sheet).toBe("reefstalker");
+  });
+
+  it("the reef stalker is the reef's ambush predator, not a crawler (Act 6)", () => {
+    const r = BESTIARY.reefstalker;
+    expect(r.name).toBe("Reef Stalker");
+    expect(r.sheet).toBe("reefstalker");
+    // Distinct from the peaceful crystal-crawlers and Act 3's slim Reef Eel.
+    expect(r.stats.maxHp).toBe(38);
+    expect(r.xp).toBe(22);
   });
 
   it("names the Act 2 enemies for the battle HUD", () => {

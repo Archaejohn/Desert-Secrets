@@ -28,6 +28,11 @@ import { GroveApproachScene } from "./scenes/GroveApproachScene";
 import { GroveGrottoScene } from "./scenes/GroveGrottoScene";
 import { GroveChamberScene } from "./scenes/GroveChamberScene";
 import { SahraGroveScene } from "./scenes/SahraGroveScene";
+import { ReefDescentScene } from "./scenes/ReefDescentScene";
+import { ReefGardenScene } from "./scenes/ReefGardenScene";
+import { ReefWarrenScene } from "./scenes/ReefWarrenScene";
+import { ReefHollowScene } from "./scenes/ReefHollowScene";
+import { ReefCourtScene } from "./scenes/ReefCourtScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -76,6 +81,11 @@ const game = new Phaser.Game({
     GroveGrottoScene,
     GroveChamberScene,
     SahraGroveScene,
+    ReefDescentScene,
+    ReefGardenScene,
+    ReefWarrenScene,
+    ReefHollowScene,
+    ReefCourtScene,
     BattleScene
   ]
 });

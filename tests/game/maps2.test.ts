@@ -262,6 +262,60 @@ import {
   SAHRA_WEST_GATES,
   SAHRA_WIDTH
 } from "../../src/game/maps/sahraGroveMap";
+import {
+  buildReefDescentMap,
+  REEF_D_EXIT_SOUTH,
+  REEF_D_HEIGHT,
+  REEF_D_RETURN_SPAWN,
+  REEF_D_SOUTH_GATES,
+  REEF_D_SPAWN,
+  REEF_D_WIDTH
+} from "../../src/game/maps/reefDescentMap";
+import {
+  buildReefGardenMap,
+  REEF_G_BORDER_GATES,
+  REEF_G_EXIT_NORTH,
+  REEF_G_EXIT_SOUTH,
+  REEF_G_HEIGHT,
+  REEF_G_MINT_ROW,
+  REEF_G_RETURN_SPAWN,
+  REEF_G_SPAWN,
+  REEF_G_WIDTH
+} from "../../src/game/maps/reefGardenMap";
+import {
+  buildReefWarrenMap,
+  REEF_W_ALCOVE_ENTRANCE,
+  REEF_W_BORDER_GATES,
+  REEF_W_CHASE_TRIGGER,
+  REEF_W_CORNER,
+  REEF_W_EXIT_NORTH,
+  REEF_W_EXIT_SOUTH,
+  REEF_W_HEIGHT,
+  REEF_W_RETURN_SPAWN,
+  REEF_W_SPAWN,
+  REEF_W_WIDTH
+} from "../../src/game/maps/reefWarrenMap";
+import {
+  buildReefHollowMap,
+  REEF_H_BORDER_GATES,
+  REEF_H_EXIT_NORTH,
+  REEF_H_EXIT_SOUTH,
+  REEF_H_HEIGHT,
+  REEF_H_POOL,
+  REEF_H_RETURN_SPAWN,
+  REEF_H_SPAWN,
+  REEF_H_WIDTH
+} from "../../src/game/maps/reefHollowMap";
+import {
+  buildReefCourtMap,
+  REEF_C_EXIT_NORTH,
+  REEF_C_HEIGHT,
+  REEF_C_NORTH_GATES,
+  REEF_C_NPC,
+  REEF_C_OLD_ROW,
+  REEF_C_SPAWN,
+  REEF_C_WIDTH
+} from "../../src/game/maps/reefCourtMap";
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
@@ -269,7 +323,8 @@ const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles3.names),
   ...Object.keys(manifest.tiles4.names),
   ...Object.keys(manifest.tiles5.names),
-  ...Object.keys(manifest.tiles6.names)
+  ...Object.keys(manifest.tiles6.names),
+  ...Object.keys(manifest.tiles7.names)
 ]);
 
 interface Pt {
@@ -1447,5 +1502,197 @@ describe("sahra's grove map (the keeper's corner + oldest row)", () => {
     expect(reachable(map, SAHRA_SPAWN, SAHRA_OLD_ROW)).toBe(true);
     expect(reachable(map, SAHRA_SPAWN, rectTile(SAHRA_EXIT_WEST))).toBe(true);
     expect(map.ground.flat()).toContain("oldOrange");
+  });
+});
+
+// ============================ Act 6 — The Reef ============================
+
+describe("reef descent map (the Act 6 entry from Sahra's grove)", () => {
+  const map = buildReefDescentMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, REEF_D_WIDTH, REEF_D_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets (incl. tiles7)", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildReefDescentMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the south gate on into the garden", () => {
+    assertEnclosed(map, REEF_D_SOUTH_GATES);
+  });
+
+  it("keeps both spawns and the south gate walkable and reachable", () => {
+    for (const p of [REEF_D_SPAWN, REEF_D_RETURN_SPAWN, rectTile(REEF_D_EXIT_SOUTH)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+    expect(reachable(map, REEF_D_SPAWN, rectTile(REEF_D_EXIT_SOUTH))).toBe(true);
+    expect(reachable(map, REEF_D_RETURN_SPAWN, rectTile(REEF_D_EXIT_SOUTH))).toBe(true);
+  });
+
+  it("darkens into reef and glows at the gate: reef floor + glow-moss appear", () => {
+    const g = map.ground.flat();
+    expect(g).toContain("reefFloor");
+    expect(g).toContain("glowMoss");
+  });
+});
+
+describe("reef garden map (the crawlers' farmed kelp)", () => {
+  const map = buildReefGardenMap();
+  const northExit = rectTile(REEF_G_EXIT_NORTH);
+  const southExit = rectTile(REEF_G_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, REEF_G_WIDTH, REEF_G_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildReefGardenMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, REEF_G_BORDER_GATES);
+  });
+
+  it("keeps the spawns, the mint row and both gates walkable and reachable", () => {
+    for (const p of [REEF_G_SPAWN, REEF_G_RETURN_SPAWN, REEF_G_MINT_ROW, northExit, southExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+    expect(reachable(map, REEF_G_SPAWN, REEF_G_MINT_ROW)).toBe(true);
+    expect(reachable(map, REEF_G_SPAWN, northExit)).toBe(true);
+    expect(reachable(map, REEF_G_SPAWN, southExit)).toBe(true);
+  });
+
+  it("grows CULTIVATED mint kelp (walkable) against SOLID wild kelp + trellises", () => {
+    // The tended crop is a walkable ground tile; the wild growth and the farm
+    // frames are solid walk-arounds — the cultivated/wild distinction is real.
+    expect(map.ground.flat()).toContain("mintKelp");
+    expect(isSolidAt(map, REEF_G_MINT_ROW.x, REEF_G_MINT_ROW.y)).toBe(false);
+    expect(map.decor.flat()).toContain("wildKelp");
+    expect(map.decor.flat()).toContain("kelpTrellis");
+  });
+
+  it("hangs an overhead wild-kelp canopy the party swims under (non-solid)", () => {
+    const overhead = (map.overhead ?? []).flat();
+    expect(overhead).toContain("kelpCanopy");
+    for (let y = 0; y < REEF_G_HEIGHT; y++) {
+      for (let x = 0; x < REEF_G_WIDTH; x++) {
+        const o = map.overhead?.[y]?.[x];
+        if (o) expect(isSolidAt(map, x, y)).toBe(false);
+      }
+    }
+  });
+});
+
+describe("reef warren map (the coral maze + the tense chase)", () => {
+  const map = buildReefWarrenMap();
+  const northExit = rectTile(REEF_W_EXIT_NORTH);
+  const southExit = rectTile(REEF_W_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, REEF_W_WIDTH, REEF_W_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildReefWarrenMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, REEF_W_BORDER_GATES);
+  });
+
+  it("keeps the spawns, the chase beat and both gates walkable and reachable", () => {
+    for (const p of [REEF_W_SPAWN, REEF_W_RETURN_SPAWN, rectTile(REEF_W_CHASE_TRIGGER), northExit, southExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+    expect(reachable(map, REEF_W_SPAWN, rectTile(REEF_W_CHASE_TRIGGER))).toBe(true);
+    expect(reachable(map, REEF_W_SPAWN, northExit)).toBe(true);
+    expect(reachable(map, REEF_W_SPAWN, southExit)).toBe(true);
+  });
+
+  it("corners Piggy in a coral dead-end: a BFS-proven cul-de-sac", () => {
+    // The east alcove where Piggy is cornered is reachable, and sealed off by
+    // its single entrance tile — a true cul-de-sac (like Act 3's temple/bed).
+    assertCulDeSac(map, REEF_W_SPAWN, REEF_W_CORNER, REEF_W_ALCOVE_ENTRANCE);
+  });
+});
+
+describe("reef hollow map (the bioluminescent breather + reef channel)", () => {
+  const map = buildReefHollowMap();
+  const northExit = rectTile(REEF_H_EXIT_NORTH);
+  const southExit = rectTile(REEF_H_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, REEF_H_WIDTH, REEF_H_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildReefHollowMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, REEF_H_BORDER_GATES);
+  });
+
+  it("keeps the spawns, the pool and both gates walkable", () => {
+    for (const p of [REEF_H_SPAWN, REEF_H_RETURN_SPAWN, REEF_H_POOL, northExit, southExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("keeps both banks connected across the channel via the stepping stones", () => {
+    expect(reachable(map, REEF_H_SPAWN, southExit)).toBe(true);
+    expect(reachable(map, REEF_H_RETURN_SPAWN, northExit)).toBe(true);
+    expect(map.decor.flat()).toContain("reefWater");
+    expect(map.ground.flat()).toContain("reefStone");
+  });
+});
+
+describe("reef court map (the diplomacy zone + the oldest mint row)", () => {
+  const map = buildReefCourtMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, REEF_C_WIDTH, REEF_C_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildReefCourtMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the north gate back to the hollow", () => {
+    assertEnclosed(map, REEF_C_NORTH_GATES);
+  });
+
+  it("keeps the spawn, the warden, the oldest row and the exit walkable", () => {
+    for (const p of [REEF_C_SPAWN, REEF_C_NPC, REEF_C_OLD_ROW, rectTile(REEF_C_EXIT_NORTH)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach the crawler warden and the oldest mint row", () => {
+    expect(reachable(map, REEF_C_SPAWN, REEF_C_NPC)).toBe(true);
+    expect(reachable(map, REEF_C_SPAWN, REEF_C_OLD_ROW)).toBe(true);
+    expect(reachable(map, REEF_C_SPAWN, rectTile(REEF_C_EXIT_NORTH))).toBe(true);
+    expect(map.ground.flat()).toContain("mintKelp");
   });
 });

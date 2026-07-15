@@ -1058,6 +1058,33 @@
           "repeat": -1
         }
       }
+    },
+    "reefstalker": {
+      "file": "reefstalker.png",
+      "frameWidth": 24,
+      "frameHeight": 24,
+      "columns": 6,
+      "rows": 1,
+      "animations": {
+        "reefstalker-idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "frameRate": 3,
+          "repeat": -1
+        },
+        "reefstalker-move": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "frameRate": 10,
+          "repeat": -1
+        }
+      }
     }
   },
   "tiles": {
@@ -1212,6 +1239,29 @@
       "oldOrange": 13,
       "needleCactus": 14,
       "groveFlower": 15
+    }
+  },
+  "tiles7": {
+    "file": "tiles7.png",
+    "tileSize": 16,
+    "columns": 8,
+    "names": {
+      "reefFloor": 0,
+      "reefFloor2": 1,
+      "reefSilt": 2,
+      "glowMoss": 3,
+      "reefWall": 4,
+      "coralHead": 5,
+      "crystalCluster": 6,
+      "mintKelp": 7,
+      "reefWater": 8,
+      "reefWater2": 9,
+      "reefStone": 10,
+      "wildKelp": 11,
+      "kelpTrellis": 12,
+      "kelpCanopy": 13,
+      "seaAnemone": 14,
+      "shellCluster": 15
     }
   }
 }

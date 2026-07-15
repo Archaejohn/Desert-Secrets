@@ -17,14 +17,15 @@ import {
   SAHRA_SPAWN
 } from "../maps/sahraGroveMap";
 import { CHAMBER_RETURN_SPAWN } from "../maps/groveChamberMap";
+import { REEF_D_SPAWN } from "../maps/reefDescentMap";
 import { sahraGroveEntryScript } from "../../core/scripts/sahraGroveEntry";
 import { sahraGroveScript } from "../../core/scripts/sahraGrove";
 import { act5EndingScript } from "../../core/scripts/act5Ending";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE, hexToInt } from "../../shared/palette";
+import { PALETTE } from "../../shared/palette";
 
 /** Sahra, once the oranges have changed hands. */
 const groveChatterScript: DialogueScript = {
@@ -68,11 +69,13 @@ export class SahraGroveScene extends ZoneScene {
     this.slither = new SlitherFollower(this);
     this.fluffball = new FluffballFollower(this);
 
-    // Epilogue: a reload that lands on the finished act mustn't soft-lock —
-    // re-show the end card rather than dropping the player into a dead grove.
+    // Epilogue: once Act 5 is done the grove hands off into Act 6 (a real zone
+    // exit, not an end card — the Act 2→3 / 3→4 / 4→5 pattern). A reload that
+    // somehow lands back here after the hand-off re-arms it rather than
+    // soft-locking on a dead grove.
     if (getState(this).flags.act5Complete) {
       this.inputLocked = true;
-      this.showEndCard();
+      this.enterAct6();
       return;
     }
 
@@ -132,59 +135,24 @@ export class SahraGroveScene extends ZoneScene {
 
   private runEnding(): void {
     // Unlock so the ending box advances (movement stays blocked while the box
-    // is open); relock before the end card — same pattern as Acts 1–4.
+    // is open); relock before the hand-off — same pattern as Acts 1–4.
     this.inputLocked = false;
     this.openScript(act5EndingScript, () => {
       this.inputLocked = true;
-      const s = getState(this);
-      setState(this, { ...s, flags: { ...s.flags, act5Complete: true } });
-      this.showEndCard();
+      this.enterAct6();
     });
   }
 
-  private showEndCard(): void {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    this.add.rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 0.94).setScrollFactor(0).setDepth(7000);
-    this.add
-      .text(w / 2, h / 2 - 28, "END OF ACT 5", {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: PALETTE.atbGold
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2, "ACT 6: THE REEF — coming soon", {
-        fontFamily: "monospace",
-        fontSize: "11px",
-        color: PALETTE.mint
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-    this.add
-      .text(w / 2, h / 2 + 26, "SPACE — back to title", {
-        fontFamily: "monospace",
-        fontSize: "9px",
-        color: PALETTE.bone
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(7001);
-
-    // Act 6's zone is a teammate's next task — return to the title for now,
-    // exactly as Acts 3 and 4 did for their own successors.
-    let done = false;
-    const backToTitle = (): void => {
-      if (done) return;
-      done = true;
-      resetGame(this);
-      this.scene.start("boot");
-    };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+  /**
+   * Descend into Act 6 (The Reef), keeping progress — the real hand-off that
+   * replaces the old "ACT 6 — coming soon" title card, mirroring the Act 2→3,
+   * 3→4 and 4→5 hand-offs. Sets `act5Complete` (record) and `act6Started`,
+   * then drops the party into the reef's entry zone.
+   */
+  private enterAct6(): void {
+    const s = getState(this);
+    setState(this, { ...s, flags: { ...s.flags, act5Complete: true, act6Started: true } });
+    this.goToZone("reefDescent", REEF_D_SPAWN);
   }
 
   protected onUpdate(): void {

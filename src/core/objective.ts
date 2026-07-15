@@ -114,6 +114,8 @@ function act4ObjectiveFor(s: Act1State): string {
  */
 function act5ObjectiveFor(s: Act1State): string {
   const f = s.flags;
+  // Act 6 takes over once the party descends from the grove into the reef.
+  if (f.act6Started || f.act6Complete) return act6ObjectiveFor(s);
   if (f.act5Complete) return "Act 5 complete!";
   switch (s.zone) {
     case "groveDescent":
@@ -130,5 +132,32 @@ function act5ObjectiveFor(s: Act1State): string {
     default:
       // Still in an Act 4 zone after the hand-off: get down to the grove.
       return "Descend toward the buried grove";
+  }
+}
+
+/**
+ * The Act 6 chain (The Reef — the crystal-crawlers' farmed-kelp home, a
+ * five-zone chain), once act6Started is set. Each zone produces its own
+ * grounded objective line. ≤ 40 chars.
+ */
+function act6ObjectiveFor(s: Act1State): string {
+  const f = s.flags;
+  if (f.act6Complete) return "Act 6 complete!";
+  switch (s.zone) {
+    case "reefDescent":
+      return "Follow the flooded stair down";
+    case "reefGarden":
+      return "Cross the crawlers' kelp garden";
+    case "reefWarren":
+      return f.sawReefChase ? "Press on, deeper into the reef" : "Corner Piggy in the coral warren";
+    case "reefHollow":
+      return "Follow the mint kelp to its keepers";
+    case "reefCourt":
+      if (f.gotSeaweed) return "You have the reef's mint kelp!";
+      if (f.reefFought) return "Make peace — take the mint kelp";
+      return "Broker a trade for the mint kelp";
+    default:
+      // Still in an Act 5 zone after the hand-off: get down to the reef.
+      return "Descend into the drowned reef";
   }
 }

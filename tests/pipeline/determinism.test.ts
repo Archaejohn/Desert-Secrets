@@ -170,3 +170,23 @@ describe("act5 asset byte-stability", () => {
     }
   });
 });
+
+describe("act6 asset byte-stability", () => {
+  // sha256 of the newly-generated Act 6 assets (docs/CONTRACTS.md "v17: The
+  // Reef"): the reef-predator reefstalker enemy plus the seventh (reef /
+  // crawlers' garden) tileset. Pinned once here so future refactors can't
+  // silently move a shipped pixel. Purely additive — no prior sheet's bytes
+  // change (asserted above).
+  const FROZEN = {
+    reefstalker: "3733e41a2dd2372260fb8e325d9e913bbc69bbc8bede60da728dee45606c0492",
+    tiles7: "5cc6584328754c7bb17b39939e731f3fa0bc2ee796c489f2de660f50d70c60e5"
+  } as const;
+
+  it("reefstalker/tiles7 encode to their committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

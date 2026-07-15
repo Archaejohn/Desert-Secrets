@@ -469,6 +469,89 @@ const sahraTap = await page.evaluate(() => {
 });
 check("tapping to talk opens Sahra's reactive trade via touch", sahraTap.open === true, JSON.stringify(sahraTap));
 
+// ---------- Act 6: the reef trade-not-fight diplomacy via touch ----------
+// Jump to the crawler court (Fluffball joined, no trade/fight yet) and confirm
+// that tapping to talk opens the warden's parley AND that its choice list — the
+// branch point that gates the trade vs. the avoidable fight — is reachable and
+// renders its ▲/✓/▼ column on a touch device.
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
+    act4Started: true, act4Complete: true, gotSocks: true,
+    act5Started: true, act5Complete: true, fluffballJoined: true, gotOranges: true,
+    act6Started: true, sawReefDescent: true, sawReefGarden: true, sawReefWarren: true,
+    sawReefChase: true, sawReefHollow: true, sawReefCourt: true
+  };
+  g.registry.set("act1", { ...st, zone: "reefCourt", hp: 999, flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("reefCourt", {});
+});
+await page.waitForTimeout(1300);
+
+// Stand next to the crawler warden and tap the right side to talk via touch.
+await page.evaluate(() => {
+  const w = window.__game.scene.getScene("reefCourt");
+  const n = w["npcs"][0]; // the crawler warden, keeper of the oldest mint row
+  w.player.body.reset(n.sprite.x, n.sprite.y + 14);
+});
+await page.waitForTimeout(250);
+await tapRightSide();
+await page.waitForTimeout(400);
+const reefTap = await page.evaluate(() => ({ open: window.__game.scene.getScene("reefCourt").dialogue.isOpen }));
+check("tapping to talk opens the crawler parley via touch", reefTap.open === true, JSON.stringify(reefTap));
+
+// Advance the opening lines to the parley's first choice node (any tap advances
+// a plain line); confirm the trade-vs-fight choice list is reached via touch.
+let reefDlg = null;
+for (let i = 0; i < 10; i++) {
+  reefDlg = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("reefCourt");
+    return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
+  });
+  if (!reefDlg.open || reefDlg.choices) break;
+  await tapRightSide();
+  await page.waitForTimeout(220);
+}
+check(
+  "the crawler parley reaches its trade-vs-fight choice list via touch",
+  reefDlg.open === true && Array.isArray(reefDlg.choices) && reefDlg.choices.length === 2,
+  JSON.stringify(reefDlg)
+);
+
+if (reefDlg.choices) {
+  // Confirm the courteous first choice (row 0) with the ✓ column — the good
+  // approach that leads on toward the peaceful trade.
+  const confirmBtn = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("reefCourt");
+    const dlg = w.dialogue;
+    const b = dlg["touchButtons"];
+    const rect = window.__game.canvas.getBoundingClientRect();
+    const sx = rect.width / window.__game.scale.width;
+    const sy = rect.height / window.__game.scale.height;
+    const cx = dlg["container"].x;
+    const cy = dlg["container"].y;
+    return {
+      x: rect.x + (cx + b.x + b.size / 2) * sx,
+      y: rect.y + (cy + b.top + b.gap + b.size / 2) * sy
+    };
+  });
+  await page.touchscreen.tap(confirmBtn.x, confirmBtn.y);
+  await page.waitForTimeout(300);
+  const afterReefChoice = await page.evaluate(() => {
+    const w = window.__game.scene.getScene("reefCourt");
+    return { open: w.dialogue.isOpen, node: w.dialogue["runner"]?.currentNodeId ?? null };
+  });
+  check(
+    "tapping ✓ confirms the courteous choice and advances the parley (not to the fight)",
+    afterReefChoice.node !== "affront" && afterReefChoice.node !== null,
+    JSON.stringify(afterReefChoice)
+  );
+}
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

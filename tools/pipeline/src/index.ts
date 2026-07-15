@@ -44,12 +44,14 @@ const sheets = [
   ["lurker.png", assets.lurker],
   ["middenmite.png", assets.middenmite],
   ["sunwasp.png", assets.sunwasp],
+  ["reefstalker.png", assets.reefstalker],
   ["tiles.png", assets.tiles],
   ["tiles2.png", assets.tiles2],
   ["tiles3.png", assets.tiles3],
   ["tiles4.png", assets.tiles4],
   ["tiles5.png", assets.tiles5],
-  ["tiles6.png", assets.tiles6]
+  ["tiles6.png", assets.tiles6],
+  ["tiles7.png", assets.tiles7]
 ] as const;
 
 for (const [name, grid] of sheets) {

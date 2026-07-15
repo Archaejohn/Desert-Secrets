@@ -76,7 +76,15 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "groveWater",
   "groveWater2",
   "orangeTreeTrunk",
-  "needleCactus"
+  "needleCactus",
+  // tiles7.png (Act 6 — The Reef / the crawlers' garden)
+  "reefWall",
+  "coralHead",
+  "crystalCluster",
+  "reefWater",
+  "reefWater2",
+  "wildKelp",
+  "kelpTrellis"
 ];
 
 export function isSolidName(name: string | null): boolean {

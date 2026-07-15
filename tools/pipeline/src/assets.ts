@@ -31,12 +31,14 @@ import { reefeelFrames } from "./sprites/reefeel";
 import { lurkerFrames } from "./sprites/lurker";
 import { middenmiteFrames } from "./sprites/middenmite";
 import { sunwaspFrames } from "./sprites/sunwasp";
+import { reefstalkerFrames } from "./sprites/reefstalker";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
 import { tile4Frames } from "./tileset4";
 import { tile5Frames } from "./tileset5";
 import { tile6Frames } from "./tileset6";
+import { tile7Frames } from "./tileset7";
 import { buildManifest, type Manifest } from "./manifest";
 
 export interface BuiltAssets {
@@ -67,12 +69,14 @@ export interface BuiltAssets {
   lurker: PixelGrid;
   middenmite: PixelGrid;
   sunwasp: PixelGrid;
+  reefstalker: PixelGrid;
   tiles: PixelGrid;
   tiles2: PixelGrid;
   tiles3: PixelGrid;
   tiles4: PixelGrid;
   tiles5: PixelGrid;
   tiles6: PixelGrid;
+  tiles7: PixelGrid;
   manifest: Manifest;
 }
 
@@ -105,12 +109,14 @@ export const SHEET_KEYS = [
   "lurker",
   "middenmite",
   "sunwasp",
+  "reefstalker",
   "tiles",
   "tiles2",
   "tiles3",
   "tiles4",
   "tiles5",
-  "tiles6"
+  "tiles6",
+  "tiles7"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -142,12 +148,14 @@ export function buildAssets(): BuiltAssets {
     lurker: composeSheet(lurkerFrames(), 6),
     middenmite: composeSheet(middenmiteFrames(), 6),
     sunwasp: composeSheet(sunwaspFrames(), 6),
+    reefstalker: composeSheet(reefstalkerFrames(), 6),
     tiles: composeSheet(tileFrames(), 8),
     tiles2: composeSheet(tile2Frames(), 8),
     tiles3: composeSheet(tile3Frames(), 8),
     tiles4: composeSheet(tile4Frames(), 8),
     tiles5: composeSheet(tile5Frames(), 8),
     tiles6: composeSheet(tile6Frames(), 8),
+    tiles7: composeSheet(tile7Frames(), 8),
     manifest: buildManifest()
   };
 }

@@ -46,7 +46,12 @@ export type ZoneId =
   | "groveApproach"
   | "groveGrotto"
   | "groveChamber"
-  | "sahraGrove";
+  | "sahraGrove"
+  | "reefDescent"
+  | "reefGarden"
+  | "reefWarren"
+  | "reefHollow"
+  | "reefCourt";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";
@@ -145,6 +150,28 @@ export const ACT5_FLAGS = [
   "act5Complete",
 ] as const;
 
+/**
+ * Act 6 quest flags (The Reef — the crystal-crawlers' farmed-kelp home, a
+ * five-zone chain), all false at newGame(). The `saw*` flags are per-zone
+ * entry beats (mirrors Acts 3–5); `sawReefChase` (the tense near-catch where
+ * the chase stops being cute and Fluffball, not Joseph, calls after Piggy),
+ * `reefFought` (the AVOIDABLE fallback fight, set when a bad approach to the
+ * crawler court turns into a battle) and `gotSeaweed` (the mint-kelp trade,
+ * peaceful OR post-fight) are the story beats they gate.
+ */
+export const ACT6_FLAGS = [
+  "act6Started",
+  "sawReefDescent",
+  "sawReefGarden",
+  "sawReefWarren",
+  "sawReefChase",
+  "sawReefHollow",
+  "sawReefCourt",
+  "reefFought",
+  "gotSeaweed",
+  "act6Complete",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -164,6 +191,8 @@ export interface Act1State {
     stinkySocks: boolean;
     /** Act 5: oranges from the oldest row of Sahra's grove (Piggy's favorite). */
     oranges: boolean;
+    /** Act 6: the crawlers' cultivated mint kelp — the pizza's seaweed (Piggy's favorite). */
+    seaweed: boolean;
   };
   flags: Record<string, boolean>;
 }
@@ -175,13 +204,15 @@ export function newGame(): Act1State {
   for (const f of ACT3_FLAGS) flags[f] = false;
   for (const f of ACT4_FLAGS) flags[f] = false;
   for (const f of ACT5_FLAGS) flags[f] = false;
+  for (const f of ACT6_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },
     hp: baseStatsForLevel(1).maxHp,
     pendingPerks: 0,
     // Rosa grants the cold pack in dialogue; silverfin caught in Act 3;
-    // stinky socks earned in Act 4; grove oranges traded from Sahra in Act 5.
+    // stinky socks earned in Act 4; grove oranges traded from Sahra in Act 5;
+    // the crawlers' mint kelp (seaweed) traded in Act 6.
     items: {
       coldPack: false,
       shinies: 0,
@@ -190,6 +221,7 @@ export function newGame(): Act1State {
       silverfin: false,
       stinkySocks: false,
       oranges: false,
+      seaweed: false,
     },
     flags,
   };

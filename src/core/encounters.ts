@@ -10,7 +10,15 @@ export interface EncounterTable {
 }
 
 export const ENCOUNTERS: Record<
-  "trail" | "mine" | "maze" | "galleries" | "overworld" | "sunlessSea" | "minersCamp" | "grove",
+  | "trail"
+  | "mine"
+  | "maze"
+  | "galleries"
+  | "overworld"
+  | "sunlessSea"
+  | "minersCamp"
+  | "grove"
+  | "reef",
   EncounterTable
 > = {
   overworld: {
@@ -89,6 +97,18 @@ export const ENCOUNTERS: Record<
       ["sunwasp", "sunwasp"],
       ["sunwasp", "sunwasp"],
       ["sunwasp", "sunwasp", "sunwasp"],
+    ],
+    weights: [3, 3, 2, 1],
+  },
+  // Act 6 — The Reef. The crawlers are peaceful; the reef's real danger is the
+  // ambush-predator reefstalker, usually alone, sometimes in a hunting pair.
+  reef: {
+    zone: "reef",
+    groups: [
+      ["reefstalker"],
+      ["reefstalker"],
+      ["reefstalker", "reefstalker"],
+      ["reefstalker", "reefstalker"],
     ],
     weights: [3, 3, 2, 1],
   },

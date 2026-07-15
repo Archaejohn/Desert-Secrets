@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge","groveDescent","groveApproach","groveGrotto","groveChamber","sahraGrove","reefDescent","reefGarden","reefWarren","reefHollow","reefCourt"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -1154,16 +1154,143 @@ check(
   JSON.stringify(s.state.items)
 );
 
-// The Act 5 ending: dialogue → act5Complete → the Act 6 end card → title.
+// The Act 5 ending now HANDS OFF into Act 6 (a real zone, not an end card) —
+// dialogue → act5Complete + act6Started → the reef's drowned stair.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act5Complete === true, 9000);
 check("Act 5 completes (grove oranges earned)", s.state.flags.act5Complete === true, JSON.stringify(s.state.flags));
-await page.screenshot({ path: path.join(root, "../act5-end-card.png") }).catch(() => {});
+s = await waitFor(page, (x) => x.zoneKey === "reefDescent", 12_000);
+check(
+  "the grove hands off into Act 6 (a real zone, not an end card), progress kept",
+  s.zoneKey === "reefDescent" && s.state.flags.act6Started === true,
+  `zone=${s.zoneKey} act6Started=${s.state?.flags?.act6Started}`
+);
+check("checkpoint updated to the drowned stair", s.state.zone === "reefDescent");
+
+// ---------- Act 6: The Reef (the crawlers' garden, a five-zone chain) ----------
+
+// Zone 1 (descent): the arrival beat grounds the back-underwater reveal.
+await healUp(page);
+s = await driveTriggersUntil("reefDescent", (x) => x.state.flags.sawReefDescent);
+check("the drowned-stair arrival beat plays", s.state.flags.sawReefDescent === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "reefDescent") s = await waitFor(page, (x) => x.zoneKey === "reefDescent", 8000);
+await page.screenshot({ path: path.join(root, "../act6-descent.png") }).catch(() => {});
+
+// Zone 1 → Zone 2: the south gate leads on into the crawlers' garden.
+s = await exitTo("reefDescent", "reefGarden");
+check("the descent leads into the crawlers' garden", s.zoneKey === "reefGarden", `zone=${s.zoneKey}`);
+check("checkpoint updated to the crawlers' garden", s.state.zone === "reefGarden");
+
+// Zone 2 (garden): entry beat + a reef encounter that confirms Fluffball stays
+// NON-COMBAT (the party is hero + Slither, never Fluffball) — same as Act 5.
+await healUp(page);
+s = await driveTriggersUntil("reefGarden", (x) => x.state.flags.sawReefGarden);
+check("the crawlers'-garden entry beat plays", s.state.flags.sawReefGarden === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "reefGarden") s = await waitFor(page, (x) => x.zoneKey === "reefGarden", 8000);
+await page.screenshot({ path: path.join(root, "../act6-garden.png") }).catch(() => {});
+await page.evaluate(() => window.__game.scene.getScene("reefGarden").startBattle(["reefstalker"]));
+s = await waitFor(page, (x) => x.battle, 6000);
+check("a reef stalker hunts the garden (Act 6 encounter starts)", s.battle === true);
+const reefParty = await page.evaluate(() =>
+  Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
+);
+check(
+  "Fluffball stays non-combat in Act 6: the battle party is hero + Slither only",
+  reefParty.includes("hero") && reefParty.includes("slither") && !reefParty.includes("fluffball"),
+  JSON.stringify(reefParty)
+);
+s = await fightThrough(page, { timeoutMs: 120_000 });
+s = await waitFor(page, (x) => x.zoneKey === "reefGarden", 12_000);
+
+// Zone 2 → Zone 3: the south gate drops into the coral warren.
+s = await exitTo("reefGarden", "reefWarren");
+check("the garden leads into the coral warren", s.zoneKey === "reefWarren", `zone=${s.zoneKey}`);
+
+// Zone 3 (warren): entry beat + the TENSE chase-and-turn (Piggy cornered for
+// real, frightened, slips through a gap; Fluffball — not Joseph — calls after).
+await healUp(page);
+s = await driveTriggersUntil("reefWarren", (x) => x.state.flags.sawReefWarren && x.state.flags.sawReefChase);
+check("the coral-warren entry beat plays", s.state.flags.sawReefWarren === true, JSON.stringify(s.state.flags));
+check("the tense chase-and-turn plays (Piggy frightened, slips away)", s.state.flags.sawReefChase === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "reefWarren") s = await waitFor(page, (x) => x.zoneKey === "reefWarren", 8000);
+await page.screenshot({ path: path.join(root, "../act6-warren-chase.png") }).catch(() => {});
+
+// Zone 3 → Zone 4: the south gate opens into the glowing hollow.
+s = await exitTo("reefWarren", "reefHollow");
+check("the warren leads into the glowing hollow", s.zoneKey === "reefHollow", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("reefHollow", (x) => x.state.flags.sawReefHollow);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("the glowing-hollow entry beat plays", s.state.flags.sawReefHollow === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "reefHollow") s = await waitFor(page, (x) => x.zoneKey === "reefHollow", 8000);
+
+// Zone 4 → Zone 5: the south gate leads on to the crawler court.
+s = await exitTo("reefHollow", "reefCourt");
+check("the hollow leads on to the crawler court", s.zoneKey === "reefCourt", `zone=${s.zoneKey}`);
+check("checkpoint updated to the crawler court", s.state.zone === "reefCourt");
+await healUp(page);
+s = await driveTriggersUntil("reefCourt", (x) => x.state.flags.sawReefCourt);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("the crawler-court entry beat plays", s.state.flags.sawReefCourt === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "reefCourt") s = await waitFor(page, (x) => x.zoneKey === "reefCourt", 8000);
+await page.screenshot({ path: path.join(root, "../act6-court.png") }).catch(() => {});
+
+// --- The diplomacy: a TRADE, not a fight (a queen-shaped branch point) ---
+// First, introspect the warden's live parley: both branches must be wired — a
+// courteous first choice leads on toward the trade, a rude one to `affront`.
+const parley = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("reefCourt");
+  const scr = w.wardenScript(); // the reefParley branch point (pre-fight, pre-trade)
+  const ids = scr.nodes.map((n) => n.id);
+  const meet = scr.nodes.find((n) => n.id === scr.start);
+  return { ids, good: meet.choices?.[0]?.next, bad: meet.choices?.[1]?.next, start: scr.start };
+});
+check(
+  "the warden opens the trade-not-fight parley with BOTH branches wired",
+  parley.start === "meet" &&
+    parley.ids.includes("trade-end") &&
+    parley.ids.includes("affront") &&
+    parley.bad === "affront",
+  JSON.stringify(parley)
+);
+
+// The AVOIDABLE fight-fallback path: a BAD approach (the rude first choice)
+// calls a reef predator down — an avoidable BattleScene, not an instant one.
+await talkToNpc(page, "reefCourt", 0);
+await talkThrough(page, { pickIndex: 1, maxSteps: 40 }); // grab the kelp → affront
+s = await waitFor(page, (x) => x.battle, 8000);
+check("a bad approach starts the AVOIDABLE reef-stalker fight (not an instant one)", s.battle === true);
+await page.screenshot({ path: path.join(root, "../act6-court-fight.png") }).catch(() => {});
+s = await fightThrough(page, { timeoutMs: 150_000 });
+s = await waitFor(page, (x) => x.zoneKey === "reefCourt", 12_000);
+check(
+  "winning the avoidable fight sets reefFought (the crawlers were tested, not slain)",
+  s.state.flags.reefFought === true && s.state.flags.gotSeaweed !== true,
+  JSON.stringify(s.state.flags)
+);
+
+// Post-fight, the crawlers relent — talk again and they trade the kelp in peace
+// (the successful trade: seaweed, a new inventory item, changes hands).
+await talkToNpc(page, "reefCourt", 0);
+await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.gotSeaweed === true, 8000);
+check(
+  "the crawlers trade the mint kelp — the seaweed (a new inventory item)",
+  s.state.flags.gotSeaweed === true && s.state.items.seaweed === true,
+  JSON.stringify(s.state.items)
+);
+
+// The Act 6 ending: dialogue → act6Complete → the Act 7 end card → title.
+s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
+if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
+s = await waitFor(page, (x) => x.state.flags.act6Complete === true, 9000);
+check("Act 6 completes (reef mint kelp earned)", s.state.flags.act6Complete === true, JSON.stringify(s.state.flags));
+await page.screenshot({ path: path.join(root, "../act6-end-card.png") }).catch(() => {});
 await page.waitForTimeout(600);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
-check("the Act 5 end card returns to the title (Act 6 is a teammate's task)", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
+check("the Act 6 end card returns to the title (Act 7 is a teammate's task)", backAtTitle.active?.includes("boot") === true, JSON.stringify(backAtTitle.active));
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
@@ -1172,4 +1299,4 @@ if (failures > 0) {
   console.error(`\n${failures} smoke check(s) failed`);
   process.exit(1);
 }
-console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 + Act 5 smoke checks passed");
+console.log("\nAll Act 1 + Act 2 + Act 3 + Act 4 + Act 5 + Act 6 smoke checks passed");

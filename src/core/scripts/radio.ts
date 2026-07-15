@@ -55,4 +55,9 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   groveGrotto: checkIn(["...running water? Down THERE? ...shhhk..."]),
   groveChamber: checkIn(["...a garden? In the MINE? ...static..."]),
   sahraGrove: checkIn(["...someone LIVES down there? ...static..."]),
+  reefDescent: checkIn(["...underWATER again? Joseph, how DEEP— static..."]),
+  reefGarden: checkIn(["...a kelp FARM? Someone tends it? ...shhhk..."]),
+  reefWarren: checkIn(["...coral everywhere. You're a whisper now..."]),
+  reefHollow: checkIn(["...just glow and dark down there. Static..."]),
+  reefCourt: checkIn(["...you're TALKING to the reef? ...only static."]),
 };
