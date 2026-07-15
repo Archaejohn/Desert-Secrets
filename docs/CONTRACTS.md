@@ -689,12 +689,25 @@ resolves names from the tile atlases.
 `src/game/ui/InventoryMenu.ts` — a modal window opened with the "I" key
 (mirroring `PerkMenu`'s styling and self-contained input-handler
 lifecycle: ink background, gold border/highlight, listeners registered
-on open and torn down on close). Lists carried items; selecting the
-bucket row (SPACE/ENTER, or tap) toggles `items.equipped`. ESC or "I"
-closes it. `ZoneScene.openInventory()` constructs it lazily against the
-current `Act1State`; while `inventoryMenu` is set, `update()` returns
-immediately after zeroing player velocity, so movement, dialogue and
-interact points are all suspended for the duration.
+on open and torn down on close). Each row is graphical, not plain text:
+the item's actual sprite icon (e.g. `bucket.png` at its current
+empty/full frame) plus its name, with the highlighted row's full
+description shown below in a detail panel with a bigger (2×) icon and
+wrapped flavor text — not just a label. Selecting the bucket row
+(SPACE/ENTER, or tap) toggles `items.equipped`, marked with a `✓
+equipped` tag. `ZoneScene.openInventory()` constructs it lazily against
+the current `Act1State`; while `inventoryMenu` is set, `update()`
+returns immediately after zeroing player velocity, so movement, dialogue
+and interact points are all suspended for the duration.
+
+Closing is deliberately redundant: ESC, "I" again, or a tap on an
+always-visible ✕ in the panel's corner. The ✕ exists because a
+touch-only player has no ESC key at all — the first version of this
+menu only had keyboard-close bindings, which left phone players with no
+way out once they opened it. The ✕ (and every row) is hit-tested
+manually in `tapAt()` against the panel's local coordinates, the same
+manual approach `PerkMenu` already used, rather than relying on
+Phaser's per-object interactivity inside a `Container`.
 
 Opening is wired as a single `keydown-I` event listener bound once in
 `setupInput()`, calling `openInventory()` (which itself no-ops if a
