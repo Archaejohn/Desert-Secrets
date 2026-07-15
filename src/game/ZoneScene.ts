@@ -538,6 +538,28 @@ export abstract class ZoneScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Talk to the nearest NPC, or use the nearest interact point (bucket,
+   * spigot, coop) if no NPC is in range. Shared by the keyboard E/SPACE
+   * path in update() and the tap-right-side path in onPointerDown() —
+   * touch previously only ever checked NPCs, so tapping to use an
+   * InteractPoint silently did nothing.
+   */
+  private interact(): void {
+    const npc = this.nearestNpc();
+    if (npc) {
+      this.talkTo(npc);
+      return;
+    }
+    const interactPoint = this.nearestInteractPoint();
+    if (interactPoint) {
+      interactPoint.onUse();
+      if (interactPoint.once) {
+        this.interactPoints = this.interactPoints.filter((p) => p !== interactPoint);
+      }
+    }
+  }
+
   private onPointerDown(p: Phaser.Input.Pointer): void {
     if (this.inputLocked) return;
     if (this.inventoryMenu) return; // the menu owns pointer input while open
@@ -551,8 +573,7 @@ export abstract class ZoneScene extends Phaser.Scene {
       this.joyOrigin = new Phaser.Math.Vector2(p.x, p.y);
       this.joystickVisual?.show(p.x, p.y);
     } else {
-      const npc = this.nearestNpc();
-      if (npc) this.talkTo(npc);
+      this.interact();
     }
   }
 
@@ -597,16 +618,13 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (npc) {
       this.talkPrompt.setPosition(npc.sprite.x, npc.sprite.y - 26);
       if (interactPressed) {
-        this.talkTo(npc);
+        this.interact();
         return;
       }
     } else if (interactPoint) {
       this.talkPrompt.setPosition(interactPoint.x, interactPoint.y - 20);
       if (interactPressed) {
-        interactPoint.onUse();
-        if (interactPoint.once) {
-          this.interactPoints = this.interactPoints.filter((p) => p !== interactPoint);
-        }
+        this.interact();
         return;
       }
     }

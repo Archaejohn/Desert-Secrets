@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "node tools/smoke/e2e.mjs",
+    "smoke:touch": "node tools/smoke/touch-e2e.mjs",
     "pages": "npm run build && node tools/copy-pages.mjs",
     "typecheck": "tsc --noEmit"
   },

@@ -748,3 +748,54 @@ carrying but hasn't equipped.
 `touch.ts` gains `addInventoryButton`/`inInventoryButtonZone`, a
 top-left bag button mirroring the top-right fullscreen button, shown
 only on touch devices (alongside the joystick and action-button hint).
+
+# v7: tap-to-interact reaches InteractPoints, and bigger dialogue-choice touch targets
+
+Two touch bugs reported right after v6 shipped: pressing "E"/tapping at
+the bucket or the (bucket-less) coop did nothing, and dialogue choices
+were too fiddly to tap accurately.
+
+## Tap-to-interact only ever checked NPCs
+
+`ZoneScene.onPointerDown()`'s tap-right-side branch called `talkTo(npc)`
+if an NPC was near — full stop. It never checked
+`nearestInteractPoint()`, so tapping to use the shed's bucket, the
+spigot, or the coop silently did nothing on a touch device (physical "E"
+still worked, which is why this shipped unnoticed: the smoke test's
+touch coverage didn't exist yet). Fixed by extracting a shared
+`interact()` method (NPC takes priority, falls back to the nearest
+InteractPoint) used by both the keyboard `interactPressed` path in
+`update()` and the tap-right-side path in `onPointerDown()` — one
+codepath, so this class of divergence can't recur.
+
+## Dialogue choice touch targets
+
+`DialogueBox` grew from `BOX_H=64` to `100`, and two things changed for
+choice lists:
+
+- Each choice row's tap band grew from a 12px-tall (24 screen px) sliver
+  to 18px (36 screen px), and now renders a full-width highlight bar
+  behind the selected row — a visibly bigger target, not just a
+  functionally bigger one.
+- On a touch device, a persistent ▲ / A / ▼ button column (22px/44
+  screen-px squares) appears on the box's right edge whenever a choice
+  list is showing — a fixed-position fallback that doesn't require
+  hitting a specific row at all. Hidden entirely on desktop (the
+  keyboard's arrows + SPACE/ENTER already cover this) and hidden for
+  plain (non-choice) lines.
+
+Both the row band and the button column are hit-tested manually in
+`DialogueBox.tapAt()`, the same manual-coordinate approach already used
+by `PerkMenu` and `InventoryMenu`, rather than Phaser's per-object
+interactivity.
+
+## New test coverage: `tools/smoke/touch-e2e.mjs`
+
+A second, smaller Playwright script (`npm run smoke:touch`), separate
+from the keyboard-driven `tools/smoke/e2e.mjs` playthrough, run in a
+real touch-emulated browser context (`hasTouch: true, isMobile: true`).
+`isTouchDevice()` reads `game.device.input.touch`, which only reads true
+in a touch-emulated context — neither of these bugs was reachable from
+the keyboard-only main smoke test, which is exactly how they shipped
+unnoticed in v6. Covers: tapping an InteractPoint with no NPC nearby,
+and tapping ▲/▼/A to move and confirm a dialogue choice.
