@@ -40,7 +40,13 @@ export const PALETTE = {
   atbGold: "#f0c439",
 
   // Pure white sparingly (glints, text)
-  white: "#ffffff"
+  white: "#ffffff",
+
+  // 2.5D art-upgrade additions (docs/ART_DIRECTION.md §3) — appended only,
+  // existing entries must never be reordered (the manifest embeds this
+  // object verbatim and sprite code indexes by name).
+  umber: "#6e4036", // dark warm brown: wall feet, wood shade, dune shadow lines, canopy crevices on warm plants
+  sandShade: "#c69b7c" // cooler sand one step down: large cast-shadow areas on sand/camp floors where amber reads too orange
 } as const;
 
 export type PaletteName = keyof typeof PALETTE;
