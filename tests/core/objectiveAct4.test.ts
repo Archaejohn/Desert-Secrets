@@ -43,13 +43,23 @@ describe("objectiveFor — Act 4 chain", () => {
     );
   });
 
-  it("points at the sock line once the nook is cleared", () => {
+  it("sends the player to the ledge for Fluffball's clue before the socks are offered", () => {
     const s = state("campProper", { act4Started: true, middenCleared: true });
+    expect(objectiveFor(s)).toBe("Climb the gallery to the ledge");
+  });
+
+  it("points at the sock line once the nook is cleared and the ledge is seen", () => {
+    const s = state("campProper", { act4Started: true, middenCleared: true, fluffballLedge: true });
     expect(objectiveFor(s)).toBe("Take the ripe socks off the line");
   });
 
   it("celebrates once the stinky socks are in hand", () => {
-    const s = state("campProper", { act4Started: true, middenCleared: true, gotSocks: true });
+    const s = state("campProper", {
+      act4Started: true,
+      middenCleared: true,
+      fluffballLedge: true,
+      gotSocks: true,
+    });
     expect(objectiveFor(s)).toBe("You have the stinky socks!");
   });
 

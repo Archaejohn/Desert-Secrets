@@ -1,5 +1,5 @@
 /**
- * Act 3, Zone 3 — The Sun-Temple Ruin. A dead-end pocket off the kelp
+ * Act 3, Zone 3 — The Ancient Ruins. A dead-end pocket off the kelp
  * forest: a short orient on arrival, then the carved sun-glyph in the main
  * hall (an InteractPoint) plays the templeLore beat — "the desert was hiding
  * an ecosystem, not treasure." The east gate leads back to the kelp forest.
@@ -27,7 +27,7 @@ export class SunTempleScene extends ZoneScene {
   protected config(): ZoneConfig {
     return {
       zoneId: "sunTemple",
-      zoneName: "The Sun-Temple Ruin",
+      zoneName: "The Ancient Ruins",
       map: buildSunTempleMap(),
       defaultSpawn: SUNTEMPLE_SPAWN,
       battleBg: "ice"

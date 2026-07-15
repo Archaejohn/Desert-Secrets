@@ -71,6 +71,20 @@ const needClearScript: DialogueScript = {
   nodes: [{ id: "need", lines: [{ speaker: "", text: "Clear the mites from the nook first." }] }]
 };
 
+/** The nook's clear, but Fluffball's clue (the ripest ones) hasn't landed yet. */
+const needLedgeScript: DialogueScript = {
+  start: "need",
+  nodes: [
+    {
+      id: "need",
+      lines: [
+        { speaker: "Edda", text: "Hold on - not just any socks will do him." },
+        { speaker: "Edda", text: "Whatever's been watching from the ledge might know." }
+      ]
+    }
+  ]
+};
+
 export class CampProperScene extends ZoneScene {
   private slither = new SlitherFollower(this);
 
@@ -143,7 +157,7 @@ export class CampProperScene extends ZoneScene {
     const s = getState(this);
     if (s.items.stinkySocks) return minersReekScript; // comic reek reaction
     if (s.flags.gotSocks) return campChatter;
-    if (s.flags.middenCleared) return takeSocksScript;
+    if (s.flags.middenCleared) return s.flags.fluffballLedge ? takeSocksScript : needLedgeScript;
     return minersFavorScript;
   }
 
@@ -169,12 +183,16 @@ export class CampProperScene extends ZoneScene {
           { x: (CAMPP_CRATE_STACK.x + 1) * TILE, y: (CAMPP_CRATE_STACK.y + 5) * TILE, duration: 700 },
           { alpha: 0, duration: 250 }
         ],
-        onComplete: () => piggy.destroy()
-      });
-      this.openScript(crateChaseScript, () => {
-        const cur = getState(this);
-        setState(this, { ...cur, flags: { ...cur.flags, sawCrateChase: true } });
-        this.hud.update(getState(this));
+        onComplete: () => {
+          piggy.destroy();
+          // Wait for the burrow-and-vanish to finish before the reaction
+          // lines open, so dialogue never races ahead of what it's about.
+          this.openScript(crateChaseScript, () => {
+            const cur = getState(this);
+            setState(this, { ...cur, flags: { ...cur.flags, sawCrateChase: true } });
+            this.hud.update(getState(this));
+          });
+        }
       });
     });
   }
@@ -186,6 +204,10 @@ export class CampProperScene extends ZoneScene {
       const s = getState(this);
       if (!s.flags.middenCleared) {
         this.openScript(needClearScript);
+        return;
+      }
+      if (!s.flags.fluffballLedge) {
+        this.openScript(needLedgeScript);
         return;
       }
       if (s.flags.gotSocks) {

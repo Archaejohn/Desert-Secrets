@@ -94,7 +94,7 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   mineEntrance: "Mine Entrance",
   sunlessSea: "The Sunless Sea",
   kelpForest: "The Kelp Forest",
-  sunTemple: "The Sun-Temple Ruin",
+  sunTemple: "The Ancient Ruins",
   fluffballBed: "The Kelp Bed",
   deepBed: "The Deep Kelp Bed",
   seaAscent: "The Ascent",

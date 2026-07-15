@@ -61,14 +61,17 @@ export class SunlessSeaScene extends ZoneScene {
             onComplete: () => {
               piggy.destroy();
               fluff.destroy();
+              // Wait for the pair to fully vanish across the water before
+              // the reaction lines open, so dialogue never races ahead of
+              // what it's about.
+              this.openScript(piggyChaseScript, () => {
+                const cur = getState(this);
+                setState(this, { ...cur, flags: { ...cur.flags, sawChase: true } });
+                this.hud.update(getState(this));
+              });
             }
           });
         }
-      });
-      this.openScript(piggyChaseScript, () => {
-        const cur = getState(this);
-        setState(this, { ...cur, flags: { ...cur.flags, sawChase: true } });
-        this.hud.update(getState(this));
       });
     });
   }

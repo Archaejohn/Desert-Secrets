@@ -61,12 +61,13 @@ function act3ObjectiveFor(s: Act1State): string {
     case "sunlessSea":
       return "Press on into the kelp forest";
     case "kelpForest":
-      return f.metFluffball ? "Head east to the deep kelp beds" : "Explore the kelp forest";
+      return f.metFluffball ? "Head east to the deep kelp beds" : "Find the kelp bed to the south";
     case "sunTemple":
-      return "Search the drowned sun-temple";
+      return "Search the drowned ruins";
     case "fluffballBed":
       return "Corner the chick in the kelp bed";
     case "deepBed":
+      if (!f.metFluffball) return "Find the kelp bed to the south first";
       if (!f.lurkerDefeated) return "Fish the deep bed for silverfin";
       if (!f.silverfinCaught) return "Cast again — land the silverfin";
       return "Climb up, out of the sea";
@@ -93,6 +94,7 @@ function act4ObjectiveFor(s: Act1State): string {
       return "Head into the miners' camp";
     case "campProper":
       if (!f.middenCleared) return "Clear the mites from the laundry nook";
+      if (!f.fluffballLedge) return "Climb the gallery to the ledge";
       if (!f.gotSocks) return "Take the ripe socks off the line";
       return "You have the stinky socks!";
     case "laundryNook":

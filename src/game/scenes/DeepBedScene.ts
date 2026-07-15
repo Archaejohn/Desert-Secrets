@@ -28,6 +28,20 @@ const alreadyCaughtScript: DialogueScript = {
   nodes: [{ id: "have", lines: [{ speaker: "", text: "You already have the silverfin." }] }]
 };
 
+/** Nothing to fish for yet — the silverfin clue lives with Fluffball. */
+const needFluffballScript: DialogueScript = {
+  start: "need",
+  nodes: [
+    {
+      id: "need",
+      lines: [
+        { speaker: "Slither", text: "Nothing bitesss on a hunch, Joseph." },
+        { speaker: "Joseph", text: "We need to know what we're even after." }
+      ]
+    }
+  ]
+};
+
 export class DeepBedScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fishingMenu: FishingMenu | null = null;
@@ -84,6 +98,11 @@ export class DeepBedScene extends ZoneScene {
     this.addProp("seaSparkle", DEEP_FISHING.x, DEEP_FISHING.y, { depthSort: false });
     this.addInteractPoint(DEEP_FISHING.x, DEEP_FISHING.y, () => {
       const s = getState(this);
+      if (!s.flags.metFluffball) {
+        // Silverfin is Fluffball's clue - fishing here blind isn't the point.
+        this.openScript(needFluffballScript);
+        return;
+      }
       if (!s.flags.lurkerDefeated) {
         // Cast FIRST; the line goes taut, then the Lurker takes it and dives —
         // the theft is what starts the fight.

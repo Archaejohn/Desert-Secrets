@@ -85,12 +85,17 @@ export class GroveApproachScene extends ZoneScene {
           { x: (APPROACH_NEEDLE.x - 1) * TILE, y: (APPROACH_NEEDLE.y + 1) * TILE, duration: 700 },
           { alpha: 0, duration: 250 } // gone into the thicket
         ],
-        onComplete: () => piggy.destroy()
-      });
-      this.openScript(groveChaseScript, () => {
-        const cur = getState(this);
-        setState(this, { ...cur, flags: { ...cur.flags, sawGroveChase: true } });
-        this.hud.update(getState(this));
+        onComplete: () => {
+          piggy.destroy();
+          // Wait for him to vanish into the thicket before the reaction
+          // lines open, so the tonal shift lands on what's on screen, not
+          // dialogue racing ahead of the animation.
+          this.openScript(groveChaseScript, () => {
+            const cur = getState(this);
+            setState(this, { ...cur, flags: { ...cur.flags, sawGroveChase: true } });
+            this.hud.update(getState(this));
+          });
+        }
       });
     });
   }

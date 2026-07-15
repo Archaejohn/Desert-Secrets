@@ -21,22 +21,35 @@ describe("objectiveFor — Act 3 chain (six zones)", () => {
 
   it("grounds each sea zone with its own objective line", () => {
     expect(objectiveFor(state("sunlessSea", { act3Started: true }))).toBe("Press on into the kelp forest");
-    expect(objectiveFor(state("kelpForest", { act3Started: true }))).toBe("Explore the kelp forest");
+    expect(objectiveFor(state("kelpForest", { act3Started: true }))).toBe("Find the kelp bed to the south");
     expect(objectiveFor(state("kelpForest", { act3Started: true, metFluffball: true }))).toBe(
       "Head east to the deep kelp beds"
     );
-    expect(objectiveFor(state("sunTemple", { act3Started: true }))).toBe("Search the drowned sun-temple");
+    expect(objectiveFor(state("sunTemple", { act3Started: true }))).toBe("Search the drowned ruins");
     expect(objectiveFor(state("fluffballBed", { act3Started: true }))).toBe("Corner the chick in the kelp bed");
     expect(objectiveFor(state("seaAscent", { act3Started: true }))).toBe("Climb the shaft to the surface");
   });
 
+  it("sends the player back for Fluffball's clue before the fishing spot works", () => {
+    expect(objectiveFor(state("deepBed", { act3Started: true }))).toBe("Find the kelp bed to the south first");
+  });
+
   it("walks the deep-bed fishing objective from Lurker to catch to climb", () => {
-    expect(objectiveFor(state("deepBed", { act3Started: true }))).toBe("Fish the deep bed for silverfin");
-    expect(objectiveFor(state("deepBed", { act3Started: true, lurkerDefeated: true }))).toBe(
-      "Cast again — land the silverfin"
+    expect(objectiveFor(state("deepBed", { act3Started: true, metFluffball: true }))).toBe(
+      "Fish the deep bed for silverfin"
     );
     expect(
-      objectiveFor(state("deepBed", { act3Started: true, lurkerDefeated: true, silverfinCaught: true }))
+      objectiveFor(state("deepBed", { act3Started: true, metFluffball: true, lurkerDefeated: true }))
+    ).toBe("Cast again — land the silverfin");
+    expect(
+      objectiveFor(
+        state("deepBed", {
+          act3Started: true,
+          metFluffball: true,
+          lurkerDefeated: true,
+          silverfinCaught: true
+        })
+      )
     ).toBe("Climb up, out of the sea");
   });
 

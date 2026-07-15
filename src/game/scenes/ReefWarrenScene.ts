@@ -87,12 +87,16 @@ export class ReefWarrenScene extends ZoneScene {
           { x: REEF_W_GAP.x * TILE + TILE / 2, y: REEF_W_GAP.y * TILE + TILE / 2, duration: 650 },
           { alpha: 0, duration: 250 } // through the gap, gone
         ],
-        onComplete: () => piggy.destroy()
-      });
-      this.openScript(reefChaseScript, () => {
-        const cur = getState(this);
-        setState(this, { ...cur, flags: { ...cur.flags, sawReefChase: true } });
-        this.hud.update(getState(this));
+        onComplete: () => {
+          piggy.destroy();
+          // Wait for him to slip through the gap before the reaction lines
+          // open, so dialogue never races ahead of what it's about.
+          this.openScript(reefChaseScript, () => {
+            const cur = getState(this);
+            setState(this, { ...cur, flags: { ...cur.flags, sawReefChase: true } });
+            this.hud.update(getState(this));
+          });
+        }
       });
     });
   }
