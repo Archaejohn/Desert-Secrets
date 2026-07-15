@@ -659,6 +659,58 @@ check("the cooking minigame bakes the perfect pizza via touch taps", baked === t
 const pizzaBaked = await page.evaluate(() => window.__game.registry.get("act1").flags.pizzaBaked === true);
 check("the pizza is baked (touch)", pizzaBaked === true);
 
+// ---------- Title menu: no tap-anywhere-confirms (regression) ----------
+// A save now exists from the whole playthrough above. Reload to hit the
+// title menu with CONTINUE present, and prove touch input there is
+// restricted to the same ▲/✓/▼ column as everywhere else — a stray tap
+// used to confirm whatever was selected from anywhere on the screen,
+// which could wipe the save by launching NEW GAME instead of CONTINUE.
+await page.reload();
+await page.waitForTimeout(2600);
+
+const savedZoneBefore = await page.evaluate(() => {
+  const raw = localStorage.getItem("desert-secrets-save-v1");
+  return raw ? JSON.parse(raw).state.zone : null;
+});
+
+const titleBtnScreen = await page.evaluate(() => {
+  const boot = window.__game.scene.getScene("boot");
+  const btns = boot["touchButtons"];
+  const rect = window.__game.canvas.getBoundingClientRect();
+  const scaleX = rect.width / window.__game.scale.width;
+  const scaleY = rect.height / window.__game.scale.height;
+  const mid = (localY) => ({
+    x: rect.x + (btns.x + btns.size / 2) * scaleX,
+    y: rect.y + (localY + btns.size / 2) * scaleY
+  });
+  return { up: mid(btns.top), confirm: mid(btns.top + btns.gap), down: mid(btns.top + btns.gap * 2) };
+});
+
+// A tap on the menu text itself (not the button column) must do nothing.
+const canvasRectTitle = await page.evaluate(() => window.__game.canvas.getBoundingClientRect());
+await page.touchscreen.tap(canvasRectTitle.x + canvasRectTitle.width * 0.5, canvasRectTitle.y + canvasRectTitle.height * 0.5);
+await page.waitForTimeout(250);
+let titleStillUp = await page.evaluate(() => window.__game.scene.getScene("boot").scene.isActive());
+check("tapping the title menu's text (not the button column) does nothing", titleStillUp === true);
+
+// Navigate down to NEW GAME and back up to CONTINUE via the button column,
+// then confirm — this must land back on the saved zone, not a fresh game.
+await page.touchscreen.tap(titleBtnScreen.down.x, titleBtnScreen.down.y);
+await page.waitForTimeout(200);
+await page.touchscreen.tap(titleBtnScreen.up.x, titleBtnScreen.up.y);
+await page.waitForTimeout(200);
+titleStillUp = await page.evaluate(() => window.__game.scene.getScene("boot").scene.isActive());
+check("▲/▼ navigation on the title menu doesn't confirm by itself", titleStillUp === true);
+
+await page.touchscreen.tap(titleBtnScreen.confirm.x, titleBtnScreen.confirm.y);
+await page.waitForTimeout(1200);
+const zoneAfterContinue = await page.evaluate(() => window.__game.registry.get("act1")?.zone ?? null);
+check(
+  "tapping ✓ confirms CONTINUE via the button column, not an accidental NEW GAME",
+  zoneAfterContinue !== null && zoneAfterContinue === savedZoneBefore && zoneAfterContinue !== "crash",
+  `saved=${savedZoneBefore} after=${zoneAfterContinue}`
+);
+
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));
 
 await browser.close();

@@ -7,6 +7,7 @@ import Phaser from "phaser";
 import { MANIFEST, registerAnimations } from "../manifest";
 import { PALETTE } from "../../shared/palette";
 import { loadSavedState, resetGame, setState } from "../state";
+import { TouchListButtons, isTouchDevice } from "../ui/touch";
 import type { ZoneId } from "../../core/gameState";
 import heroUrl from "../../assets/generated/hero.png";
 import npcUrl from "../../assets/generated/npc.png";
@@ -124,6 +125,7 @@ export class BootScene extends Phaser.Scene {
   private options: Array<{ label: string; action: () => void }> = [];
   private selected = 0;
   private started = false;
+  private touchButtons: TouchListButtons | null = null;
 
   constructor() {
     super("boot");
@@ -202,17 +204,27 @@ export class BootScene extends Phaser.Scene {
 
     this.renderMenu(width, height);
 
+    // NEW GAME permanently erases any saved progress, so this menu must
+    // never confirm from an imprecise tap — a stray touch meant for
+    // CONTINUE landing a few pixels off used to wipe the save instead.
+    // Touch input is restricted to the same fixed-position ▲/✓/▼ column
+    // used everywhere else (dialogue, perks, inventory, battle); there is
+    // no tap-anywhere-confirms and no tap-a-row-confirms fallback here.
+    this.touchButtons = isTouchDevice(this)
+      ? new TouchListButtons(this, width - 8 - 22, height / 2 + 34 - 24, 22, 24)
+      : null;
+
     const kb = this.input.keyboard!;
     kb.on("keydown-UP", () => this.move(-1));
     kb.on("keydown-DOWN", () => this.move(1));
     kb.on("keydown-SPACE", () => this.confirm());
     kb.on("keydown-ENTER", () => this.confirm());
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      const row = this.menuTexts.findIndex(
-        (t) => Math.abs(p.y - t.y) < 8
-      );
-      if (row >= 0) this.selected = row;
-      this.confirm();
+      if (!this.touchButtons) return;
+      const hit = this.touchButtons.hitTest(p.x, p.y);
+      if (hit === "up") this.move(-1);
+      else if (hit === "down") this.move(1);
+      else if (hit === "confirm") this.confirm();
     });
   }
 
