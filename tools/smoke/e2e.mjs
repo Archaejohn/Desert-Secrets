@@ -139,6 +139,40 @@ async function healUp(page) {
   });
 }
 
+const readHp = (page) => page.evaluate(() => window.__game.registry.get("act1").hp);
+const setHp = (page, hp) =>
+  page.evaluate((h) => {
+    const g = window.__game;
+    g.registry.set("act1", { ...g.registry.get("act1"), hp: h });
+  }, hp);
+
+/**
+ * Exercise a rest point (Acts 3–7's mid-chain heal): stand on the rest tile,
+ * use it once to learn the party's true max HP, damage the hero down to 1,
+ * then use it again and confirm it heals back to that max — proving the point
+ * is a repeatable, no-cost full heal (not a one-shot). The zone scene must be
+ * active when called.
+ */
+async function restPointCheck(page, zone, tx, ty, label) {
+  const usePoint = async () => {
+    await standAt(page, zone, tx * 16 + 8, ty * 16 + 8);
+    await tap(page, "KeyE");
+    await page.waitForTimeout(250);
+    if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // dismiss flavor line
+  };
+  await usePoint();
+  const full = await readHp(page); // the rest point's heal-to-full target
+  await setHp(page, 1);
+  await page.waitForTimeout(100);
+  await usePoint();
+  const after = await readHp(page);
+  check(
+    `rest point full-heals the party (repeatable) — ${label}`,
+    full > 1 && after === full,
+    `full=${full} damaged→1 then rested→${after}`
+  );
+}
+
 async function waitFor(page, pred, timeoutMs = 15_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -820,6 +854,9 @@ s = await driveTriggersUntil("kelpForest", (x) => x.state.flags.sawKelpForest);
 check("the kelp forest entry beat plays", s.state.flags.sawKelpForest === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "kelpForest") s = await waitFor(page, (x) => x.zoneKey === "kelpForest", 8000);
 
+// The kelp-forest hub rest point (Act 3): a free, repeatable full heal.
+await restPointCheck(page, "kelpForest", 16, 13, "Act 3 kelp forest");
+
 // Zone 2 → Zone 3 (dead-end pocket): the west spur drops into the sun-temple ruin.
 s = await exitTo("kelpForest", "sunTemple");
 check("the west spur reaches the flooded sun-temple", s.zoneKey === "sunTemple", `zone=${s.zoneKey}`);
@@ -949,6 +986,9 @@ s = await driveTriggersUntil("campProper", (x) => x.state.flags.sawCamp && x.sta
 check("the camp-proper entry beat plays", s.state.flags.sawCamp === true, JSON.stringify(s.state.flags));
 check("Piggy's crate-raid chase plays", s.state.flags.sawCrateChase === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "campProper") s = await waitFor(page, (x) => x.zoneKey === "campProper", 8000);
+
+// The camp-stove rest point (Act 4): a free, repeatable full heal.
+await restPointCheck(page, "campProper", 16, 11, "Act 4 miners' camp");
 
 // Talk to a miner: the favor-quest hook (clear the mites for the socks).
 const favorOpened = await talkToNpc(page, "campProper", 0);
@@ -1188,6 +1228,11 @@ await healUp(page);
 s = await driveTriggersUntil("reefGarden", (x) => x.state.flags.sawReefGarden);
 check("the crawlers'-garden entry beat plays", s.state.flags.sawReefGarden === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "reefGarden") s = await waitFor(page, (x) => x.zoneKey === "reefGarden", 8000);
+
+// The mint-kelp rows rest point (Act 6): a free, repeatable full heal, right
+// before the reefstalker fight below.
+await restPointCheck(page, "reefGarden", 21, 9, "Act 6 crawlers' garden");
+
 await page.screenshot({ path: path.join(root, "../act6-garden.png") }).catch(() => {});
 await page.evaluate(() => window.__game.scene.getScene("reefGarden").startBattle(["reefstalker"]));
 s = await waitFor(page, (x) => x.battle, 6000);

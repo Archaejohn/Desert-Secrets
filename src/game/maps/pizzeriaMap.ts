@@ -25,6 +25,14 @@ export const PIZZA_P_OVEN = { x: 13, y: 13 } as const;
 export const PIZZA_P_PIGGY_ARRIVE = { x: 13, y: 2 } as const;
 export const PIZZA_P_PIGGY_END = { x: 13, y: 10 } as const;
 
+/**
+ * The rest point: a set dining table on the west side (the table at (8,9) is
+ * solid; the party sits at the walkable tile just above it). A bowl of
+ * Testudo's soup, usable while exploring the restaurant before the finale
+ * beats begin. See docs/CONTRACTS.md ("v19").
+ */
+export const PIZZA_P_TABLE = { x: 8, y: 8 } as const;
+
 /** The arrival trigger, up by the north spawn. */
 export const PIZZA_P_ENTRY_TRIGGER = { x1: 11, y1: 2, x2: 15, y2: 4 } as const;
 

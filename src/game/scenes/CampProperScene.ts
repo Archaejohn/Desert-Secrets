@@ -21,6 +21,7 @@ import {
   CAMPP_EXIT_NORTH,
   CAMPP_EXIT_WEST,
   CAMPP_GUS,
+  CAMPP_HEARTH,
   CAMPP_MO,
   CAMPP_SOCKS,
   CAMPP_SPAWN
@@ -35,6 +36,7 @@ import { minersFavorScript } from "../../core/scripts/minersFavor";
 import { minersRewardScript } from "../../core/scripts/minersReward";
 import { minersReekScript } from "../../core/scripts/minersReek";
 import { act4EndingScript } from "../../core/scripts/act4Ending";
+import { campRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
 import { ENCOUNTERS, reekAdjusted, type EncounterTable } from "../../core/encounters";
@@ -112,6 +114,9 @@ export class CampProperScene extends ZoneScene {
     this.addExit({ ...CAMPP_EXIT_NORTH }, "minersCamp", CAMP_RETURN_SPAWN);
     this.addExit({ ...CAMPP_EXIT_WEST }, "laundryNook", NOOK_SPAWN);
     this.addExit({ ...CAMPP_EXIT_EAST }, "campGallery", GALLERY_SPAWN);
+
+    // Rest point (the camp stove): a free, reusable full heal by the hearth.
+    this.addInteractPoint(CAMPP_HEARTH.x, CAMPP_HEARTH.y, () => this.restHere(campRestScript));
 
     // Arrival orientation, plays once.
     if (!getState(this).flags.sawCamp) {

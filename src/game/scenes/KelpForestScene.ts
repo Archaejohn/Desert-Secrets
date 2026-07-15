@@ -13,6 +13,7 @@ import {
   KELP_EXIT_NORTH,
   KELP_EXIT_SOUTH,
   KELP_EXIT_WEST,
+  KELP_REST,
   KELP_SPAWN
 } from "../maps/kelpForestMap";
 import { SEA_KELP_RETURN_SPAWN } from "../maps/sunlessSeaMap";
@@ -20,6 +21,7 @@ import { SUNTEMPLE_SPAWN } from "../maps/sunTempleMap";
 import { FLUFFBED_SPAWN } from "../maps/fluffballBedMap";
 import { DEEP_SPAWN } from "../maps/deepBedMap";
 import { kelpForestEntryScript } from "../../core/scripts/kelpForestEntry";
+import { kelpRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
 
@@ -50,6 +52,9 @@ export class KelpForestScene extends ZoneScene {
     this.addExit({ ...KELP_EXIT_WEST }, "sunTemple", SUNTEMPLE_SPAWN);
     this.addExit({ ...KELP_EXIT_SOUTH }, "fluffballBed", FLUFFBED_SPAWN);
     this.addExit({ ...KELP_EXIT_EAST }, "deepBed", DEEP_SPAWN);
+
+    // Rest point (the hub's warm mineral current): a free, reusable full heal.
+    this.addInteractPoint(KELP_REST.x, KELP_REST.y, () => this.restHere(kelpRestScript));
 
     // Entry orientation: play once when the party first arrives.
     if (!getState(this).flags.sawKelpForest) {

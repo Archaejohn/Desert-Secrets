@@ -35,6 +35,13 @@ export const CAMPP_GUS = { x: 19, y: 10 } as const;
 /** The sock line along the west wall (interact → the reward, once cleared). */
 export const CAMPP_SOCKS = { x: 6, y: 6 } as const;
 
+/**
+ * The camp rest point: the warm spot on the rug directly in front of the
+ * stove (the stove itself, at (16,12), is solid). The camp is Act 4's hub,
+ * so a player passes it before every spur. See docs/CONTRACTS.md ("v19").
+ */
+export const CAMPP_HEARTH = { x: 16, y: 11 } as const;
+
 /** North gate → back up to the outskirts. */
 export const CAMPP_EXIT_NORTH = { x1: 16, y1: 1, x2: 17, y2: 1 } as const;
 export const CAMPP_NORTH_GATES = [
