@@ -1111,3 +1111,31 @@ members (`player`, `groundLayer`, `decorLayer`, `cfg`, `facing`), so the
 diff against the shared base class is zero. New files: `src/core/mode7.ts`,
 `tests/core/mode7.test.ts`, `src/game/gfx/Mode7Ground.ts`; changed:
 `src/game/scenes/OverworldScene.ts` only.
+
+# v11: small rooms (the shed, the mine entrance) render centered, not pinned to a corner
+
+Any zone whose full map is smaller than the 480×270 viewport in both
+dimensions — the shed (256×192px), the mine entrance (160×160px), and
+any future one like them — used to render pinned to the top-left corner
+with dead ink-colored space along the right/bottom edges, because the
+camera was always set up to `startFollow(player)` against
+`setBounds(0, 0, mapW, mapH)`.
+
+The natural-looking fix, `cameras.main.setBounds(0, 0, mapW, mapH,
+true)` (Phaser's own "center on these bounds" flag) or a manual
+`centerOn()` call, does not actually work here: Phaser's bounds-clamping
+logic re-clamps the scroll every time it runs (including immediately
+after a manual `centerOn()`), and for bounds smaller than the viewport it
+resolves that clamp to `(0, 0)`, not centered — so the pinned-corner bug
+survives even a `centerOn()` call as long as `setBounds()` is also
+active.
+
+Fixed in `ZoneScene.create()`: when a room's full map fits within the
+viewport on both axes, skip `setBounds()`/`startFollow()` entirely and
+call `setScroll((mapW − viewportW) / 2, (mapH − viewportH) / 2)` once —
+with no bounds set, there is nothing left to re-clamp it. Larger zones
+(oasis, trail, mine, ...) are unaffected: they still get
+`setBounds()` + `startFollow()` exactly as before. Verified by reading
+`camera.scrollX/scrollY` directly in a headless Playwright check (shed:
+`(-112, -39)`; mine entrance: `(-160, -55)` — both match the hand-computed
+centering values) and by screenshot.

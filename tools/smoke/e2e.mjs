@@ -285,6 +285,19 @@ check("checkpoint updated to oasis", s.state.zone === "oasis");
   s = await waitFor(page, (x) => x.zoneKey === "mineEntrance", 8000);
   check("the overworld's north exit reaches the mine entrance", s.zoneKey === "mineEntrance");
 
+  {
+    // 160x160 vs the 480x270 viewport — also centered, not pinned.
+    const cam = await page.evaluate(() => {
+      const c = window.__game.scene.getScene("mineEntrance").cameras.main;
+      return { scrollX: c.scrollX, scrollY: c.scrollY };
+    });
+    check(
+      "the mine entrance (smaller than the viewport) renders centered, not pinned to a corner",
+      cam.scrollX === -160 && cam.scrollY === -55,
+      JSON.stringify(cam)
+    );
+  }
+
   // Sealed: mineOpen is still false at this point in the playthrough.
   const meTrigs = await page.evaluate(() => {
     const w = window.__game.scene.getScene("mineEntrance");
@@ -397,6 +410,19 @@ if (s.dialogueOpen) await talkThrough(page); // close the hint before moving on
 // catch a map wall sealing off the pickup the way teleporting would miss.
 s = await exitTo("oasis", "shed");
 check("south exit reaches the shed", s.zoneKey === "shed");
+{
+  // The shed is smaller than the viewport in both dimensions (256x192 vs
+  // 480x270) — it should render centered, not pinned to a corner.
+  const cam = await page.evaluate(() => {
+    const c = window.__game.scene.getScene("shed").cameras.main;
+    return { scrollX: c.scrollX, scrollY: c.scrollY };
+  });
+  check(
+    "the shed (smaller than the viewport) renders centered, not pinned to a corner",
+    cam.scrollX === -112 && cam.scrollY === -39,
+    JSON.stringify(cam)
+  );
+}
 const bucketPoint = await page.evaluate(() => {
   const w = window.__game.scene.getScene("shed");
   return w["interactPoints"][0];

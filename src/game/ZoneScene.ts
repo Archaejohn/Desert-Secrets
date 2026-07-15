@@ -166,8 +166,21 @@ export abstract class ZoneScene extends Phaser.Scene {
       this.encounterClock = new EncounterClock(makeRng(Math.floor(Math.random() * 0xffffffff)));
     }
 
-    this.cameras.main.setBounds(0, 0, width * TILE, height * TILE);
-    this.cameras.main.startFollow(this.player, true);
+    const mapPxW = width * TILE;
+    const mapPxH = height * TILE;
+    if (mapPxW <= this.scale.width && mapPxH <= this.scale.height) {
+      // The whole room fits on screen at once (the shed, the mine entrance,
+      // ...): center it statically rather than following the player. No
+      // setBounds() here on purpose — Phaser's bounds-clamping fights a
+      // manual centered scroll and snaps it straight back to (0,0) when the
+      // bounds are smaller than the viewport, which is exactly the pinned-
+      // to-a-corner bug this is fixing.
+      this.cameras.main.stopFollow();
+      this.cameras.main.setScroll((mapPxW - this.scale.width) / 2, (mapPxH - this.scale.height) / 2);
+    } else {
+      this.cameras.main.setBounds(0, 0, mapPxW, mapPxH);
+      this.cameras.main.startFollow(this.player, true);
+    }
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.fadeIn(400);
 
