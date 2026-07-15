@@ -88,7 +88,11 @@ const ZONE_NAMES: Record<ZoneId, string> = {
   fluffballBed: "The Kelp Bed",
   deepBed: "The Deep Kelp Bed",
   seaAscent: "The Ascent",
-  minersCamp: "The Miners' Camp"
+  minersCamp: "The Camp Outskirts",
+  campProper: "The Miners' Camp",
+  laundryNook: "The Laundry Nook",
+  campGallery: "The Back Gallery",
+  campLedge: "The Overlook Ledge"
 };
 
 export class BootScene extends Phaser.Scene {

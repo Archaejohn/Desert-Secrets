@@ -27,24 +27,34 @@ describe("objectiveFor — Act 4 chain", () => {
     expect(objectiveFor(state("sunlessSea", { act4Started: true }))).toBe("Head up to the miners' camp");
   });
 
-  it("asks the player to clear the nook before the socks are earned", () => {
-    expect(objectiveFor(state("minersCamp", { act4Started: true }))).toBe(
+  it("orients the party in the outskirts on first arrival", () => {
+    expect(objectiveFor(state("minersCamp", { act4Started: true }))).toBe("Head into the miners' camp");
+  });
+
+  it("gives each new zone its own grounded objective line", () => {
+    expect(objectiveFor(state("laundryNook", { act4Started: true }))).toBe("Clear the midden-mite nest");
+    expect(objectiveFor(state("campGallery", { act4Started: true }))).toBe("Climb the gallery to the ledge");
+    expect(objectiveFor(state("campLedge", { act4Started: true }))).toBe("Corner the chick on the ledge");
+  });
+
+  it("asks the player to clear the nook before the socks are earned (in the hub)", () => {
+    expect(objectiveFor(state("campProper", { act4Started: true }))).toBe(
       "Clear the mites from the laundry nook",
     );
   });
 
   it("points at the sock line once the nook is cleared", () => {
-    const s = state("minersCamp", { act4Started: true, middenCleared: true });
+    const s = state("campProper", { act4Started: true, middenCleared: true });
     expect(objectiveFor(s)).toBe("Take the ripe socks off the line");
   });
 
   it("celebrates once the stinky socks are in hand", () => {
-    const s = state("minersCamp", { act4Started: true, middenCleared: true, gotSocks: true });
+    const s = state("campProper", { act4Started: true, middenCleared: true, gotSocks: true });
     expect(objectiveFor(s)).toBe("You have the stinky socks!");
   });
 
   it("marks Act 4 complete from anywhere once act4Complete", () => {
-    for (const zone of ["minersCamp", "sunlessSea", "crash"] as ZoneId[]) {
+    for (const zone of ["campProper", "minersCamp", "campLedge", "sunlessSea", "crash"] as ZoneId[]) {
       expect(objectiveFor(state(zone, { act4Started: true, act4Complete: true }))).toBe("Act 4 complete!");
     }
   });
@@ -56,7 +66,15 @@ describe("objectiveFor — Act 4 chain", () => {
       { act4Started: true, middenCleared: true, gotSocks: true },
       { act4Started: true, act4Complete: true },
     ];
-    for (const zone of ["sunlessSea", "minersCamp"] as ZoneId[]) {
+    const zones: ZoneId[] = [
+      "sunlessSea",
+      "minersCamp",
+      "campProper",
+      "laundryNook",
+      "campGallery",
+      "campLedge",
+    ];
+    for (const zone of zones) {
       for (const flags of flagSets) {
         const text = objectiveFor(state(zone, flags));
         expect(text.length).toBeGreaterThan(0);

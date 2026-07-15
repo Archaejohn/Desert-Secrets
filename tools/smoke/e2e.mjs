@@ -32,7 +32,7 @@ const snapshot = (page) =>
   page.evaluate(() => {
     const g = window.__game;
     const active = g.scene.getScenes(true).map((s) => s.scene.key);
-    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp"].includes(k));
+    const zoneKey = active.find((k) => ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge"].includes(k));
     const battle = active.includes("battle");
     const out = { active, zoneKey: zoneKey ?? null, battle, state: g.registry.get("act1") };
     if (zoneKey) {
@@ -51,7 +51,7 @@ async function teleport(page, tx, ty) {
     ([tx, ty]) => {
       const g = window.__game;
       const key = g.scene.getScenes(true).map((s) => s.scene.key).find((k) =>
-        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp"].includes(k)
+        ["crash","oasis","shed","overworld","mineEntrance","trail","mine","depths","crevasse","maze","galleries","sanctum","sunlessSea","kelpForest","sunTemple","fluffballBed","deepBed","seaAscent","minersCamp","campProper","laundryNook","campGallery","campLedge"].includes(k)
       );
       const w = g.scene.getScene(key);
       w.player.body.reset(tx * 16 + 8, ty * 16 + 8);
@@ -929,38 +929,81 @@ check(
   `zone=${s.zoneKey} act4Started=${s.state?.flags?.act4Started}`
 );
 
-// ---------- Act 4: Dirty Laundry (the Miners' Camp) ----------
-check("checkpoint updated to the miners' camp", s.state.zone === "minersCamp");
+// ---------- Act 4: Dirty Laundry (the Miners' Camp, a five-zone chain) ----------
+check("checkpoint updated to the camp outskirts", s.state.zone === "minersCamp");
 
-// The crate chase (walk-over trigger) and the Fluffball ledge glimpse
-// (walk-over trigger) fire their cutscenes, setting sawCrateChase /
-// fluffballLedge.
+// Zone 1 (outskirts): the arrival beat grounds the night-raid storytelling.
 await healUp(page);
-s = await driveTriggersUntil("minersCamp", (x) => x.state.flags.sawCrateChase && x.state.flags.fluffballLedge);
-check("Piggy's crate-raid chase plays", s.state.flags.sawCrateChase === true, JSON.stringify(s.state.flags));
-check("Fluffball glimpsed on the ledge, drops clue #2", s.state.flags.fluffballLedge === true, JSON.stringify(s.state.flags));
+s = await driveTriggersUntil("minersCamp", (x) => x.state.flags.sawOutskirts);
+check("the camp-outskirts arrival beat plays", s.state.flags.sawOutskirts === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "minersCamp") s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 8000);
 
+// Zone 1 → Zone 2: the south gate leads on into the camp proper.
+s = await exitTo("minersCamp", "campProper");
+check("the outskirts lead into the camp proper", s.zoneKey === "campProper", `zone=${s.zoneKey}`);
+check("checkpoint updated to the camp proper", s.state.zone === "campProper");
+
+// Zone 2 (camp proper): the entry beat and the comic crate chase (walk-overs).
+await healUp(page);
+s = await driveTriggersUntil("campProper", (x) => x.state.flags.sawCamp && x.state.flags.sawCrateChase);
+check("the camp-proper entry beat plays", s.state.flags.sawCamp === true, JSON.stringify(s.state.flags));
+check("Piggy's crate-raid chase plays", s.state.flags.sawCrateChase === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "campProper") s = await waitFor(page, (x) => x.zoneKey === "campProper", 8000);
+
 // Talk to a miner: the favor-quest hook (clear the mites for the socks).
-const favorOpened = await talkToNpc(page, "minersCamp", 0);
+const favorOpened = await talkToNpc(page, "campProper", 0);
 check("a miner explains the favor-quest", favorOpened);
 if (favorOpened) await talkThrough(page);
 
+// Zone 2 → Zone 3 (dead-end pocket): the west gap drops into the laundry nook.
+s = await exitTo("campProper", "laundryNook");
+check("the west gap reaches the laundry nook", s.zoneKey === "laundryNook", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("laundryNook", (x) => x.state.flags.sawNook);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("the laundry-nook entry beat plays", s.state.flags.sawNook === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "laundryNook") s = await waitFor(page, (x) => x.zoneKey === "laundryNook", 8000);
+
 // The midden-mite nest: an InteractPoint (press E) → forced swarm battle.
 await healUp(page);
-await teleport(page, 4, 16); // CAMP_NEST
+await teleport(page, 4, 7); // NOOK_NEST
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
 if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // nest intro → battle
 s = await waitFor(page, (x) => x.battle, 6000);
-check("the midden-mite nest battle starts at the laundry nook", s.battle === true);
+check("the midden-mite nest battle starts in the laundry nook", s.battle === true);
 await page.screenshot({ path: path.join(root, "../act4-mite-fight.png") }).catch(() => {});
 s = await fightThrough(page, { timeoutMs: 120_000 });
-s = await waitFor(page, (x) => x.zoneKey === "minersCamp", 12_000);
+s = await waitFor(page, (x) => x.zoneKey === "laundryNook", 12_000);
 check("the midden-mite nest is cleared", s.state.flags.middenCleared === true, JSON.stringify(s.state.flags));
 
+// Zone 3 → back to the camp proper, then east and up the back gallery.
+s = await exitTo("laundryNook", "campProper");
+check("the laundry nook leads back to the camp proper", s.zoneKey === "campProper", `zone=${s.zoneKey}`);
+s = await exitTo("campProper", "campGallery");
+check("the east gate reaches the back gallery", s.zoneKey === "campGallery", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("campGallery", (x) => x.state.flags.sawGallery);
+if ((await snapshot(page)).dialogueOpen) await talkThrough(page);
+check("the back-gallery entry beat plays", s.state.flags.sawGallery === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "campGallery") s = await waitFor(page, (x) => x.zoneKey === "campGallery", 8000);
+
+// Zone 4 → Zone 5 (dead-end vantage): the gallery climbs to Fluffball's ledge.
+s = await exitTo("campGallery", "campLedge");
+check("the gallery climbs to the overlook ledge", s.zoneKey === "campLedge", `zone=${s.zoneKey}`);
+await healUp(page);
+s = await driveTriggersUntil("campLedge", (x) => x.state.flags.fluffballLedge);
+check("Fluffball glimpsed on the ledge, drops clue #2", s.state.flags.fluffballLedge === true, JSON.stringify(s.state.flags));
+if (s.zoneKey !== "campLedge") s = await waitFor(page, (x) => x.zoneKey === "campLedge", 8000);
+
+// Back down through the gallery to the camp proper for the sock hand-over.
+s = await exitTo("campLedge", "campGallery");
+check("the ledge leads back down to the gallery", s.zoneKey === "campGallery", `zone=${s.zoneKey}`);
+s = await exitTo("campGallery", "campProper");
+check("the gallery leads back to the camp proper", s.zoneKey === "campProper", `zone=${s.zoneKey}`);
+
 // The sock line: an InteractPoint that hands over the reeking socks.
-await teleport(page, 6, 14); // CAMP_SOCKS
+await teleport(page, 6, 6); // CAMPP_SOCKS
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
 if ((await snapshot(page)).dialogueOpen) await talkThrough(page); // reward dialogue
@@ -976,7 +1019,7 @@ check(
 // every frost-scarab group's weight to 1 (mites, who love the smell, keep
 // their weight). encounterTable() is the live source the encounter clock uses.
 const reekEffect = await page.evaluate(() => {
-  const w = window.__game.scene.getScene("minersCamp");
+  const w = window.__game.scene.getScene("campProper");
   const held = w.encounterTable(); // reads items.stinkySocks live
   return { weights: held.weights, stinky: window.__game.registry.get("act1").items.stinkySocks };
 });

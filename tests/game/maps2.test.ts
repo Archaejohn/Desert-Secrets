@@ -155,18 +155,57 @@ import {
 } from "../../src/game/maps/seaAscentMap";
 import {
   buildMinersCampMap,
-  CAMP_CRATE_TRIGGER,
-  CAMP_EDDA,
-  CAMP_FLUFFBALL,
-  CAMP_GUS,
+  CAMP_BOOT,
+  CAMP_EXIT_SOUTH,
   CAMP_HEIGHT,
-  CAMP_MO,
-  CAMP_NEST,
-  CAMP_NOOK_ENTRANCE,
-  CAMP_SOCKS,
+  CAMP_SOUTH_GATES,
   CAMP_SPAWN,
   CAMP_WIDTH
 } from "../../src/game/maps/minersCampMap";
+import {
+  buildCampProperMap,
+  CAMPP_BORDER_GATES,
+  CAMPP_CRATE_TRIGGER,
+  CAMPP_EDDA,
+  CAMPP_EXIT_EAST,
+  CAMPP_EXIT_NORTH,
+  CAMPP_EXIT_WEST,
+  CAMPP_GUS,
+  CAMPP_HEIGHT,
+  CAMPP_MO,
+  CAMPP_SOCKS,
+  CAMPP_SPAWN,
+  CAMPP_WIDTH
+} from "../../src/game/maps/campProperMap";
+import {
+  buildLaundryNookMap,
+  NOOK_EAST_GATES,
+  NOOK_EXIT_EAST,
+  NOOK_HEIGHT,
+  NOOK_NEST,
+  NOOK_SPAWN,
+  NOOK_WIDTH
+} from "../../src/game/maps/laundryNookMap";
+import {
+  buildCampGalleryMap,
+  GALLERY_BORDER_GATES,
+  GALLERY_EXIT_NORTH,
+  GALLERY_EXIT_SOUTH,
+  GALLERY_HEIGHT,
+  GALLERY_SPAWN,
+  GALLERY_TRACKS,
+  GALLERY_WIDTH
+} from "../../src/game/maps/campGalleryMap";
+import {
+  buildCampLedgeMap,
+  LEDGE_EXIT_SOUTH,
+  LEDGE_FLUFFBALL,
+  LEDGE_HEIGHT,
+  LEDGE_SOUTH_GATES,
+  LEDGE_SPAWN,
+  LEDGE_TRIGGER,
+  LEDGE_WIDTH
+} from "../../src/game/maps/campLedgeMap";
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
@@ -896,16 +935,16 @@ describe("sea ascent map (the climb out to Act 4)", () => {
   });
 });
 
-// -------------------------------------------------- miners' camp (Act 4)
+// ---------------------------------- camp outskirts (Act 4, zone 1: entry)
 
-describe("miners' camp map (The Miners' Camp)", () => {
+describe("camp outskirts map (the Act 4 entry from the ascent)", () => {
   const map = buildMinersCampMap();
 
   it("has the declared dimensions", () => {
     assertDimensions(map, CAMP_WIDTH, CAMP_HEIGHT);
   });
 
-  it("only uses tile names from the manifest tilesets (incl. tiles5)", () => {
+  it("only uses tile names from the manifest tilesets", () => {
     assertKnownNames(map);
   });
 
@@ -913,43 +952,76 @@ describe("miners' camp map (The Miners' Camp)", () => {
     expect(buildMinersCampMap()).toEqual(map);
   });
 
-  it("is fully enclosed by camp wall on every border (no exits — end card)", () => {
-    assertEnclosed(map);
+  it("is fully enclosed except the south gate into the camp proper", () => {
+    assertEnclosed(map, CAMP_SOUTH_GATES);
   });
 
-  it("keeps the spawn and every landmark walkable", () => {
+  it("keeps the ascent spawn, the stolen boot and the south gate walkable", () => {
+    for (const p of [CAMP_SPAWN, CAMP_BOOT, rectTile(CAMP_EXIT_SOUTH)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the party cross the outskirts from the spawn to the south gate", () => {
+    expect(reachable(map, CAMP_SPAWN, CAMP_BOOT)).toBe(true);
+    expect(reachable(map, CAMP_SPAWN, rectTile(CAMP_EXIT_SOUTH))).toBe(true);
+  });
+
+  it("lands the night-raid storytelling: frost tracks and string lights", () => {
+    expect(map.decor.flat()).toContain("frostPrint");
+    expect(map.overhead?.flat()).toContain("stringLights");
+  });
+});
+
+// -------------------------------- camp proper (Act 4, zone 2: the hub)
+
+describe("camp proper map (The Miners' Camp hub)", () => {
+  const map = buildCampProperMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, CAMPP_WIDTH, CAMPP_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets (incl. tiles5)", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildCampProperMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its three declared gates", () => {
+    assertEnclosed(map, CAMPP_BORDER_GATES);
+  });
+
+  it("keeps the spawn, the miners, the sock line and every gate walkable", () => {
     for (const p of [
-      CAMP_SPAWN,
-      CAMP_MO,
-      CAMP_EDDA,
-      CAMP_GUS,
-      CAMP_NEST,
-      CAMP_SOCKS,
-      CAMP_NOOK_ENTRANCE,
-      CAMP_FLUFFBALL,
-      rectTile(CAMP_CRATE_TRIGGER)
+      CAMPP_SPAWN,
+      CAMPP_MO,
+      CAMPP_EDDA,
+      CAMPP_GUS,
+      CAMPP_SOCKS,
+      rectTile(CAMPP_CRATE_TRIGGER),
+      rectTile(CAMPP_EXIT_NORTH),
+      rectTile(CAMPP_EXIT_WEST),
+      rectTile(CAMPP_EXIT_EAST)
     ]) {
       expect(isSolidAt(map, p.x, p.y)).toBe(false);
     }
   });
 
-  it("lets the player reach every beat from the spawn", () => {
-    expect(reachable(map, CAMP_SPAWN, CAMP_MO)).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, CAMP_EDDA)).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, CAMP_GUS)).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, CAMP_FLUFFBALL)).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, rectTile(CAMP_CRATE_TRIGGER))).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, CAMP_NEST)).toBe(true);
-    expect(reachable(map, CAMP_SPAWN, CAMP_SOCKS)).toBe(true);
+  it("reaches every beat and all three gates from the spawn", () => {
+    expect(reachable(map, CAMPP_SPAWN, CAMPP_MO)).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, CAMPP_EDDA)).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, CAMPP_GUS)).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, CAMPP_SOCKS)).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, rectTile(CAMPP_CRATE_TRIGGER))).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, rectTile(CAMPP_EXIT_NORTH))).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, rectTile(CAMPP_EXIT_WEST))).toBe(true);
+    expect(reachable(map, CAMPP_SPAWN, rectTile(CAMPP_EXIT_EAST))).toBe(true);
   });
 
-  it("seals the laundry nook (nest + socks) as a cul-de-sac behind one entrance", () => {
-    assertCulDeSac(map, CAMP_SPAWN, CAMP_NEST, CAMP_NOOK_ENTRANCE);
-    // The sock line is inside the same sealed nook.
-    expect(reachable(map, CAMP_SPAWN, CAMP_SOCKS, [CAMP_NOOK_ENTRANCE])).toBe(false);
-  });
-
-  it("builds the camp: warm floor, a walled nook, string lights and laundry overhead", () => {
+  it("builds the hall: warm floor, rug, crates, string lights and laundry overhead", () => {
     const g = map.ground.flat();
     expect(g).toContain("campFloor");
     expect(g).toContain("campRug");
@@ -957,22 +1029,139 @@ describe("miners' camp map (The Miners' Camp)", () => {
     expect(d).toContain("campWall");
     expect(d).toContain("crateStack");
     expect(d).toContain("stove");
-    expect(d).toContain("washtub");
     expect(d).toContain("sockBasket");
     const o = map.overhead?.flat() ?? [];
     expect(o).toContain("stringLights");
     expect(o).toContain("laundryLine");
     // The sock basket marks the sock line and stays walkable.
-    expect(map.decor[CAMP_SOCKS.y][CAMP_SOCKS.x]).toBe("sockBasket");
-    expect(isSolidAt(map, CAMP_SOCKS.x, CAMP_SOCKS.y)).toBe(false);
+    expect(map.decor[CAMPP_SOCKS.y][CAMPP_SOCKS.x]).toBe("sockBasket");
+    expect(isSolidAt(map, CAMPP_SOCKS.x, CAMPP_SOCKS.y)).toBe(false);
   });
 
   it("keeps the overhead camp decor non-solid (never blocks movement)", () => {
-    for (let y = 0; y < CAMP_HEIGHT; y++) {
-      for (let x = 0; x < CAMP_WIDTH; x++) {
+    for (let y = 0; y < CAMPP_HEIGHT; y++) {
+      for (let x = 0; x < CAMPP_WIDTH; x++) {
         const o = map.overhead?.[y]?.[x];
         if (o) expect(isSolidAt(map, x, y)).toBe(false);
       }
     }
+  });
+});
+
+// ------------------------------ laundry nook (Act 4, zone 3: cul-de-sac)
+
+describe("laundry nook map (the midden-mite nest pocket)", () => {
+  const map = buildLaundryNookMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, NOOK_WIDTH, NOOK_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildLaundryNookMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the east gate back to the camp proper", () => {
+    assertEnclosed(map, NOOK_EAST_GATES);
+  });
+
+  it("keeps the spawn, the nest and the exit walkable", () => {
+    for (const p of [NOOK_SPAWN, NOOK_NEST, rectTile(NOOK_EXIT_EAST)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach the nest and the exit from the spawn", () => {
+    expect(reachable(map, NOOK_SPAWN, NOOK_NEST)).toBe(true);
+    expect(reachable(map, NOOK_SPAWN, rectTile(NOOK_EXIT_EAST))).toBe(true);
+  });
+
+  it("dresses the damp nook: washtub, and the laundry line overhead", () => {
+    expect(map.decor.flat()).toContain("washtub");
+    expect(map.overhead?.flat()).toContain("laundryLine");
+    for (let y = 0; y < NOOK_HEIGHT; y++) {
+      for (let x = 0; x < NOOK_WIDTH; x++) {
+        const o = map.overhead?.[y]?.[x];
+        if (o) expect(isSolidAt(map, x, y)).toBe(false);
+      }
+    }
+  });
+});
+
+// ------------------------------ back gallery (Act 4, zone 4: the climb)
+
+describe("back gallery map (the switchback climb)", () => {
+  const map = buildCampGalleryMap();
+  const northExit = rectTile(GALLERY_EXIT_NORTH);
+  const southExit = rectTile(GALLERY_EXIT_SOUTH);
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, GALLERY_WIDTH, GALLERY_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildCampGalleryMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except its two declared gates", () => {
+    assertEnclosed(map, GALLERY_BORDER_GATES);
+  });
+
+  it("keeps the spawn, the track beat and both gates walkable", () => {
+    for (const p of [GALLERY_SPAWN, GALLERY_TRACKS, northExit, southExit]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the party climb from the south gate up past the tracks to the ledge gate", () => {
+    expect(reachable(map, GALLERY_SPAWN, southExit)).toBe(true);
+    expect(reachable(map, GALLERY_SPAWN, GALLERY_TRACKS)).toBe(true);
+    expect(reachable(map, GALLERY_SPAWN, northExit)).toBe(true);
+  });
+
+  it("forces the switchback: cross-walls with staggered gaps", () => {
+    expect(map.decor.flat()).toContain("campWall");
+    expect(map.decor.flat()).toContain("frostPrint");
+  });
+});
+
+// ------------------------------ overlook ledge (Act 4, zone 5: cul-de-sac)
+
+describe("overlook ledge map (Fluffball's vantage)", () => {
+  const map = buildCampLedgeMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, LEDGE_WIDTH, LEDGE_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildCampLedgeMap()).toEqual(map);
+  });
+
+  it("is fully enclosed except the south gate back to the gallery", () => {
+    assertEnclosed(map, LEDGE_SOUTH_GATES);
+  });
+
+  it("keeps the spawn, Fluffball's perch, the glimpse trigger and the exit walkable", () => {
+    for (const p of [LEDGE_SPAWN, LEDGE_FLUFFBALL, rectTile(LEDGE_TRIGGER), rectTile(LEDGE_EXIT_SOUTH)]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("lets the player reach Fluffball's perch and the exit from the spawn", () => {
+    expect(reachable(map, LEDGE_SPAWN, LEDGE_FLUFFBALL)).toBe(true);
+    expect(reachable(map, LEDGE_SPAWN, rectTile(LEDGE_EXIT_SOUTH))).toBe(true);
   });
 });

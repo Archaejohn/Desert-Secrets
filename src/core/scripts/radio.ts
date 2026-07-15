@@ -46,4 +46,8 @@ export const radioLines: Record<ZoneId, DialogueScript> = {
   deepBed: checkIn(["...deep water. Nothing but static now."]),
   seaAscent: checkIn(["...wait — a signal? Climbing back? Static..."]),
   minersCamp: checkIn(["...string lights? Down there? Static..."]),
+  campProper: checkIn(["...a whole camp under the sand? Static..."]),
+  laundryNook: checkIn(["...bugs in the laundry? Ugh. Static..."]),
+  campGallery: checkIn(["...climbing again? You're fading. Static..."]),
+  campLedge: checkIn(["...that gray one, up high? Static... gone..."]),
 };

@@ -19,6 +19,10 @@ import { FluffballBedScene } from "./scenes/FluffballBedScene";
 import { DeepBedScene } from "./scenes/DeepBedScene";
 import { SeaAscentScene } from "./scenes/SeaAscentScene";
 import { MinersCampScene } from "./scenes/MinersCampScene";
+import { CampProperScene } from "./scenes/CampProperScene";
+import { LaundryNookScene } from "./scenes/LaundryNookScene";
+import { CampGalleryScene } from "./scenes/CampGalleryScene";
+import { CampLedgeScene } from "./scenes/CampLedgeScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 
@@ -58,6 +62,10 @@ const game = new Phaser.Game({
     DeepBedScene,
     SeaAscentScene,
     MinersCampScene,
+    CampProperScene,
+    LaundryNookScene,
+    CampGalleryScene,
+    CampLedgeScene,
     BattleScene
   ]
 });

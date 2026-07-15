@@ -382,10 +382,10 @@ if (menuOpen) {
 }
 
 // ---------- Act 4: the midden-mite nest InteractPoint via touch ----------
-// Jump to the miners' camp (mites still nesting) and confirm that tapping the
-// right side at the laundry-nook nest — a brand-new InteractPoint with no NPC
-// nearby — opens its intro dialogue on a touch device (the same tap-to-
-// interact path that only ever checked NPCs before v7).
+// Jump to the laundry nook (mites still nesting) and confirm that tapping the
+// right side at the nest — a brand-new InteractPoint with no NPC nearby —
+// opens its intro dialogue on a touch device (the same tap-to-interact path
+// that only ever checked NPCs before v7).
 await page.evaluate(() => {
   const g = window.__game;
   const st = g.registry.get("act1");
@@ -393,14 +393,15 @@ await page.evaluate(() => {
     ...st.flags,
     actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
     slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
-    act4Started: true, sawCrateChase: true, fluffballLedge: true
+    act4Started: true, sawOutskirts: true, sawCamp: true, sawCrateChase: true,
+    sawNook: true, fluffballLedge: true
   };
-  g.registry.set("act1", { ...st, zone: "minersCamp", hp: 999, flags });
+  g.registry.set("act1", { ...st, zone: "laundryNook", hp: 999, flags });
   for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-  g.scene.start("minersCamp", {});
+  g.scene.start("laundryNook", {});
 });
 await page.waitForTimeout(1300);
-await page.evaluate(() => window.__game.scene.getScene("minersCamp").player.body.reset(4 * 16 + 8, 16 * 16 + 8));
+await page.evaluate(() => window.__game.scene.getScene("laundryNook").player.body.reset(4 * 16 + 8, 7 * 16 + 8));
 await page.waitForTimeout(300);
 {
   const rect = await canvasRect();
@@ -408,7 +409,7 @@ await page.waitForTimeout(300);
 }
 await page.waitForTimeout(400);
 const nestTap = await page.evaluate(() => {
-  const w = window.__game.scene.getScene("minersCamp");
+  const w = window.__game.scene.getScene("laundryNook");
   return { open: w.dialogue.isOpen, cleared: window.__game.registry.get("act1").flags.middenCleared };
 });
 check(

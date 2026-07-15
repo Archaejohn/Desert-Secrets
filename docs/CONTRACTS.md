@@ -1294,6 +1294,16 @@ ice/mountain GID ranges).
 
 # v13: Act 4 — Dirty Laundry (the miners' camp, midden mites, the "reeks" item)
 
+> **Superseded in part by v15.** The single-`minersCamp`-zone structure below
+> was the shipped v13 build; **v15 retrofits Act 4 into a five-zone chain** (the
+> exact same fix Act 3 got in v14) — `minersCamp` becomes the entry outskirts
+> and the beats redistribute across a camp-proper hub, the laundry-nook nest
+> pocket, a back-gallery climb and Fluffball's overlook ledge. The midden-mite
+> art, the `tiles5` art, the `middenmite` bestiary/encounter entries, the
+> "reeks" mechanic (`REEK_AVERSE`/`reekAdjusted`, `encounterTable()` hook) and
+> the dialogue scripts here are all still current — only the zone topology and
+> where each beat lives changed. Read v15 for the current Act 4 shape.
+
 Act 4 of Part One. Joseph and Slither climb back up through the tunnels to
 where Mo, Edda and Gus — rescued in Act 2 — now actually live: a scrappy home
 built into an abandoned Cinnabar gallery, strung with lights and a laundry
@@ -1537,3 +1547,124 @@ Act 2/4 scenes keep their inline copies (out of scope).
 with `act4Started` set — so no Act 4 internals changed; only the SOURCE of
 that entry moved from the old sea end card to `seaAscent`'s top gate. (Act
 4's own multi-zone retrofit is a separate task.)
+
+---
+
+# v15: Act 4 retrofit — the Miners' Camp becomes a five-zone chain
+
+Playtester feedback on the shipped v13 Act 4 ("act 4 is only 1 map? those
+should be 4-6 maps"; "gameplay seems unstructured, dialogue feels
+ungrounded") drove the same structural retrofit Act 3 got in v14: Act 4 is
+now a chain of connected zones, each a distinct place with grounding entry
+dialogue, dead-end pockets as true BFS cul-de-sacs, and a narrated way in
+(the ascent ladder tops out onto the camp's outskirts). **No new art,
+bestiary, encounter or "reeks"-core changes** — this reuses every v13 asset
+(`tiles5`, `middenmite`), the `minersCamp` encounter table, and the
+`REEK_AVERSE`/`reekAdjusted` mechanic; it only re-shapes zones, scenes and
+wiring. Additive to Acts 1/2/3 except the Act-4-internal wiring; the Act 3 →
+Act 4 hand-off is unchanged (see below). The Act 4 → Act 5 hand-off stays a
+title-card placeholder (Act 5 is a teammate's next task), exactly as Act 3
+did before its own retrofit was ready.
+
+## The five zones and how they connect
+
+The single `minersCamp` map is replaced by five connected zones. `minersCamp`
+is **kept as the id of the entry zone** so the Act 3 → Act 4 hand-off in
+`SeaAscentScene` (`goToZone("minersCamp", CAMP_SPAWN)`, setting `act4Started`)
+is unchanged; `CAMP_SPAWN` is still exported from `minersCampMap.ts`.
+
+1. **`minersCamp`** (Camp Outskirts, entry, 22×14) — where the miners' service
+   ladder tops out. First sight of the camp from outside; the environmental
+   storytelling of Piggy's night raids lands here (frost tracks, a stolen
+   boot, string lights glowing deeper in). Entry beat `campOutskirtsEntry`
+   (`sawOutskirts`). South gate → `campProper`.
+2. **`campProper`** (the hub, 34×20, `campProperMap.ts`) — Mo, Edda and Gus's
+   living space: stove, rug, sock line, the NE supply crates. Carries the
+   **crate chase** (`sawCrateChase`), the **favor-quest hook** (the three
+   miners, `minersFavor`), and — once the nook is cleared — the **sock line**
+   InteractPoint (`CAMPP_SOCKS`, gated on `middenCleared`) that hands over the
+   socks (`minersReward` → `items.stinkySocks` + `gotSocks`) and rolls the
+   `act4Ending` + end card. The **"reeks" mechanic lives here**: the miners'
+   line swaps to `minersReek` while the socks are held, and `encounterTable()`
+   applies `reekAdjusted` (frost scarabs give the party a wide berth). Entry
+   beat `campProperEntry` (`sawCamp`). Three gates: north → `minersCamp`, west
+   → `laundryNook`, east → `campGallery`.
+3. **`laundryNook`** (dead-end pocket, 18×14, `laundryNookMap.ts`) — the damp
+   corner nest. The **midden-mite nest** InteractPoint (`NOOK_NEST`) →
+   `nestIntro` → a real swarm `BattleScene` (four mites, `victoryFlag:
+   "middenCleared"`). Entry beat `laundryNookEntry` (`sawNook`). One east gate
+   back to `campProper`; otherwise enclosed (a cul-de-sac ZONE, like Act 3's
+   `sunTemple`/`fluffballBed`). No random encounters.
+4. **`campGallery`** (the climb, 20×18, `campGalleryMap.ts`) — a disused drift
+   the raids' frost-track trail leads up through, switching back past two
+   half-collapsed cross-walls with **staggered gaps** (BFS-verified: the climb
+   from the south gate to the north gate threads both gaps). A real traversal
+   zone (`encounterZone: "minersCamp"`, reek-adjusted). Entry beat
+   `campGalleryEntry` (`sawGallery`). South gate → `campProper`, north gate →
+   `campLedge`.
+5. **`campLedge`** (dead-end vantage, 18×14, `campLedgeMap.ts`) — a small
+   overlook above the camp. **Fluffball glimpsed** (`LEDGE_TRIGGER` → clue #2,
+   the RIPEST socks, `fluffballLedge`), then he bolts — same glimpse-and-flee
+   structure as Act 3's `fluffballBed`; he does **not** join here (that's Act
+   5). Entry beat `campLedgeEntry` (`sawLedge`) on a **separate rect** from the
+   glimpse trigger, so the two never fire the same frame. One south gate back
+   to `campGallery`; otherwise enclosed (a cul-de-sac ZONE).
+
+The chain: `minersCamp` →(S)→ `campProper`; `campProper` →(W)→ `laundryNook`
+(dead end) and →(E)→ `campGallery` →(N)→ `campLedge` (dead end). The socks are
+handed over back in `campProper` (a well-populated, grounded scene with the
+miners present), which is the natural "last" zone where the ending plays.
+
+## Grounding the "ungrounded dialogue" fix
+
+Every zone has real entry dialogue that names the place and the party's
+purpose there, and states where they're heading next where it's a forward
+step (the outskirts point "just south, into the camp"; the gallery states
+"the tracks go up, someone watches"). Slither hisses in every script where he
+speaks; all `validateScript`-clean, ≤ 48 chars/line. The per-zone objective
+line (`objective.ts`, a `switch (s.zone)`) mirrors this, ≤ 40 chars.
+
+## Slither follower
+
+All five zones use the shared `src/game/SlitherFollower.ts` rig (factored out
+in v14) — one `new SlitherFollower(this)` per `populate()`, spawned when
+`flags.slitherJoined`, pumped from `onUpdate()`. The old inline follower copy
+that lived in `MinersCampScene` is gone.
+
+## Plumbing (same checklist as every zone addition)
+
+- `gameState.ts`: `ZoneId += campProper, laundryNook, campGallery, campLedge`;
+  `ACT4_FLAGS` gains the per-zone entry flags (`sawOutskirts, sawCamp, sawNook,
+  sawGallery, sawLedge`) alongside the existing beat flags. No new items.
+- `objective.ts`: the Act 4 chain is now per-zone (a `switch (s.zone)`), every
+  line ≤ 40 chars.
+- `scripts/radio.ts`: `radioLines` gains all four new zones (exhaustive
+  `Record<ZoneId, …>`).
+- Five new entry scripts (`campOutskirtsEntry, campProperEntry,
+  laundryNookEntry, campGalleryEntry, campLedgeEntry`); the v13 beat scripts
+  (`crateChase, fluffballLedge, minersFavor, minersReward, minersReek,
+  act4Ending`) are reused unchanged. Covered by `tests/core/scriptsAct4.test.ts`.
+- `BootScene` `ZONE_NAMES` + `main.ts` register the four new scenes.
+- Encounters reuse `ENCOUNTERS.minersCamp` (via `encounterZone: "minersCamp"`
+  on `campProper`/`campGallery`) — no `encounters.ts` change.
+- `tests/game/maps2.test.ts`: full BFS suite per new zone (enclosure with
+  gates, landmark reachability, both nook/ledge cul-de-sac ZONEs, the
+  gallery's switchback climb, overhead non-solidity). `objectiveAct4.test.ts`
+  rewritten per-zone; `scriptsAct1.test.ts` radio list extended.
+- `tools/smoke/e2e.mjs`: Act 4 now walks the full five-zone chain end to end
+  (outskirts → camp proper crate chase + favor → nook nest fight → gallery
+  climb → ledge glimpse → back to camp → socks → reek reweight → ending), and
+  re-verifies `seaAscent`'s hand-off lands in the new entry zone.
+  `touch-e2e.mjs`'s nest-InteractPoint coverage retargeted to `laundryNook`.
+- Screenshot review confirmed each zone renders with its own `tiles5` art and
+  the dialogue box (depth 5500) draws cleanly over the overhead string-lights/
+  laundry decor (depth 5000) — no reintroduction of the overhead-over-dialogue
+  bug.
+
+## Act 5 entry (still a placeholder)
+
+`campProper`'s sock hand-over rolls `act4Ending` and the "ACT 5: THE SUNLIT
+CAVE-IN — coming soon" end card (→ title), with a reload-safe epilogue guard
+(`act4Complete` re-shows the card). Act 5's own multi-zone build is a separate
+task; this stays a title-card placeholder until it's ready to hand off, the
+same way Act 3 did before v14.

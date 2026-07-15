@@ -37,7 +37,11 @@ export type ZoneId =
   | "fluffballBed"
   | "deepBed"
   | "seaAscent"
-  | "minersCamp";
+  | "minersCamp"
+  | "campProper"
+  | "laundryNook"
+  | "campGallery"
+  | "campLedge";
 
 /** The chicken-chore fetch quest: none held -> empty (from the shed) -> filled (at the spring). */
 export type BucketState = "none" | "empty" | "filled";
@@ -96,12 +100,22 @@ export const ACT3_FLAGS = [
   "act3Complete",
 ] as const;
 
-/** Act 4 quest flags (Dirty Laundry — the Miners' Camp), all false at newGame(). */
+/**
+ * Act 4 quest flags (Dirty Laundry — the Miners' Camp, now a five-zone
+ * chain), all false at newGame(). The `saw*` flags are per-zone entry beats
+ * (mirrors Act 3's retrofit); `sawCrateChase`, `fluffballLedge`,
+ * `middenCleared` and `gotSocks` are the story beats they gate.
+ */
 export const ACT4_FLAGS = [
   "act4Started",
+  "sawOutskirts",
+  "sawCamp",
   "sawCrateChase",
-  "fluffballLedge",
+  "sawNook",
   "middenCleared",
+  "sawGallery",
+  "sawLedge",
+  "fluffballLedge",
   "gotSocks",
   "act4Complete",
 ] as const;

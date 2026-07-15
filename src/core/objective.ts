@@ -78,12 +78,29 @@ function act3ObjectiveFor(s: Act1State): string {
   }
 }
 
-/** The Act 4 chain (Dirty Laundry), once act4Started is set. ≤ 40 chars. */
+/**
+ * The Act 4 chain (Dirty Laundry — the Miners' Camp, a five-zone chain), once
+ * act4Started is set. Each zone produces its own grounded objective line.
+ * ≤ 40 chars.
+ */
 function act4ObjectiveFor(s: Act1State): string {
   const f = s.flags;
   if (f.act4Complete) return "Act 4 complete!";
-  if (s.zone !== "minersCamp") return "Head up to the miners' camp";
-  if (!f.middenCleared) return "Clear the mites from the laundry nook";
-  if (!f.gotSocks) return "Take the ripe socks off the line";
-  return "You have the stinky socks!";
+  switch (s.zone) {
+    case "minersCamp":
+      return "Head into the miners' camp";
+    case "campProper":
+      if (!f.middenCleared) return "Clear the mites from the laundry nook";
+      if (!f.gotSocks) return "Take the ripe socks off the line";
+      return "You have the stinky socks!";
+    case "laundryNook":
+      return "Clear the midden-mite nest";
+    case "campGallery":
+      return "Climb the gallery to the ledge";
+    case "campLedge":
+      return "Corner the chick on the ledge";
+    default:
+      // Still in an Act 3 zone after the hand-off: get up to the camp.
+      return "Head up to the miners' camp";
+  }
 }

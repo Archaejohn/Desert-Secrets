@@ -238,6 +238,9 @@ describe("queenParley", () => {
 describe("radioLines", () => {
   it("covers every zone", () => {
     expect(Object.keys(radioLines).sort()).toEqual([
+      "campGallery",
+      "campLedge",
+      "campProper",
       "crash",
       "crevasse",
       "deepBed",
@@ -245,6 +248,7 @@ describe("radioLines", () => {
       "fluffballBed",
       "galleries",
       "kelpForest",
+      "laundryNook",
       "maze",
       "mine",
       "mineEntrance",

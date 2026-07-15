@@ -10,6 +10,11 @@ import { minersFavorScript } from "../../src/core/scripts/minersFavor";
 import { minersRewardScript } from "../../src/core/scripts/minersReward";
 import { minersReekScript } from "../../src/core/scripts/minersReek";
 import { act4EndingScript } from "../../src/core/scripts/act4Ending";
+import { campOutskirtsEntryScript } from "../../src/core/scripts/campOutskirtsEntry";
+import { campProperEntryScript } from "../../src/core/scripts/campProperEntry";
+import { laundryNookEntryScript } from "../../src/core/scripts/laundryNookEntry";
+import { campGalleryEntryScript } from "../../src/core/scripts/campGalleryEntry";
+import { campLedgeEntryScript } from "../../src/core/scripts/campLedgeEntry";
 
 const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["crateChase", crateChaseScript],
@@ -18,6 +23,11 @@ const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["minersReward", minersRewardScript],
   ["minersReek", minersReekScript],
   ["act4Ending", act4EndingScript],
+  ["campOutskirtsEntry", campOutskirtsEntryScript],
+  ["campProperEntry", campProperEntryScript],
+  ["laundryNookEntry", laundryNookEntryScript],
+  ["campGalleryEntry", campGalleryEntryScript],
+  ["campLedgeEntry", campLedgeEntryScript],
 ];
 
 function playThrough(script: DialogueScript) {
