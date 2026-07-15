@@ -125,11 +125,15 @@ import {
 } from "../../src/game/maps/sunTempleMap";
 import {
   buildFluffballBedMap,
+  FLUFFBED_CORNERED,
+  FLUFFBED_CORNERED_TRIGGER,
   FLUFFBED_EXIT_NORTH,
   FLUFFBED_FLUFFBALL,
   FLUFFBED_HEIGHT,
   FLUFFBED_NORTH_GATES,
   FLUFFBED_SPAWN,
+  FLUFFBED_STAGE2,
+  FLUFFBED_STAGE2_TRIGGER,
   FLUFFBED_TRIGGER,
   FLUFFBED_WIDTH
 } from "../../src/game/maps/fluffballBedMap";
@@ -1016,6 +1020,18 @@ describe("fluffball bed map (a dead-end pocket)", () => {
   it("lets the player reach Fluffball and the exit from the spawn", () => {
     expect(reachable(map, FLUFFBED_SPAWN, FLUFFBED_FLUFFBALL)).toBe(true);
     expect(reachable(map, FLUFFBED_SPAWN, rectTile(FLUFFBED_EXIT_NORTH))).toBe(true);
+  });
+
+  it("keeps every chase waypoint (and its trigger) walkable and reachable", () => {
+    for (const p of [
+      FLUFFBED_STAGE2,
+      FLUFFBED_CORNERED,
+      rectTile(FLUFFBED_STAGE2_TRIGGER),
+      rectTile(FLUFFBED_CORNERED_TRIGGER)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+      expect(reachable(map, FLUFFBED_SPAWN, p)).toBe(true);
+    }
   });
 });
 

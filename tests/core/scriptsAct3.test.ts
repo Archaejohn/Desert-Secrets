@@ -9,6 +9,7 @@ import { kelpForestEntryScript } from "../../src/core/scripts/kelpForestEntry";
 import { sunTempleEntryScript } from "../../src/core/scripts/sunTempleEntry";
 import { fluffballBedEntryScript } from "../../src/core/scripts/fluffballBedEntry";
 import { fluffballMeetScript } from "../../src/core/scripts/fluffballMeet";
+import { fluffballFleeStage1Script, fluffballFleeStage2Script } from "../../src/core/scripts/fluffballFlee";
 import { templeLoreScript } from "../../src/core/scripts/templeLore";
 import { deepBedEntryScript } from "../../src/core/scripts/deepBedEntry";
 import { seaFirstCastScript } from "../../src/core/scripts/seaFirstCast";
@@ -22,6 +23,8 @@ const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["kelpForestEntry", kelpForestEntryScript],
   ["sunTempleEntry", sunTempleEntryScript],
   ["fluffballBedEntry", fluffballBedEntryScript],
+  ["fluffballFleeStage1", fluffballFleeStage1Script],
+  ["fluffballFleeStage2", fluffballFleeStage2Script],
   ["fluffballMeet", fluffballMeetScript],
   ["templeLore", templeLoreScript],
   ["deepBedEntry", deepBedEntryScript],
@@ -83,6 +86,7 @@ describe("Slither's hissing esses (Act 3)", () => {
       kelpForestEntryScript,
       sunTempleEntryScript,
       fluffballBedEntryScript,
+      fluffballFleeStage1Script,
       fluffballMeetScript,
       templeLoreScript,
       deepBedEntryScript,
@@ -121,6 +125,20 @@ describe("fluffballMeet", () => {
 
   it("points at the deepest beds past the light", () => {
     expect(allText(fluffballMeetScript)).toMatch(/deepest beds/i);
+  });
+
+  it("frames silverfin as the first of several things, not the whole quest", () => {
+    const text = allText(fluffballMeetScript);
+    expect(text).toMatch(/is that all|whatever else|all of it/i);
+  });
+});
+
+describe("fluffballFlee (the chase, before he's actually cornered)", () => {
+  it("plays two short beats before the catch, neither one giving the clue away", () => {
+    for (const script of [fluffballFleeStage1Script, fluffballFleeStage2Script]) {
+      const text = allText(script);
+      expect(text).not.toMatch(/silverfin/i);
+    }
   });
 });
 

@@ -13,10 +13,21 @@ export const FLUFFBED_HEIGHT = 14;
 
 /** Default spawn: arriving from the kelp forest (north gate). */
 export const FLUFFBED_SPAWN = { x: 8, y: 3 } as const;
-/** Where Fluffball is cornered (the glimpse-and-clue). */
+/**
+ * A three-stage chase across the bed before Fluffball is actually cornered:
+ * first sighted mid-bed, flees to a tighter channel, then finally corners
+ * himself in the small nook (a dead end within the dead end) with nowhere
+ * left to run. Each stage has its own approach-trigger rect.
+ */
 export const FLUFFBED_FLUFFBALL = { x: 12, y: 8 } as const;
-/** The trigger area where the glimpse fires. */
-export const FLUFFBED_TRIGGER = { x1: 9, y1: 6, x2: 13, y2: 9 } as const;
+export const FLUFFBED_TRIGGER = { x1: 10, y1: 6, x2: 13, y2: 9 } as const;
+
+export const FLUFFBED_STAGE2 = { x: 7, y: 7 } as const;
+export const FLUFFBED_STAGE2_TRIGGER = { x1: 5, y1: 6, x2: 8, y2: 8 } as const;
+
+/** The nook — where he's finally cornered, matching the CARVES nook rect. */
+export const FLUFFBED_CORNERED = { x: 3, y: 10 } as const;
+export const FLUFFBED_CORNERED_TRIGGER = { x1: 2, y1: 9, x2: 4, y2: 11 } as const;
 
 /** North gate → back up to the kelp forest. */
 export const FLUFFBED_EXIT_NORTH = { x1: 8, y1: 1, x2: 9, y2: 1 } as const;

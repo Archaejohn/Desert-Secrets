@@ -877,7 +877,10 @@ check("the sun-temple leads back to the kelp forest", s.zoneKey === "kelpForest"
 s = await exitTo("kelpForest", "fluffballBed");
 check("the south spur reaches Fluffball's kelp bed", s.zoneKey === "fluffballBed", `zone=${s.zoneKey}`);
 await healUp(page);
-s = await driveTriggersUntil("fluffballBed", (x) => x.state.flags.metFluffball);
+// Three-stage chase now (sighted -> flees -> cornered in the nook), each
+// hop async (a ~550ms tween arms the next trigger) - extra rounds so the
+// driver's re-poll of the trigger list catches each newly-armed stage.
+s = await driveTriggersUntil("fluffballBed", (x) => x.state.flags.metFluffball, 8);
 check("Fluffball glimpsed, drops the silverfin clue", s.state.flags.metFluffball === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "fluffballBed") s = await waitFor(page, (x) => x.zoneKey === "fluffballBed", 8000);
 

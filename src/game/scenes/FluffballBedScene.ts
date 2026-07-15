@@ -7,14 +7,19 @@
 import { ZoneScene, TILE, type ZoneConfig } from "../ZoneScene";
 import {
   buildFluffballBedMap,
+  FLUFFBED_CORNERED,
+  FLUFFBED_CORNERED_TRIGGER,
   FLUFFBED_EXIT_NORTH,
   FLUFFBED_FLUFFBALL,
   FLUFFBED_SPAWN,
+  FLUFFBED_STAGE2,
+  FLUFFBED_STAGE2_TRIGGER,
   FLUFFBED_TRIGGER
 } from "../maps/fluffballBedMap";
 import { KELP_FLUFF_RETURN_SPAWN } from "../maps/kelpForestMap";
 import { fluffballBedEntryScript } from "../../core/scripts/fluffballBedEntry";
 import { fluffballMeetScript } from "../../core/scripts/fluffballMeet";
+import { fluffballFleeStage1Script, fluffballFleeStage2Script } from "../../core/scripts/fluffballFlee";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
 
@@ -57,26 +62,66 @@ export class FluffballBedScene extends ZoneScene {
     this.placeFluffball();
   }
 
-  /** Fluffball, glimpsed: one line (the silverfin clue), then he bolts. */
+  /**
+   * A three-stage chase: sighted mid-bed, flees to a tighter channel, then
+   * corners himself in the small nook with nowhere left to run — only then
+   * does he actually talk (fluffballMeet.ts). Getting close enough at each
+   * stage re-triggers a flee tween to the next waypoint; only the final
+   * stage opens the real catch dialogue.
+   */
   private placeFluffball(): void {
     if (getState(this).flags.metFluffball) return;
     const fluff = this.add
       .sprite(FLUFFBED_FLUFFBALL.x * TILE + TILE / 2, FLUFFBED_FLUFFBALL.y * TILE + TILE / 2, "fluffball", 0)
       .setDepth(FLUFFBED_FLUFFBALL.y * TILE + TILE / 2);
     fluff.play("fluffball-idle");
+
+    const fleeTo = (target: { x: number; y: number }, onArrive: () => void): void => {
+      fluff.play("fluffball-walk");
+      this.tweens.add({
+        targets: fluff,
+        x: target.x * TILE + TILE / 2,
+        y: target.y * TILE + TILE / 2,
+        duration: 550,
+        onUpdate: () => fluff.setDepth(fluff.y),
+        onComplete: () => {
+          fluff.play("fluffball-idle");
+          onArrive();
+        }
+      });
+    };
+
     this.addTrigger({ ...FLUFFBED_TRIGGER }, () => {
+      if (getState(this).flags.metFluffball) return;
+      this.openScript(fluffballFleeStage1Script, () => {
+        fleeTo(FLUFFBED_STAGE2, () => this.armStage2(fluff, fleeTo));
+      });
+    });
+  }
+
+  private armStage2(fluff: Phaser.GameObjects.Sprite, fleeTo: (t: { x: number; y: number }, cb: () => void) => void): void {
+    this.addTrigger({ ...FLUFFBED_STAGE2_TRIGGER }, () => {
+      if (getState(this).flags.metFluffball) return;
+      this.openScript(fluffballFleeStage2Script, () => {
+        fleeTo(FLUFFBED_CORNERED, () => this.armCornered(fluff));
+      });
+    });
+  }
+
+  private armCornered(fluff: Phaser.GameObjects.Sprite): void {
+    this.addTrigger({ ...FLUFFBED_CORNERED_TRIGGER }, () => {
       const s = getState(this);
       if (s.flags.metFluffball) return;
       this.openScript(fluffballMeetScript, () => {
         const cur = getState(this);
         setState(this, { ...cur, flags: { ...cur.flags, metFluffball: true } });
         this.hud.update(getState(this));
-        // He bolts: a gray blur out of the bed and gone.
+        // He bolts: a gray blur out of the nook and gone.
         fluff.play("fluffball-walk");
         this.tweens.add({
           targets: fluff,
-          x: fluff.x - 3 * TILE,
-          y: fluff.y - TILE,
+          x: fluff.x - 2 * TILE,
+          y: fluff.y - 3 * TILE,
           duration: 700,
           onUpdate: () => fluff.setDepth(fluff.y),
           onComplete: () =>
