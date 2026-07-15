@@ -31,7 +31,7 @@ const newSheets: Array<[string, PixelGrid, number, number]> = [
   ["gila", assets.gila, 144, 24],
   ["foreman", assets.foreman, 144, 24],
   ["queen", assets.queen, 192, 32],
-  ["tiles2", assets.tiles2, 128, 64]
+  ["tiles2", assets.tiles2, 128, 112]
 ];
 
 /** [name, frames, frameSize, min adjacent-motion diff, min opaque px] */
@@ -53,14 +53,14 @@ describe("act1 sheet layout (contract §4)", () => {
     expect(png.height).toBe(h);
   });
 
-  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 32 tiles", () => {
+  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 56 tiles", () => {
     expect(rosaFrames()).toHaveLength(24);
     for (const f of rosaFrames()) expect([f.width, f.height]).toEqual([16, 24]);
     for (const [, frames, size] of creatures) {
       expect(frames).toHaveLength(6);
       for (const f of frames) expect([f.width, f.height]).toEqual([size, size]);
     }
-    expect(tile2Frames()).toHaveLength(32);
+    expect(tile2Frames()).toHaveLength(56);
     for (const t of tile2Frames()) expect([t.width, t.height]).toEqual([16, 16]);
   });
 });
@@ -273,7 +273,32 @@ describe("act1 manifest", () => {
       mountain5: 28,
       mountain6: 29,
       mountain7: 30,
-      mountain8: 31
+      mountain8: 31,
+      // Phase O appendix (2.5D art pass): appended only, nothing above moved
+      scree: 32,
+      scree2: 33,
+      screeShade: 34,
+      sandShade: 35,
+      coastN: 36,
+      coastE: 37,
+      coastS: 38,
+      coastW: 39,
+      coastNE: 40,
+      coastNW: 41,
+      coastSE: 42,
+      coastSW: 43,
+      coastInNE: 44,
+      coastInNW: 45,
+      coastInSE: 46,
+      coastInSW: 47,
+      screeSandN: 48,
+      screeSandE: 49,
+      screeSandS: 50,
+      screeSandW: 51,
+      screeSandNE: 52,
+      screeSandNW: 53,
+      screeSandSE: 54,
+      screeSandSW: 55
     });
   });
 

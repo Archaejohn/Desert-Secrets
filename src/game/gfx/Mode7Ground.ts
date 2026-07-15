@@ -8,8 +8,19 @@
  * gradient with a static ridge silhouette. The math and its constants live in
  * the pure, tested `src/core/mode7.ts`; this file only feeds them to the GPU.
  *
+ * Phase O billboard layer (docs/ART_DIRECTION.md §4b): decor names registered
+ * in `BILLBOARD_FRAME` are NOT baked flat into the ground texture (the map's
+ * autotile pass puts scree ground beneath them, so there are no holes) —
+ * they're drawn as standing sprites from the `owBillboards` sheet instead,
+ * positioned/scaled each frame via the pure `worldToScreen` forward
+ * projection, depth-sorted by screen y, haze-tinted toward amber and faded
+ * with depth, and culled when behind the camera / beyond maxDepth /
+ * off-screen. 2×2 mountain blocks cluster into one bigger billboard to keep
+ * the sprite count low (~a hundred for the 16×20 POC map).
+ *
  * WebGL-only. The caller is responsible for falling back to the flat tilemap
- * if construction throws (no WebGL, texture/shader failure).
+ * if construction throws (no WebGL, texture/shader failure) — in that
+ * fallback the mountains still render as the tiles2 mountain tiles.
  */
 import Phaser from "phaser";
 import { MANIFEST } from "../manifest";
@@ -20,10 +31,60 @@ import {
   MODE7_CAMERA_HEIGHT,
   MODE7_FOCAL_LENGTH,
   MODE7_MAX_DEPTH,
-  makeCamera
+  makeCamera,
+  worldToScreen
 } from "../../core/mode7";
 
 const GROUND_TEXTURE_KEY = "overworld-mode7-ground";
+
+/** Texture key the scene preloads the billboard sheet under. */
+export const BILLBOARD_TEXTURE_KEY = "owBillboards";
+
+/**
+ * Decor name → owBillboards frame index (frozen contract, docs/CONTRACTS.md
+ * "Phase O"): the eight mountain tile variants map onto the three standing
+ * mountain-mass frames; joshuaTrunk/mineTimber/truckCab map onto their
+ * landmark frames.
+ */
+const BILLBOARD_FRAME: Record<string, number> = {
+  mountain: 0,
+  mountain2: 1,
+  mountain3: 2,
+  mountain4: 0,
+  mountain5: 1,
+  mountain6: 2,
+  mountain7: 0,
+  mountain8: 1,
+  joshuaTrunk: 3,
+  mineTimber: 4,
+  truckCab: 5
+};
+
+const MOUNTAIN_FAMILY = new Set([
+  "mountain",
+  "mountain2",
+  "mountain3",
+  "mountain4",
+  "mountain5",
+  "mountain6",
+  "mountain7",
+  "mountain8"
+]);
+
+/** Decor names left out of the flat ground bake when billboards are live.
+ *  truckBox merges into the cab's single truck billboard. */
+const BILLBOARD_SKIP = new Set([...Object.keys(BILLBOARD_FRAME), "truckBox"]);
+
+/** Apparent world width (px) each billboard's 48px frame spans on the
+ *  ground. Mountains deliberately loom larger than their tile footprint —
+ *  that's the point of standing them up. */
+const WORLD_WIDTH_CLUSTER = 52;
+const WORLD_WIDTH_MOUNTAIN = 30;
+const WORLD_WIDTH_BY_NAME: Record<string, number> = {
+  joshuaTrunk: 22,
+  mineTimber: 30,
+  truckCab: 34
+};
 
 const FRAGMENT_SRC = [
   "precision mediump float;",
@@ -93,11 +154,38 @@ function tileFrame(name: string): { key: string; frame: number } {
   return { key: "tiles3", frame: MANIFEST.tiles3.names[name] };
 }
 
+const AMBER_RGB = hexToRgb(PALETTE.amber);
+
+/** Multiply-tint colour blending white → amber as haze increases. */
+function hazeTint(haze: number): number {
+  const r = Math.round(255 + (AMBER_RGB[0] - 255) * haze);
+  const g = Math.round(255 + (AMBER_RGB[1] - 255) * haze);
+  const b = Math.round(255 + (AMBER_RGB[2] - 255) * haze);
+  return (r << 16) | (g << 8) | b;
+}
+
+interface Billboard {
+  img: Phaser.GameObjects.Image;
+  /** World anchor: footprint centre x, footprint south edge (the feet). */
+  wx: number;
+  wy: number;
+  worldWidth: number;
+}
+
+interface BillboardSpec {
+  wx: number;
+  wy: number;
+  frame: number;
+  worldWidth: number;
+}
+
 export class Mode7Ground {
   private readonly scene: Phaser.Scene;
   private readonly shader: Phaser.GameObjects.Shader;
   private readonly mapWidthPx: number;
   private readonly mapHeightPx: number;
+  private readonly billboards: Billboard[] = [];
+  private readonly billboardsEnabled: boolean;
 
   constructor(scene: Phaser.Scene, map: ZoneMap, depth: number) {
     this.scene = scene;
@@ -105,6 +193,10 @@ export class Mode7Ground {
     const cols = map.ground[0].length;
     this.mapWidthPx = cols * TILE;
     this.mapHeightPx = rows * TILE;
+
+    // Billboards need their sheet; without it, fall back to baking every
+    // decor tile flat (the pre-Phase-O look) rather than leaving gaps.
+    this.billboardsEnabled = scene.textures.exists(BILLBOARD_TEXTURE_KEY);
 
     this.paintGroundTexture(map, cols, rows);
 
@@ -128,7 +220,7 @@ export class Mode7Ground {
     // No flip: the canvas is uploaded top-row-first, so texture v=0 is the map
     // north (tile row 0), matching uv.v = wy / mapHeight in the shader (north =
     // small world y = into the distance). Clamp so sampling past an edge holds
-    // the border mountains (NPOT-safe: REPEAT on the non-power-of-two height
+    // the border terrain (NPOT-safe: REPEAT on the non-power-of-two height
     // would break in WebGL1); nearest for crisp pixels.
     const textureData = {
       source: scene.textures.get(GROUND_TEXTURE_KEY).getSourceImage(),
@@ -143,6 +235,8 @@ export class Mode7Ground {
       .shader(baseShader, width / 2, height / 2, width, height, [GROUND_TEXTURE_KEY], textureData)
       .setScrollFactor(0)
       .setDepth(depth);
+
+    if (this.billboardsEnabled) this.createBillboards(map);
   }
 
   private paintGroundTexture(map: ZoneMap, cols: number, rows: number): void {
@@ -156,13 +250,84 @@ export class Mode7Ground {
         const g = tileFrame(map.ground[y][x]);
         canvas.drawFrame(g.key, g.frame, x * TILE, y * TILE, false);
         const decorName = map.decor[y][x];
-        if (decorName !== null) {
+        // Billboard decor stands up instead of baking flat; the ground
+        // beneath it (scree, via the map's autotile pass) shows through.
+        if (decorName !== null && !(this.billboardsEnabled && BILLBOARD_SKIP.has(decorName))) {
           const d = tileFrame(decorName);
           canvas.drawFrame(d.key, d.frame, x * TILE, y * TILE, false);
         }
       }
     }
     canvas.refresh();
+  }
+
+  /** Walk the decor grid into billboard specs: 2×2 mountain blocks merge
+   *  into one larger billboard; everything else stands on its own cell. */
+  private collectBillboards(map: ZoneMap): BillboardSpec[] {
+    const rows = map.ground.length;
+    const cols = map.ground[0].length;
+    const specs: BillboardSpec[] = [];
+    const isMtn = (x: number, y: number): boolean =>
+      x >= 0 &&
+      y >= 0 &&
+      x < cols &&
+      y < rows &&
+      map.decor[y][x] !== null &&
+      MOUNTAIN_FAMILY.has(map.decor[y][x] as string);
+    const used: boolean[][] = map.decor.map((row) => row.map(() => false));
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const name = map.decor[y][x];
+        if (name === null) continue;
+        if (MOUNTAIN_FAMILY.has(name)) {
+          if (used[y][x]) continue;
+          if (
+            isMtn(x + 1, y) &&
+            isMtn(x, y + 1) &&
+            isMtn(x + 1, y + 1) &&
+            !used[y][x + 1] &&
+            !used[y + 1][x] &&
+            !used[y + 1][x + 1]
+          ) {
+            used[y][x] = used[y][x + 1] = used[y + 1][x] = used[y + 1][x + 1] = true;
+            specs.push({
+              wx: (x + 1) * TILE,
+              wy: (y + 2) * TILE,
+              frame: BILLBOARD_FRAME[name],
+              worldWidth: WORLD_WIDTH_CLUSTER
+            });
+          } else {
+            used[y][x] = true;
+            specs.push({
+              wx: (x + 0.5) * TILE,
+              wy: (y + 1) * TILE,
+              frame: BILLBOARD_FRAME[name],
+              worldWidth: WORLD_WIDTH_MOUNTAIN
+            });
+          }
+        } else if (BILLBOARD_FRAME[name] !== undefined) {
+          specs.push({
+            wx: (x + 0.5) * TILE,
+            wy: (y + 1) * TILE,
+            frame: BILLBOARD_FRAME[name],
+            worldWidth: WORLD_WIDTH_BY_NAME[name] ?? WORLD_WIDTH_MOUNTAIN
+          });
+        }
+      }
+    }
+    return specs;
+  }
+
+  private createBillboards(map: ZoneMap): void {
+    for (const spec of this.collectBillboards(map)) {
+      const img = this.scene.add
+        .image(0, 0, BILLBOARD_TEXTURE_KEY, spec.frame)
+        .setOrigin(0.5, 1)
+        .setScrollFactor(0)
+        .setVisible(false);
+      this.billboards.push({ img, wx: spec.wx, wy: spec.wy, worldWidth: spec.worldWidth });
+    }
   }
 
   /** Track the player: the camera looks north from just behind their position. */
@@ -172,6 +337,31 @@ export class Mode7Ground {
     this.shader.setUniform("uCamX.value", cam.x);
     this.shader.setUniform("uCamY.value", cam.y);
     this.shader.setUniform("uHorizon.value", cam.horizon);
+
+    const frameW = MANIFEST.owBillboards?.frameWidth ?? 48;
+    for (const b of this.billboards) {
+      const s = worldToScreen(cam, b.wx, b.wy);
+      if (s === null) {
+        b.img.setVisible(false);
+        continue;
+      }
+      const displayW = b.worldWidth * s.scale;
+      const displayH = (displayW * b.img.height) / frameW;
+      // Lateral / below-screen culling (worldToScreen already culled depth).
+      if (s.x + displayW / 2 < 0 || s.x - displayW / 2 > width || s.y - displayH > height) {
+        b.img.setVisible(false);
+        continue;
+      }
+      const depth01 = Math.min((cam.y - b.wy) / cam.maxDepth, 1);
+      const haze = Math.pow(depth01, 0.7);
+      b.img
+        .setVisible(true)
+        .setPosition(s.x, s.y)
+        .setScale(displayW / frameW)
+        .setDepth(s.y) // painter's order: nearer (lower on screen) draws on top
+        .setAlpha(1 - haze * 0.75)
+        .setTint(hazeTint(haze * 0.8));
+    }
   }
 
   /** Screen Y (top-origin px) of the horizon line, for placing the avatar. */
@@ -181,6 +371,8 @@ export class Mode7Ground {
 
   destroy(): void {
     this.shader.destroy();
+    for (const b of this.billboards) b.img.destroy();
+    this.billboards.length = 0;
     if (this.scene.textures.exists(GROUND_TEXTURE_KEY)) {
       this.scene.textures.remove(GROUND_TEXTURE_KEY);
     }

@@ -15,7 +15,9 @@
  */
 import Phaser from "phaser";
 import { ZoneScene, type ZoneConfig } from "../ZoneScene";
-import { Mode7Ground } from "../gfx/Mode7Ground";
+import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
+import { MANIFEST } from "../manifest";
+import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
   buildOverworldMap,
   OVERWORLD_NORTH_EXIT,
@@ -26,7 +28,6 @@ import { OASIS_NORTH_SPAWN } from "../maps/oasisMap";
 import { MINE_ENTRANCE_SPAWN } from "../maps/mineEntranceMap";
 
 const GROUND_DEPTH = -100;
-const AVATAR_DEPTH = 100;
 const AVATAR_SCALE = 2.5;
 /** Player avatar feet, as a fraction of the ground band (horizon..bottom). */
 const AVATAR_FEET_FRACTION = 0.66;
@@ -38,6 +39,16 @@ export class OverworldScene extends ZoneScene {
 
   constructor() {
     super("overworld");
+  }
+
+  /** The billboard sheet is only used here, so it loads here rather than in
+   *  BootScene (frame geometry from the manifest's owBillboards contract). */
+  preload(): void {
+    if (this.textures.exists(BILLBOARD_TEXTURE_KEY)) return;
+    this.load.spritesheet(BILLBOARD_TEXTURE_KEY, owBillboardsUrl, {
+      frameWidth: MANIFEST.owBillboards.frameWidth,
+      frameHeight: MANIFEST.owBillboards.frameHeight
+    });
   }
 
   protected config(): ZoneConfig {
@@ -76,12 +87,14 @@ export class OverworldScene extends ZoneScene {
       const feetY =
         this.mode7.horizonY +
         Math.round((this.scale.height - this.mode7.horizonY) * AVATAR_FEET_FRACTION);
+      // Depth = feet screen-y so the avatar sorts among the billboards
+      // (nearer masses draw in front of it, farther ones behind).
       this.avatar = this.add
         .sprite(this.scale.width / 2, feetY, "hero", 0)
         .setOrigin(0.5, 1)
         .setScrollFactor(0)
         .setScale(AVATAR_SCALE)
-        .setDepth(AVATAR_DEPTH);
+        .setDepth(feetY);
 
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         this.mode7?.destroy();

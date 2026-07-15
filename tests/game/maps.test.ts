@@ -431,6 +431,83 @@ describe("overworld map (the open desert, FF-style POC)", () => {
   it("places mine-mouth flavor near the north stop", () => {
     expect(map.decor.flat()).toContain("mineTimber");
   });
+
+  // ---- Phase O autotile dressing (docs/ART_DIRECTION.md §4a) ----
+
+  const MOUNTAIN = new Set([
+    "mountain",
+    "mountain2",
+    "mountain3",
+    "mountain4",
+    "mountain5",
+    "mountain6",
+    "mountain7",
+    "mountain8"
+  ]);
+  const SCREE_FAMILY = new Set([
+    "scree",
+    "scree2",
+    "screeSandN",
+    "screeSandE",
+    "screeSandS",
+    "screeSandW",
+    "screeSandNE",
+    "screeSandNW",
+    "screeSandSE",
+    "screeSandSW"
+  ]);
+
+  it("puts scree-family ground under every mountain cell (billboards stand on rock)", () => {
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        const d = map.decor[y][x];
+        if (d !== null && MOUNTAIN.has(d)) {
+          expect(SCREE_FAMILY.has(map.ground[y][x])).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("casts the screeShade foot-shadow band on open cells south of mountains", () => {
+    let bands = 0;
+    for (let y = 1; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        if (map.ground[y][x] === "screeShade") {
+          bands++;
+          const above = map.decor[y - 1][x];
+          expect(above !== null && MOUNTAIN.has(above)).toBe(true);
+        }
+      }
+    }
+    expect(bands).toBeGreaterThan(3); // the band actually exists
+  });
+
+  it("rings the spring pool with the coast surf set (no butt-jointed shore)", () => {
+    const flat = map.ground.flat();
+    for (const name of ["coastN", "coastE", "coastS", "coastW"]) {
+      expect(flat).toContain(name);
+    }
+    // every land cell 4-adjacent to water is a coast tile
+    const isWater = (x: number, y: number): boolean =>
+      (map.ground[y]?.[x] ?? "") === "water" || (map.ground[y]?.[x] ?? "") === "water2";
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        if (isWater(x, y)) continue;
+        if (isWater(x, y - 1) || isWater(x + 1, y) || isWater(x, y + 1) || isWater(x - 1, y)) {
+          expect(map.ground[y][x].startsWith("coast")).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("uses sand↔scree finger transitions where mountain masses meet the pass", () => {
+    const flat = map.ground.flat();
+    expect(flat.some((n) => n.startsWith("screeSand"))).toBe(true);
+  });
+
+  it("plants joshua trees (billboard landmarks) beside the clearings", () => {
+    expect(map.decor.flat().filter((c) => c === "joshuaTrunk").length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 // -------------------------------------------------------- mine entrance

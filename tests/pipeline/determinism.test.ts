@@ -33,7 +33,12 @@ describe("pre-act2 asset byte-stability", () => {
     hero: "f04261c56e07861c1cef3d377339d1bd22c9f7bd9be2cfdc459fadb7ed4d3d53",
     npc: "fb33522d654c14306d02452dcfb313dafc4ebd9cff5052f19b5b61fb108e1f68",
     scarab: "0b5a22a21161c83c75bce3d8aaffea7ae83998907b5b2a185da3fb1b2eed0842",
-    tiles: "23a632351b59297b3276a0cdd55318092bfbf83f203a7abcdf84b45dbcb72ed0",
+    // Deliberately re-pinned for the Phase O overworld art pass
+    // (docs/ART_DIRECTION.md §4a, docs/CONTRACTS.md "Phase O"): the sand
+    // family + water were redrawn in place — dune ridge lanes and the
+    // 3-value wave recipe replace the per-pixel speckle. Same 16 tile
+    // slots, no reordering; only pixels changed.
+    tiles: "95672846ff4eb27b375abea6d3ea40c0635bfc1b6e0aee8a3d8b000849fc4b66",
     rosa: "b756ef76590e50051dca7cda6b641c175f7a16d27351e2620a4b248280c03f65",
     piggy: "72e7afe420870935d599b505e6e897d4b3b139f4f10b518dafcfbd45e9662f23",
     jackrabbit: "3bbd64eb56c62e568d157a57a508603f651cc35bfe87682ec44b85706789cedb",
@@ -41,12 +46,14 @@ describe("pre-act2 asset byte-stability", () => {
     gila: "3d9ca6c37e39482058290a45164e98fe642a88787c50e26da881ca23f227bd42",
     foreman: "a7842a7b01d4ad9457ef3fd13348773f4854af678f76365740d1bcf09dc0dfa2",
     queen: "e318e9e692c82efdf9223524b1cf57d35915b70fa196ac0631fae6d44491ce30",
-    // Deliberately re-pinned (docs/CONTRACTS.md "v9"): tiles2 grew a fourth
-    // row of eight mountain-ridge tiles for the overworld POC. The row was
-    // appended after every existing tile, so none of their indices moved —
-    // only the sheet's overall bytes/dimensions changed, which is exactly
-    // what re-pinning here is for.
-    tiles2: "5e85ceabae38fd349347a11cca04eb18bfdfc8d07062bbcefd4ca2edd9e904d1"
+    // Deliberately re-pinned twice: first for docs/CONTRACTS.md "v9" (the
+    // eight appended mountain-ridge tiles), and again for the Phase O
+    // overworld art pass (docs/ART_DIRECTION.md §4a): mountain1–8 redrawn
+    // in place with the FF6 3/4-view recipe, all per-pixel speckle replaced
+    // by 2×2 motif clusters, and three rows appended (scree/shade tiles,
+    // the coast surf ring, the sand↔scree finger set). Indices 0..31
+    // unmoved; the appendix occupies 32..55 only.
+    tiles2: "6c79ca4745aa7a4e87aa552ff84fc01479288cb33847e2d5832e10cd3adbc985"
   } as const;
 
   it("all twelve pre-act2 sheets still encode to their committed bytes", () => {

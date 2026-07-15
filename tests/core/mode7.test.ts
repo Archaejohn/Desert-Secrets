@@ -8,7 +8,8 @@ import {
   type Mode7Camera,
   groundToUv,
   makeCamera,
-  projectGround
+  projectGround,
+  worldToScreen
 } from "../../src/core/mode7";
 
 const SCREEN_W = 480;
@@ -170,6 +171,92 @@ describe("projectGround — determinism", () => {
     ] as const) {
       expect(projectGround(c, sx, sy)).toEqual(projectGround(c, sx, sy));
     }
+  });
+});
+
+describe("worldToScreen — the forward projection (Phase O billboards)", () => {
+  it("is the exact inverse of projectGround for unclamped ground pixels", () => {
+    const c = cam();
+    // Sample screen pixels deep enough that projectGround doesn't clamp.
+    for (const [sx, sy] of [
+      [0, c.screenHeight - 1],
+      [123, 200],
+      [240, 180],
+      [479, 240],
+      [301, c.horizon + 2]
+    ] as const) {
+      const g = projectGround(c, sx, sy)!;
+      if (g.depth >= c.maxDepth) continue; // clamped pixel: not invertible
+      const s = worldToScreen(c, g.wx, g.wy)!;
+      expect(s).not.toBeNull();
+      expect(s.x).toBeCloseTo(sx, 6);
+      expect(s.y).toBeCloseTo(sy, 6);
+      expect(s.scale).toBeCloseTo(c.focal / g.depth, 6);
+    }
+  });
+
+  it("round-trips world → screen → world", () => {
+    const c = cam();
+    for (const [wx, wy] of [
+      [c.x, c.y - 40],
+      [c.x - 90, c.y - 200],
+      [c.x + 250, c.y - 600],
+      [c.x + 3, c.y - c.maxDepth] // exactly at the far clamp: still valid
+    ] as const) {
+      const s = worldToScreen(c, wx, wy)!;
+      expect(s).not.toBeNull();
+      const g = projectGround(c, s.x, s.y)!;
+      expect(g.wx).toBeCloseTo(wx, 5);
+      expect(g.wy).toBeCloseTo(wy, 5);
+    }
+  });
+
+  it("returns null for points at or behind the camera", () => {
+    const c = cam();
+    expect(worldToScreen(c, c.x, c.y)).toBeNull(); // depth 0
+    expect(worldToScreen(c, c.x, c.y + 1)).toBeNull(); // behind (south of camera)
+    expect(worldToScreen(c, c.x - 50, c.y + 500)).toBeNull();
+  });
+
+  it("returns null beyond maxDepth, non-null exactly at it", () => {
+    const c = cam();
+    expect(worldToScreen(c, c.x, c.y - c.maxDepth - 1)).toBeNull();
+    const atClamp = worldToScreen(c, c.x, c.y - c.maxDepth)!;
+    expect(atClamp).not.toBeNull();
+    // The far clamp lands just below the horizon, never on or above it.
+    expect(atClamp.y).toBeGreaterThan(c.horizon);
+    expect(atClamp.y).toBeCloseTo(c.horizon + (c.height * c.focal) / c.maxDepth, 6);
+  });
+
+  it("always lands strictly below the horizon (sky is unreachable)", () => {
+    const c = cam();
+    for (let d = 1; d <= c.maxDepth; d += 41) {
+      const s = worldToScreen(c, c.x + d / 3, c.y - d)!;
+      expect(s.y).toBeGreaterThan(c.horizon);
+    }
+  });
+
+  it("reports off-screen lateral points instead of nulling them (caller culls)", () => {
+    const c = cam();
+    const s = worldToScreen(c, c.x - 5000, c.y - 100)!;
+    expect(s).not.toBeNull();
+    expect(s.x).toBeLessThan(0);
+  });
+
+  it("scale shrinks monotonically with depth (∝ focal/depth)", () => {
+    const c = cam();
+    let prev = Infinity;
+    for (let d = 10; d <= c.maxDepth; d += 30) {
+      const s = worldToScreen(c, c.x, c.y - d)!;
+      expect(s.scale).toBeLessThan(prev);
+      expect(s.scale).toBeCloseTo(c.focal / d, 6);
+      prev = s.scale;
+    }
+  });
+
+  it("is deterministic", () => {
+    const c = cam();
+    expect(worldToScreen(c, 77, 33)).toEqual(worldToScreen(c, 77, 33));
   });
 });
 

@@ -18,7 +18,9 @@
     "skyBlue": "#7fa8c9",
     "hpRed": "#d1454f",
     "atbGold": "#f0c439",
-    "white": "#ffffff"
+    "white": "#ffffff",
+    "umber": "#6e4036",
+    "sandShade": "#c69b7c"
   },
   "sheets": {
     "hero": {
@@ -1173,7 +1175,31 @@
       "mountain5": 28,
       "mountain6": 29,
       "mountain7": 30,
-      "mountain8": 31
+      "mountain8": 31,
+      "scree": 32,
+      "scree2": 33,
+      "screeShade": 34,
+      "sandShade": 35,
+      "coastN": 36,
+      "coastE": 37,
+      "coastS": 38,
+      "coastW": 39,
+      "coastNE": 40,
+      "coastNW": 41,
+      "coastSE": 42,
+      "coastSW": 43,
+      "coastInNE": 44,
+      "coastInNW": 45,
+      "coastInSE": 46,
+      "coastInSW": 47,
+      "screeSandN": 48,
+      "screeSandE": 49,
+      "screeSandS": 50,
+      "screeSandW": 51,
+      "screeSandNE": 52,
+      "screeSandNW": 53,
+      "screeSandSE": 54,
+      "screeSandSW": 55
     }
   },
   "tiles3": {
@@ -1312,6 +1338,20 @@
       "hangSign": 13,
       "ovenGlow": 14,
       "steamCrack": 15
+    }
+  },
+  "owBillboards": {
+    "file": "owBillboards.png",
+    "frameWidth": 48,
+    "frameHeight": 40,
+    "columns": 6,
+    "names": {
+      "mountainMassA": 0,
+      "mountainMassB": 1,
+      "mountainMassC": 2,
+      "joshuaTree": 3,
+      "mineMouth": 4,
+      "truckWreck": 5
     }
   }
 }

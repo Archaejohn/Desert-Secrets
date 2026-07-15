@@ -122,6 +122,37 @@ export function projectGround(
   };
 }
 
+export interface ScreenPoint {
+  /** Screen x, px (may be off-screen left/right — lateral culling is the
+   *  caller's job; only depth makes this null). */
+  x: number;
+  /** Screen y, top-origin px. Always strictly below the horizon. */
+  y: number;
+  /** Perspective scale at this depth: screen px per world px (focal/depth).
+   *  Multiply a billboard's world size by this to get its display size. */
+  scale: number;
+}
+
+/**
+ * Forward projection — the exact inverse of `projectGround`: where on
+ * screen does the world ground point (wx, wy) land? Returns null when the
+ * point is at/behind the camera (depth ≤ 0 — which is also the only way it
+ * could reach or rise above the horizon) or beyond the maxDepth clamp
+ * (past the far haze; the ground there samples the clamp plane, so a
+ * billboard would float on nothing). Deterministic, no randomness.
+ */
+export function worldToScreen(cam: Mode7Camera, wx: number, wy: number): ScreenPoint | null {
+  const depth = cam.y - wy; // forward = −y = north
+  if (depth <= 0) return null;
+  if (depth > cam.maxDepth) return null;
+  const scale = cam.focal / depth;
+  return {
+    x: cam.screenWidth / 2 + (wx - cam.x) * scale,
+    y: cam.horizon + cam.height * scale,
+    scale
+  };
+}
+
 /**
  * Map a world ground point onto the painted top-down texture's UV space,
  * clamped to [0,1] (edge-clamp addressing — the desert is a walled pass, so

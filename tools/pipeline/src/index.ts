@@ -53,7 +53,8 @@ const sheets = [
   ["tiles5.png", assets.tiles5],
   ["tiles6.png", assets.tiles6],
   ["tiles7.png", assets.tiles7],
-  ["tiles8.png", assets.tiles8]
+  ["tiles8.png", assets.tiles8],
+  ["owBillboards.png", assets.owBillboards]
 ] as const;
 
 for (const [name, grid] of sheets) {

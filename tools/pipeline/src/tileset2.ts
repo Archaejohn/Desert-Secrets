@@ -1,24 +1,29 @@
 /**
- * Tileset 2 — thirty-two 16×16 Act 1 tiles in the exact contract order
+ * Tileset 2 — the Act 1 tiles in the exact contract order
  * (docs/CONTRACTS.md §4): the crash-site highway, the gas station, the mine
  * and the frozen depths, plus (appended additively, docs/CONTRACTS.md "v9")
- * eight desert mountain ridge variants used by the overworld POC — eight,
- * not two, because composeSheet requires the frame count to exactly fill
- * an 8-column grid, and the extra variety also reads better tiled densely
- * (a mountain RANGE, not one tile stamped on repeat).
+ * eight desert mountain ridge variants used by the overworld POC, plus
+ * (appended additively again, docs/CONTRACTS.md "Phase O") the overworld
+ * ground vocabulary of the 2.5D art pass: scree, foot-shadow and shade
+ * tiles, the sand↔scree finger-transition set and the coast surf ring.
  *
  * Same rules as tileset.ts: every tile fully opaque, props stamped onto an
- * opaque base via a transparent outlined layer, deterministic speckle from
- * seeded mulberry32. Composability is deliberate: truckCab+truckBox join
- * into one crashed box truck, joshuaTrunk sits under joshuaTop, the station
- * tiles share a wall base, and rail tiles seamlessly repeat horizontally.
+ * opaque base via a transparent outlined layer. 2.5D art pass (Phase O):
+ * per-pixel speckle was replaced everywhere in this file by sparse 2×2
+ * motif clusters (ART_DIRECTION G5/G6), the sand base is now shared with
+ * tileset.ts (same dune-ridge lanes, so every sand-based tile here seams
+ * against the sand plain), and mountain1–8 were redrawn in place with the
+ * FF6 3/4-view recipe. tiles2.png's sha256 is deliberately re-pinned in
+ * tests/pipeline/determinism.test.ts for this pass.
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
-import { TILE_SIZE } from "./tileset";
+import { TILE_SIZE, sandBase, water } from "./tileset";
+import { scatterMotifs, shadeGrid, type Motif } from "./fx";
+import { makeEdgeSet } from "./tilecraft";
 import type { PaletteName } from "../../../src/shared/palette";
 
-/** Contract tile order (row-major indices 0..23). */
+/** Contract tile order (row-major indices 0..55). */
 export const TILE2_NAMES = [
   "asphalt",
   "asphaltLine",
@@ -51,7 +56,32 @@ export const TILE2_NAMES = [
   "mountain5",
   "mountain6",
   "mountain7",
-  "mountain8"
+  "mountain8",
+  // --- Phase O appendix (2.5D art pass, ART_DIRECTION §4a) ---
+  "scree",
+  "scree2",
+  "screeShade",
+  "sandShade",
+  "coastN",
+  "coastE",
+  "coastS",
+  "coastW",
+  "coastNE",
+  "coastNW",
+  "coastSE",
+  "coastSW",
+  "coastInNE",
+  "coastInNW",
+  "coastInSE",
+  "coastInSW",
+  "screeSandN",
+  "screeSandE",
+  "screeSandS",
+  "screeSandW",
+  "screeSandNE",
+  "screeSandNW",
+  "screeSandSE",
+  "screeSandSW"
 ] as const;
 
 export type Tile2Name = (typeof TILE2_NAMES)[number];
@@ -69,33 +99,45 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
   return base;
 }
 
-/** Sand base (same recipe as tileset.ts, distinct seeds keep grain fresh). */
-function sandBase(seed: number, speckles = 8): PixelGrid {
-  const g = tile();
-  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "sand");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < speckles; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "amber" : "sandLight");
-  }
-  return g;
+function motifStamp(cells: Array<[number, number, PaletteName]>): PixelGrid {
+  const w = Math.max(...cells.map(([x]) => x)) + 1;
+  const h = Math.max(...cells.map(([, y]) => y)) + 1;
+  const m = new PixelGrid(w, h);
+  for (const [x, y, c] of cells) m.px(x, y, c);
+  return m;
 }
 
-/** Cracked desert highway: plum base, ink pits, mauve wear. */
+const square = (c: PaletteName): PixelGrid =>
+  motifStamp([
+    [0, 0, c],
+    [1, 0, c],
+    [0, 1, c],
+    [1, 1, c]
+  ]);
+
+/** Cracked desert highway: plum base, mauve wear bands (no speckle, G5). */
 function asphaltBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "plum");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 12; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.6 ? "mauve" : "ink");
-  }
+  scatterMotifs(
+    g,
+    seed,
+    [
+      square("mauve"),
+      motifStamp([
+        [0, 0, "mauve"],
+        [1, 0, "mauve"],
+        [2, 0, "mauve"],
+        [0, 1, "mauve"],
+        [1, 1, "ink"],
+        [2, 1, "mauve"]
+      ])
+    ],
+    3,
+    { margin: 1, minSpacing: 5 }
+  );
   // sun-bleached wear patch
   g.rect(2, 10, 4, 2, "mauve");
-  g.px(11, 3, "mauve");
-  g.px(12, 3, "mauve");
   return g;
 }
 
@@ -112,7 +154,7 @@ function asphaltLine(): PixelGrid {
 /** Truck cab (left tile) — nose left, cab body flush to the right edge so
  *  it joins truckBox. Crashed: buckled hood, cracked windshield, flat tire. */
 function truckCab(): PixelGrid {
-  return stamp(sandBase(22), (l) => {
+  return stamp(sandBase(22, 1), (l) => {
     // hood, buckled up at the crash point
     l.rect(1, 7, 5, 4, "rust");
     l.px(1, 6, "rust"); // crumpled lip
@@ -142,7 +184,7 @@ function truckCab(): PixelGrid {
 /** Truck box (right tile) — cargo box flush to the left edge, torn open at
  *  the back. Composes with truckCab on its left into one crashed truck. */
 function truckBox(): PixelGrid {
-  return stamp(sandBase(23), (l) => {
+  return stamp(sandBase(23, 1), (l) => {
     // container spanning from the left edge (continues the cab silhouette)
     l.rect(0, 2, 14, 11, "bone");
     l.rect(0, 2, 14, 1, "sandLight"); // roof light
@@ -167,7 +209,7 @@ function truckBox(): PixelGrid {
 }
 
 function crateBroken(): PixelGrid {
-  return stamp(sandBase(24), (l) => {
+  return stamp(sandBase(24, 1), (l) => {
     // crate shell, stove in at the top-right
     l.rect(3, 5, 10, 8, "clay");
     l.rect(3, 5, 10, 1, "amber"); // lit top plank
@@ -192,7 +234,7 @@ function crateBroken(): PixelGrid {
 
 /** Joshua tree trunk — shaggy, fills the column under joshuaTop's stem. */
 function joshuaTrunk(): PixelGrid {
-  return stamp(sandBase(25), (l) => {
+  return stamp(sandBase(25, 1), (l) => {
     l.rect(6, 0, 4, 16, "clay");
     // shaggy dead-leaf thatch
     for (let y = 1; y < 16; y += 2) {
@@ -209,7 +251,7 @@ function joshuaTrunk(): PixelGrid {
 /** Joshua tree crown — jade/teal spiky rosettes on a forked stem; the stem
  *  meets the bottom edge where joshuaTrunk continues. */
 function joshuaTop(): PixelGrid {
-  return stamp(sandBase(26), (l) => {
+  return stamp(sandBase(26, 1), (l) => {
     // forked stem rising from the trunk line
     l.rect(7, 10, 2, 6, "clay");
     l.px(6, 9, "clay");
@@ -241,7 +283,7 @@ function joshuaTop(): PixelGrid {
 }
 
 function creosote(): PixelGrid {
-  return stamp(sandBase(27), (l) => {
+  return stamp(sandBase(27, 1), (l) => {
     // scraggly forked stems
     l.px(7, 12, "rust");
     l.px(8, 12, "rust");
@@ -272,7 +314,7 @@ function creosote(): PixelGrid {
   });
 }
 
-/** Gas station wall base: clay stucco with rust courses and grime. */
+/** Gas station wall base: clay stucco with rust courses and grime bands. */
 function stationWallBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "clay");
@@ -280,12 +322,11 @@ function stationWallBase(seed: number): PixelGrid {
   g.rect(0, 12, TILE_SIZE, 1, "rust"); // wainscot line
   g.rect(0, 13, TILE_SIZE, 3, "rust"); // rust skirt
   g.px(0, 13, "amber");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 7; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = 1 + Math.floor(rng() * 10);
-    g.px(x, y, rng() < 0.5 ? "amber" : "rust");
-  }
+  // grime clusters (2×2, G5 — replaces the old per-pixel speckle)
+  scatterMotifs(g, seed, [square("rust"), square("amber")], 2, {
+    margin: 2,
+    minSpacing: 5
+  });
   return g;
 }
 
@@ -325,7 +366,7 @@ function stationSign(): PixelGrid {
 }
 
 function gasPump(): PixelGrid {
-  return stamp(sandBase(31), (l) => {
+  return stamp(sandBase(31, 1), (l) => {
     // pump body
     l.rect(5, 3, 6, 10, "rust");
     l.rect(5, 3, 6, 1, "clay"); // lit top
@@ -353,38 +394,42 @@ function gasPump(): PixelGrid {
 function mineWall(): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
-  const rng = mulberry32(32);
-  for (let i = 0; i < 10; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "plum" : "clay");
-  }
   // strata seams
   g.rect(0, 4, 6, 1, "plum");
   g.rect(9, 4, 7, 1, "plum");
   g.rect(3, 9, 8, 1, "plum");
   g.rect(0, 13, 5, 1, "plum");
   g.rect(11, 13, 5, 1, "plum");
-  // pick scars catching lamplight
-  g.px(7, 2, "clay");
-  g.px(13, 7, "clay");
-  g.px(2, 11, "clay");
+  // pick scars catching lamplight (2px clusters, G6)
+  g.rect(6, 2, 2, 1, "clay");
+  g.rect(12, 7, 2, 1, "clay");
+  g.rect(2, 11, 2, 1, "clay");
+  // embedded stones (2×2 clusters — replaces the old per-pixel speckle)
+  g.rect(10, 2, 2, 2, "plum");
+  g.rect(4, 6, 2, 2, "clay");
   // dark undercut at the foot so it reads solid against the floor
   g.rect(0, 15, TILE_SIZE, 1, "ink");
   g.rect(0, 14, TILE_SIZE, 1, "plum");
   return g;
 }
 
-/** Mine floor: walkable dark — ink with faint plum rubble. */
+/** Mine floor: walkable dark — ink with faint plum rubble clusters. */
 function mineFloor(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "ink");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 9; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, "plum");
-  }
+  scatterMotifs(
+    g,
+    seed,
+    [
+      square("plum"),
+      motifStamp([
+        [0, 0, "plum"],
+        [1, 0, "plum"]
+      ])
+    ],
+    3,
+    { margin: 1, minSpacing: 5 }
+  );
   return g;
 }
 
@@ -485,7 +530,7 @@ function leverBase(on: boolean): PixelGrid {
   return g;
 }
 
-/** Ice wall: skyBlue face with bone facets and white glints. */
+/** Ice wall: skyBlue face with bone facets and paired white glints. */
 function iceWallBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "skyBlue");
@@ -501,14 +546,15 @@ function iceWallBase(seed: number): PixelGrid {
   g.px(6, 10, "slate");
   g.px(12, 7, "slate");
   g.px(3, 12, "slate");
+  // glints: 2×1 clusters on the facets (G6 — no isolated single pixels)
   const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, "white"); // glints
+  for (let i = 0; i < 2; i++) {
+    const x = 2 + Math.floor(rng() * 11);
+    const y = 2 + Math.floor(rng() * 11);
+    g.rect(x, y, 2, 1, "white");
   }
-  g.px(2, 2, "white");
-  g.px(10, 9, "white");
+  g.rect(2, 2, 2, 1, "white");
+  g.rect(10, 9, 2, 1, "white");
   return g;
 }
 
@@ -547,7 +593,7 @@ function iceWallCrack(): PixelGrid {
 
 /** Sand rimed with frost creeping in from the depths. */
 function frostSand(): PixelGrid {
-  const g = sandBase(38, 6);
+  const g = sandBase(38, 1);
   // rime patches
   g.rect(1, 1, 4, 2, "mint");
   g.px(5, 2, "mint");
@@ -556,8 +602,7 @@ function frostSand(): PixelGrid {
   g.px(9, 6, "mint");
   g.rect(3, 11, 3, 2, "mint");
   g.px(6, 12, "mint");
-  g.px(12, 12, "mint");
-  g.px(13, 11, "mint");
+  g.rect(12, 11, 2, 2, "mint");
   // frozen sparkle at the heart of each patch
   g.px(2, 2, "white");
   g.px(11, 6, "white");
@@ -569,7 +614,7 @@ function frostSand(): PixelGrid {
 
 /** A collectible shard of impossible ice, half-buried in sand. */
 function iceChip(): PixelGrid {
-  return stamp(sandBase(39), (l) => {
+  return stamp(sandBase(39, 1), (l) => {
     // angular shard leaning right
     l.px(8, 4, "mint");
     l.rect(7, 5, 3, 2, "mint");
@@ -616,38 +661,174 @@ function eggCluster(): PixelGrid {
 }
 
 /**
- * A big desert mountain ridge, FF3/6 world-map style: diagonal shingled
- * bands (lit face, shade transition, deep shadow) rather than a small
- * boulder — reads as a slope you can't cross, not a rock you step around.
- * `phase` shifts the band origin so the eight variants vary when the
- * overworld tiles them densely, the same way sand/sand2/sand3 do.
+ * FF6-style 3/4-view desert mountain tile (Phase O redraw, ART_DIRECTION
+ * §4a): an irregular peak (plus a lower shoulder) rising out of a plum
+ * inter-peak shadow mass. The crest silhouette carries an umber/plum
+ * zigzag; the NW flank is lit (sand near the crest, clay below), the SE
+ * flank shaded (rust into plum, ~50% of the mass), and the south foot
+ * darkens to umber so masses sit on the plain. `phase` (0..7) moves the
+ * apexes so the eight variants read as a varied range when tiled densely;
+ * `seed` scatters 2×2 crag clusters on the faces (G5 — the old per-pixel
+ * flecks are gone). These tiles remain for the flat-tilemap fallback and
+ * far texture; the near-field 3D read comes from the owBillboards layer.
  */
 function mountainRidge(seed: number, phase: number): PixelGrid {
   const g = tile();
-  const BAND = 8;
-  for (let y = 0; y < TILE_SIZE; y++) {
-    for (let x = 0; x < TILE_SIZE; x++) {
-      const d = ((x + y + phase) % BAND + BAND) % BAND;
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "plum"); // shadowed inter-peak mass
+  const mainAx = 3 + ((phase * 5) % 10);
+  const mainAy = 1 + ((phase * 3) % 5); // varied heights: teeth, not a comb
+  const peaks = [{ ax: mainAx, ay: mainAy }];
+  if (phase % 2 === 0) {
+    peaks.push({ ax: (mainAx + 8) % TILE_SIZE, ay: mainAy + 4 }); // lower shoulder
+  }
+  for (let x = 0; x < TILE_SIZE; x++) {
+    let crestY = 99;
+    let owner = peaks[0];
+    for (const p of peaks) {
+      const y = p.ay + Math.abs(x - p.ax);
+      if (y < crestY) {
+        crestY = y;
+        owner = p;
+      }
+    }
+    if (crestY >= TILE_SIZE) continue; // pure background shadow column
+    for (let y = crestY; y < TILE_SIZE; y++) {
+      const dc = y - crestY; // depth below the crest along this column
       let c: PaletteName;
-      if (d < 1) c = "amber"; // sunlit ridge crest
-      else if (d < 4) c = "clay"; // lit slope face
-      else if (d < 5) c = "rust"; // shade transition
-      else c = "plum"; // deep shadow face
+      if (dc === 0) {
+        c = ((x + y) & 2) === 0 ? "umber" : "plum"; // zigzag crest (G6 structural line)
+      } else if (x <= owner.ax) {
+        c = dc <= 3 ? "sand" : "clay"; // lit NW flank
+      } else {
+        c = dc <= 4 ? "rust" : "plum"; // shaded SE flank
+      }
+      // darkened south foot — broken, not a ruler line across the range
+      if (y === TILE_SIZE - 1 && (x + phase * 3) % 8 < 6) c = "umber";
       g.px(x, y, c);
     }
   }
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 10; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "ink" : "mauve"); // rocky texture flecks
+  // sunlit apex caps (structural crest highlights)
+  for (const p of peaks) {
+    if (p.ay < TILE_SIZE) {
+      g.px(p.ax, p.ay, "sandLight");
+      g.px(p.ax - 1, p.ay + 1, "sandLight");
+    }
   }
-  // dark base line, grounding the slope against whatever it stands on
-  g.rect(0, TILE_SIZE - 1, TILE_SIZE, 1, "ink");
+  // 2×2 crag clusters on the faces (seeded, sparse — G5)
+  const rng = mulberry32(seed);
+  let placed = 0;
+  for (let i = 0; i < 10 && placed < 2; i++) {
+    const x = 1 + Math.floor(rng() * (TILE_SIZE - 3));
+    const y = 4 + Math.floor(rng() * (TILE_SIZE - 6));
+    const c = g.get(x, y);
+    if (c === "clay" && g.get(x + 1, y + 1) === "clay") {
+      g.rect(x, y, 2, 2, "rust");
+      placed++;
+    } else if (c === "rust" && g.get(x + 1, y + 1) === "rust") {
+      g.rect(x, y, 2, 2, "plum");
+      placed++;
+    }
+  }
   return g;
 }
 
-/** All 32 tiles in contract order (see TILE2_NAMES). */
+// ---------------------------------------------------------------------------
+// Phase O appendix — the overworld ground vocabulary (ART_DIRECTION §4a).
+// ---------------------------------------------------------------------------
+
+/** Warm scree/rock ground placed under mountain masses: clay base with
+ *  sparse 2×2 pebble clusters (mauve/rust/sand — G5, no speckle). */
+function screeBase(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "clay");
+  const pebbles: readonly Motif[] = [
+    motifStamp([
+      [0, 0, "mauve"],
+      [1, 0, "mauve"],
+      [0, 1, "mauve"],
+      [1, 1, "plum"]
+    ]),
+    square("rust"),
+    square("sand")
+  ];
+  scatterMotifs(g, seed, pebbles, 3, { margin: 1, minSpacing: 5 });
+  return g;
+}
+
+/**
+ * The 24 appended Phase O tiles, in TILE2_NAMES order:
+ * scree, scree2, screeShade, sandShade,
+ * coast edges N/E/S/W (the letter = which side the water is on), coast
+ * outer corners NE/NW/SE/SW (water on both named sides), coast inner
+ * corners (water only diagonally), then the sand↔scree finger-transition
+ * edges/outer corners with the same naming (letter = where the SAND is;
+ * scree owns the border per G9).
+ */
+function overworldAppendix(): PixelGrid[] {
+  const sandRef = sandBase(1); // identical to the "sand" tile → perfect seams
+  const scree = screeBase(70);
+  const scree2 = screeBase(71);
+
+  // Mountain foot-shadow band (§4a): shadow-LUT scree whose south edge
+  // hands off into sand with shaded fingers, so the band's usual south
+  // neighbour (the sunlit pass) meets a broken boundary, not a ruler line.
+  const screeShade = makeEdgeSet(shadeGrid(scree), sandRef, {
+    style: "fingers",
+    seed: 91,
+    fingerColor: "rust",
+    bandDepth: 3,
+    fingerOpts: { depthMin: 1, depthMax: 2, density: 0.5 }
+  }).edges.s;
+
+  const sandShade = shadeGrid(sandRef);
+
+  // Coast surf ring (land owns the border): dark land lip → broken bone
+  // surf fringe → skyBlue shallows → open water matching the water tile.
+  const coast = makeEdgeSet(sandRef, water(0), {
+    style: "surf",
+    seed: 92,
+    surfLip: "umber",
+    innerCorners: true
+  });
+
+  // Sand↔scree transition (scree owns the border): a sand band along the
+  // boundary side with clustered 2px scree fingers reaching into it.
+  const screeSand = makeEdgeSet(scree, sandRef, {
+    style: "fingers",
+    seed: 93,
+    fingerColor: "clay",
+    bandDepth: 5
+  });
+
+  return [
+    scree,
+    scree2,
+    screeShade,
+    sandShade,
+    coast.edges.n,
+    coast.edges.e,
+    coast.edges.s,
+    coast.edges.w,
+    coast.outerCorners.ne,
+    coast.outerCorners.nw,
+    coast.outerCorners.se,
+    coast.outerCorners.sw,
+    coast.innerCorners!.ne,
+    coast.innerCorners!.nw,
+    coast.innerCorners!.se,
+    coast.innerCorners!.sw,
+    screeSand.edges.n,
+    screeSand.edges.e,
+    screeSand.edges.s,
+    screeSand.edges.w,
+    screeSand.outerCorners.ne,
+    screeSand.outerCorners.nw,
+    screeSand.outerCorners.se,
+    screeSand.outerCorners.sw
+  ];
+}
+
+/** All 56 tiles in contract order (see TILE2_NAMES). */
 export function tile2Frames(): PixelGrid[] {
   return [
     asphaltBase(20),
@@ -681,6 +862,7 @@ export function tile2Frames(): PixelGrid[] {
     mountainRidge(46, 4),
     mountainRidge(47, 5),
     mountainRidge(48, 6),
-    mountainRidge(49, 7)
+    mountainRidge(49, 7),
+    ...overworldAppendix()
   ];
 }
