@@ -2180,3 +2180,71 @@ and this finale — the catch, the reveal, and the deliberate cliffhanger that
 opens Part Two. The full run is playable from a fresh save to END OF PART ONE
 and is covered end-to-end by `npm run smoke`. Part Two is planned in
 `docs/STORY_PARTS2-4.md` but not built in this pass.
+
+# v19: Rest points — free, reusable full heals in Acts 3–7
+
+## Why (the gap a playtester found)
+
+After Act 2 there was **no way to restore HP except leveling up or dying**
+(both full-heal). Acts 3–7 are long chains (5–6 zones each) full of random
+encounters and set-piece fights (the Lurker, sunwasp, reefstalker, midden-mite
+swarm, the crawler-court fallback fight, …) with nothing between them to top
+off. A player who took chip damage across a chain had to either grind a level
+or throw a fight to reset — a real gameplay gap, not a nice-to-have. This adds
+one **rest point** per act, Acts 3–7.
+
+## What a rest point is
+
+A plain `addInteractPoint` (stand nearby, press E / tap) that the player can
+use **any number of times, for free**. On use it fully heals the party and
+plays one short zone-appropriate flavor line, then stays usable (`once: false`,
+the default). No item, no charge, no cost.
+
+- **The heal reuses the existing pure `respawn()`** (`gameState.ts`), the same
+  heal-to-full that defeat and level-up already call — no duplicated max-HP
+  math. Centralized in a new base-class helper `ZoneScene.restHere(flavor)`:
+  `setState(this, respawn(getState(this)))` → `hud.update` → `openScript(flavor)`.
+- **Party coverage:** healing the hero heals the party. Slither always fights at
+  full HP every battle (`partyFor()` gives him fresh `slitherStatsForLevel`
+  stats) and Fluffball is non-combat, so neither tracks persistent HP — no extra
+  plumbing needed.
+- **Flavor lines** live in `src/core/scripts/restPoints.ts` (one single-line
+  narration script per act; `validateScript`-shaped like every other script).
+
+## Where each rest point lives (zone + tile + visual anchor)
+
+Each sits on a genuinely walkable tile (verified against the map builder), in a
+hub or pre-boss zone the player passes more than once — reusing an existing
+decorative tile/prop as the anchor, no new art:
+
+- **Act 3 — the Kelp Forest hub**, tile `(16,13)` (`KELP_REST`): the walkable
+  anemone at the centre of the hub every route forks through. "A warm mineral
+  current wells up through the floe."
+- **Act 4 — the Miners' Camp**, tile `(16,11)` (`CAMPP_HEARTH`): on the rug
+  directly in front of the stove (the stove at `(16,12)` is solid). The camp is
+  Act 4's hub. "You warm your hands at the miners' stove."
+- **Act 5 — the River Grotto**, tile `(11,6)` (existing `GROTTO_POOL`): the
+  underground river's source pool, on the main north–south path. "You kneel at
+  the river's source and drink."
+- **Act 6 — the Crawlers' Garden**, tile `(21,9)` (existing `REEF_G_MINT_ROW`):
+  a walkable cultivated mint-kelp tile, right before the reefstalker stretch.
+  "You settle among the glowing mint kelp."
+- **Act 7 — La Pizzeria Sotterranea**, tile `(8,8)` (`PIZZA_P_TABLE`): a set
+  dining table (the table at `(8,9)` is solid), usable while exploring before
+  the finale beats begin. "Testudo slides over a bowl of soup."
+
+## Plumbing
+
+- `ZoneScene.restHere()` added (imports `respawn` from `gameState`). Five scenes
+  (`KelpForestScene`, `CampProperScene`, `GroveGrottoScene`, `ReefGardenScene`,
+  `PizzeriaScene`) each gain one `addInteractPoint(...restHere(script))` call.
+  Map files export the three new landmark constants (`KELP_REST`, `CAMPP_HEARTH`,
+  `PIZZA_P_TABLE`); Acts 5/6 reuse existing landmark constants.
+- No new pure logic beyond reusing `respawn()`, so no new unit test — but
+  `tools/smoke/e2e.mjs` gains a `restPointCheck()` helper and exercises the
+  Act 3, 4 and 6 rest points in the live keyboard playthrough (use once to learn
+  max HP, damage the hero to 1, use again, assert it heals back to full and is
+  repeatable). `tools/smoke/touch-e2e.mjs` proves the Act 4 stove rest point
+  full-heals via tap-to-interact (the same touch path bucket/spigot/nest use).
+- Story/dialogue untouched beyond the five flavor lines; Acts 1–2 and the
+  Mode-7 overworld are deliberately left alone (short enough not to need this).

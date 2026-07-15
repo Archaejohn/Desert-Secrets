@@ -418,6 +418,51 @@ check(
   JSON.stringify(nestTap)
 );
 
+// ---------- Rest point: a repeatable full heal via touch (Acts 3–7) ----------
+// The mid-chain rest points are plain InteractPoints (heal + a flavor line), so
+// tapping to use one must work on a touch device exactly like the camp stove
+// here. Prove it heals to full AND is reusable (use once, damage, use again).
+await page.evaluate(() => {
+  const g = window.__game;
+  const st = g.registry.get("act1");
+  const flags = {
+    ...st.flags,
+    actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
+    slitherJoined: true, act3Started: true, act3Complete: true, silverfinCaught: true,
+    act4Started: true, sawOutskirts: true, sawCamp: true, sawCrateChase: true
+  };
+  g.registry.set("act1", { ...st, zone: "campProper", flags });
+  for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
+  g.scene.start("campProper", {});
+});
+await page.waitForTimeout(1300);
+const tapCampRest = async () => {
+  await page.evaluate(() => window.__game.scene.getScene("campProper").player.body.reset(16 * 16 + 8, 11 * 16 + 8));
+  await page.waitForTimeout(200);
+  const rect = await canvasRect();
+  await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+  await page.waitForTimeout(300);
+  // Dismiss the single-line flavor beat with another right-side tap.
+  if (await page.evaluate(() => window.__game.scene.getScene("campProper").dialogue.isOpen)) {
+    await page.touchscreen.tap(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5);
+    await page.waitForTimeout(200);
+  }
+};
+await tapCampRest();
+const restFull = await page.evaluate(() => window.__game.registry.get("act1").hp);
+await page.evaluate(() => {
+  const g = window.__game;
+  g.registry.set("act1", { ...g.registry.get("act1"), hp: 1 });
+});
+await page.waitForTimeout(100);
+await tapCampRest();
+const restAfter = await page.evaluate(() => window.__game.registry.get("act1").hp);
+check(
+  "tapping the camp rest point full-heals the party via touch (repeatable)",
+  restFull > 1 && restAfter === restFull,
+  `full=${restFull} damaged→1 then rested→${restAfter}`
+);
+
 // ---------- Act 5: Sahra's reactive trade via touch ----------
 // Jump to Sahra's grove (Fluffball already joined) and confirm that tapping to
 // talk opens Sahra's dialogue on a touch device — and that her lines react to

@@ -12,11 +12,13 @@ import {
   GROTTO_ENTRY_TRIGGER,
   GROTTO_EXIT_NORTH,
   GROTTO_EXIT_SOUTH,
+  GROTTO_POOL,
   GROTTO_SPAWN
 } from "../maps/groveGrottoMap";
 import { APPROACH_RETURN_SPAWN } from "../maps/groveApproachMap";
 import { CHAMBER_SPAWN } from "../maps/groveChamberMap";
 import { groveGrottoEntryScript } from "../../core/scripts/groveGrottoEntry";
+import { grottoRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
@@ -49,6 +51,9 @@ export class GroveGrottoScene extends ZoneScene {
 
     this.addExit({ ...GROTTO_EXIT_NORTH }, "groveApproach", APPROACH_RETURN_SPAWN);
     this.addExit({ ...GROTTO_EXIT_SOUTH }, "groveChamber", CHAMBER_SPAWN);
+
+    // Rest point (the river's source pool): a free, reusable full heal.
+    this.addInteractPoint(GROTTO_POOL.x, GROTTO_POOL.y, () => this.restHere(grottoRestScript));
 
     if (!getState(this).flags.sawGroveGrotto) {
       this.addTrigger({ ...GROTTO_ENTRY_TRIGGER }, () => {

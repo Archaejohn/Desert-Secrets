@@ -12,11 +12,13 @@ import {
   REEF_G_ENTRY_TRIGGER,
   REEF_G_EXIT_NORTH,
   REEF_G_EXIT_SOUTH,
+  REEF_G_MINT_ROW,
   REEF_G_SPAWN
 } from "../maps/reefGardenMap";
 import { REEF_D_RETURN_SPAWN } from "../maps/reefDescentMap";
 import { REEF_W_SPAWN } from "../maps/reefWarrenMap";
 import { reefGardenEntryScript } from "../../core/scripts/reefGardenEntry";
+import { reefRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
@@ -48,6 +50,9 @@ export class ReefGardenScene extends ZoneScene {
 
     this.addExit({ ...REEF_G_EXIT_NORTH }, "reefDescent", REEF_D_RETURN_SPAWN);
     this.addExit({ ...REEF_G_EXIT_SOUTH }, "reefWarren", REEF_W_SPAWN);
+
+    // Rest point (the glowing mint-kelp rows): a free, reusable full heal.
+    this.addInteractPoint(REEF_G_MINT_ROW.x, REEF_G_MINT_ROW.y, () => this.restHere(reefRestScript));
 
     if (!getState(this).flags.sawReefGarden) {
       this.addTrigger({ ...REEF_G_ENTRY_TRIGGER }, () => {

@@ -26,6 +26,7 @@ import {
   PIZZA_P_PIGGY_ARRIVE,
   PIZZA_P_PIGGY_END,
   PIZZA_P_SPAWN,
+  PIZZA_P_TABLE,
   PIZZA_P_TESTUDO
 } from "../maps/pizzeriaMap";
 import { PIZZA_A_RETURN_SPAWN } from "../maps/pizzaApproachMap";
@@ -34,6 +35,7 @@ import { pizzeriaEntryScript } from "../../core/scripts/pizzeriaEntry";
 import { testudoBakeScript } from "../../core/scripts/testudoBake";
 import { piggyReunionScript } from "../../core/scripts/piggyReunion";
 import { testudoRevealScript } from "../../core/scripts/testudoReveal";
+import { pizzaRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { CookingMenu } from "../ui/CookingMenu";
@@ -100,6 +102,10 @@ export class PizzeriaScene extends ZoneScene {
 
     this.addExit({ ...PIZZA_P_EXIT_NORTH }, "pizzaApproach", PIZZA_A_RETURN_SPAWN);
     this.placeTestudo();
+
+    // Rest point (a set table, a bowl of Testudo's soup): a free, reusable full
+    // heal. Usable while exploring the restaurant before the finale beats begin.
+    this.addInteractPoint(PIZZA_P_TABLE.x, PIZZA_P_TABLE.y, () => this.restHere(pizzaRestScript));
 
     if (!getState(this).flags.metTestudo) {
       this.addTrigger({ ...PIZZA_P_ENTRY_TRIGGER }, () => {

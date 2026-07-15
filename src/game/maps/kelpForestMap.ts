@@ -38,6 +38,14 @@ export const KELP_HUB = { x1: 14, y1: 11, x2: 26, y2: 16 } as const;
 export const KELP_PINCH_A = { x: 30, y: 12 } as const; // route A (upper)
 export const KELP_PINCH_B = { x: 30, y: 15 } as const; // route B (lower)
 
+/**
+ * The hub rest point (a warm mineral current welling up through the floe).
+ * Sits on the walkable anemone flourish at the centre of the hub — the zone
+ * the whole forest forks through, so it tops HP off before any fork. See the
+ * rest-point system in docs/CONTRACTS.md ("v19").
+ */
+export const KELP_REST = { x: 16, y: 13 } as const;
+
 /** A false-lead alcove that dead-ends off the hub (no exit). */
 export const KELP_FALSE_LEAD = { x: 13, y: 7 } as const;
 export const KELP_FALSE_ENTRANCE = { x: 14, y: 10 } as const;
