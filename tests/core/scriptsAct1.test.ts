@@ -11,7 +11,12 @@ import { rabbitChoiceScript } from "../../src/core/scripts/rabbitChoice";
 import { queenFightScript } from "../../src/core/scripts/queenFight";
 import { queenParleyScript } from "../../src/core/scripts/queenParley";
 import { radioLines } from "../../src/core/scripts/radio";
-import { cliffhangerScript } from "../../src/core/scripts/cliffhanger";
+import {
+  cliffhangerAftershockScript,
+  cliffhangerIceRevealScript,
+  cliffhangerPiggyScript,
+  cliffhangerSealedScript,
+} from "../../src/core/scripts/cliffhanger";
 
 const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["rosaCrash", rosaCrashScript],
@@ -20,7 +25,10 @@ const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["rabbitChoice", rabbitChoiceScript],
   ["queenFight", queenFightScript],
   ["queenParley", queenParleyScript],
-  ["cliffhanger", cliffhangerScript],
+  ["cliffhangerAftershock", cliffhangerAftershockScript],
+  ["cliffhangerIceReveal", cliffhangerIceRevealScript],
+  ["cliffhangerPiggy", cliffhangerPiggyScript],
+  ["cliffhangerSealed", cliffhangerSealedScript],
   ...Object.entries(radioLines).map(
     ([zone, script]) => [`radio.${zone}`, script] as [string, DialogueScript],
   ),
@@ -292,16 +300,27 @@ describe("radioLines", () => {
 });
 
 describe("cliffhanger", () => {
-  it("reveals the ice wall and what hangs inside it", () => {
-    const { lines } = playThrough(cliffhangerScript);
+  // Split into four beats (DepthsScene.runCliffhanger) so the wall-crack
+  // and Piggy's walk each trigger at the moment their own beat's dialogue
+  // opens, instead of both already having finished off-screen well before
+  // any of this text was shown (a real playtester report).
+  it("reveals the ice wall and what hangs inside it, across the reveal beat", () => {
+    const { lines } = playThrough(cliffhangerIceRevealScript);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/ice/i);
     expect(all).toMatch(/something vast/i);
-    expect(all).toMatch(/elevator/i);
   });
 
-  it("ends on the Act 2 title card", () => {
-    const { lines, runner } = playThrough(cliffhangerScript);
+  it("the aftershock beat doesn't jump ahead to the ice itself", () => {
+    const { lines } = playThrough(cliffhangerAftershockScript);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).not.toMatch(/ice/i);
+  });
+
+  it("the sealed beat mentions the elevator and ends on the Act 2 title card", () => {
+    const { lines, runner } = playThrough(cliffhangerSealedScript);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/elevator/i);
     expect(lines[lines.length - 1].text).toBe("ACT 2: THE ICE BELOW");
     expect(lines[lines.length - 2].text).toBe("END OF ACT 1");
     expect(runner.active).toBe(false);

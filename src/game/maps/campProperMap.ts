@@ -157,12 +157,12 @@ export function buildCampProperMap(): ZoneMap {
     if (decor[y][x] === null) decor[y][x] = "frostPrint";
   }
 
-  // Overhead: string lights across the hall ceiling, a laundry line strung
-  // over the sock corner. Overhead tiles are never solid, so they must sit on
-  // cells the player can stand under.
-  for (const x of [6, 10, 14, 18, 22, 26]) overhead[2][x] = "stringLights";
-  overhead[5][10] = "stringLights";
-  overhead[5][22] = "stringLights";
+  // Overhead: one continuous string of lights the length of the hall
+  // ceiling (contiguous tiles, not scattered - the flat wire in each tile
+  // lines up with its neighbors so it reads as one strand), plus a laundry
+  // line strung over the sock corner. Overhead tiles are never solid, so
+  // they must sit on cells the player can stand under.
+  for (let x = 5; x <= 27; x++) overhead[2][x] = "stringLights";
   for (let x = 4; x <= 9; x++) overhead[5][x] = "laundryLine";
 
   return { ground, decor, overhead };

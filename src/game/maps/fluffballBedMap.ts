@@ -14,16 +14,27 @@ export const FLUFFBED_HEIGHT = 14;
 /** Default spawn: arriving from the kelp forest (north gate). */
 export const FLUFFBED_SPAWN = { x: 8, y: 3 } as const;
 /**
- * A three-stage chase across the bed before Fluffball is actually cornered:
- * first sighted mid-bed, flees to a tighter channel, then finally corners
- * himself in the small nook (a dead end within the dead end) with nowhere
- * left to run. Each stage has its own approach-trigger rect.
+ * A five-stage chase across the bed before Fluffball is actually cornered:
+ * first sighted mid-bed, flees deeper across four more waypoints (two of
+ * them carrying a Joseph/Slither planning aside instead of a Fluffball
+ * reaction line, so the player hears WHY they're doing this partway
+ * through, not just at the very end), then finally corners himself in the
+ * small nook (a dead end within the dead end) with nowhere left to run.
+ * Each stage has its own approach-trigger rect.
  */
 export const FLUFFBED_FLUFFBALL = { x: 12, y: 8 } as const;
 export const FLUFFBED_TRIGGER = { x1: 10, y1: 6, x2: 13, y2: 9 } as const;
 
+/** Stage 2 — a planning aside, no Fluffball reaction line. */
+export const FLUFFBED_STAGE_A = { x: 10, y: 4 } as const;
+export const FLUFFBED_STAGE_A_TRIGGER = { x1: 9, y1: 3, x2: 12, y2: 5 } as const;
+
 export const FLUFFBED_STAGE2 = { x: 7, y: 7 } as const;
 export const FLUFFBED_STAGE2_TRIGGER = { x1: 5, y1: 6, x2: 8, y2: 8 } as const;
+
+/** Stage 4 — a second planning aside, no Fluffball reaction line. */
+export const FLUFFBED_STAGE_C = { x: 5, y: 8 } as const;
+export const FLUFFBED_STAGE_C_TRIGGER = { x1: 4, y1: 7, x2: 6, y2: 9 } as const;
 
 /** The nook — where he's finally cornered, matching the CARVES nook rect. */
 export const FLUFFBED_CORNERED = { x: 3, y: 10 } as const;

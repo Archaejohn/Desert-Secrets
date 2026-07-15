@@ -127,6 +127,10 @@ import {
   buildFluffballBedMap,
   FLUFFBED_CORNERED,
   FLUFFBED_CORNERED_TRIGGER,
+  FLUFFBED_STAGE_A,
+  FLUFFBED_STAGE_A_TRIGGER,
+  FLUFFBED_STAGE_C,
+  FLUFFBED_STAGE_C_TRIGGER,
   FLUFFBED_EXIT_NORTH,
   FLUFFBED_FLUFFBALL,
   FLUFFBED_HEIGHT,
@@ -1024,9 +1028,13 @@ describe("fluffball bed map (a dead-end pocket)", () => {
 
   it("keeps every chase waypoint (and its trigger) walkable and reachable", () => {
     for (const p of [
+      FLUFFBED_STAGE_A,
       FLUFFBED_STAGE2,
+      FLUFFBED_STAGE_C,
       FLUFFBED_CORNERED,
+      rectTile(FLUFFBED_STAGE_A_TRIGGER),
       rectTile(FLUFFBED_STAGE2_TRIGGER),
+      rectTile(FLUFFBED_STAGE_C_TRIGGER),
       rectTile(FLUFFBED_CORNERED_TRIGGER)
     ]) {
       expect(isSolidAt(map, p.x, p.y)).toBe(false);

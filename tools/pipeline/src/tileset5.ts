@@ -294,22 +294,24 @@ function crateOpen(): PixelGrid {
   });
 }
 
-/** OVERHEAD tile: string lights. Transparent background — a slack wire strung
- *  across the ceiling with warm amber/gold bulbs. Drawn above the actors. */
+/** OVERHEAD tile: string lights. Transparent background — a FLAT wire at a
+ *  fixed height (not a per-tile sag), so placing these tiles edge to edge
+ *  reads as one continuous strand instead of a repeating scalloped wave
+ *  (which read as eyelashes, not lights). One clear round bulb per tile,
+ *  with a socket cap and a soft glow halo. Drawn above the actors. */
 function stringLights(): PixelGrid {
   const g = tile();
-  // sagging wire
-  for (let x = 0; x < TILE_SIZE; x++) {
-    const y = 3 + Math.round(2 * Math.sin((x / TILE_SIZE) * Math.PI));
-    g.px(x, y, "ink");
+  g.rect(0, 2, TILE_SIZE, 1, "ink"); // flat wire, same height in every tile
+  const bx = 7, by = 3;
+  for (const [dx, dy] of [[-2, 1], [2, 1], [-1, 3], [1, 3], [0, 4]] as const) {
+    g.px(bx + dx, by + dy, "rust"); // soft glow halo
   }
-  // hanging bulbs
-  for (const bx of [2, 6, 10, 14]) {
-    const y = 3 + Math.round(2 * Math.sin((bx / TILE_SIZE) * Math.PI));
-    g.px(bx, y + 1, "amber");
-    g.px(bx, y + 2, "atbGold");
-    g.px(bx, y + 3, "amber");
-  }
+  g.rect(bx - 1, by, 3, 1, "plum"); // socket cap
+  g.px(bx, by + 1, "amber");
+  g.rect(bx - 1, by + 2, 3, 2, "amber");
+  g.px(bx, by + 4, "amber");
+  g.px(bx, by + 2, "atbGold"); // bright filament core
+  g.px(bx, by + 3, "atbGold");
   g.outline("ink");
   return g;
 }

@@ -9,7 +9,12 @@ import { kelpForestEntryScript } from "../../src/core/scripts/kelpForestEntry";
 import { sunTempleEntryScript } from "../../src/core/scripts/sunTempleEntry";
 import { fluffballBedEntryScript } from "../../src/core/scripts/fluffballBedEntry";
 import { fluffballMeetScript } from "../../src/core/scripts/fluffballMeet";
-import { fluffballFleeStage1Script, fluffballFleeStage2Script } from "../../src/core/scripts/fluffballFlee";
+import {
+  fluffballFleeStage1Script,
+  fluffballFleeStage2Script,
+  fluffballPlanAScript,
+  fluffballPlanBScript,
+} from "../../src/core/scripts/fluffballFlee";
 import { templeLoreScript } from "../../src/core/scripts/templeLore";
 import { deepBedEntryScript } from "../../src/core/scripts/deepBedEntry";
 import { seaFirstCastScript } from "../../src/core/scripts/seaFirstCast";
@@ -24,7 +29,9 @@ const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["sunTempleEntry", sunTempleEntryScript],
   ["fluffballBedEntry", fluffballBedEntryScript],
   ["fluffballFleeStage1", fluffballFleeStage1Script],
+  ["fluffballPlanA", fluffballPlanAScript],
   ["fluffballFleeStage2", fluffballFleeStage2Script],
+  ["fluffballPlanB", fluffballPlanBScript],
   ["fluffballMeet", fluffballMeetScript],
   ["templeLore", templeLoreScript],
   ["deepBedEntry", deepBedEntryScript],
@@ -87,6 +94,8 @@ describe("Slither's hissing esses (Act 3)", () => {
       sunTempleEntryScript,
       fluffballBedEntryScript,
       fluffballFleeStage1Script,
+      fluffballPlanAScript,
+      fluffballPlanBScript,
       fluffballMeetScript,
       templeLoreScript,
       deepBedEntryScript,
@@ -134,10 +143,26 @@ describe("fluffballMeet", () => {
 });
 
 describe("fluffballFlee (the chase, before he's actually cornered)", () => {
-  it("plays two short beats before the catch, neither one giving the clue away", () => {
-    for (const script of [fluffballFleeStage1Script, fluffballFleeStage2Script]) {
+  it("plays four short beats before the catch, none of them giving the clue away", () => {
+    for (const script of [
+      fluffballFleeStage1Script,
+      fluffballPlanAScript,
+      fluffballFleeStage2Script,
+      fluffballPlanBScript,
+    ]) {
       const text = allText(script);
       expect(text).not.toMatch(/silverfin/i);
+    }
+  });
+
+  it("gives Joseph and Slither a planning aside partway through, not just at the end", () => {
+    for (const script of [fluffballPlanAScript, fluffballPlanBScript]) {
+      const speakers = script.nodes.flatMap((n) => n.lines).map((l) => l.speaker);
+      expect(speakers).toContain("Joseph");
+      expect(speakers).toContain("Slither");
+      // Fluffball himself stays silent during the chase - he only speaks
+      // once he's actually cornered (fluffballMeet.ts).
+      expect(speakers).not.toContain("Fluffball");
     }
   });
 });

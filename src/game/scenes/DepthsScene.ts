@@ -21,7 +21,12 @@ import { MINE_ELEVATOR_SPAWN } from "../maps/mineMap";
 import { CREVASSE_SPAWN } from "../maps/crevasseMap";
 import { queenFightScript } from "../../core/scripts/queenFight";
 import { queenParleyScript } from "../../core/scripts/queenParley";
-import { cliffhangerScript } from "../../core/scripts/cliffhanger";
+import {
+  cliffhangerAftershockScript,
+  cliffhangerIceRevealScript,
+  cliffhangerPiggyScript,
+  cliffhangerSealedScript
+} from "../../core/scripts/cliffhanger";
 import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
 
@@ -99,12 +104,47 @@ export class DepthsScene extends ZoneScene {
     }
   }
 
+  /**
+   * Four beats, each with its visual counterpart triggered at the moment
+   * the dialogue describes it (not minutes of game-time earlier): the
+   * rumble, THEN the wall actually cracks as "it splits and glows blue"
+   * opens, THEN Piggy actually walks as "he waddles toward the ice" opens,
+   * THEN the elevator seals the way back. Broken into small steps (rather
+   * than one deeply-nested closure) so each beat's visual cue is easy to
+   * find next to the dialogue it belongs to.
+   */
   private runCliffhanger(piggy: Phaser.GameObjects.Sprite): void {
     this.inputLocked = true;
     this.cameras.main.shake(700, 0.008);
-    this.time.delayedCall(800, () => {
+    this.time.delayedCall(800, () => this.cliffhangerAftershock(piggy));
+  }
+
+  private cliffhangerAftershock(piggy: Phaser.GameObjects.Sprite): void {
+    this.inputLocked = false;
+    this.openScript(cliffhangerAftershockScript, () => {
+      this.inputLocked = true;
+      // The wall actually cracks now; a short beat to actually see it
+      // before the next dialogue box describes exactly that.
       this.crackWall();
       this.cameras.main.shake(300, 0.004);
+      this.time.delayedCall(500, () => this.cliffhangerIceReveal(piggy));
+    });
+  }
+
+  private cliffhangerIceReveal(piggy: Phaser.GameObjects.Sprite): void {
+    this.inputLocked = false;
+    this.openScript(cliffhangerIceRevealScript, () => {
+      this.inputLocked = true;
+      this.cliffhangerPiggyWalk(piggy);
+    });
+  }
+
+  private cliffhangerPiggyWalk(piggy: Phaser.GameObjects.Sprite): void {
+    this.inputLocked = false;
+    this.openScript(cliffhangerPiggyScript, () => {
+      this.inputLocked = true;
+      // Piggy's walk starts now, as the line describing it plays out on
+      // screen instead of having already finished off-screen.
       piggy.play("piggy-walk");
       this.tweens.add({
         targets: piggy,
@@ -114,17 +154,19 @@ export class DepthsScene extends ZoneScene {
         onUpdate: () => piggy.setDepth(piggy.y),
         onComplete: () => {
           piggy.play("piggy-idle");
-          // Unlock so the dialogue can be advanced (movement stays
-          // blocked while the box is open); relock before the end card.
-          this.inputLocked = false;
-          this.openScript(cliffhangerScript, () => {
-            this.inputLocked = true;
-            const st = getState(this);
-            setState(this, { ...st, flags: { ...st.flags, actComplete: true } });
-            this.showEndCard();
-          });
+          this.cliffhangerSealed();
         }
       });
+    });
+  }
+
+  private cliffhangerSealed(): void {
+    this.inputLocked = false;
+    this.openScript(cliffhangerSealedScript, () => {
+      this.inputLocked = true;
+      const st = getState(this);
+      setState(this, { ...st, flags: { ...st.flags, actComplete: true } });
+      this.showEndCard();
     });
   }
 

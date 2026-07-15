@@ -674,11 +674,20 @@ s = await fightThrough(page, { timeoutMs: 150_000 });
 s = await waitFor(page, (x) => x.zoneKey === "depths", 12_000);
 check("Queen resolved", s.state.flags.queenResolved === true, JSON.stringify(s.state.flags));
 
-// Cliffhanger: shake → Piggy waddle → dialogue → end card.
-await page.waitForTimeout(4200);
-s = await snapshot(page);
-if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
-await page.waitForTimeout(800);
+// Cliffhanger: four beats (aftershock, ice reveal, Piggy waddle, sealed),
+// each separated by a real animation gap (wall crack, a 2.5s walk tween)
+// where no dialogue is open — so drive it round-by-round instead of one
+// long wait-then-talkThrough, which would bail out after the first beat.
+const cliffhangerStart = Date.now();
+while (Date.now() - cliffhangerStart < 15_000) {
+  s = await snapshot(page);
+  if (s.state.flags.actComplete) break;
+  if (s.dialogueOpen) {
+    await talkThrough(page, { maxSteps: 10 });
+  } else {
+    await page.waitForTimeout(300);
+  }
+}
 s = await snapshot(page);
 check("act completes (cliffhanger played)", s.state.flags.actComplete === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../end-card.png") }).catch(() => {});
@@ -877,10 +886,11 @@ check("the sun-temple leads back to the kelp forest", s.zoneKey === "kelpForest"
 s = await exitTo("kelpForest", "fluffballBed");
 check("the south spur reaches Fluffball's kelp bed", s.zoneKey === "fluffballBed", `zone=${s.zoneKey}`);
 await healUp(page);
-// Three-stage chase now (sighted -> flees -> cornered in the nook), each
-// hop async (a ~550ms tween arms the next trigger) - extra rounds so the
-// driver's re-poll of the trigger list catches each newly-armed stage.
-s = await driveTriggersUntil("fluffballBed", (x) => x.state.flags.metFluffball, 8);
+// Five-stage chase now (sighted -> 2 flees + 2 planning asides -> cornered
+// in the nook), each hop async (a ~550ms tween arms the next trigger) -
+// extra rounds so the driver's re-poll of the trigger list catches each
+// newly-armed stage.
+s = await driveTriggersUntil("fluffballBed", (x) => x.state.flags.metFluffball, 14);
 check("Fluffball glimpsed, drops the silverfin clue", s.state.flags.metFluffball === true, JSON.stringify(s.state.flags));
 if (s.zoneKey !== "fluffballBed") s = await waitFor(page, (x) => x.zoneKey === "fluffballBed", 8000);
 
