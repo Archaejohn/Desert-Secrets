@@ -138,6 +138,42 @@ function reachable(map: ZoneMap, from: Pt, to: Pt): boolean {
   return false;
 }
 
+/** Multi-source BFS over walkable (non-solid) tiles, 4-directional —
+ *  returns every reached cell as a set of "x,y" keys. Used to verify a
+ *  HARD requirement (not just point-to-point spot checks): every walkable
+ *  cell on the map is reachable from at least one spawn, i.e. nothing the
+ *  generator produced is an isolated, unreachable pocket. */
+function reachableSet(map: ZoneMap, from: readonly Pt[]): Set<string> {
+  const { width, height } = mapSize(map);
+  const seen = new Set<string>();
+  const queue: Pt[] = [];
+  for (const p of from) {
+    if (isSolidAt(map, p.x, p.y)) continue;
+    const key = `${p.x},${p.y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    queue.push(p);
+  }
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ] as const) {
+      const nx = cur.x + dx;
+      const ny = cur.y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const key = `${nx},${ny}`;
+      if (seen.has(key) || isSolidAt(map, nx, ny)) continue;
+      seen.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return seen;
+}
+
 function rectTile(rect: { x1: number; y1: number; x2: number; y2: number }): Pt {
   return { x: rect.x1, y: rect.y1 };
 }
@@ -371,7 +407,7 @@ describe("shed map (the shed)", () => {
 
 // ------------------------------------------------------------ overworld
 
-describe("overworld map (the open desert, FF-style POC)", () => {
+describe("overworld map (the open desert, terrain-first v23)", () => {
   const map = buildOverworldMap();
 
   it("has the declared dimensions", () => {
@@ -404,64 +440,86 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     }
   });
 
-  it("lets the player walk the whole pass between the two stops", () => {
+  it("lets the player walk between the two stops", () => {
     expect(reachable(map, OVERWORLD_SOUTH_SPAWN, rectTile(OVERWORLD_NORTH_EXIT))).toBe(true);
     expect(reachable(map, OVERWORLD_NORTH_SPAWN, rectTile(OVERWORLD_SOUTH_EXIT))).toBe(true);
   });
 
-  // v22 (docs/CONTRACTS.md "v22"): the road network's own hub cells — the
-  // town's south plaza entrance and the lake's southwest shore approach
-  // (see overworldMap.ts's markRoadCells) — reachable from both spawns,
-  // proving the roads actually connect the new landmarks to the pass
-  // rather than just decorating disconnected pockets of the valleys.
-  it("lets the player walk from either stop out to the town and the lake via the roads", () => {
-    const townHub = { x: 14, y: 12 };
-    const lakeHub = { x: 49, y: 57 };
-    expect(reachable(map, OVERWORLD_SOUTH_SPAWN, townHub)).toBe(true);
-    expect(reachable(map, OVERWORLD_SOUTH_SPAWN, lakeHub)).toBe(true);
-    expect(reachable(map, OVERWORLD_NORTH_SPAWN, townHub)).toBe(true);
-    expect(reachable(map, OVERWORLD_NORTH_SPAWN, lakeHub)).toBe(true);
+  // v23 (docs/CONTRACTS.md "v23") rebuilt the map terrain-first: organic
+  // mountain masses generated with zero knowledge of landmark positions,
+  // THEN the mine/spring landmarks placed into whatever the terrain left
+  // open, THEN a couple of barrier masses added last. Barriers in
+  // particular are explicitly allowed to be placed after (and around) the
+  // landmarks, so the only way to be sure nothing got walled off is a real
+  // BFS over the WHOLE map, not spot checks between a few named points —
+  // this is the hard "every walkable cell reachable from at least one
+  // spawn" requirement docs/CONTRACTS.md "v23" calls out explicitly.
+  it("reaches every walkable cell on the map from at least one of the two spawns", () => {
+    let totalWalkable = 0;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        if (!isSolidAt(map, x, y)) totalWalkable++;
+      }
+    }
+    const reached = reachableSet(map, [OVERWORLD_SOUTH_SPAWN, OVERWORLD_NORTH_SPAWN]);
+    expect(reached.size).toBe(totalWalkable);
   });
 
-  it("is mostly open: valleys flank a narrower mountain spine", () => {
-    const { width, height } = { width: OVERWORLD_WIDTH, height: OVERWORLD_HEIGHT };
+  it("is mostly open desert with scattered mountain massing, not one wall bisecting the map", () => {
     let walkable = 0;
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         if (!isSolidAt(map, x, y)) walkable++;
       }
     }
-    // v22 (docs/CONTRACTS.md "v22") replaced "solid mountain everywhere
-    // except a carved pass" with a narrower central spine flanked by open
-    // desert valleys on both sides, so the old "walkable is a small
-    // fraction" invariant is now backwards: most of the 64x64 grid should
-    // read as open ground. The spine is 21x48 cells (SPINE_X1..SPINE_X2 x
-    // SPINE_Y1..SPINE_Y2 in overworldMap.ts) minus the carved pass itself,
-    // plus the 1-tile-thick outer border ring, plus a handful of solid
-    // decor (the town's three small buildings, tree trunks, the truck) —
-    // well under half the grid. Measured after the v22 redesign: walkable
-    // is ~2825/4096 (~69%). Assert comfortably above half rather than
-    // pinning the exact figure, so small future landmark tweaks don't need
-    // a re-measurement here.
-    expect(walkable).toBeGreaterThan((width * height) / 2);
+    // Measured empirically after the v23 terrain-first rework: walkable is
+    // ~76% of the grid (several modest mountain masses plus a thin,
+    // variable-thickness border, not one big spine). Assert comfortably
+    // above half so small future tuning doesn't need a re-measurement.
+    expect(walkable).toBeGreaterThan((OVERWORLD_WIDTH * OVERWORLD_HEIGHT) / 2);
   });
 
-  it("places the truck and spring near the south stop", () => {
+  it("places the truck and spring near the south stop, on open ground close to the gate", () => {
     const decorFlat = map.decor.flat();
     expect(decorFlat).toContain("truckCab");
     expect(decorFlat).toContain("truckBox");
-    expect(map.ground.flat()).toContain("water");
+    // The spring pool is only 2x2, so every one of its cells touches at
+    // least one non-water neighbor — mask 15 ("plain water, no shore")
+    // never occurs, and the whole pool dresses as lakeShore{mask} tiles
+    // rather than literal "water"/"water2" (see the lakeShore dressing
+    // test below, which checks this mask math directly).
+    expect(map.ground.flat().some((n) => n === "water" || n === "water2" || n.startsWith("lakeShore"))).toBe(true);
+    const gateCx = (OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        if (map.decor[y][x] === "truckCab" || map.decor[y][x] === "truckBox") {
+          expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
+          expect(OVERWORLD_HEIGHT - 1 - y).toBeLessThanOrEqual(10);
+        }
+      }
+    }
   });
 
-  it("places mine-mouth flavor near the north stop", () => {
-    expect(map.decor.flat()).toContain("mineTimber");
+  it("places mine-mouth flavor near the north stop, on open ground close to the gate", () => {
+    const decorFlat = map.decor.flat();
+    expect(decorFlat).toContain("mineTimber");
+    expect(decorFlat).toContain("cart");
+    const gateCx = (OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+        if (map.decor[y][x] === "mineTimber" || map.decor[y][x] === "cart") {
+          expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
+          expect(y).toBeLessThanOrEqual(10);
+        }
+      }
+    }
   });
 
   // ---- Phase O autotile dressing (docs/ART_DIRECTION.md §4a) ----
 
-  // owMountains.png (docs/CONTRACTS.md "owMountains") replaced the eight
-  // fixed mountain1..8 names with 80 owMountain{variant}_{mask} names —
-  // matched here by prefix rather than an enumerated set.
+  // owMountains.png (docs/CONTRACTS.md "owMountains") uses 80
+  // owMountain{variant}_{mask} names — matched here by prefix rather than
+  // an enumerated set.
   const isMountainName = (name: string): boolean => name.startsWith("owMountain");
   const SCREE_FAMILY = new Set([
     "scree",
@@ -474,9 +532,6 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     "screeSandNW",
     "screeSandSE",
     "screeSandSW",
-    // v22 (docs/CONTRACTS.md "v22"): wherever the new lake touches the
-    // mountain spine instead of open sand, the same finger-transition
-    // recipe runs against water instead of sand.
     "screeWaterN",
     "screeWaterE",
     "screeWaterS",
@@ -512,16 +567,17 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     expect(bands).toBeGreaterThan(3); // the band actually exists
   });
 
-  // v22 (docs/CONTRACTS.md "v22") replaced the old 12-tile straight-edge
-  // coast* ring — which read as "a concrete barrier, not a beach" once the
-  // lake stopped being a hand-drawn rectangle/ellipse — with a full
-  // 16-mask lakeShore autotile placed on the WATER cells themselves (mask
-  // = which N/E/S/W neighbours are ALSO water, the same convention
-  // owMountains uses for "which neighbours are also mountain"). This test
-  // recomputes the expected mask per water cell from a fresh isWater
-  // reading (not `assertKnownNames`-style name matching) and checks the
-  // ground name matches exactly, so it fails loudly if the mask math and
-  // the actual tile placement ever drift apart.
+  it("uses sand↔scree finger transitions where mountain masses meet open ground", () => {
+    const flat = map.ground.flat();
+    expect(flat.some((n) => n.startsWith("screeSand"))).toBe(true);
+  });
+
+  // The spring pool is dressed with the same generic mask-based sand↔water
+  // autotile v22's much bigger lake used (mask = which N/E/S/W neighbours
+  // are ALSO water) — this test recomputes the expected mask per water
+  // cell from a fresh isWater reading and checks the ground name matches
+  // exactly, so it fails loudly if the mask math and the actual tile
+  // placement ever drift apart.
   const isWaterName = (name: string | undefined): boolean =>
     name === "water" || name === "water2" || (name?.startsWith("lakeShore") ?? false);
 
@@ -545,155 +601,141 @@ describe("overworld map (the open desert, FF-style POC)", () => {
         }
       }
     }
-    // The ring actually exists (not a no-op) and shows real mask variety —
-    // an organic coastline should round through several different corner
-    // shapes, not just straight edges (this is also the "no butt-jointed
-    // shore" guarantee: since every water cell touching non-water gets its
-    // mask-correct lakeShore tile with no exceptions besides mountain
-    // cells, a hard/abrupt edge would show up here as a wrong or missing
-    // mask, not as a separate assertion on the land side — the transition
-    // art lives on the water cell now, not the land cell, unlike the old
-    // coast* set).
-    expect(shoreCells).toBeGreaterThan(20);
-    expect(masksSeen.size).toBeGreaterThan(4);
-  });
-
-  it("uses sand↔scree finger transitions where mountain masses meet the pass", () => {
-    const flat = map.ground.flat();
-    expect(flat.some((n) => n.startsWith("screeSand"))).toBe(true);
-  });
-
-  it("uses scree↔water finger transitions where the mountain spine meets the lake", () => {
-    const flat = map.ground.flat();
-    expect(flat.some((n) => n.startsWith("screeWater"))).toBe(true);
-  });
-
-  it("lays a connected dirt-road autotile linking the two stops to the town and the lake", () => {
-    const flat = map.ground.flat();
-    // At least one straight segment, one turn/T-junction and one dead-end
-    // stub actually appear (masks are N=1,E=2,S=4,W=8 —
-    // assignMountainTileNames/overworldMap.ts's road pass): a lone bit is a
-    // dead end, two opposite bits is a straight run, anything else is a
-    // bend or junction.
-    const roadMasksPresent = new Set(
-      flat.filter((n) => /^road\d+$/.test(n)).map((n) => Number(n.slice(4)))
-    );
-    expect(roadMasksPresent.size).toBeGreaterThan(1);
-    expect(roadMasksPresent.has(0)).toBe(false); // no isolated road cells
+    // The spring pool actually exists and shows real mask variety around
+    // its small shoreline (it's a 2x2 pool, not v22's big lake, so the
+    // bar is lower — but every one of its 4 cells should still round
+    // through a real corner mask, not a straight/blank edge).
+    expect(shoreCells).toBeGreaterThanOrEqual(4);
+    expect(masksSeen.size).toBeGreaterThanOrEqual(2);
   });
 
   it("plants joshua trees (billboard landmarks) beside the clearings", () => {
     expect(map.decor.flat().filter((c) => c === "joshuaTrunk").length).toBeGreaterThanOrEqual(2);
   });
 
-  // ---- v22 organic-shape invariants (docs/CONTRACTS.md "v22" rework) ----
-  // The spine and lake are now procedurally generated (seeded noise), not
-  // hand-placed geometry — these checks verify the actual generated shape
-  // rather than re-deriving one from the same formula the map builder
-  // itself uses (which would just test that the formula agrees with
-  // itself), so a future seed/parameter change that breaks these
-  // properties fails loudly here instead of only showing up in a
-  // screenshot review.
-
-  function spineExtentAtRow(y: number): [number, number] | null {
-    let l = -1;
-    let r = -1;
-    for (let x = 1; x < OVERWORLD_WIDTH - 1; x++) {
-      const d = map.decor[y][x];
-      if (d !== null && isMountainName(d)) {
-        if (l < 0) l = x;
-        r = x;
+  it("shows real owMountain texture variety (multiple variants and masks, not one repeated tile)", () => {
+    const variants = new Set<number>();
+    const masks = new Set<number>();
+    for (const row of map.decor) {
+      for (const d of row) {
+        if (d === null || !isMountainName(d)) continue;
+        const [v, m] = d.replace("owMountain", "").split("_").map(Number);
+        variants.add(v);
+        masks.add(m);
       }
     }
-    return l < 0 ? null : [l, r];
+    expect(variants.size).toBeGreaterThanOrEqual(3);
+    expect(masks.size).toBeGreaterThanOrEqual(5);
+  });
+
+  // ---- v23 terrain-first invariants (docs/CONTRACTS.md "v23") ----
+  // The old v22 tests asserted properties of a single hand-positioned
+  // spine/lake (e.g. "stays inside the spine's own generated bounds" —
+  // there is no spine anymore, so that test doesn't apply). These verify
+  // the actual shape of the NEW architecture instead: real scattered
+  // massing (not one shapeless blob or a rectangle), reused wherever the
+  // spec calls for "organic, not hand-drawn geometry".
+
+  /** 8-connected flood fill over mountain decor cells, restricted to the
+   *  map's interior (excluding the literal border ring/buffer) so this
+   *  measures actual TERRAIN massing, not the border's own shape. */
+  function interiorMountainComponents(): number[][] {
+    const seen = new Set<string>();
+    const sizes: number[] = [];
+    for (let y = 1; y < OVERWORLD_HEIGHT - 1; y++) {
+      for (let x = 1; x < OVERWORLD_WIDTH - 1; x++) {
+        const d = map.decor[y][x];
+        if (d === null || !isMountainName(d)) continue;
+        const key = `${x},${y}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const stack: Pt[] = [{ x, y }];
+        let size = 0;
+        while (stack.length > 0) {
+          const cur = stack.pop()!;
+          size++;
+          for (const [dx, dy] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+            [1, 1],
+            [1, -1],
+            [-1, 1],
+            [-1, -1]
+          ] as const) {
+            const nx = cur.x + dx;
+            const ny = cur.y + dy;
+            if (nx < 1 || ny < 1 || nx >= OVERWORLD_WIDTH - 1 || ny >= OVERWORLD_HEIGHT - 1) continue;
+            const nd = map.decor[ny]?.[nx];
+            if (nd === null || nd === undefined || !isMountainName(nd)) continue;
+            const nk = `${nx},${ny}`;
+            if (seen.has(nk)) continue;
+            seen.add(nk);
+            stack.push({ x: nx, y: ny });
+          }
+        }
+        sizes.push(size);
+      }
+    }
+    return [sizes];
   }
 
-  it("carves a pass that stays inside the spine's own generated bounds, flanked by mountain on both sides", () => {
-    let checkedRows = 0;
-    for (let y = 15; y <= 48; y++) {
-      const extent = spineExtentAtRow(y);
-      if (!extent) continue;
-      const [l, r] = extent;
-      if (r - l < 6) continue; // skip the tapered/narrow ends — too thin to meaningfully flank a pass
-      let gapFound = false;
-      for (let x = l + 1; x < r; x++) {
-        if (map.decor[y][x] === null) {
-          gapFound = true;
-          break;
-        }
+  it("scatters multiple separate mountain masses across the map, not one wall or blob", () => {
+    const [sizes] = interiorMountainComponents();
+    // The terrain phase places up to 6 masses and the barrier phase up to
+    // 2 more (8 max); some may fail to place if they can't find room, but
+    // several real, separate masses should always survive. Measured
+    // empirically at 7 for the current seeds/tiers — assert a safe lower
+    // bound rather than the exact count so small future tuning doesn't
+    // need a re-measurement here.
+    expect(sizes.length).toBeGreaterThanOrEqual(3);
+    // No single mass should dominate the map — that would just be v22's
+    // rejected "one wall" shape again with extra noise on it.
+    const total = sizes.reduce((a, b) => a + b, 0);
+    const largest = Math.max(...sizes);
+    expect(largest / total).toBeLessThan(0.6);
+  });
+
+  it("keeps the outer border an irregular, variable-thickness rim, not a uniform 1-cell rectangle", () => {
+    // MASS_EDGE_MARGIN keeps every interior mass's own reach at least 3
+    // cells clear of the literal edge, so rows/columns 0..2 next to any
+    // edge are guaranteed to be either border or open ground — never a
+    // terrain mass — making this a safe, generic way to measure the
+    // border's own thickness without needing to know where the masses
+    // actually ended up.
+    const northGateCx = (OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2;
+    const depths = new Set<number>();
+    for (let x = 3; x < OVERWORLD_WIDTH - 3; x++) {
+      if (Math.abs(x - northGateCx) <= 10) continue; // skip the gate opening itself
+      let d = 0;
+      for (let y = 0; y < 3; y++) {
+        const cell = map.decor[y][x];
+        if (cell !== null && isMountainName(cell)) d++;
+        else break;
       }
-      expect(gapFound).toBe(true);
-      checkedRows++;
+      depths.add(d);
     }
-    // The check actually exercised real rows, not silently skipping everything.
-    expect(checkedRows).toBeGreaterThan(10);
+    // A uniform 1-cell rectangle would show exactly one depth (1) at every
+    // sampled column; the noisy buffer should show real variety.
+    expect(depths.size).toBeGreaterThan(1);
   });
 
-  it("keeps the town clear of the spine's generated west edge", () => {
-    // Matches overworldMap.ts's three placeBuilding() footprints (x 5..19,
-    // y 6..16) with a little margin; the spine's noisy west boundary must
-    // never intrude into this box regardless of exactly where its per-row
-    // noise lands.
-    for (let y = 6; y <= 16; y++) {
-      for (let x = 5; x <= 19; x++) {
-        const d = map.decor[y][x];
-        expect(d !== null && isMountainName(d)).toBe(false);
-      }
+  it("keeps the literal border ring solid everywhere except the two gate bands (enclosure holds regardless of buffer noise)", () => {
+    // Redundant with "is fully enclosed..." above by design — this is the
+    // same guarantee restated as a direct decor check, so a future change
+    // to the border/buffer logic that broke enclosure in a way `isSolidAt`
+    // didn't happen to catch (e.g. a ground-only leak) still fails loudly.
+    for (let x = 0; x < OVERWORLD_WIDTH; x++) {
+      const topOpen = x >= OVERWORLD_NORTH_EXIT.x1 && x <= OVERWORLD_NORTH_EXIT.x2;
+      const bottomOpen = x >= OVERWORLD_SOUTH_EXIT.x1 && x <= OVERWORLD_SOUTH_EXIT.x2;
+      expect(map.decor[0][x] === null).toBe(topOpen);
+      expect(map.decor[OVERWORLD_HEIGHT - 1][x] === null).toBe(bottomOpen);
     }
-  });
-
-  it("keeps the spine a genuinely organic (non-rectangular) silhouette", () => {
-    // A hard rectangle has the SAME left/right extent on every full-width
-    // row. Sample several rows well inside the spine's un-tapered middle
-    // and confirm the boundary actually moves — this is what would catch
-    // a regression back to the old hard-coded SPINE_X1/X2 rectangle.
-    const lefts = new Set<number>();
-    const rights = new Set<number>();
-    for (const y of [15, 20, 25, 30, 35, 40, 45]) {
-      const extent = spineExtentAtRow(y);
-      if (!extent) continue;
-      lefts.add(extent[0]);
-      rights.add(extent[1]);
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      expect(map.decor[y][0]).not.toBeNull();
+      expect(map.decor[y][OVERWORLD_WIDTH - 1]).not.toBeNull();
     }
-    expect(lefts.size).toBeGreaterThan(1);
-    expect(rights.size).toBeGreaterThan(1);
-  });
-
-  it("keeps the lake a genuinely organic (non-elliptical) silhouette", () => {
-    // A perfect ellipse's boundary radius is a smooth, low-variance
-    // function of angle; sample the lake's actual shore distance from its
-    // nominal center at a handful of angles and confirm real variation
-    // beyond what pure aspect-ratio scaling alone would produce.
-    const isWaterCell = (x: number, y: number): boolean => {
-      const g = map.ground[y]?.[x];
-      return g === "water" || g === "water2" || (g?.startsWith("lakeShore") ?? false);
-    };
-    // crude shoreline radius sample: walk outward from a known-interior
-    // lake cell along several directions until leaving water.
-    const cx = 52;
-    const cy = 47;
-    expect(isWaterCell(cx, cy)).toBe(true); // sanity: still inside the lake
-    const radii: number[] = [];
-    for (const [dx, dy] of [
-      [1, 0],
-      [0.7, 0.7],
-      [0, 1],
-      [-0.7, 0.7],
-      [-1, 0],
-      [-0.7, -0.7],
-      [0, -1],
-      [0.7, -0.7]
-    ] as const) {
-      let r = 0;
-      while (r < 20 && isWaterCell(Math.round(cx + dx * r), Math.round(cy + dy * r))) r++;
-      radii.push(r);
-    }
-    const min = Math.min(...radii);
-    const max = Math.max(...radii);
-    // A hand-tuned ellipse would still show SOME spread from aspect ratio
-    // alone, but nowhere near this: the noisy-radius blob's harmonics push
-    // it well past a clean ellipse's smooth variation.
-    expect(max - min).toBeGreaterThan(3);
   });
 });
 
