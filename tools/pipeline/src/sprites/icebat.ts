@@ -9,6 +9,7 @@
  * mint eye glints, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const ICEBAT_FRAME = 24;
 
@@ -43,7 +44,8 @@ function drawHanging(twitch: boolean): PixelGrid {
   g.px(11 + dx, 15, twitch ? "white" : "mint");
   g.px(12 + dx, 15, "mint");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 8 + dx, y: 4, w: 7, h: 4 }); // moonlight on the folded wings
+  selOut(g);
   return g;
 }
 
@@ -81,7 +83,8 @@ function drawFlying(wing: WingPose, dy: number): PixelGrid {
     }
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 9, y: 4 + dy, w: 6, h: 4 }); // highlight across the ears
+  selOut(g);
   return g;
 }
 

@@ -128,11 +128,8 @@ export class TrailScene extends ZoneScene {
   }
 
   private placeDusty(): void {
-    // TODO art: dedicated dusty sheet — reusing the jackrabbit sheet as a
-    // stand-in pack rat until one exists (dialogue carries the character).
     this.addNpc({
-      sheet: "jackrabbit",
-      animPrefix: "jackrabbit",
+      sheet: "dusty", // the giant pack rat of Last Chance Fuel
       tileX: TRAIL_DUSTY.x,
       tileY: TRAIL_DUSTY.y,
       script: () => dustyTradeScript,

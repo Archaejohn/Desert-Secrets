@@ -11,6 +11,7 @@
  * bone face patch, amber beak and feet, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const FLUFFBALL_FRAME = 16;
 
@@ -89,7 +90,8 @@ function drawFluffball(p: FluffPose): PixelGrid {
     g.px(6 + dx, 14 + dy, "mauve");
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 3 + dx, y: 2 + dy, w: 8, h: 4 }); // dusk light on the down
+  selOut(g);
 
   // --- feet: amber, drawn after the outline so they stay dainty ---
   const footY = 14 + dy;

@@ -9,6 +9,7 @@
  * mandibles work; the bulk barely bobs — mass, not skitter).
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const QUEEN_FRAME = 32;
 
@@ -111,8 +112,13 @@ function drawQueen(p: QueenPose): PixelGrid {
   g.rect(14, 17, 4, 3, "jade");
   g.px(14, 17, "mint");
   if (p.glint) g.px(16, 18, "white");
+  // umber depth pooling under the skirt (G1 shade low/right)
+  g.rect(12, 28 + b, 8, 1, "umber");
+  g.px(24 + b, 25, "plum");
+  g.px(23 + b, 26 + b, "plum");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 8 - b, y: 0, w: 14, h: 6 }); // crown + brow catch the light
+  selOut(g);
 
   // --- eight heavy legs, alternating diagonal sets ---
   const attachY = [13, 17, 21, 25];

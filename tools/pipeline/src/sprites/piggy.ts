@@ -11,6 +11,7 @@
  * follows Piggy everywhere — alternates position every frame.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const PIGGY_FRAME = 16;
 
@@ -96,7 +97,8 @@ function drawPiggy(p: PiggyPose): PixelGrid {
   // neck fills the gap between head and shoulders when not tucked
   if (ty === 0) g.rect(5 + hx, hy + 4, 6, 1, "ink");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 4 + hx, y: hy - 1, w: 8, h: 4 }); // downy crown sheen
+  selOut(g);
 
   // --- feet: amber, drawn after the outline so they stay dainty ---
   const footY = 14 + dy;

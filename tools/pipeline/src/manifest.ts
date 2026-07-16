@@ -27,6 +27,7 @@ import { MIDDENMITE_FRAME } from "./sprites/middenmite";
 import { SUNWASP_FRAME } from "./sprites/sunwasp";
 import { REEFSTALKER_FRAME } from "./sprites/reefstalker";
 import { TESTUDO_FRAME } from "./sprites/testudo";
+import { DUSTY_FRAME } from "./sprites/dusty";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
@@ -90,6 +91,9 @@ export interface Manifest {
     sunwasp: SheetDef;
     reefstalker: SheetDef;
     testudo: SheetDef;
+    // Phase S (sprites) additions — appended only, never reordered.
+    dusty: SheetDef;
+    sahra: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
@@ -105,7 +109,9 @@ const DIRECTIONS = ["down", "left", "right", "up"] as const;
 
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
-function characterSheet(prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela"): SheetDef {
+function characterSheet(
+  prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela" | "sahra"
+): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
     const base = row * 6;
@@ -211,7 +217,10 @@ export function buildManifest(): Manifest {
       middenmite: creatureSheet("middenmite", MIDDENMITE_FRAME, "move", 3, 12),
       sunwasp: creatureSheet("sunwasp", SUNWASP_FRAME, "move", 3, 12),
       reefstalker: creatureSheet("reefstalker", REEFSTALKER_FRAME, "move", 3, 10),
-      testudo: creatureSheet("testudo", TESTUDO_FRAME, "move", 2, 6)
+      testudo: creatureSheet("testudo", TESTUDO_FRAME, "move", 2, 6),
+      // Phase S (sprites) additions — appended only, never reordered.
+      dusty: creatureSheet("dusty", DUSTY_FRAME, "move", 3, 10),
+      sahra: characterSheet("sahra")
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },

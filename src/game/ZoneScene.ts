@@ -16,7 +16,7 @@ import type { DialogueScript } from "../core/dialogue";
 import { respawn, type ZoneId } from "../core/gameState";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
-import { PALETTE } from "../shared/palette";
+import { PALETTE, hexToInt } from "../shared/palette";
 import {
   JoystickVisual,
   addActionButtonHint,
@@ -91,6 +91,10 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected inputLocked = false;
 
   private npcs: Npc[] = [];
+  private blobShadows: Array<{
+    owner: Phaser.Physics.Arcade.Sprite;
+    shadow: Phaser.GameObjects.Ellipse;
+  }> = [];
   private exits: Exit[] = [];
   private triggers: TriggerZone[] = [];
   private interactPoints: InteractPoint[] = [];
@@ -132,6 +136,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   init(data: ZoneEntryData): void {
     this.entry = data ?? {};
     this.npcs = [];
+    this.blobShadows = [];
     this.exits = [];
     this.triggers = [];
     this.interactPoints = [];
@@ -386,6 +391,25 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.play("hero-idle-down");
     this.physics.add.collider(this.player, this.groundLayer);
     this.physics.add.collider(this.player, this.decorLayer);
+    this.addBlobShadow(this.player);
+  }
+
+  /**
+   * Soft elliptical blob shadow grounding an actor (docs/ART_DIRECTION.md §6
+   * "engine grounding"): a ~12×5 plum ellipse at low alpha under the feet,
+   * kept one depth step below its owner. Pure presentation — no physics body,
+   * no effect on the y-depth sort itself.
+   */
+  private addBlobShadow(owner: Phaser.Physics.Arcade.Sprite): void {
+    const shadow = this.add.ellipse(
+      owner.x,
+      owner.y + owner.displayHeight / 2 - 2,
+      12,
+      5,
+      hexToInt(PALETTE.plum),
+      0.35
+    );
+    this.blobShadows.push({ owner, shadow });
   }
 
   private setupInput(): void {
@@ -450,6 +474,7 @@ export abstract class ZoneScene extends Phaser.Scene {
       onClose: opts.onClose
     };
     this.npcs.push(npc);
+    this.addBlobShadow(sprite);
     if (opts.wander) {
       this.time.addEvent({ delay: 2400, loop: true, callback: () => this.wanderNpc(npc) });
     }
@@ -695,6 +720,12 @@ export abstract class ZoneScene extends Phaser.Scene {
     // Depth-sort actors.
     this.player.setDepth(this.player.y);
     for (const n of this.npcs) n.sprite.setDepth(n.sprite.y);
+    // Blob shadows ride along under their owners' feet, one depth step down.
+    for (const { owner, shadow } of this.blobShadows) {
+      shadow.setPosition(owner.x, owner.y + owner.displayHeight / 2 - 2);
+      shadow.setDepth(owner.depth - 1);
+      shadow.setVisible(owner.visible);
+    }
 
     const interactPressed =
       !this.inputLocked &&

@@ -11,6 +11,7 @@
  */
 import { PixelGrid } from "../grid";
 import { FRAME_POSES, CHAR_FRAME_W, CHAR_FRAME_H, type Pose } from "./poses";
+import { rimTopLeft, selOut } from "./polish";
 
 function newFrame(): PixelGrid {
   return new PixelGrid(CHAR_FRAME_W, CHAR_FRAME_H);
@@ -27,9 +28,14 @@ function headDown(g: PixelGrid, dy: number, withFace: boolean): void {
   g.px(5, 2 + dy, "sand");
   // wrap band
   g.rect(4, 4 + dy, 8, 1, "rust");
+  // turban shade falling down-right (G1)
+  g.px(11, 2 + dy, "clay");
+  g.px(11, 3 + dy, "clay");
   if (withFace) {
     g.rect(5, 5 + dy, 6, 3, "clay");
     g.rect(6, 8 + dy, 4, 1, "clay"); // chin
+    g.px(10, 7 + dy, "rust"); // jaw shade, low/right
+    g.px(9, 8 + dy, "rust");
     g.px(6, 6 + dy, "ink"); // eyes
     g.px(9, 6 + dy, "ink");
   } else {
@@ -89,7 +95,8 @@ function heroDown(p: Pose): PixelGrid {
   torsoDownUp(g, dy, true);
   armsDownUp(g, dy, p.swing);
   headDown(g, dy, true);
-  g.outline("ink");
+  rimTopLeft(g, { x: 3, y: 0, w: 10, h: 6 }); // turban catches the NNW light
+  selOut(g);
   return g;
 }
 
@@ -100,7 +107,8 @@ function heroUp(p: Pose): PixelGrid {
   torsoDownUp(g, dy, false);
   armsDownUp(g, dy, -p.swing);
   headDown(g, dy, false);
-  g.outline("ink");
+  rimTopLeft(g, { x: 3, y: 0, w: 10, h: 6 });
+  selOut(g);
   return g;
 }
 
@@ -171,17 +179,26 @@ function heroSide(p: Pose): PixelGrid {
   g.rect(6, 5 + dy, 5, 3, "clay");
   g.px(11, 6 + dy, "clay"); // nose
   g.rect(7, 8 + dy, 3, 1, "clay"); // jaw
+  g.px(9, 8 + dy, "rust"); // jaw shade
   g.px(9, 6 + dy, "ink"); // eye
 
-  g.outline("ink");
+  return g;
+}
+
+/** Rim + sel-out for a profile frame — applied AFTER the mirror for the left
+ *  row so the key light stays NNW in both directions. */
+function polishSide(g: PixelGrid): PixelGrid {
+  rimTopLeft(g, { x: 3, y: 0, w: 10, h: 6 });
+  selOut(g);
   return g;
 }
 
 /** All 24 frames, row-major: down(0–5), left(6–11), right(12–17), up(18–23). */
 export function heroFrames(): PixelGrid[] {
   const down = FRAME_POSES.map(heroDown);
-  const right = FRAME_POSES.map(heroSide);
-  const left = right.map((f) => f.mirrorX());
+  const sides = FRAME_POSES.map(heroSide);
+  const left = sides.map((f) => polishSide(f.mirrorX()));
+  const right = sides.map(polishSide);
   const up = FRAME_POSES.map(heroUp);
   return [...down, ...left, ...right, ...up];
 }

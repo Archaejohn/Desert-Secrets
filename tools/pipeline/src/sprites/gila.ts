@@ -7,6 +7,7 @@
  * 2–5 low crawl (legs alternate diagonally, tail sweeps side to side).
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const GILA_FRAME = 24;
 
@@ -67,10 +68,11 @@ function drawGila(p: GilaPose): PixelGrid {
   g.px(8 - b, 8, "clay");
   g.px(8 - b, 10, "clay");
   g.px(8 - b, 12, "clay");
-  // plum shade on the right flank
-  g.px(15 + b, 9, "plum");
-  g.px(15 + b, 11, "plum");
-  g.px(15 + b, 13, "plum");
+  // umber shade down the right flank (shadowOf[rust] — G2 on-ramp shade)
+  g.px(15 + b, 9, "umber");
+  g.px(15 + b, 11, "umber");
+  g.px(15 + b, 13, "umber");
+  g.px(15 + b, 15, "umber");
 
   // --- tail: thick, tapering, sweeps as it walks ---
   const t = p.tail;
@@ -82,7 +84,8 @@ function drawGila(p: GilaPose): PixelGrid {
   g.px(11 + t * 3, 21, "rust"); // blunt tip
   g.px(12 + t * 3, 21, "rust");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 8, y: 2, w: 7, h: 4 }); // dull sheen on the blunt head
+  selOut(g);
 
   // --- four splayed legs, diagonal pairs (drawn after the outline) ---
   const front = 9;

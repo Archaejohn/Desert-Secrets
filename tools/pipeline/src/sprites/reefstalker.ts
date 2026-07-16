@@ -17,6 +17,7 @@
  * bone teeth, hpRed eye + gill, skyBlue/mint biolights, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const REEFSTALKER_FRAME = 24;
 
@@ -109,7 +110,8 @@ function drawStalker(p: StalkerPose): PixelGrid {
   // lit tail edge
   g.px(18, tailTop, "jade");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 3, y: 7, w: 6, h: 4 }); // biolight wash on the brow
+  selOut(g, { bone: "indigo" });
   return g;
 }
 

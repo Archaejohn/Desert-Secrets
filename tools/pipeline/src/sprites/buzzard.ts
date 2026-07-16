@@ -7,6 +7,7 @@
  * down / level with the body bobbing against the beat).
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const BUZZARD_FRAME = 24;
 
@@ -91,7 +92,8 @@ function drawBuzzard(wings: WingPose, bodyDy: number, cock: number): PixelGrid {
   head(g, cx, by - 5, cock);
   wing(g, cx, by + 1, -1, wings);
   wing(g, cx, by + 1, 1, wings);
-  g.outline("ink");
+  rimTopLeft(g, { x: cx - 3 + cock, y: by - 6, w: 6, h: 3 }); // bald pate highlight
+  selOut(g);
   // talons after the outline so they stay wiry
   if (wings === "folded" || wings === "shrug") {
     g.px(cx - 2, by + 9, "amber");

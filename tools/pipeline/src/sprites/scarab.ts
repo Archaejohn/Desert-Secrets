@@ -10,6 +10,7 @@
  * *after* the outline pass so they stay a single pixel thin.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const SCARAB_FRAME = 24;
 
@@ -76,8 +77,12 @@ function drawScarab(p: BugPose): PixelGrid {
     g.px(12, 14 + dy, "white");
     g.px(15, 12 + dy, "clay"); // warm shimmer sliding across the shell
   }
+  // umber depth along the right flank + skirt (G1 shade low/right)
+  for (let y = 12; y <= 16; y++) g.px(17, y + dy, "umber");
+  g.rect(10, 20 + dy, 5, 1, "umber");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 5, y: 7 + dy, w: 9, h: 6 }); // shell crown highlight
+  selOut(g);
 
   // six legs, tripod gait: alternate legs move on opposite phases
   const attachY = [12, 15, 18];

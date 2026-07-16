@@ -10,6 +10,7 @@
  * single pixel thin (same discipline as scarab.ts).
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const MIDDENMITE_FRAME = 16;
 
@@ -61,7 +62,8 @@ function drawMite(p: MitePose): PixelGrid {
     g.px(10, 8 + dy, "sand");
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 4, y: 5 + dy, w: 8, h: 4 }); // light on the little shell
+  selOut(g);
 
   // six thin legs, tripod gait
   const attachY = [8, 10];

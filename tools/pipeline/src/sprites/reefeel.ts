@@ -9,6 +9,7 @@
  * ridge, mint belly, bone teeth, amber eye, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const REEFEEL_FRAME = 24;
 
@@ -82,7 +83,8 @@ function drawEel(p: EelPose): PixelGrid {
   g.px(path[6][0], path[6][1] - 2, "mint");
   g.px(path[10][0], path[10][1] - 2, "mint");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: hx - 4, y: hy - 3, w: 6, h: 3 }); // lit crown of the head
+  selOut(g, { bone: "indigo" });
   return g;
 }
 

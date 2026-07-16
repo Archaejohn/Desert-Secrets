@@ -6,6 +6,7 @@
  * (crouch → launch stretched out → airborne tuck → landing).
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const JACKRABBIT_FRAME = 16;
 
@@ -42,7 +43,9 @@ function sitting(breath: 0 | 1, twitch: boolean): PixelGrid {
   drawEars(g, 10, 3 - breath, twitch ? -1 : 0);
   // tail
   g.px(3, 9, "bone");
-  g.outline("ink");
+  rimTopLeft(g, { x: 8, y: 3 - breath, w: 5, h: 3 }); // brow highlight
+  rimTopLeft(g, { x: 3, y: 8, w: 6, h: 3 }); // sun on the haunch
+  selOut(g);
   // paws after the outline so they stay slim
   g.px(9, 14, "clay"); // front paws
   g.px(10, 14, "clay");
@@ -62,7 +65,8 @@ function hopping(phase: "crouch" | "launch" | "air" | "land"): PixelGrid {
     g.px(13, 11, "clay"); // muzzle
     drawEars(g, 10, 8, -2);
     g.px(2, 10, "bone"); // tail
-    g.outline("ink");
+    rimTopLeft(g, { x: 3, y: 9, w: 8, h: 3 });
+    selOut(g);
     g.rect(3, 14, 4, 1, "clay"); // hind foot coiled
     g.px(10, 13, "clay"); // front paws
     g.px(11, 13, "clay");
@@ -76,7 +80,8 @@ function hopping(phase: "crouch" | "launch" | "air" | "land"): PixelGrid {
     drawEars(g, 11, 5, -2);
     g.px(3, 8, "bone"); // tail
     g.px(9, 10, "bone"); // belly
-    g.outline("ink");
+    rimTopLeft(g, { x: 4, y: 7, w: 8, h: 3 });
+    selOut(g);
     g.rect(1, 12, 3, 1, "clay"); // hind legs trailing
     g.px(1, 13, "clay");
     g.px(13, 10, "clay"); // forepaws reaching
@@ -91,7 +96,8 @@ function hopping(phase: "crouch" | "launch" | "air" | "land"): PixelGrid {
     g.px(10, 7, "bone");
     drawEars(g, 11, 2, -1);
     g.px(4, 4, "bone"); // tail
-    g.outline("ink");
+    rimTopLeft(g, { x: 5, y: 3, w: 8, h: 3 });
+    selOut(g);
     g.rect(5, 9, 3, 1, "clay"); // legs tucked under
     g.px(11, 8, "clay");
   } else {
@@ -103,7 +109,8 @@ function hopping(phase: "crouch" | "launch" | "air" | "land"): PixelGrid {
     g.px(13, 11, "clay"); // muzzle
     drawEars(g, 10, 8, 1); // ears thrown forward by the landing
     g.px(3, 7, "bone"); // tail up
-    g.outline("ink");
+    rimTopLeft(g, { x: 4, y: 6, w: 7, h: 3 });
+    selOut(g);
     g.px(10, 13, "clay"); // front paws planted
     g.px(11, 13, "clay");
     g.rect(4, 12, 3, 1, "clay"); // hind feet swinging down
