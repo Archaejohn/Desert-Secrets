@@ -24,9 +24,12 @@ export const MODE7_HORIZON_FRACTION = 0.42;
  *  160 (2/3 of the 240px half-width) gives a natural ~74° horizontal FOV. */
 export const MODE7_FOCAL_LENGTH = 160;
 
-/** Camera eye height above the ground plane, in world px (1.5 tiles). Low
- *  enough that near tiles loom large, high enough to see a fair way ahead. */
-export const MODE7_CAMERA_HEIGHT = 24;
+/** Camera eye height above the ground plane, in world px (2 tiles). Higher
+ *  = a wider view cone at every depth (worldX spread and forward distance
+ *  both scale linearly with this), i.e. "raise the drone" zoom-out. Low
+ *  enough that near tiles still loom large, high enough to see a fair way
+ *  ahead. */
+export const MODE7_CAMERA_HEIGHT = 32;
 
 /** Forward distance is clamped here (world px) so pixels at the horizon map
  *  to a finite, far ground point instead of +infinity. Beyond the map this
