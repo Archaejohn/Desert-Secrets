@@ -86,6 +86,10 @@
       <button data-tool="rect">Rect</button>
       <button data-tool="pick">Pick</button>
     </div>
+    <div class="row">
+      <button id="undoBtn" class="wide">↶ Undo</button>
+      <button id="redoBtn" class="wide">↷ Redo</button>
+    </div>
     <div class="hint">Left-drag paints · right-drag erases to sand · <b>Z</b>/<b>Y</b> undo/redo · <b>[</b>/<b>]</b> zoom · <b>1/2/3</b> sand/mtn/water</div>
     <div class="lbl">View</div>
     <div class="row">
@@ -302,9 +306,15 @@
     if (strokeBefore === null) return;
     if (strokeBefore !== snapshot()) { undoStack.push(strokeBefore); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; save(); }
     strokeBefore = null;
+    updateHistoryButtons();
   }
-  function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); save(); }
-  function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); save(); }
+  function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); save(); updateHistoryButtons(); }
+  function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); save(); updateHistoryButtons(); }
+  function updateHistoryButtons() {
+    const u = document.getElementById("undoBtn"), r = document.getElementById("redoBtn");
+    if (u) u.disabled = undoStack.length === 0;
+    if (r) r.disabled = redoStack.length === 0;
+  }
 
   let saveTimer = null;
   function save() {
@@ -531,11 +541,18 @@
   function setZoom(v) { scale = Math.max(5, Math.min(24, v)); document.getElementById("zoomLbl").textContent = scale + "px"; render(); }
   document.getElementById("zoomIn").addEventListener("click", () => setZoom(scale + 2));
   document.getElementById("zoomOut").addEventListener("click", () => setZoom(scale - 2));
-  document.getElementById("loadSeed").addEventListener("click", () => { if (confirm("Reset to the game's current overworld map? Your edits will be lost.")) { seedFrom(D.seed); undoStack.length = 0; redoStack.length = 0; recompute(); render(); save(); } });
+  // Undoable reset — no confirm() (blocked in the sandboxed artifact iframe,
+  // which is why this button used to do nothing). Undo restores your work.
+  document.getElementById("loadSeed").addEventListener("click", () => {
+    beginStroke(); seedFrom(D.seed); recompute(); render(); commitStroke();
+    flash("reset to game map — press Undo to restore");
+  });
+  document.getElementById("undoBtn").addEventListener("click", undo);
+  document.getElementById("redoBtn").addEventListener("click", redo);
   document.getElementById("importBtn").addEventListener("click", () => {
     const t = document.getElementById("importTa").value.trim(); if (!t) return;
     try { const o = JSON.parse(t); if (!o.terrainRows) throw new Error("missing terrainRows"); beginStroke(); seedFrom(o); recompute(); render(); commitStroke(); document.getElementById("importTa").value = ""; }
-    catch (e) { alert("Could not parse AuthoredOverworld JSON:\n" + e.message); }
+    catch (e) { flash("could not parse JSON: " + e.message); }
   });
 
   // ---- export -------------------------------------------------------------
@@ -552,7 +569,12 @@
     s += "  southGate: " + pt(L.southGate) + ",\n  southSpawn: " + pt(L.southSpawn) + "\n};\n";
     return s;
   }
-  function copy(t, label) { navigator.clipboard.writeText(t).then(() => flash(label + " copied ✓"), () => prompt("Copy manually:", t)); }
+  function copy(t, label) {
+    navigator.clipboard.writeText(t).then(
+      () => flash(label + " copied ✓"),
+      () => { document.getElementById("importTa").value = t; flash(label + ": clipboard blocked — text is in the box, select all & copy"); }
+    );
+  }
   function download(t, fn, mime) { const b = new Blob([t], { type: mime }), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = fn; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
   function flash(m) { const el = document.getElementById("fSaved"); el.textContent = m; clearTimeout(saveTimer); saveTimer = setTimeout(() => (el.textContent = ""), 1500); }
   document.getElementById("copyTs").addEventListener("click", () => copy(tsText(), "authored.ts"));
@@ -594,6 +616,7 @@
     buildPalette(); setBrush(brush); setTool("paint"); setMode(true);
     document.getElementById("zoomLbl").textContent = scale + "px";
     document.getElementById("dims").textContent = W + " × " + H;
+    updateHistoryButtons();
     render();
   }
   Promise.all(D.sheets.map((s) => new Promise((res) => { const img = new Image(); img.onload = () => { images[s.key] = img; res(); }; img.onerror = () => res(); img.src = s.img; }))).then(init);
