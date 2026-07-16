@@ -16,6 +16,7 @@
 import Phaser from "phaser";
 import { ZoneScene, type ZoneConfig } from "../ZoneScene";
 import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
+import { Mode7Tuner } from "../gfx/Mode7Tuner";
 import { MANIFEST } from "../manifest";
 import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
@@ -36,6 +37,7 @@ export class OverworldScene extends ZoneScene {
   private mode7: Mode7Ground | null = null;
   private avatar: Phaser.GameObjects.Sprite | null = null;
   private avatarAnimKey = "";
+  private tuner: Mode7Tuner | null = null;
 
   constructor() {
     super("overworld");
@@ -72,10 +74,21 @@ export class OverworldScene extends ZoneScene {
     this.mode7 = null;
     this.avatar = null;
     this.avatarAnimKey = "";
+    this.tuner?.destroy();
+    this.tuner = null;
     if (this.game.renderer.type !== Phaser.WEBGL) return; // Canvas fallback: keep the flat tilemap.
 
+    // Dev-only camera tuner (?mode7tune in the URL) — never shown to players
+    // by default. Lets the project owner drag elevation/zoom/angle live on
+    // their own device and read off the exact numbers to hand back as the
+    // new MODE7_* defaults (see Mode7Tuner's doc comment).
+    const tuning = new URLSearchParams(window.location.search).has("mode7tune");
+    if (tuning) {
+      this.tuner = new Mode7Tuner(this, (overrides) => this.mode7?.setOverrides(overrides));
+    }
+
     try {
-      this.mode7 = new Mode7Ground(this, this.cfg.map, GROUND_DEPTH);
+      this.mode7 = new Mode7Ground(this, this.cfg.map, GROUND_DEPTH, this.tuner?.current());
 
       // The flat tilemap keeps driving collision but must not be seen; the
       // real player sprite likewise stays the source of truth for position
@@ -99,11 +112,15 @@ export class OverworldScene extends ZoneScene {
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         this.mode7?.destroy();
         this.mode7 = null;
+        this.tuner?.destroy();
+        this.tuner = null;
       });
     } catch (err) {
       console.warn("Mode 7 setup failed; falling back to the flat overworld tilemap.", err);
       this.mode7?.destroy();
       this.mode7 = null;
+      this.tuner?.destroy();
+      this.tuner = null;
       this.groundLayer.setVisible(true);
       this.decorLayer.setVisible(true);
       this.player.setVisible(true);
@@ -116,6 +133,13 @@ export class OverworldScene extends ZoneScene {
     if (!this.mode7) return;
     this.mode7.update(this.player.x, this.player.y);
     if (this.avatar) {
+      // Recomputed every frame (not just once at setup) because the tuner
+      // (mode7tune) can change horizonY live — the avatar's feet must stay
+      // pinned at the same fraction of the ground band as the horizon moves.
+      const feetY =
+        this.mode7.horizonY +
+        Math.round((this.scale.height - this.mode7.horizonY) * AVATAR_FEET_FRACTION);
+      this.avatar.setPosition(this.avatar.x, feetY).setDepth(feetY);
       const key = this.player.anims.currentAnim?.key ?? "";
       if (key && key !== this.avatarAnimKey) {
         this.avatar.play(key, true);

@@ -27,13 +27,7 @@ import { MANIFEST } from "../manifest";
 import { TILE } from "../ZoneScene";
 import type { ZoneMap } from "../maps/types";
 import { PALETTE, hexToRgb } from "../../shared/palette";
-import {
-  MODE7_CAMERA_HEIGHT,
-  MODE7_FOCAL_LENGTH,
-  MODE7_MAX_DEPTH,
-  makeCamera,
-  worldToScreen
-} from "../../core/mode7";
+import { makeCamera, worldToScreen, type Mode7Overrides } from "../../core/mode7";
 
 const GROUND_TEXTURE_KEY = "overworld-mode7-ground";
 
@@ -206,9 +200,14 @@ export class Mode7Ground {
   private readonly mapHeightPx: number;
   private readonly billboards: Billboard[] = [];
   private readonly billboardsEnabled: boolean;
+  /** Live-tunable camera params (Mode7Tuner, dev-only — see OverworldScene's
+   *  `mode7tune` URL gate). Empty by default: every field falls back to its
+   *  MODE7_* constant exactly as before this existed. */
+  private overrides: Mode7Overrides;
 
-  constructor(scene: Phaser.Scene, map: ZoneMap, depth: number) {
+  constructor(scene: Phaser.Scene, map: ZoneMap, depth: number, overrides: Mode7Overrides = {}) {
     this.scene = scene;
+    this.overrides = overrides;
     const rows = map.ground.length;
     const cols = map.ground[0].length;
     this.mapWidthPx = cols * TILE;
@@ -221,15 +220,15 @@ export class Mode7Ground {
     this.paintGroundTexture(map, cols, rows);
 
     const { width, height } = scene.scale;
-    const cam = makeCamera(0, 0, width, height);
+    const cam = makeCamera(0, 0, width, height, this.overrides);
 
     const baseShader = new Phaser.Display.BaseShader("mode7-ground", FRAGMENT_SRC, undefined, {
       uCamX: { type: "1f", value: 0 },
       uCamY: { type: "1f", value: 0 },
       uHorizon: { type: "1f", value: cam.horizon },
-      uFocal: { type: "1f", value: MODE7_FOCAL_LENGTH },
-      uCamHeight: { type: "1f", value: MODE7_CAMERA_HEIGHT },
-      uMaxDepth: { type: "1f", value: MODE7_MAX_DEPTH },
+      uFocal: { type: "1f", value: cam.focal },
+      uCamHeight: { type: "1f", value: cam.height },
+      uMaxDepth: { type: "1f", value: cam.maxDepth },
       uMapSize: { type: "2f", value: { x: this.mapWidthPx, y: this.mapHeightPx } },
       uSkyTop: { type: "3f", value: rgbVec("indigo") },
       uSkyHorizon: { type: "3f", value: rgbVec("amber") },
@@ -350,13 +349,23 @@ export class Mode7Ground {
     }
   }
 
+  /** Live-updates the tunable camera params (Mode7Tuner). Takes effect next
+   *  `update()` call — every field is optional, so a caller can patch just
+   *  the one the player is currently adjusting. */
+  setOverrides(next: Mode7Overrides): void {
+    this.overrides = next;
+  }
+
   /** Track the player: the camera looks north from just behind their position. */
   update(playerX: number, playerY: number): void {
     const { width, height } = this.scene.scale;
-    const cam = makeCamera(playerX, playerY, width, height);
+    const cam = makeCamera(playerX, playerY, width, height, this.overrides);
     this.shader.setUniform("uCamX.value", cam.x);
     this.shader.setUniform("uCamY.value", cam.y);
     this.shader.setUniform("uHorizon.value", cam.horizon);
+    this.shader.setUniform("uFocal.value", cam.focal);
+    this.shader.setUniform("uCamHeight.value", cam.height);
+    this.shader.setUniform("uMaxDepth.value", cam.maxDepth);
 
     const frameW = MANIFEST.owBillboards?.frameWidth ?? 48;
     for (const b of this.billboards) {
@@ -386,7 +395,7 @@ export class Mode7Ground {
 
   /** Screen Y (top-origin px) of the horizon line, for placing the avatar. */
   get horizonY(): number {
-    return makeCamera(0, 0, this.scene.scale.width, this.scene.scale.height).horizon;
+    return makeCamera(0, 0, this.scene.scale.width, this.scene.scale.height, this.overrides).horizon;
   }
 
   destroy(): void {
