@@ -1509,8 +1509,16 @@ describe("grove chamber map (the sunlit cave-in, one tree dead centre)", () => {
     expect(isSolidAt(map, CHAMBER_TREE.x, CHAMBER_TREE.y)).toBe(true);
     expect(Math.abs(CHAMBER_TREE.x - CHAMBER_WIDTH / 2)).toBeLessThanOrEqual(1);
     expect(Math.abs(CHAMBER_TREE.y - CHAMBER_HEIGHT / 2)).toBeLessThanOrEqual(1);
+    // The canopy is 16 distinct pieces of one generated crown
+    // (tileset6.ts's orangeCanopyPieces — post-ship fix replacing a single
+    // `orangeTreeCanopy` tile stamped at every position), all sharing the
+    // `orangeCanopy_` prefix.
     const overhead = (map.overhead ?? []).flat();
-    expect(overhead).toContain("orangeTreeCanopy");
+    const canopyCells = overhead.filter(
+      (c): c is string => typeof c === "string" && c.startsWith("orangeCanopy_")
+    );
+    expect(canopyCells.length).toBe(16);
+    expect(new Set(canopyCells).size).toBe(16); // every piece distinct, none repeated
     // Exactly one tree: the trunk is two tiles tall and nothing else uses it.
     const trunks = map.decor.flat().filter((c) => c === "orangeTreeTrunk").length;
     expect(trunks).toBe(2);

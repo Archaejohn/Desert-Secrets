@@ -1471,7 +1471,23 @@
       "sunGrassNE": 44,
       "sunGrassNW": 45,
       "sunGrassSE": 46,
-      "sunGrassSW": 47
+      "sunGrassSW": 47,
+      "orangeCanopy_r0c1": 48,
+      "orangeCanopy_r0c2": 49,
+      "orangeCanopy_r0c3": 50,
+      "orangeCanopy_r1c0": 51,
+      "orangeCanopy_r1c1": 52,
+      "orangeCanopy_r1c2": 53,
+      "orangeCanopy_r1c3": 54,
+      "orangeCanopy_r1c4": 55,
+      "orangeCanopy_r2c0": 56,
+      "orangeCanopy_r2c1": 57,
+      "orangeCanopy_r2c2": 58,
+      "orangeCanopy_r2c3": 59,
+      "orangeCanopy_r2c4": 60,
+      "orangeCanopy_r3c1": 61,
+      "orangeCanopy_r3c2": 62,
+      "orangeCanopy_r3c3": 63
     }
   },
   "tiles7": {

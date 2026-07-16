@@ -194,7 +194,16 @@ describe("act5 asset byte-stability", () => {
     // organic showcase — grass/moss/sunbeam redrawn as motif clusters and
     // rounded lobes, and 24 dressing tiles appended (caveWall cap/face,
     // shades, moss↔grass fingers, riverbank lips). Additive only.
-    tiles6: "766b9c45c2a1d9e0e999bb1842823a23d433c20d0c5273c999ce547159a9cd85"
+    //
+    // Re-pinned a second time, same-day post-ship fix: appended 16
+    // `orangeCanopy_r{row}c{col}` tiles (canopy.ts's generateCanopyPieces,
+    // grown as one continuous lobed crown then sliced) replacing the single
+    // `orangeTreeCanopy` tile the grove chamber map used to stamp at all
+    // twelve (now sixteen) overhead cells — the literal "series of circles"
+    // bug reported after ship. orangeTreeCanopy itself is untouched and
+    // stays in the sheet, unreferenced (additive-only); sheet grew from
+    // 48 to 64 tiles (8x6 -> 8x8).
+    tiles6: "dd44a31ed15d364a29c526854aca4a913efebbf2ba09c2012df23d38166ada84"
   } as const;
 
   it("sunwasp/tiles6 encode to their committed bytes", () => {

@@ -170,6 +170,10 @@ export interface ScatterOptions {
   minSpacing?: number;
   /** Placement attempts per motif before giving up (default 40). */
   maxAttempts?: number;
+  /** Optional placement gate checked at the candidate origin — e.g. "only
+   *  on top of already-painted canopy pixels, not the transparent
+   *  background". Undefined means every position is valid (default). */
+  isValid?: (x: number, y: number) => boolean;
 }
 
 /**
@@ -186,7 +190,7 @@ export function scatterMotifs(
   options: ScatterOptions = {}
 ): Array<{ x: number; y: number }> {
   if (motifs.length === 0) throw new Error("scatterMotifs needs at least one motif");
-  const { margin = 2, minSpacing = 4, maxAttempts = 40 } = options;
+  const { margin = 2, minSpacing = 4, maxAttempts = 40, isValid } = options;
   const rng = mulberry32(seed);
   const placed: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < count; i++) {
@@ -199,6 +203,7 @@ export function scatterMotifs(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const x = margin + Math.floor(rng() * (maxX - margin + 1));
       const y = margin + Math.floor(rng() * (maxY - margin + 1));
+      if (isValid && !isValid(x, y)) continue;
       if (placed.every((p) => Math.abs(p.x - x) + Math.abs(p.y - y) >= minSpacing)) {
         placed.push({ x, y });
         if (motif instanceof PixelGrid) grid.blit(motif, x, y);

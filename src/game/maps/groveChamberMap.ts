@@ -135,24 +135,32 @@ export function buildGroveChamberMap(): ZoneMap {
   }
 
   // The one orange tree, dead centre: solid trunk (two tiles tall) under a
-  // leafy OVERHEAD canopy the party walks beneath.
+  // leafy OVERHEAD canopy the party walks beneath. The canopy is 12 DISTINCT
+  // pieces of one generated crown (tileset6.ts's ORANGE_CANOPY_FOOTPRINT /
+  // orangeCanopyPieces — post-ship fix), not one small tile repeated at
+  // every position: [x, y, pieceName] pairs, footprint-relative names
+  // matching each map cell 1:1 (x 13..17 = col 0..4, y 6..9 = row 0..3).
   decor[CHAMBER_TREE.y][CHAMBER_TREE.x] = "orangeTreeTrunk";
   decor[CHAMBER_TREE.y + 1][CHAMBER_TREE.x] = "orangeTreeTrunk";
-  for (const [x, y] of [
-    [15, 6],
-    [14, 7],
-    [15, 7],
-    [16, 7],
-    [13, 8],
-    [14, 8],
-    [15, 8],
-    [16, 8],
-    [17, 8],
-    [14, 9],
-    [15, 9],
-    [16, 9]
+  for (const [x, y, piece] of [
+    [14, 6, "orangeCanopy_r0c1"],
+    [15, 6, "orangeCanopy_r0c2"],
+    [16, 6, "orangeCanopy_r0c3"],
+    [13, 7, "orangeCanopy_r1c0"],
+    [14, 7, "orangeCanopy_r1c1"],
+    [15, 7, "orangeCanopy_r1c2"],
+    [16, 7, "orangeCanopy_r1c3"],
+    [17, 7, "orangeCanopy_r1c4"],
+    [13, 8, "orangeCanopy_r2c0"],
+    [14, 8, "orangeCanopy_r2c1"],
+    [15, 8, "orangeCanopy_r2c2"],
+    [16, 8, "orangeCanopy_r2c3"],
+    [17, 8, "orangeCanopy_r2c4"],
+    [14, 9, "orangeCanopy_r3c1"],
+    [15, 9, "orangeCanopy_r3c2"],
+    [16, 9, "orangeCanopy_r3c3"]
   ] as const) {
-    overhead[y][x] = "orangeTreeCanopy";
+    overhead[y][x] = piece;
   }
 
   // Solid dressings (walk-arounds — none seals a needed path). Rubble and

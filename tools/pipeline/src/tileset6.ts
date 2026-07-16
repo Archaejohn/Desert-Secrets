@@ -22,6 +22,7 @@ import { mulberry32 } from "./rng";
 import { canopyLobes, clusterDither, ellipse, hLine } from "./fx";
 import { makeCap, makeEdgeSet, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
+import { generateCanopyPieces, type CanopyFootprint } from "./canopy";
 
 /** Contract tile order (row-major indices 0..15). */
 export const TILE6_NAMES = [
@@ -74,6 +75,25 @@ export const TILE6_NAMES = [
   "sunGrassNW",
   "sunGrassSE",
   "sunGrassSW",
+  // --- wild orange canopy append (post-ship fix, docs/ART_DIRECTION.md §5;
+  // replaces the single repeated `orangeTreeCanopy` tile — see
+  // ORANGE_CANOPY_FOOTPRINT below) ---
+  "orangeCanopy_r0c1",
+  "orangeCanopy_r0c2",
+  "orangeCanopy_r0c3",
+  "orangeCanopy_r1c0",
+  "orangeCanopy_r1c1",
+  "orangeCanopy_r1c2",
+  "orangeCanopy_r1c3",
+  "orangeCanopy_r1c4",
+  "orangeCanopy_r2c0",
+  "orangeCanopy_r2c1",
+  "orangeCanopy_r2c2",
+  "orangeCanopy_r2c3",
+  "orangeCanopy_r2c4",
+  "orangeCanopy_r3c1",
+  "orangeCanopy_r3c2",
+  "orangeCanopy_r3c3",
 ] as const;
 
 export type Tile6Name = (typeof TILE6_NAMES)[number];
@@ -375,6 +395,72 @@ function orangeTreeCanopy(): PixelGrid {
   return g;
 }
 
+/**
+ * The wild orange canopy's footprint, relative to its own 5x4 bounding box
+ * — matches the overhead cells `groveChamberMap.ts` places the tree's
+ * canopy at exactly (x 13..17, y 6..9 there = col 0..4, row 0..3 here): a
+ * full oval, wider than the original diamond so the tree reads as a fuller
+ * "large elegant wild tree" rather than a lonely point at top/bottom.
+ * true = this cell grows canopy. `generateCanopyPieces` (canopy.ts) grows
+ * ONE big lobed leaf mass across the whole true region and slices it into
+ * these 16 pieces, instead of the original approach of stamping one small,
+ * individually-outlined `orangeTreeCanopy` tile at every position — twelve
+ * (now sixteen) copies of the same little blob is exactly why it read as
+ * "a series of circles" rather than one tree.
+ */
+const ORANGE_CANOPY_FOOTPRINT: CanopyFootprint = [
+  [false, true, true, true, false],
+  [true, true, true, true, true],
+  [true, true, true, true, true],
+  [false, true, true, true, false]
+];
+
+/** Row-major order of `ORANGE_CANOPY_FOOTPRINT`'s true cells — must line up
+ *  1:1 with `generateCanopyPieces`' Map iteration order (also row-major)
+ *  and with the `orangeCanopy_r{row}c{col}` block appended to
+ *  `TILE6_NAMES`. 16 pieces so the sheet's 8-tile column width divides
+ *  evenly (48 existing + 16 = 64 = 8x8) — a coincidence that also happens
+ *  to be the fuller, better-looking footprint on its own merits. */
+const ORANGE_CANOPY_NAMES = [
+  "orangeCanopy_r0c1",
+  "orangeCanopy_r0c2",
+  "orangeCanopy_r0c3",
+  "orangeCanopy_r1c0",
+  "orangeCanopy_r1c1",
+  "orangeCanopy_r1c2",
+  "orangeCanopy_r1c3",
+  "orangeCanopy_r1c4",
+  "orangeCanopy_r2c0",
+  "orangeCanopy_r2c1",
+  "orangeCanopy_r2c2",
+  "orangeCanopy_r2c3",
+  "orangeCanopy_r2c4",
+  "orangeCanopy_r3c1",
+  "orangeCanopy_r3c2",
+  "orangeCanopy_r3c3"
+] as const;
+
+/** The 16 orange-canopy pieces, in `ORANGE_CANOPY_NAMES` order. Fruit is
+ *  scattered sparsely across the WHOLE mass (14 across 16 tiles) rather
+ *  than a fixed six per tile — a large tree with a handful of visible
+ *  ripe oranges reads as elegant; six per every tile (72 total) is what
+ *  made the original look overstuffed as well as blobby. */
+function orangeCanopyPieces(): PixelGrid[] {
+  const pieces = generateCanopyPieces(ORANGE_CANOPY_FOOTPRINT, 6150, {
+    base: "jade",
+    highlight: "mint",
+    crevice: "tealDeep",
+    lobesPerCell: 2.5,
+    fruit: { count: 14, fruit: "amber", fruitShade: "clay", fruitGlint: "atbGold" }
+  });
+  return ORANGE_CANOPY_NAMES.map((name) => {
+    const key = name.replace("orangeCanopy_", "");
+    const piece = pieces.get(key);
+    if (!piece) throw new Error(`generateCanopyPieces: missing piece for ${name} (key ${key})`);
+    return piece;
+  });
+}
+
 /** The grove's oldest row — walkable landmark: windfall oranges piled in the
  *  grass, the ripe ones Piggy (and Sahra's trade) are after. */
 function oldOrange(): PixelGrid {
@@ -569,5 +655,7 @@ export function tile6Frames(): PixelGrid[] {
     sunGrass.outerCorners.nw,
     sunGrass.outerCorners.se,
     sunGrass.outerCorners.sw,
+    // --- wild orange canopy append (post-ship fix) ---
+    ...orangeCanopyPieces(),
   ];
 }
