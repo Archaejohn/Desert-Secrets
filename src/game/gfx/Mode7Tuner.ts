@@ -32,9 +32,9 @@ interface Param {
 }
 
 const PARAMS: readonly Param[] = [
-  { key: "height", label: "Elevation", step: 2, min: 8, max: 96, decimals: 0 },
-  { key: "focal", label: "Zoom", step: 10, min: 60, max: 320, decimals: 0 },
-  { key: "horizonFraction", label: "Angle", step: 0.02, min: 0.2, max: 0.6, decimals: 2 }
+  { key: "height", label: "Elevation", step: 4, min: 8, max: 240, decimals: 0 },
+  { key: "focal", label: "Zoom", step: 10, min: 20, max: 400, decimals: 0 },
+  { key: "horizonFraction", label: "Angle", step: 0.02, min: 0.05, max: 0.75, decimals: 2 }
 ];
 
 const DEPTH = 9000;
