@@ -42,19 +42,20 @@ const AVATAR_SCALE = 2.5;
 const AVATAR_FEET_FRACTION = 0.66;
 /**
  * Default camera zoom for the flat overworld view (every other zone stays
- * at the implicit default of 1 — see ZoneScene's camera setup). At zoom=1
- * the 16×20-tile POC map's full north-south span (320px) doesn't quite fit
- * the 270px-tall viewport; 0.8 was the least-aggressive zoom that reveals
- * the whole pass (both gates) at once while keeping the player sprite, HUD
- * text and tile art crisp at the game's 480×270 internal resolution —
- * verified visually via Playwright screenshots (see docs/CONTRACTS.md
- * "v21"). The map (256px) is narrower than even the old zoom=1 viewport
- * (480px), so some dead space past the map's east edge is unavoidable at
- * ANY zoom ≤ 1 regardless of this constant — that's a pre-existing
- * property of this small POC map's width, not something this zoom
- * choice causes or can fix; see docs/CONTRACTS.md "v21" for the full note.
+ * at the implicit default of 1 — see ZoneScene's camera setup). 0.8 was
+ * the first ship (the least-aggressive zoom that reveals the whole pass at
+ * once); the project owner tried it live and asked for a bit further out —
+ * 0.7, chosen by hand via the ?mode7tune=flat tuner rather than
+ * re-deriving from the map's raw dimensions. Player sprite, HUD text and
+ * tile art stay crisp at this zoom on the game's 480×270 internal
+ * resolution. The map (256px) is narrower than even the old zoom=1
+ * viewport (480px), so some dead space past the map's east edge is
+ * unavoidable at ANY zoom ≤ 1 regardless of this constant — that's a
+ * pre-existing property of this small POC map's width, not something this
+ * zoom choice causes or can fix; see docs/CONTRACTS.md "v21" for the full
+ * note.
  */
-export const OVERWORLD_FLAT_ZOOM = 0.8;
+export const OVERWORLD_FLAT_ZOOM = 0.7;
 
 type DebugMode = "off" | "mode7" | "flat";
 

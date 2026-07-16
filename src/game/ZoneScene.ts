@@ -93,12 +93,16 @@ export abstract class ZoneScene extends Phaser.Scene {
   /**
    * Two-camera world/UI split (docs/CONTRACTS.md "v21"). `uiLayer` is an
    * explicit allow-list: every screen-fixed UI element (Hud, DialogueBox,
-   * InventoryMenu/PerkMenu/CookingMenu/FishingMenu, the touch controls,
-   * talkPrompt, the entry hint) adds itself here at construction. `uiCamera`
-   * renders ONLY `uiLayer`, at a fixed zoom/scroll, so UI never inherits a
-   * world camera zoom change (see OverworldScene's flat-view zoom) the way
-   * a naive `cameras.main.setZoom()` would — scrollFactor(0) cancels
-   * SCROLL-following only, not zoom.
+   * InventoryMenu/PerkMenu/CookingMenu/FishingMenu, the touch controls, the
+   * entry hint) adds itself here at construction. `uiCamera` renders ONLY
+   * `uiLayer`, at a fixed zoom/scroll, so UI never inherits a world camera
+   * zoom change (see OverworldScene's flat-view zoom) the way a naive
+   * `cameras.main.setZoom()` would — scrollFactor(0) cancels SCROLL-
+   * following only, not zoom. NOT everything with a fixed depth belongs
+   * here: `talkPrompt` is deliberately excluded (see its own creation
+   * site) because despite living at a UI-ish depth, it's positioned from
+   * world coordinates and must scroll/zoom with the world, not stay
+   * screen-fixed.
    *
    * Deliberately NOT a mirrored `worldLayer`: a Layer's `ignore()` sets a
    * bitmask on the Layer object itself (checked at render time, so it's
@@ -214,7 +218,16 @@ export abstract class ZoneScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(6000)
       .setVisible(false);
-    this.uiLayer.add(this.talkPrompt);
+    // Deliberately NOT added to uiLayer: unlike the HUD/dialogue/joystick,
+    // this isn't screen-fixed chrome — it's positioned directly from
+    // npc.sprite.x/y or interactPoint.x/y (world coordinates, see
+    // showTalkPrompt()) and has no scrollFactor(0), so it must render via
+    // the world camera (scroll + zoom) to track the NPC it points at. Put
+    // on uiLayer once by mistake: uiCamera never scrolls/follows, so a
+    // world coordinate rendered through it landed at the wrong screen
+    // position entirely, worse once the overworld's camera zoom made the
+    // mismatch between "where the camera actually is" and "uiCamera's fixed
+    // view of world (0,0)" visible.
 
     if (this.cfg.encounterZone) {
       this.encounterClock = new EncounterClock(makeRng(Math.floor(Math.random() * 0xffffffff)));
