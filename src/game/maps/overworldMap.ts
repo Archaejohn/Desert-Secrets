@@ -18,30 +18,31 @@
  *    own center by construction, so every mass is one connected, hole-free
  *    region without any flood-fill cleanup pass, same guarantee v22's
  *    spine/lake had.
- * 2. **Landmarks** (`findGateX` + the landmark-placement block in
+ * 2. **Landmarks** (`findInteriorStop` + the landmark-placement block in
  *    `generateWorld`): the mine-mouth stop (north) and the spring/truck
- *    stop (south) are placed INTO the terrain generated in phase 1, by
- *    scanning each edge for where the terrain actually left an opening
- *    wide and deep enough, radiating outward from the map's horizontal
- *    center so the search prefers a central gate but genuinely adapts if
- *    a mass happens to sit there. Nothing about phase 1 knows these gate
- *    x-positions exist yet.
+ *    stop (south) are INTERIOR — places you walk up to out in the desert,
+ *    not openings in the map edge. Each is dropped INTO the terrain from
+ *    phase 1, radiating out from a target point set well inside the map
+ *    (`STOP_INSET`) until its whole clearing is free of mountain, so it
+ *    lands in genuinely open ground rather than punching a hole in a
+ *    range. Its exit is a short band of threshold tiles at the stop and
+ *    its arrival spawn sits two rows clear of that band (so re-entry never
+ *    bounces). Nothing about phase 1 knows these stops exist yet.
  * 3. **Barriers** (`BARRIER_TIER` masses in `generateWorld`): up to two
  *    more mountain masses, added LAST, using the exact same mass-
  *    generation primitive as phase 1 but now allowed to see (and required
- *    to avoid) both landmarks' access corridors. These are a finishing
- *    touch on an already-complete, already-walkable world — not the
- *    world's organizing structure — and a candidate is simply skipped if
- *    it can't be placed without touching a landmark corridor or another
- *    mass too closely; nothing here is required to exist for the map to
- *    work.
+ *    to avoid) both stops' clearings. These are a finishing touch on an
+ *    already-complete, already-walkable world — not the world's organizing
+ *    structure — and a candidate is simply skipped if it can't be placed
+ *    without touching a stop clearing or another mass too closely; nothing
+ *    here is required to exist for the map to work.
  *
- * The outer border is no longer a naive uniform 1-cell rectangle either:
- * the literal edge ring is still guaranteed solid (so enclosure holds
- * unconditionally), but a second, noisy inward "buffer" of 0–3 extra
- * cells per edge position (`buildBorderThickness`, same smoothed 1D noise
- * v22's spine boundary used) gives the border itself an irregular,
- * varying-thickness profile instead of one flat frame.
+ * The outer border is FULLY closed (the stops being interior, there are no
+ * edge gates to leave gaps for) and is not a naive uniform 1-cell rectangle
+ * either: the literal edge ring is guaranteed solid, and a second, noisy
+ * inward "buffer" of 0–3 extra cells per edge position
+ * (`buildBorderThickness`, same smoothed 1D noise v22's spine boundary used)
+ * gives the border itself an irregular, varying-thickness profile.
  *
  * Only two landmarks ship this pass — the mine mouth and the spring/truck
  * stop. The lake, the town and the dirt-road network from v22 are
@@ -55,6 +56,7 @@
  */
 import { cellHash } from "./cellHash";
 import { makeRng } from "../../core/rng";
+import { AUTHORED_OVERWORLD } from "./overworldMap.authored";
 import type { ZoneMap } from "./types";
 
 export const OVERWORLD_WIDTH = 64;
@@ -328,81 +330,108 @@ function applyBorder(decor: (string | null)[][], width: number, height: number):
 }
 
 // ---------------------------------------------------------------------------
-// Phase 2 — landmarks: find where the terrain (phase 1) actually left each
-// edge open, rather than forcing terrain to conform to a hand-picked gate
-// position (the thing the project owner rejected about v22). Scans
-// outward from the map's horizontal center so a central gate is preferred
-// when available, but genuinely adapts to whatever's actually there.
+// Phase 2 — landmarks as INTERIOR stops. The mine mouth (north) and the
+// spring/truck stop (south) are not openings in the map edge — the border
+// stays fully closed. Each stop is a place you walk UP TO out in the open
+// desert: it's dropped into a patch of open ground (radiating out from a
+// target point set well inside the map), its exit is a short band of tiles at
+// the stop, and the arrival spawn sits a couple of tiles clear of that band so
+// re-entering the zone doesn't instantly bounce you back out. Placed into
+// whatever phase 1 left open, exactly like the old edge gates — just interior.
 // ---------------------------------------------------------------------------
 
-const GATE_SCAN_HALF = 6; // the gate's own band is narrower (±1); this is room for landmark decor either side
-const CORRIDOR_DEPTH = 8; // rows/cols of guaranteed-open ground from the edge inward
+/** How far a stop's row sits from its own edge — genuinely interior, well
+ *  clear of the border buffer, not hard against the map boundary. */
+const STOP_INSET = 12;
+/** The open clearing kept around a stop for its landmark decor + exit + spawn. */
+const STOP_CLEAR_HALF_X = 6;
+const STOP_CLEAR_UP = 3;
+const STOP_CLEAR_DOWN = 4;
+
+interface Stop {
+  x: number;
+  y: number;
+}
+
+/** The keep-clear box a placed stop occupies (barriers must avoid it). */
+function stopClearBox(s: Stop): Rect {
+  return {
+    x1: s.x - STOP_CLEAR_HALF_X,
+    y1: s.y - STOP_CLEAR_UP,
+    x2: s.x + STOP_CLEAR_HALF_X,
+    y2: s.y + STOP_CLEAR_DOWN
+  };
+}
+
+/** Clears every mountain-mass cell inside a stop's clearing (interior only). */
+function clearStopBox(decor: (string | null)[][], s: Stop, W: number, H: number): void {
+  const b = stopClearBox(s);
+  for (let y = Math.max(1, b.y1); y <= Math.min(H - 2, b.y2); y++) {
+    for (let x = Math.max(1, b.x1); x <= Math.min(W - 2, b.x2); x++) decor[y][x] = null;
+  }
+}
 
 /**
- * Finds an x position along the north (`dir=1`, `edgeY=0`) or south
- * (`dir=-1`, `edgeY=height-1`) edge where a `(2*half+1)`-wide,
- * `depth`-deep box is entirely free of mountain mass — scanning outward
- * from the horizontal center so the search prefers a central gate but
- * adapts to whatever the generated terrain actually left open. Mutates
- * `decor` only in the rare fallback case (see below).
+ * Finds an interior cell for a stop by radiating out (nearest-first) from a
+ * target point until the stop's whole clearing is free of mountain mass —
+ * so a stop lands in genuinely open desert rather than punching a hole in a
+ * range. Falls back to the clamped target (clearing whatever's there) only if
+ * nothing open is found, mirroring the old gate finder's fallback discipline.
  */
-function findGateX(
+function findInteriorStop(
   decor: (string | null)[][],
-  width: number,
-  height: number,
-  edgeY: number,
-  dir: 1 | -1,
-  depth: number,
-  half: number
-): number {
-  const isOpenColumn = (cx: number): boolean => {
-    for (let x = cx - half; x <= cx + half; x++) {
-      for (let k = 0; k < depth; k++) {
-        const y = edgeY + dir * k;
-        if (y < 0 || y >= height) return false;
-        if (decor[y][x] === MOUNTAIN_SENTINEL) return false;
-      }
+  W: number,
+  H: number,
+  targetX: number,
+  targetY: number
+): Stop {
+  const margin = BORDER_BUFFER_MAX + 2;
+  const boxFree = (cx: number, cy: number): boolean => {
+    const b = stopClearBox({ x: cx, y: cy });
+    if (b.x1 < margin || b.x2 > W - 1 - margin || b.y1 < margin || b.y2 > H - 1 - margin) return false;
+    for (let y = b.y1; y <= b.y2; y++) {
+      for (let x = b.x1; x <= b.x2; x++) if (decor[y][x] === MOUNTAIN_SENTINEL) return false;
     }
     return true;
   };
-
-  const center = Math.floor(width / 2);
-  const minCx = half + 1;
-  const maxCx = width - 2 - half;
-  for (let r = 0; r <= center; r++) {
-    const candidates = r === 0 ? [center] : [center - r, center + r];
-    for (const cx of candidates) {
-      if (cx < minCx || cx > maxCx) continue;
-      if (isOpenColumn(cx)) return cx;
-    }
-  }
-
-  // Fallback — every column's full-depth box hits at least one mountain
-  // cell (six scattered masses on a 64-wide map making this true
-  // everywhere would be unusual, but not impossible). Rather than hand-
-  // carving a whole corridor, nudge the terrain minimally: pick whichever
-  // column has the FEWEST blocking cells in a shallower (4-deep) box and
-  // clear just those specific cells.
-  let bestCx = center;
-  let bestBlocked: Array<[number, number]> = new Array(depth * (2 * half + 1) + 1);
-  let bestCount = Infinity;
-  for (let cx = minCx; cx <= maxCx; cx++) {
-    const blocked: Array<[number, number]> = [];
-    for (let x = cx - half; x <= cx + half; x++) {
-      for (let k = 0; k < 4; k++) {
-        const y = edgeY + dir * k;
-        if (y < 0 || y >= height) continue;
-        if (decor[y][x] === MOUNTAIN_SENTINEL) blocked.push([x, y]);
+  const maxR = Math.max(W, H);
+  for (let r = 0; r <= maxR; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; // square ring at radius r
+        if (boxFree(targetX + dx, targetY + dy)) return { x: targetX + dx, y: targetY + dy };
       }
     }
-    if (blocked.length < bestCount) {
-      bestCount = blocked.length;
-      bestCx = cx;
-      bestBlocked = blocked;
-    }
   }
-  for (const [x, y] of bestBlocked) decor[y][x] = null;
-  return bestCx;
+  const s: Stop = {
+    x: Math.min(W - 1 - margin, Math.max(margin, targetX)),
+    y: Math.min(H - 1 - margin, Math.max(margin, targetY))
+  };
+  clearStopBox(decor, s, W, H);
+  return s;
+}
+
+/**
+ * Opens a stop's exit band — a 3-wide strip of threshold sand at the stop row,
+ * cleared of decor so it's steppable — and returns that exit rect plus the
+ * arrival spawn, placed two rows off the band (`dir` = +1 south of the stop
+ * for the north/mine stop, −1 north of it for the south/spring stop) so
+ * re-entering the overworld never lands you back on the exit tile.
+ */
+function openStopExit(
+  ground: string[][],
+  decor: (string | null)[][],
+  s: Stop,
+  dir: 1 | -1
+): { exit: Rect; spawn: Pt } {
+  const exit: Rect = { x1: s.x - 1, y1: s.y, x2: s.x + 1, y2: s.y };
+  for (let x = exit.x1; x <= exit.x2; x++) {
+    decor[s.y][x] = null;
+    ground[s.y][x] = "sand2";
+  }
+  const spawn: Pt = { x: s.x, y: s.y + 2 * dir };
+  decor[spawn.y][spawn.x] = null;
+  return { exit, spawn };
 }
 
 /**
@@ -550,6 +579,37 @@ function applyOverworldAutotile(ground: string[][], decor: (string | null)[][]):
   }
 }
 
+/**
+ * Sparse non-blocking scatter (creosote / bones) across whatever open ground
+ * is left — skipping any cell already carrying decor, and any cell adjacent to
+ * water. Extracted so the procedural build and an authored layout dress their
+ * open desert identically. Deterministic (keyed on `cellHash`), same as the
+ * rest of the map.
+ */
+function applyScatter(ground: string[][], decor: (string | null)[][]): void {
+  const H = ground.length;
+  const W = ground[0].length;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      if (decor[y][x] !== null) continue;
+      let nearWater = false;
+      for (let dy = -1; dy <= 1 && !nearWater; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const g = ground[y + dy]?.[x + dx];
+          if (g === "water" || g === "water2") {
+            nearWater = true;
+            break;
+          }
+        }
+      }
+      if (nearWater) continue;
+      const h = cellHash(x, y);
+      if (h % 29 === 0) decor[y][x] = "creosote";
+      else if (h % 41 === 0) decor[y][x] = "bones";
+    }
+  }
+}
+
 interface GeneratedWorld {
   ground: string[][];
   decor: (string | null)[][];
@@ -594,105 +654,63 @@ function generateWorld(): GeneratedWorld {
     }
   }
 
-  // ---- Phase 2: landmarks — placed into whatever phase 1 actually left open ----
-  const northGateCx = findGateX(decor, W, H, 0, 1, CORRIDOR_DEPTH, GATE_SCAN_HALF);
-  const southGateCx = findGateX(decor, W, H, H - 1, -1, CORRIDOR_DEPTH, GATE_SCAN_HALF);
-  const northCorridor: Rect = {
-    x1: northGateCx - GATE_SCAN_HALF,
-    y1: 0,
-    x2: northGateCx + GATE_SCAN_HALF,
-    y2: CORRIDOR_DEPTH - 1
-  };
-  const southCorridor: Rect = {
-    x1: southGateCx - GATE_SCAN_HALF,
-    y1: H - CORRIDOR_DEPTH,
-    x2: southGateCx + GATE_SCAN_HALF,
-    y2: H - 1
-  };
+  // ---- Phase 2: interior stops — placed into whatever phase 1 left open ----
+  const centerX = Math.floor(W / 2);
+  const northStop = findInteriorStop(decor, W, H, centerX, STOP_INSET);
+  const southStop = findInteriorStop(decor, W, H, centerX, H - 1 - STOP_INSET);
 
-  // ---- Phase 3: barriers — landmark-aware, added last, purely a finishing touch ----
+  // ---- Phase 3: barriers — added last; must also avoid the two stops ----
   const barrierRng = makeRng(BARRIER_SEED);
   const allMasses = terrainMasses.slice();
   for (let i = 0; i < 2; i++) {
-    const m = placeMass(barrierRng, BARRIER_TIER, W, H, allMasses, [northCorridor, southCorridor]);
+    const m = placeMass(barrierRng, BARRIER_TIER, W, H, allMasses, [
+      stopClearBox(northStop),
+      stopClearBox(southStop)
+    ]);
     if (m) {
       allMasses.push(m);
       rasterizeMass(decor, m, W, H);
     }
   }
 
-  // The border: literal edge unconditionally solid, plus a noisy inward
+  // The border: fully closed now (the stops are interior, so there are no gate
+  // openings) — literal edge unconditionally solid, plus the noisy inward
   // buffer for a genuinely irregular (not flat-rectangular) thickness.
   applyBorder(decor, W, H);
 
-  // Re-open both landmarks' interior corridors (rows 1..CORRIDOR_DEPTH-1,
-  // not the literal edge row itself) in case the border buffer reached in
-  // — phase 1/3 masses never placed cells here by construction, so this
-  // only ever undoes the border step, never a real mass.
-  const clearCorridor = (corridor: Rect, skipEdgeRow: number): void => {
-    for (let y = corridor.y1; y <= corridor.y2; y++) {
-      if (y === skipEdgeRow) continue;
-      for (let x = Math.max(1, corridor.x1); x <= Math.min(W - 2, corridor.x2); x++) decor[y][x] = null;
-    }
-  };
-  clearCorridor(northCorridor, 0);
-  clearCorridor(southCorridor, H - 1);
+  // Both stops sit well inside the border buffer and barriers avoided them, so
+  // re-clearing their clearings is belt-and-braces; then open each exit band
+  // and dress it with landmark flavor.
+  clearStopBox(decor, northStop, W, H);
+  clearStopBox(decor, southStop, W, H);
+  const north = openStopExit(ground, decor, northStop, 1);
+  const south = openStopExit(ground, decor, southStop, -1);
+  const northExit = north.exit;
+  const northSpawn = north.spawn;
+  const southExit = south.exit;
+  const southSpawn = south.spawn;
 
-  // Open the literal 3-wide gate bands at the true edge, last, so nothing
-  // above re-seals them.
-  const northExit: Rect = { x1: northGateCx - 1, y1: 0, x2: northGateCx + 1, y2: 0 };
-  const southExit: Rect = { x1: southGateCx - 1, y1: H - 1, x2: southGateCx + 1, y2: H - 1 };
-  for (let x = northExit.x1; x <= northExit.x2; x++) {
-    decor[0][x] = null;
-    ground[0][x] = "sand2";
-  }
-  for (let x = southExit.x1; x <= southExit.x2; x++) {
-    decor[H - 1][x] = null;
-    ground[H - 1][x] = "sand2";
-  }
+  // Mine-mouth flavor framing the north stop (timbers either side of the exit
+  // band, a cart and joshua trees around it) — never on the exit or spawn.
+  decor[northStop.y - 1][northStop.x - 2] = "mineTimber";
+  decor[northStop.y - 1][northStop.x + 2] = "mineTimber";
+  decor[northStop.y - 1][northStop.x - 3] = "cart";
+  decor[northStop.y + 1][northStop.x - 5] = "joshuaTrunk";
+  decor[northStop.y - 1][northStop.x + 5] = "joshuaTrunk";
 
-  // Landmark decor, placed relative to each gate's own x (fixed offsets —
-  // the gate position itself was the only thing computed, the shape of
-  // "a mine mouth"/"a spring stop" is authored flavor, same as v22's).
-  decor[2][northGateCx - 3] = "mineTimber";
-  decor[2][northGateCx + 3] = "mineTimber";
-  decor[3][northGateCx - 2] = "cart";
-  decor[4][northGateCx - 5] = "joshuaTrunk";
-  decor[6][northGateCx + 5] = "joshuaTrunk";
+  // Spring/truck flavor at the south stop — the overturned truck and a small
+  // spring pool off to the side of the walking line.
+  decor[southStop.y + 1][southStop.x - 3] = "truckBox";
+  decor[southStop.y + 2][southStop.x - 3] = "truckCab";
+  ground[southStop.y + 1][southStop.x + 3] = "water";
+  ground[southStop.y + 1][southStop.x + 4] = "water2";
+  ground[southStop.y + 2][southStop.x + 3] = "water2";
+  ground[southStop.y + 2][southStop.x + 4] = "water";
+  decor[southStop.y + 1][southStop.x - 5] = "joshuaTrunk";
+  decor[southStop.y - 1][southStop.x + 5] = "joshuaTrunk";
 
-  decor[H - 3][southGateCx - 3] = "truckBox";
-  decor[H - 2][southGateCx - 3] = "truckCab";
-  ground[H - 4][southGateCx + 4] = "water";
-  ground[H - 4][southGateCx + 5] = "water2";
-  ground[H - 3][southGateCx + 4] = "water2";
-  ground[H - 3][southGateCx + 5] = "water";
-  decor[H - 4][southGateCx - 5] = "joshuaTrunk";
-  decor[H - 5][southGateCx + 2] = "joshuaTrunk";
-
-  const southSpawn: Pt = { x: southGateCx, y: H - 3 };
-  const northSpawn: Pt = { x: northGateCx, y: 2 };
-
-  // Sparse non-blocking scatter across whatever open ground is left —
-  // clear of mountain, water and any decor already placed.
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      if (decor[y][x] !== null) continue;
-      let nearWater = false;
-      for (let dy = -1; dy <= 1 && !nearWater; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const g = ground[y + dy]?.[x + dx];
-          if (g === "water" || g === "water2") {
-            nearWater = true;
-            break;
-          }
-        }
-      }
-      if (nearWater) continue;
-      const h = cellHash(x, y);
-      if (h % 29 === 0) decor[y][x] = "creosote";
-      else if (h % 41 === 0) decor[y][x] = "bones";
-    }
-  }
+  // Sparse non-blocking scatter across whatever open ground is left.
+  applyScatter(ground, decor);
 
   assignMountainTileNames(decor);
   applyOverworldAutotile(ground, decor);
@@ -700,7 +718,153 @@ function generateWorld(): GeneratedWorld {
   return { ground, decor, southExit, northExit, southSpawn, northSpawn };
 }
 
-const WORLD = generateWorld();
+// ---------------------------------------------------------------------------
+// The human-touch path — a hand-authored layout (`tools/mapeditor`).
+//
+// The editor is a LAYOUT tool, not a tile-painting one: a person paints the
+// semantic terrain (mountain / open sand / water) and drops the two landmarks
+// and gates, and that is ALL an `AuthoredOverworld` stores — a compact
+// terrain field plus a handful of markers, never concrete `owMountain*` /
+// `scree*` / `lakeShore*` names. Turning that layout into a finished ZoneMap
+// runs the exact same finishing passes as the procedural build
+// (`assignMountainTileNames` + `applyOverworldAutotile` + `applyScatter`), so
+// a hand-drawn map autotiles identically to a generated one and can never
+// disagree with the game's own tiling. The editor previews with a JS port of
+// those same passes, checked for parity in the map tests.
+// ---------------------------------------------------------------------------
+
+/** The compact, hand-editable overworld layout the map editor exports. */
+export interface AuthoredOverworld {
+  /**
+   * One string per row, each `OVERWORLD_WIDTH` chars wide:
+   * `.` = open sand, `#` = mountain mass, `~` = spring water.
+   */
+  terrainRows: string[];
+  /** Landmark decor (mineTimber, cart, truckBox, truckCab, joshuaTrunk, …),
+   *  placed at explicit cells rather than derived from a gate offset. */
+  landmarks: ReadonlyArray<{ x: number; y: number; name: string }>;
+  /** The mine (north) stop: step onto `northGate` → the mine entrance; arrive
+   *  back from the mine at `northSpawn`. Both are interior tiles; keep the
+   *  spawn off the gate band so re-entering the overworld doesn't bounce. */
+  northGate: Pt;
+  northSpawn: Pt;
+  /** The spring/oasis (south) stop — same shape. */
+  southGate: Pt;
+  southSpawn: Pt;
+}
+
+const TERRAIN_MOUNTAIN = "#";
+const TERRAIN_WATER = "~";
+
+/**
+ * Finishes a hand-authored layout into a ZoneMap using the SAME passes as the
+ * procedural build. The authored terrain already contains whatever border the
+ * human drew (the editor seeds from the procedural map, border included), so
+ * this deliberately does NOT re-run `applyBorder` — it opens each interior
+ * exit band (3 wide, threshold sand) at the author's gate, clears the two
+ * arrival spawn cells, then autotiles. The map edge is never touched.
+ */
+function finishAuthoredLayout(a: AuthoredOverworld): GeneratedWorld {
+  const H = a.terrainRows.length;
+  const W = a.terrainRows[0].length;
+  const ground: string[][] = [];
+  const decor: (string | null)[][] = [];
+  for (let y = 0; y < H; y++) {
+    ground.push([]);
+    decor.push([]);
+    for (let x = 0; x < W; x++) {
+      const cell = a.terrainRows[y][x];
+      const h = cellHash(x, y);
+      let g = "sand";
+      if (h % 17 === 0) g = "sand2";
+      else if (h % 13 === 0) g = "sand3";
+      else if (h % 61 === 0) g = "sandSparkle";
+      let d: string | null = null;
+      if (cell === TERRAIN_MOUNTAIN) d = MOUNTAIN_SENTINEL;
+      else if (cell === TERRAIN_WATER) g = h % 2 === 0 ? "water" : "water2";
+      ground[y].push(g);
+      decor[y].push(d);
+    }
+  }
+
+  // Landmark decor, exactly where the author placed it.
+  for (const lm of a.landmarks) {
+    if (lm.y >= 0 && lm.y < H && lm.x >= 0 && lm.x < W) decor[lm.y][lm.x] = lm.name;
+  }
+
+  // Open each interior exit band (3 wide at the gate) to threshold sand, and
+  // clear the spawn cells so you always arrive on open ground.
+  const openGate = (g: Pt): Rect => {
+    const exit: Rect = { x1: g.x - 1, y1: g.y, x2: g.x + 1, y2: g.y };
+    for (let x = exit.x1; x <= exit.x2; x++) {
+      if (x >= 0 && x < W && g.y >= 0 && g.y < H) {
+        decor[g.y][x] = null;
+        ground[g.y][x] = "sand2";
+      }
+    }
+    return exit;
+  };
+  const northExit = openGate(a.northGate);
+  const southExit = openGate(a.southGate);
+  for (const s of [a.northSpawn, a.southSpawn]) {
+    if (s.x >= 0 && s.x < W && s.y >= 0 && s.y < H) decor[s.y][s.x] = null;
+  }
+
+  applyScatter(ground, decor);
+  assignMountainTileNames(decor);
+  applyOverworldAutotile(ground, decor);
+
+  return { ground, decor, southExit, northExit, southSpawn: a.southSpawn, northSpawn: a.northSpawn };
+}
+
+/** Landmark decor the editor treats as movable markers (everything else on
+ *  the decor layer is either mountain mass or regenerated scatter). */
+const AUTHORED_LANDMARK_NAMES: ReadonlySet<string> = new Set([
+  "mineTimber",
+  "cart",
+  "truckBox",
+  "truckCab",
+  "joshuaTrunk"
+]);
+
+/**
+ * Derives the editable semantic layout from a finished ZoneMap — the seed the
+ * map editor loads, and the inverse of `finishAuthoredLayout`. Mountains
+ * become `#`, water/shore become `~`, everything walkable becomes `.`;
+ * scatter (creosote/bones) is intentionally dropped (it is regenerated), while
+ * the named landmarks are captured as markers. Round-tripping a procedural map
+ * through derive→finish reproduces it exactly (asserted in the map tests).
+ */
+export function deriveAuthoredLayout(
+  map: ZoneMap,
+  stops: { northGate: Pt; northSpawn: Pt; southGate: Pt; southSpawn: Pt }
+): AuthoredOverworld {
+  const H = map.decor.length;
+  const W = map.decor[0].length;
+  const terrainRows: string[] = [];
+  const landmarks: Array<{ x: number; y: number; name: string }> = [];
+  for (let y = 0; y < H; y++) {
+    let row = "";
+    for (let x = 0; x < W; x++) {
+      const d = map.decor[y][x];
+      const g = map.ground[y][x];
+      if (d !== null && d.startsWith(OW_MOUNTAIN_PREFIX)) row += TERRAIN_MOUNTAIN;
+      else if (g === "water" || g === "water2" || g.startsWith("lakeShore")) row += TERRAIN_WATER;
+      else row += ".";
+      if (d !== null && AUTHORED_LANDMARK_NAMES.has(d)) landmarks.push({ x, y, name: d });
+    }
+    terrainRows.push(row);
+  }
+  return { terrainRows, landmarks, ...stops };
+}
+
+/** A hand-authored layout, if one has been dropped in, wins over the
+ *  procedural build; otherwise the terrain-first generator runs. */
+function buildWorld(): GeneratedWorld {
+  return AUTHORED_OVERWORLD ? finishAuthoredLayout(AUTHORED_OVERWORLD) : generateWorld();
+}
+
+const WORLD = buildWorld();
 
 /** South-edge exit band → back to the oasis (the spring/truck stop). */
 export const OVERWORLD_SOUTH_EXIT = WORLD.southExit;
@@ -715,6 +879,37 @@ export function buildOverworldMap(): ZoneMap {
   // A fresh independent build every call (not a shared/aliased reference
   // to `WORLD`) — cheap for a 64x64 grid, and it means nothing downstream
   // can mutate the module-level constants above by mutating a returned map.
-  const fresh = generateWorld();
+  const fresh = buildWorld();
   return { ground: fresh.ground, decor: fresh.decor };
+}
+
+/** Finishes an authored layout to a ZoneMap through the shared autotile
+ *  passes — the same transform `buildOverworldMap()` applies when an authored
+ *  layout is active. Exposed for the editor's parity check and tests. */
+export function buildAuthoredMap(a: AuthoredOverworld): ZoneMap {
+  const fresh = finishAuthoredLayout(a);
+  return { ground: fresh.ground, decor: fresh.decor };
+}
+
+/** The procedural generator's own build, ALWAYS (ignoring any authored
+ *  override) — its map plus its interior stops. Exposed so the generator's
+ *  strict invariants can be tested directly even when a hand-authored layout
+ *  is the one that actually ships. */
+export interface OverworldBuild {
+  map: ZoneMap;
+  northExit: { x1: number; y1: number; x2: number; y2: number };
+  southExit: { x1: number; y1: number; x2: number; y2: number };
+  northSpawn: { x: number; y: number };
+  southSpawn: { x: number; y: number };
+}
+
+export function buildProceduralOverworld(): OverworldBuild {
+  const w = generateWorld();
+  return {
+    map: { ground: w.ground, decor: w.decor },
+    northExit: w.northExit,
+    southExit: w.southExit,
+    northSpawn: w.northSpawn,
+    southSpawn: w.southSpawn
+  };
 }

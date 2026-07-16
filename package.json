@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "art": "tsx tools/pipeline/src/index.ts && tsx tools/pipeline/src/icons.ts",
+    "mapeditor": "tsx tools/mapeditor/build.mts",
     "dev": "vite",
     "build": "npm run art && vite build",
     "preview": "vite preview",

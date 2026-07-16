@@ -45,7 +45,10 @@ import {
   SHED_WIDTH
 } from "../../src/game/maps/shedMap";
 import {
+  buildAuthoredMap,
   buildOverworldMap,
+  buildProceduralOverworld,
+  deriveAuthoredLayout,
   OVERWORLD_HEIGHT,
   OVERWORLD_NORTH_EXIT,
   OVERWORLD_NORTH_SPAWN,
@@ -407,8 +410,18 @@ describe("shed map (the shed)", () => {
 
 // ------------------------------------------------------------ overworld
 
-describe("overworld map (the open desert, terrain-first v23)", () => {
-  const map = buildOverworldMap();
+describe("overworld map (procedural generator, terrain-first v23/v24)", () => {
+  // These invariants describe the GENERATOR — the fallback used when no
+  // hand-authored layout is active — tested against its own build directly, so
+  // they hold even when an authored map is the one that actually ships
+  // (validated separately below). The local consts shadow the module exports
+  // with the procedural build's own stops.
+  const build = buildProceduralOverworld();
+  const map = build.map;
+  const OVERWORLD_NORTH_EXIT = build.northExit;
+  const OVERWORLD_SOUTH_EXIT = build.southExit;
+  const OVERWORLD_NORTH_SPAWN = build.northSpawn;
+  const OVERWORLD_SOUTH_SPAWN = build.southSpawn;
 
   it("has the declared dimensions", () => {
     assertDimensions(map, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
@@ -419,14 +432,33 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
   });
 
   it("is deterministic", () => {
-    expect(buildOverworldMap()).toEqual(map);
+    expect(buildProceduralOverworld().map).toEqual(map);
   });
 
-  it("is fully enclosed by solid border tiles except its two stops", () => {
-    assertEnclosed(map, [
-      ...edgeGate(OVERWORLD_SOUTH_EXIT, "south", map),
-      ...edgeGate(OVERWORLD_NORTH_EXIT, "north", map)
-    ]);
+  it("is fully enclosed by solid border tiles (the two stops are interior now)", () => {
+    // v24: the mine/spring stops moved inside the map, so the mountain border
+    // is completely closed — there are no edge gates to leave gaps for.
+    assertEnclosed(map);
+  });
+
+  it("puts both stops well inside the map, not against any edge", () => {
+    for (const r of [OVERWORLD_NORTH_EXIT, OVERWORLD_SOUTH_EXIT]) {
+      expect(r.y1).toBeGreaterThan(4);
+      expect(r.y2).toBeLessThan(OVERWORLD_HEIGHT - 5);
+    }
+    for (const p of [OVERWORLD_NORTH_SPAWN, OVERWORLD_SOUTH_SPAWN]) {
+      expect(p.y).toBeGreaterThan(4);
+      expect(p.y).toBeLessThan(OVERWORLD_HEIGHT - 5);
+      expect(p.x).toBeGreaterThan(4);
+      expect(p.x).toBeLessThan(OVERWORLD_WIDTH - 5);
+    }
+  });
+
+  it("keeps each arrival spawn off its own exit band (no instant re-trigger)", () => {
+    const onBand = (p: Pt, r: { x1: number; y1: number; x2: number; y2: number }) =>
+      p.x >= r.x1 && p.x <= r.x2 && p.y >= r.y1 && p.y <= r.y2;
+    expect(onBand(OVERWORLD_NORTH_SPAWN, OVERWORLD_NORTH_EXIT)).toBe(false);
+    expect(onBand(OVERWORLD_SOUTH_SPAWN, OVERWORLD_SOUTH_EXIT)).toBe(false);
   });
 
   it("keeps both spawns and both stops walkable", () => {
@@ -490,11 +522,12 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     // test below, which checks this mask math directly).
     expect(map.ground.flat().some((n) => n === "water" || n === "water2" || n.startsWith("lakeShore"))).toBe(true);
     const gateCx = (OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2;
+    const gateCy = (OVERWORLD_SOUTH_EXIT.y1 + OVERWORLD_SOUTH_EXIT.y2) / 2;
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         if (map.decor[y][x] === "truckCab" || map.decor[y][x] === "truckBox") {
           expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
-          expect(OVERWORLD_HEIGHT - 1 - y).toBeLessThanOrEqual(10);
+          expect(Math.abs(y - gateCy)).toBeLessThanOrEqual(6);
         }
       }
     }
@@ -505,11 +538,12 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     expect(decorFlat).toContain("mineTimber");
     expect(decorFlat).toContain("cart");
     const gateCx = (OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2;
+    const gateCy = (OVERWORLD_NORTH_EXIT.y1 + OVERWORLD_NORTH_EXIT.y2) / 2;
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         if (map.decor[y][x] === "mineTimber" || map.decor[y][x] === "cart") {
           expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
-          expect(y).toBeLessThanOrEqual(10);
+          expect(Math.abs(y - gateCy)).toBeLessThanOrEqual(6);
         }
       }
     }
@@ -721,21 +755,121 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     expect(depths.size).toBeGreaterThan(1);
   });
 
-  it("keeps the literal border ring solid everywhere except the two gate bands (enclosure holds regardless of buffer noise)", () => {
+  it("keeps the literal border ring solid on all four edges (fully closed — stops are interior)", () => {
     // Redundant with "is fully enclosed..." above by design — this is the
     // same guarantee restated as a direct decor check, so a future change
     // to the border/buffer logic that broke enclosure in a way `isSolidAt`
     // didn't happen to catch (e.g. a ground-only leak) still fails loudly.
+    // v24: no edge gates anymore, so every border cell is solid.
     for (let x = 0; x < OVERWORLD_WIDTH; x++) {
-      const topOpen = x >= OVERWORLD_NORTH_EXIT.x1 && x <= OVERWORLD_NORTH_EXIT.x2;
-      const bottomOpen = x >= OVERWORLD_SOUTH_EXIT.x1 && x <= OVERWORLD_SOUTH_EXIT.x2;
-      expect(map.decor[0][x] === null).toBe(topOpen);
-      expect(map.decor[OVERWORLD_HEIGHT - 1][x] === null).toBe(bottomOpen);
+      expect(map.decor[0][x]).not.toBeNull();
+      expect(map.decor[OVERWORLD_HEIGHT - 1][x]).not.toBeNull();
     }
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       expect(map.decor[y][0]).not.toBeNull();
       expect(map.decor[y][OVERWORLD_WIDTH - 1]).not.toBeNull();
     }
+  });
+
+  // ---- authored (human-touch) path parity ----
+  // The map editor (tools/mapeditor) exports a semantic AuthoredOverworld; the
+  // game finishes it through the SAME autotile passes as the procedural build.
+  // Deriving a layout from the procedural map and finishing it again must
+  // reproduce that map byte-for-byte — this is what guarantees a hand-authored
+  // layout tiles exactly the way the generator would, and that the editor's
+  // seed (deriveAuthoredLayout) and the game's finish (buildAuthoredMap) are
+  // faithful inverses.
+  const exitCenter = (r: { x1: number; y1: number; x2: number; y2: number }): Pt => ({
+    x: Math.round((r.x1 + r.x2) / 2),
+    y: Math.round((r.y1 + r.y2) / 2)
+  });
+  const stopsFromExports = () => ({
+    northGate: exitCenter(OVERWORLD_NORTH_EXIT),
+    northSpawn: OVERWORLD_NORTH_SPAWN,
+    southGate: exitCenter(OVERWORLD_SOUTH_EXIT),
+    southSpawn: OVERWORLD_SOUTH_SPAWN
+  });
+
+  it("round-trips the procedural map through derive→finish unchanged", () => {
+    const layout = deriveAuthoredLayout(map, stopsFromExports());
+    expect(buildAuthoredMap(layout)).toEqual(map);
+  });
+
+  it("finishes an authored layout into a valid, fully-reachable map", () => {
+    const authored = buildAuthoredMap(deriveAuthoredLayout(map, stopsFromExports()));
+    assertDimensions(authored, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
+    assertKnownNames(authored);
+    let walkable = 0;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) if (!isSolidAt(authored, x, y)) walkable++;
+    }
+    const reached = reachableSet(authored, [OVERWORLD_SOUTH_SPAWN, OVERWORLD_NORTH_SPAWN]);
+    expect(reached.size).toBe(walkable);
+  });
+});
+
+// The map that actually SHIPS — whatever `buildOverworldMap()` returns, which
+// is the hand-authored layout (`overworldMap.authored.ts`) when one is present,
+// else the procedural build. A hand-authored world may deliberately wall off an
+// "outside desert" you can never reach (mountain ranges cutting the central
+// area off from the rest), so the shipped map's invariants are about
+// PLAYABILITY — correct size/names, valid stops, and a connected play path —
+// not the generator-only guarantees (fully-closed border, every cell reachable,
+// landmarks hugging their gate) checked above.
+describe("overworld map (shipped build — honors a hand-authored layout)", () => {
+  const map = buildOverworldMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildOverworldMap()).toEqual(map);
+  });
+
+  it("keeps both spawns and both exit bands walkable", () => {
+    for (const p of [
+      OVERWORLD_SOUTH_SPAWN,
+      OVERWORLD_NORTH_SPAWN,
+      rectTile(OVERWORLD_SOUTH_EXIT),
+      rectTile(OVERWORLD_NORTH_EXIT)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("keeps each arrival spawn off its own exit band (no instant re-trigger)", () => {
+    const onBand = (p: Pt, r: { x1: number; y1: number; x2: number; y2: number }) =>
+      p.x >= r.x1 && p.x <= r.x2 && p.y >= r.y1 && p.y <= r.y2;
+    expect(onBand(OVERWORLD_NORTH_SPAWN, OVERWORLD_NORTH_EXIT)).toBe(false);
+    expect(onBand(OVERWORLD_SOUTH_SPAWN, OVERWORLD_SOUTH_EXIT)).toBe(false);
+  });
+
+  it("connects both stops and the far spawn to the entry (the play path works)", () => {
+    // You enter from the oasis at the south spawn and must be able to reach
+    // BOTH exits and the mine-side spawn. This is the playability guarantee —
+    // NOT "every cell reachable", since a hand-authored outside desert is a
+    // legitimate, deliberately-unreachable region.
+    const reached = reachableSet(map, [OVERWORLD_SOUTH_SPAWN]);
+    const bandReached = (r: { x1: number; y1: number; x2: number; y2: number }): boolean => {
+      for (let x = r.x1; x <= r.x2; x++) for (let y = r.y1; y <= r.y2; y++) if (reached.has(`${x},${y}`)) return true;
+      return false;
+    };
+    expect(bandReached(OVERWORLD_NORTH_EXIT)).toBe(true);
+    expect(bandReached(OVERWORLD_SOUTH_EXIT)).toBe(true);
+    expect(reached.has(`${OVERWORLD_NORTH_SPAWN.x},${OVERWORLD_NORTH_SPAWN.y}`)).toBe(true);
+  });
+
+  it("is mostly open desert (a real play area, not a maze)", () => {
+    let walkable = 0;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) if (!isSolidAt(map, x, y)) walkable++;
+    }
+    expect(walkable).toBeGreaterThan((OVERWORLD_WIDTH * OVERWORLD_HEIGHT) / 3);
   });
 });
 

@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Desert Secrets — Overworld Editor</title>
+<style>
+  :root {
+    --bg: #17130f; --panel: #221b14; --panel2: #2c231a; --edge: #3d3020;
+    --ink: #f3e6cf; --dim: #b09a76; --gold: #e8b453; --sel: #e8b453;
+    --mtn: #7a5638; --sand: #d8b483; --water: #3f7bb0;
+    --danger: #d8654f; --ok: #7fb36a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 13px;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 8px 14px;
+    background: var(--panel); border-bottom: 1px solid var(--edge);
+  }
+  header h1 { font-size: 14px; margin: 0; color: var(--gold); letter-spacing: .5px; }
+  header .sub { color: var(--dim); font-size: 11px; }
+  .grow { flex: 1; }
+  main { display: flex; flex: 1; min-height: 0; }
+  #left { width: 210px; flex: none; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--edge); padding: 10px; }
+  #right { width: 232px; flex: none; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--edge); padding: 10px; }
+  #stage {
+    flex: 1; min-width: 0; overflow: auto; position: relative; padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      linear-gradient(45deg,#14100c 25%,transparent 25%) 0 0/22px 22px,
+      linear-gradient(-45deg,#14100c 25%,transparent 25%) 0 0/22px 22px,
+      linear-gradient(45deg,transparent 75%,#14100c 75%) 0 0/22px 22px,
+      linear-gradient(-45deg,transparent 75%,#14100c 75%) 0 0/22px 22px, #1b1610;
+  }
+  #canvas { image-rendering: pixelated; box-shadow: 0 6px 30px rgba(0,0,0,.55); cursor: crosshair; }
+  .lbl { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 2px 6px; border-bottom: 1px solid var(--edge); padding-bottom: 3px; }
+  .lbl:first-child { margin-top: 0; }
+  .brush { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-bottom: 5px; padding: 5px 7px; }
+  .brush canvas, .brush .chip { width: 22px; height: 22px; flex: none; border: 1px solid var(--edge); border-radius: 3px; image-rendering: pixelated; }
+  .brush.sel { outline: 2px solid var(--sel); outline-offset: 1px; border-color: var(--sel); }
+  .brush small { color: var(--dim); }
+  button, .btn {
+    font: inherit; color: var(--ink); background: var(--panel2); border: 1px solid var(--edge);
+    border-radius: 4px; padding: 5px 9px; cursor: pointer; user-select: none;
+  }
+  button:hover { border-color: var(--gold); }
+  button.on { background: var(--gold); color: #201a10; border-color: var(--gold); font-weight: 700; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  button.wide { flex: 1; }
+  label.chk { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 0; }
+  textarea { width: 100%; height: 80px; font-family: inherit; font-size: 11px; background: #0d0a07; color: var(--ink); border: 1px solid var(--edge); border-radius: 4px; padding: 6px; resize: vertical; }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .pill { padding: 1px 7px; border: 1px solid var(--edge); border-radius: 10px; }
+  footer { display: flex; gap: 14px; align-items: center; padding: 5px 14px; background: var(--panel); border-top: 1px solid var(--edge); color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; }
+  footer b { color: var(--ink); font-weight: 600; }
+  #warn { color: var(--danger); }
+  #warn.ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <h1>DESERT SECRETS</h1><span class="sub">overworld editor · paint terrain, the game autotiles it</span>
+  <span class="grow"></span>
+  <span class="sub" id="dims">64 × 64</span>
+</header>
+<main>
+  <div id="left">
+    <div class="lbl">Terrain</div>
+    <div id="terrainBrushes"></div>
+    <div class="lbl">Landmarks</div>
+    <div id="landmarkBrushes"></div>
+    <div class="lbl">Gates &amp; spawns</div>
+    <div id="gateBrushes"></div>
+    <div class="hint">The two stops are interior — pick a marker, then click anywhere to place it. <b>Gate</b> (green) is the exit you step on; <b>spawn</b> (gold) is where you arrive back. Keep each spawn a couple of tiles off its gate so re-entry doesn't bounce.</div>
+  </div>
+  <div id="stage"><canvas id="canvas"></canvas></div>
+  <div id="right">
+    <div class="lbl">Tool</div>
+    <div class="row" id="toolRow">
+      <button data-tool="paint" class="on">Paint</button>
+      <button data-tool="fill">Fill</button>
+      <button data-tool="rect">Rect</button>
+      <button data-tool="pick">Pick</button>
+    </div>
+    <div class="row">
+      <button id="undoBtn" class="wide">↶ Undo</button>
+      <button id="redoBtn" class="wide">↷ Redo</button>
+    </div>
+    <div class="hint">Left-drag paints · right-drag erases to sand · <b>Z</b>/<b>Y</b> undo/redo · <b>[</b>/<b>]</b> zoom · <b>1/2/3</b> sand/mtn/water</div>
+    <div class="lbl">View</div>
+    <div class="row">
+      <button id="modeTiles" class="on wide">Autotiled</button>
+      <button id="modeSchem" class="wide">Schematic</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="cbGrid"> grid lines</label>
+    <label class="chk"><input type="checkbox" id="cbReach" checked> flag unreachable pockets</label>
+    <label class="chk"><input type="checkbox" id="cbSolid"> shade solid (blocked) cells</label>
+    <div class="row" style="margin-top:6px;">
+      <span class="hint">zoom</span>
+      <button id="zoomOut">−</button><span id="zoomLbl" class="pill">11px</span><button id="zoomIn">+</button>
+    </div>
+    <div class="lbl">Load</div>
+    <div class="row"><button id="loadSeed" class="wide">Reset to game map</button></div>
+    <textarea id="importTa" placeholder="Paste an AuthoredOverworld JSON to load it…"></textarea>
+    <div class="row"><button id="importBtn" class="wide">Load pasted JSON</button></div>
+    <div class="lbl">Export</div>
+    <div class="row">
+      <button id="copyTs" class="wide">Copy authored.ts</button>
+      <button id="copyJson" class="wide">Copy JSON</button>
+    </div>
+    <div class="row">
+      <button id="dlTs" class="wide">Download .ts</button>
+      <button id="dlJson" class="wide">Download .json</button>
+    </div>
+    <div class="hint">Drop <b>authored.ts</b> into <b>src/game/maps/overworldMap.authored.ts</b> and the game builds your layout. The map tests still guard it.</div>
+  </div>
+</main>
+<footer>
+  <span>cursor <b id="fCur">–</b></span>
+  <span>terrain <b id="fTer">–</b></span>
+  <span>brush <b id="fBrush">–</b></span>
+  <span class="grow"></span>
+  <span id="warn" class="ok">reachable ✓</span>
+  <span id="fSaved" style="color:var(--ok)"></span>
+</footer>
+<script>const EDITOR_DATA = __EDITOR_DATA__;</script>
+<script>
+"use strict";
+(function () {
+  const D = EDITOR_DATA;
+  const W = D.width, H = D.height, TILE = 16;
+  const SAND = ".", MTN = "#", WATER = "~";
+  const MOUNTAIN_SENTINEL = "__mountainSentinel__";
+  const OW_PREFIX = "owMountain";
+  const OW_VARIANTS = 5;
+
+  // ---- name → sheet/frame -------------------------------------------------
+  const images = {};
+  const nameToTile = {};
+  for (const s of D.sheets) for (const [name, idx] of Object.entries(s.names)) nameToTile[name] = { key: s.key, index: idx };
+  const sheetCols = {};
+  for (const s of D.sheets) sheetCols[s.key] = s.cols;
+
+  // ---- solidity (mirrors src/game/maps/types.ts isSolidName) --------------
+  const SOLID_SET = new Set(D.solid);
+  function isSolidName(name) {
+    if (name === null || name === undefined) return false;
+    if (SOLID_SET.has(name)) return true;
+    for (const p of D.solidPrefixes) if (name.startsWith(p)) return true;
+    for (const suf of D.solidSuffixes) if (name.length > suf.length && name.endsWith(suf) && SOLID_SET.has(name.slice(0, -suf.length))) return true;
+    return false;
+  }
+
+  // ---- cellHash (mirrors src/game/maps/cellHash.ts) -----------------------
+  function cellHash(x, y) {
+    let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+
+  // ---- autotile finish (JS port of overworldMap.ts; parity is asserted in
+  //      tests/game/maps.test.ts round-trip) --------------------------------
+  function assignMountainTileNames(decor) {
+    const h = decor.length, w = decor[0].length;
+    const inB = (x, y) => x >= 0 && y >= 0 && x < w && y < h;
+    const snap = decor.map((r) => r.map((c) => c === MOUNTAIN_SENTINEL));
+    const isMtn = (x, y) => inB(x, y) && snap[y][x];
+    const nb = (x, y) => (inB(x, y) ? isMtn(x, y) : true);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!isMtn(x, y)) continue;
+      const variant = cellHash(x, y) % OW_VARIANTS;
+      let mask = 0;
+      if (nb(x, y - 1)) mask |= 1;
+      if (nb(x + 1, y)) mask |= 2;
+      if (nb(x, y + 1)) mask |= 4;
+      if (nb(x - 1, y)) mask |= 8;
+      decor[y][x] = OW_PREFIX + variant + "_" + mask;
+    }
+  }
+  function applyOverworldAutotile(ground, decor) {
+    const h = ground.length, w = ground[0].length;
+    const inB = (x, y) => x >= 0 && y >= 0 && x < w && y < h;
+    const isMtn = (x, y) => { if (!inB(x, y)) return false; const d = decor[y][x]; return d !== null && d.startsWith(OW_PREFIX); };
+    const isWater = (x, y) => { if (!inB(x, y)) return false; const g = ground[y][x]; return g === "water" || g === "water2" || g.startsWith("lakeShore"); };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (isMtn(x, y)) ground[y][x] = cellHash(x, y) % 2 === 0 ? "scree" : "scree2";
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!isMtn(x, y) && !isWater(x, y) && isMtn(x, y - 1)) ground[y][x] = "screeShade";
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!isMtn(x, y)) continue;
+      const open = (dx, dy) => inB(x + dx, y + dy) && !isMtn(x + dx, y + dy) && !isWater(x + dx, y + dy) && ground[y + dy][x + dx] !== "screeShade";
+      const n = open(0, -1), e = open(1, 0), s = open(0, 1), we = open(-1, 0);
+      let name = null;
+      if (n && e && !s && !we) name = "screeSandNE";
+      else if (n && we && !s && !e) name = "screeSandNW";
+      else if (s && e && !n && !we) name = "screeSandSE";
+      else if (s && we && !n && !e) name = "screeSandSW";
+      else if (n && !e && !s && !we) name = "screeSandN";
+      else if (e && !n && !s && !we) name = "screeSandE";
+      else if (s && !n && !e && !we) name = "screeSandS";
+      else if (we && !n && !e && !s) name = "screeSandW";
+      if (name !== null) ground[y][x] = name;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!isMtn(x, y)) continue;
+      const wOpen = (dx, dy) => inB(x + dx, y + dy) && isWater(x + dx, y + dy);
+      const n = wOpen(0, -1), e = wOpen(1, 0), s = wOpen(0, 1), we = wOpen(-1, 0);
+      let name = null;
+      if (n && e && !s && !we) name = "screeWaterNE";
+      else if (n && we && !s && !e) name = "screeWaterNW";
+      else if (s && e && !n && !we) name = "screeWaterSE";
+      else if (s && we && !n && !e) name = "screeWaterSW";
+      else if (n && !e && !s && !we) name = "screeWaterN";
+      else if (e && !n && !s && !we) name = "screeWaterE";
+      else if (s && !n && !e && !we) name = "screeWaterS";
+      else if (we && !n && !e && !s) name = "screeWaterW";
+      if (name !== null) ground[y][x] = name;
+    }
+    const snap = ground.map((r) => r.map((n) => n === "water" || n === "water2"));
+    const wasWater = (x, y) => inB(x, y) && snap[y][x];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!wasWater(x, y)) continue;
+      let mask = 0;
+      if (wasWater(x, y - 1)) mask |= 1;
+      if (wasWater(x + 1, y)) mask |= 2;
+      if (wasWater(x, y + 1)) mask |= 4;
+      if (wasWater(x - 1, y)) mask |= 8;
+      if (mask === 15) continue;
+      ground[y][x] = "lakeShore" + mask;
+    }
+  }
+  function applyScatter(ground, decor) {
+    const h = ground.length, w = ground[0].length;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      if (decor[y][x] !== null) continue;
+      let nearWater = false;
+      for (let dy = -1; dy <= 1 && !nearWater; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const g = ground[y + dy] && ground[y + dy][x + dx];
+        if (g === "water" || g === "water2") { nearWater = true; break; }
+      }
+      if (nearWater) continue;
+      const hh = cellHash(x, y);
+      if (hh % 29 === 0) decor[y][x] = "creosote";
+      else if (hh % 41 === 0) decor[y][x] = "bones";
+    }
+  }
+  /** layout -> { ground, decor } — the exact finishAuthoredLayout transform. */
+  function finish(layout) {
+    const rows = layout.terrainRows, h = rows.length, w = rows[0].length;
+    const ground = [], decor = [];
+    for (let y = 0; y < h; y++) {
+      ground.push([]); decor.push([]);
+      for (let x = 0; x < w; x++) {
+        const cell = rows[y][x];
+        const hh = cellHash(x, y);
+        let g = "sand";
+        if (hh % 17 === 0) g = "sand2"; else if (hh % 13 === 0) g = "sand3"; else if (hh % 61 === 0) g = "sandSparkle";
+        let d = null;
+        if (cell === MTN) d = MOUNTAIN_SENTINEL;
+        else if (cell === WATER) g = hh % 2 === 0 ? "water" : "water2";
+        ground[y].push(g); decor[y].push(d);
+      }
+    }
+    for (const lm of layout.landmarks) if (lm.y >= 0 && lm.y < h && lm.x >= 0 && lm.x < w) decor[lm.y][lm.x] = lm.name;
+    const openGate = (g) => { for (let x = g.x - 1; x <= g.x + 1; x++) if (x >= 0 && x < w && g.y >= 0 && g.y < h) { decor[g.y][x] = null; ground[g.y][x] = "sand2"; } };
+    openGate(layout.northGate); openGate(layout.southGate);
+    for (const s of [layout.northSpawn, layout.southSpawn]) if (s.x >= 0 && s.x < w && s.y >= 0 && s.y < h) decor[s.y][s.x] = null;
+    applyScatter(ground, decor);
+    assignMountainTileNames(decor);
+    applyOverworldAutotile(ground, decor);
+    return { ground, decor };
+  }
+
+  // ---- state --------------------------------------------------------------
+  const LS_KEY = "desert-secrets-ow-editor-v3";
+  const LANDMARKS = ["mineTimber", "cart", "truckBox", "truckCab", "joshuaTrunk"];
+  let terrain, landmarks, gates; // gates = {northGate,northSpawn,southGate,southSpawn} (interior Pts)
+  let brush = { kind: "terrain", value: MTN };
+  let tool = "paint", scale = 11, viewTiles = true;
+  let showGrid = false, showReach = true, showSolid = false;
+  let finished = null, reachMiss = null;
+  const undoStack = [], redoStack = [];
+
+  function seedFrom(src) {
+    terrain = src.terrainRows.map((r) => r.split(""));
+    landmarks = new Map(src.landmarks.map((l) => [l.x + "," + l.y, l.name]));
+    gates = {
+      northGate: { ...src.northGate }, northSpawn: { ...src.northSpawn },
+      southGate: { ...src.southGate }, southSpawn: { ...src.southSpawn }
+    };
+  }
+  function layoutObj() {
+    const lms = [];
+    for (const [k, name] of landmarks) { const [x, y] = k.split(",").map(Number); lms.push({ x, y, name }); }
+    lms.sort((a, b) => a.y - b.y || a.x - b.x);
+    return { terrainRows: terrain.map((r) => r.join("")), landmarks: lms, ...gates };
+  }
+  function snapshot() { return JSON.stringify(layoutObj()); }
+  function restore(json) { seedFrom(JSON.parse(json)); recompute(); render(); }
+
+  let strokeBefore = null;
+  function beginStroke() { strokeBefore = snapshot(); }
+  function commitStroke() {
+    if (strokeBefore === null) return;
+    if (strokeBefore !== snapshot()) { undoStack.push(strokeBefore); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; save(); }
+    strokeBefore = null;
+    updateHistoryButtons();
+  }
+  function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); save(); updateHistoryButtons(); }
+  function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); save(); updateHistoryButtons(); }
+  function updateHistoryButtons() {
+    const u = document.getElementById("undoBtn"), r = document.getElementById("redoBtn");
+    if (u) u.disabled = undoStack.length === 0;
+    if (r) r.disabled = redoStack.length === 0;
+  }
+
+  let saveTimer = null;
+  function save() {
+    try { localStorage.setItem(LS_KEY, snapshot()); const el = document.getElementById("fSaved"); el.textContent = "saved ✓"; clearTimeout(saveTimer); saveTimer = setTimeout(() => (el.textContent = ""), 1000); } catch (e) {}
+  }
+
+  // ---- compute finished + stop connectivity -------------------------------
+  // What matters for a playable map is NOT that every cell is reachable — an
+  // intentional "outside desert" walled off by mountains is fine — but that
+  // both stops connect to where you start. So the check floods from the south
+  // spawn (the canonical entry, arriving from the oasis) and verifies the two
+  // gates and the north spawn are all in that one component. Cells cut off
+  // from the start (the intended outside included) are the red overlay.
+  function recompute() {
+    finished = finish(layoutObj());
+    const solid = [];
+    for (let y = 0; y < H; y++) { solid.push([]); for (let x = 0; x < W; x++) solid[y].push(isSolidName(finished.decor[y][x]) || isSolidName(finished.ground[y][x])); }
+    const seen = Array.from({ length: H }, () => new Array(W).fill(false));
+    const q = [];
+    const start = gates.southSpawn;
+    const inB = (p) => p.x >= 0 && p.x < W && p.y >= 0 && p.y < H;
+    if (inB(start) && !solid[start.y][start.x]) { seen[start.y][start.x] = true; q.push(start); }
+    for (let i = 0; i < q.length; i++) {
+      const { x, y } = q[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny][nx] || solid[ny][nx]) continue;
+        seen[ny][nx] = true; q.push({ x: nx, y: ny });
+      }
+    }
+    let walkable = 0, reached = 0;
+    reachMiss = Array.from({ length: H }, () => new Array(W).fill(false));
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!solid[y][x]) { walkable++; if (seen[y][x]) reached++; else reachMiss[y][x] = true; }
+    // A gate counts as connected if any tile of its 3-wide band is reached.
+    const gateReached = (g) => [-1, 0, 1].some((d) => inB({ x: g.x + d, y: g.y }) && seen[g.y][g.x + d]);
+    const spawnReached = (s) => inB(s) && seen[s.y][s.x];
+    const problems = [];
+    if (!inB(start) || solid[start.y][start.x]) problems.push("south spawn is on a solid tile");
+    else {
+      if (!gateReached(gates.northGate)) problems.push("mine gate");
+      if (!gateReached(gates.southGate)) problems.push("spring gate");
+      if (!spawnReached(gates.northSpawn)) problems.push("mine spawn");
+    }
+    const warn = document.getElementById("warn");
+    const cutoff = walkable - reached;
+    if (problems.length === 0) {
+      warn.textContent = "stops connected ✓" + (cutoff ? "  ·  " + cutoff + " tiles are outside desert (ok)" : "");
+      warn.className = "ok";
+    } else {
+      warn.textContent = "⚠ cut off from start: " + problems.join(", ");
+      warn.className = "";
+    }
+  }
+
+  // ---- drawing ------------------------------------------------------------
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  function drawTile(g, name, dx, dy, size) {
+    const t = nameToTile[name]; if (!t) return;
+    const cols = sheetCols[t.key], img = images[t.key];
+    if (!img) return;
+    g.drawImage(img, (t.index % cols) * TILE, Math.floor(t.index / cols) * TILE, TILE, TILE, dx, dy, size, size);
+  }
+  function render() {
+    if (!finished) return;
+    const S = scale;
+    canvas.width = W * S; canvas.height = H * S;
+    ctx.imageSmoothingEnabled = false;
+    if (viewTiles) {
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        drawTile(ctx, finished.ground[y][x], x * S, y * S, S);
+        const d = finished.decor[y][x]; if (d) drawTile(ctx, d, x * S, y * S, S);
+      }
+    } else {
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const c = terrain[y][x];
+        ctx.fillStyle = c === MTN ? getVar("--mtn") : c === WATER ? getVar("--water") : getVar("--sand");
+        ctx.fillRect(x * S, y * S, S, S);
+      }
+      for (const [k, name] of landmarks) { const [x, y] = k.split(",").map(Number); drawTile(ctx, name, x * S, y * S, S); }
+    }
+    if (showSolid) {
+      ctx.fillStyle = "rgba(216,101,79,0.30)";
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (isSolidName(finished.decor[y][x]) || isSolidName(finished.ground[y][x])) ctx.fillRect(x * S, y * S, S, S);
+    }
+    if (showReach && reachMiss) {
+      ctx.fillStyle = "rgba(216,101,79,0.55)";
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (reachMiss[y][x]) ctx.fillRect(x * S, y * S, S, S);
+    }
+    if (showGrid) {
+      ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1; ctx.beginPath();
+      for (let x = 0; x <= W; x++) { ctx.moveTo(x * S + .5, 0); ctx.lineTo(x * S + .5, H * S); }
+      for (let y = 0; y <= H; y++) { ctx.moveTo(0, y * S + .5); ctx.lineTo(W * S, y * S + .5); }
+      ctx.stroke();
+    }
+    // gates (green 3-wide exit band) + spawns (gold dot)
+    drawGate(gates.northGate); drawGate(gates.southGate);
+    drawSpawn(gates.northSpawn.x, gates.northSpawn.y); drawSpawn(gates.southSpawn.x, gates.southSpawn.y);
+  }
+  function drawGate(g) {
+    const S = scale;
+    ctx.strokeStyle = getVar("--ok"); ctx.lineWidth = 2;
+    ctx.strokeRect((g.x - 1) * S + 1, g.y * S + 1, 3 * S - 2, S - 2);
+  }
+  function drawSpawn(x, y) {
+    const S = scale;
+    ctx.fillStyle = getVar("--gold");
+    ctx.beginPath(); ctx.arc(x * S + S / 2, y * S + S / 2, Math.max(2, S * 0.28), 0, 7); ctx.fill();
+  }
+  const cssCache = {};
+  function getVar(n) { return cssCache[n] || (cssCache[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim()); }
+
+  // ---- editing ------------------------------------------------------------
+  function setTerrain(x, y, ch) {
+    if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) { // keep the literal border ring editable but guard OOB
+      if (x < 0 || y < 0 || x >= W || y >= H) return;
+    }
+    terrain[y][x] = ch;
+    if (ch !== SAND) landmarks.delete(x + "," + y);
+  }
+  function placeLandmark(x, y, name) {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    terrain[y][x] = SAND;
+    landmarks.set(x + "," + y, name);
+  }
+  function eraseCell(x, y) { if (x < 0 || y < 0 || x >= W || y >= H) return; terrain[y][x] = SAND; landmarks.delete(x + "," + y); }
+  function floodFill(x, y, ch) {
+    const target = terrain[y][x]; if (target === ch) return;
+    const st = [[x, y]];
+    while (st.length) {
+      const [cx, cy] = st.pop();
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H || terrain[cy][cx] !== target) continue;
+      terrain[cy][cx] = ch; if (ch !== SAND) landmarks.delete(cx + "," + cy);
+      st.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+  }
+  function applyBrushAt(x, y, erase) {
+    if (brush.kind === "marker") { gates[brush.value] = { x: Math.min(W - 2, Math.max(1, x)), y: Math.min(H - 2, Math.max(1, y)) }; return; }
+    if (tool === "pick") { pickAt(x, y); return; }
+    if (erase) { if (tool === "fill") floodFill(x, y, SAND); else eraseCell(x, y); return; }
+    if (brush.kind === "landmark") { placeLandmark(x, y, brush.value); return; }
+    // terrain brush
+    if (tool === "fill") floodFill(x, y, brush.value); else setTerrain(x, y, brush.value);
+  }
+  function pickAt(x, y) {
+    const lm = landmarks.get(x + "," + y);
+    if (lm) setBrush({ kind: "landmark", value: lm });
+    else setBrush({ kind: "terrain", value: terrain[y][x] });
+  }
+
+  // ---- pointer ------------------------------------------------------------
+  let painting = false, eraseMode = false, rectStart = null;
+  function cellAt(ev) {
+    const r = canvas.getBoundingClientRect();
+    return { x: Math.floor((ev.clientX - r.left) / (r.width / W)), y: Math.floor((ev.clientY - r.top) / (r.height / H)) };
+  }
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const { x, y } = cellAt(e); if (x < 0 || y < 0 || x >= W || y >= H) return;
+    eraseMode = e.button === 2;
+    if (tool === "pick" && brush.kind !== "marker") { pickAt(x, y); return; }
+    beginStroke();
+    if (tool === "rect" && (brush.kind === "terrain" || eraseMode)) { rectStart = { x, y }; painting = true; canvas.setPointerCapture(e.pointerId); return; }
+    painting = true; canvas.setPointerCapture(e.pointerId);
+    applyBrushAt(x, y, eraseMode); recompute(); render();
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const { x, y } = cellAt(e); status(x, y);
+    if (!painting) return;
+    if (tool === "rect" && rectStart) { renderRectPreview(rectStart, { x, y }); return; }
+    applyBrushAt(x, y, eraseMode); recompute(); render();
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (!painting) return; painting = false;
+    if (tool === "rect" && rectStart) {
+      const { x, y } = cellAt(e);
+      const x0 = Math.max(0, Math.min(rectStart.x, x)), x1 = Math.min(W - 1, Math.max(rectStart.x, x));
+      const y0 = Math.max(0, Math.min(rectStart.y, y)), y1 = Math.min(H - 1, Math.max(rectStart.y, y));
+      for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { if (eraseMode) eraseCell(xx, yy); else setTerrain(xx, yy, brush.value); }
+      rectStart = null;
+    }
+    recompute(); render(); commitStroke();
+  });
+  function renderRectPreview(a, b) {
+    render();
+    const S = scale, x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+    ctx.strokeStyle = getVar("--gold"); ctx.lineWidth = 2;
+    ctx.strokeRect(x0 * S + 1, y0 * S + 1, (x1 - x0 + 1) * S - 2, (y1 - y0 + 1) * S - 2);
+  }
+  function status(x, y) {
+    const inB = x >= 0 && y >= 0 && x < W && y < H;
+    document.getElementById("fCur").textContent = inB ? x + "," + y : "–";
+    document.getElementById("fTer").textContent = inB ? (landmarks.get(x + "," + y) || { ".": "sand", "#": "mountain", "~": "water" }[terrain[y][x]]) : "–";
+  }
+
+  // ---- palette ------------------------------------------------------------
+  function tileSwatch(name) {
+    const c = document.createElement("canvas"); c.width = TILE; c.height = TILE;
+    const g = c.getContext("2d"); g.imageSmoothingEnabled = false; drawTile(g, name, 0, 0, TILE); return c;
+  }
+  function colorChip(varName) { const d = document.createElement("div"); d.className = "chip"; d.style.background = getVar(varName); return d; }
+  function makeBrushBtn(label, sub, node, onClick) {
+    const b = document.createElement("button"); b.className = "brush"; b.appendChild(node);
+    const t = document.createElement("div"); t.innerHTML = label + (sub ? "<br><small>" + sub + "</small>" : "");
+    b.appendChild(t); b.addEventListener("click", onClick); return b;
+  }
+  function buildPalette() {
+    const tRoot = document.getElementById("terrainBrushes");
+    const terr = [["Sand", "walkable", colorChip("--sand"), { kind: "terrain", value: SAND }],
+                  ["Mountain", "solid, autotiled", tileSwatch("owMountain0_15"), { kind: "terrain", value: MTN }],
+                  ["Water", "spring", tileSwatch("water"), { kind: "terrain", value: WATER }]];
+    for (const [l, s, n, br] of terr) { const b = makeBrushBtn(l, s, n, () => setBrush(br)); b.dataset.k = br.kind + ":" + br.value; tRoot.appendChild(b); }
+    const lRoot = document.getElementById("landmarkBrushes");
+    for (const name of LANDMARKS) { const br = { kind: "landmark", value: name }; const b = makeBrushBtn(name, "", tileSwatch(name), () => setBrush(br)); b.dataset.k = "landmark:" + name; lRoot.appendChild(b); }
+    const gRoot = document.getElementById("gateBrushes");
+    const markerDefs = [
+      ["North gate (mine)", "northGate", "--ok"],
+      ["North spawn", "northSpawn", "--gold"],
+      ["South gate (spring)", "southGate", "--ok"],
+      ["South spawn", "southSpawn", "--gold"]
+    ];
+    for (const [l, v, color] of markerDefs) {
+      const br = { kind: "marker", value: v };
+      const chip = document.createElement("div"); chip.className = "chip"; chip.style.background = getVar(color);
+      const b = makeBrushBtn(l, "click to place", chip, () => setBrush(br)); b.dataset.k = "marker:" + v; gRoot.appendChild(b);
+    }
+  }
+  function setBrush(br) {
+    brush = br;
+    document.querySelectorAll(".brush").forEach((b) => b.classList.toggle("sel", b.dataset.k === br.kind + ":" + br.value));
+    document.getElementById("fBrush").textContent = br.kind === "terrain" ? { ".": "sand", "#": "mountain", "~": "water" }[br.value] : br.value;
+    canvas.style.cursor = br.kind === "marker" ? "cell" : "crosshair";
+  }
+
+  // ---- toolbar ------------------------------------------------------------
+  function setTool(t) { tool = t; document.querySelectorAll("#toolRow button").forEach((b) => b.classList.toggle("on", b.dataset.tool === t)); }
+  document.querySelectorAll("#toolRow button").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
+  function setMode(t) { viewTiles = t; document.getElementById("modeTiles").classList.toggle("on", t); document.getElementById("modeSchem").classList.toggle("on", !t); render(); }
+  document.getElementById("modeTiles").addEventListener("click", () => setMode(true));
+  document.getElementById("modeSchem").addEventListener("click", () => setMode(false));
+  document.getElementById("cbGrid").addEventListener("change", (e) => { showGrid = e.target.checked; render(); });
+  document.getElementById("cbReach").addEventListener("change", (e) => { showReach = e.target.checked; render(); });
+  document.getElementById("cbSolid").addEventListener("change", (e) => { showSolid = e.target.checked; render(); });
+  function setZoom(v) { scale = Math.max(5, Math.min(24, v)); document.getElementById("zoomLbl").textContent = scale + "px"; render(); }
+  document.getElementById("zoomIn").addEventListener("click", () => setZoom(scale + 2));
+  document.getElementById("zoomOut").addEventListener("click", () => setZoom(scale - 2));
+  // Undoable reset — no confirm() (blocked in the sandboxed artifact iframe,
+  // which is why this button used to do nothing). Undo restores your work.
+  document.getElementById("loadSeed").addEventListener("click", () => {
+    beginStroke(); seedFrom(D.seed); recompute(); render(); commitStroke();
+    flash("reset to game map — press Undo to restore");
+  });
+  document.getElementById("undoBtn").addEventListener("click", undo);
+  document.getElementById("redoBtn").addEventListener("click", redo);
+  document.getElementById("importBtn").addEventListener("click", () => {
+    const t = document.getElementById("importTa").value.trim(); if (!t) return;
+    try { const o = JSON.parse(t); if (!o.terrainRows) throw new Error("missing terrainRows"); beginStroke(); seedFrom(o); recompute(); render(); commitStroke(); document.getElementById("importTa").value = ""; }
+    catch (e) { flash("could not parse JSON: " + e.message); }
+  });
+
+  // ---- export -------------------------------------------------------------
+  function jsonText() { return JSON.stringify(layoutObj(), null, 0).replace(/"terrainRows":\[/, '"terrainRows":[\n').replace(/","/g, '",\n"').replace(/\],"landmarks"/, '\n],"landmarks"'); }
+  function tsText() {
+    const L = layoutObj();
+    let s = "import type { AuthoredOverworld } from \"./overworldMap\";\n\n";
+    s += "// Hand-authored in tools/mapeditor. Replace the null export in\n// overworldMap.authored.ts with this constant.\n";
+    s += "export const AUTHORED_OVERWORLD: AuthoredOverworld = {\n  terrainRows: [\n";
+    s += L.terrainRows.map((r) => "    " + JSON.stringify(r)).join(",\n") + "\n  ],\n";
+    s += "  landmarks: [\n" + L.landmarks.map((l) => "    { x: " + l.x + ", y: " + l.y + ", name: " + JSON.stringify(l.name) + " }").join(",\n") + "\n  ],\n";
+    const pt = (p) => "{ x: " + p.x + ", y: " + p.y + " }";
+    s += "  northGate: " + pt(L.northGate) + ",\n  northSpawn: " + pt(L.northSpawn) + ",\n";
+    s += "  southGate: " + pt(L.southGate) + ",\n  southSpawn: " + pt(L.southSpawn) + "\n};\n";
+    return s;
+  }
+  function copy(t, label) {
+    navigator.clipboard.writeText(t).then(
+      () => flash(label + " copied ✓"),
+      () => { document.getElementById("importTa").value = t; flash(label + ": clipboard blocked — text is in the box, select all & copy"); }
+    );
+  }
+  function download(t, fn, mime) { const b = new Blob([t], { type: mime }), a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = fn; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+  function flash(m) { const el = document.getElementById("fSaved"); el.textContent = m; clearTimeout(saveTimer); saveTimer = setTimeout(() => (el.textContent = ""), 1500); }
+  document.getElementById("copyTs").addEventListener("click", () => copy(tsText(), "authored.ts"));
+  document.getElementById("copyJson").addEventListener("click", () => copy(jsonText(), "JSON"));
+  document.getElementById("dlTs").addEventListener("click", () => download(tsText(), "overworldMap.authored.ts", "text/plain"));
+  document.getElementById("dlJson").addEventListener("click", () => download(jsonText(), "overworld.authored.json", "application/json"));
+
+  // ---- keyboard -----------------------------------------------------------
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if (k === "z") undo(); else if (k === "y") redo();
+    else if (k === "]") setZoom(scale + 2); else if (k === "[") setZoom(scale - 2);
+    else if (k === "1") setBrush({ kind: "terrain", value: SAND });
+    else if (k === "2") setBrush({ kind: "terrain", value: MTN });
+    else if (k === "3") setBrush({ kind: "terrain", value: WATER });
+    else if (k === "p") setTool("paint"); else if (k === "f") setTool("fill"); else if (k === "r") setTool("rect"); else if (k === "e") setTool("pick");
+    else if (k === "g") { showGrid = !showGrid; document.getElementById("cbGrid").checked = showGrid; render(); }
+  });
+
+  // ---- boot ---------------------------------------------------------------
+  // Test hook: expose the finished grid + layout so parity vs the TS
+  // finishAuthoredLayout can be checked headlessly.
+  window.__editor = {
+    finish, getLayout: layoutObj, getFinished: () => finished,
+    _test: {
+      paint(x, y, ch) { setTerrain(x, y, ch); recompute(); render(); },
+      landmark(x, y, name) { placeLandmark(x, y, name); recompute(); render(); },
+      marker(name, x, y) { gates[name] = { x, y }; recompute(); render(); }
+    }
+  };
+
+  function init() {
+    let src = D.seed;
+    try { const s = localStorage.getItem(LS_KEY); if (s) { const o = JSON.parse(s); if (o.terrainRows && o.terrainRows.length === H) src = o; } } catch (e) {}
+    seedFrom(src);
+    recompute();
+    buildPalette(); setBrush(brush); setTool("paint"); setMode(true);
+    document.getElementById("zoomLbl").textContent = scale + "px";
+    document.getElementById("dims").textContent = W + " × " + H;
+    updateHistoryButtons();
+    render();
+  }
+  Promise.all(D.sheets.map((s) => new Promise((res) => { const img = new Image(); img.onload = () => { images[s.key] = img; res(); }; img.onerror = () => res(); img.src = s.img; }))).then(init);
+})();
+</script>
+</body>
+</html>
