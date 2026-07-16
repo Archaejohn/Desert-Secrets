@@ -111,18 +111,21 @@ describe("owMountains geometric edge-rounding contract", () => {
     }
   });
 
-  it("mask=15 tiles contain none of the transition-band-only colours (sandLight, amber)", () => {
-    // sandLight only appears in the <1 sand ring, amber only in the <2 dusty
-    // ring (both provably unreachable for mask 15) — this is a real,
-    // colour-level check on top of the pure-geometry one above, but the
-    // pure check is authoritative since "sand"/"clay" are legitimately
-    // reused by the interior's lit-NW flank.
+  it("mask=15 tiles contain none of the transition-band-only colour (amber)", () => {
+    // amber only appears in the <2 dusty ring (provably unreachable for
+    // mask 15) — a real colour-level check on top of the pure-geometry one
+    // above. sandLight is NOT checked here: the peak grid's sunlit apex cap
+    // (generatePeakGrid) legitimately reuses sandLight as a crest highlight
+    // inside the deep interior too, matching tileset2.ts's proven
+    // mountainRidge recipe — it's a shared ramp colour, not exclusive to
+    // the outer sand ring. "sand"/"clay" are likewise legitimately reused
+    // by the interior's lit-NW flank.
     for (let variant = 0; variant < 5; variant++) {
       const idx = variant * 16 + 15;
       const tile = owMountainFrames()[idx];
       let found = false;
       tile.forEach((_x, _y, c) => {
-        if (c === "sandLight" || c === "amber") found = true;
+        if (c === "amber") found = true;
       });
       expect(found).toBe(false);
     }

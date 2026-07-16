@@ -299,9 +299,25 @@ describe("owMountains blob-autotile byte-stability", () => {
   // sha256 of owMountains.png (docs/CONTRACTS.md "owMountains"): the
   // mask-based rounded-corner overworld mountain autotile that replaced the
   // old per-cell content-hash pick among eight neighbor-blind mountain1..8
-  // ridge tiles. New sheet, so pinned here from its first generation.
+  // ridge tiles.
+  //
+  // Re-pinned once, deliberately, for a same-day post-ship fix: the deep
+  // interior of every tile was a flat `x+y<=15` two-color diagonal split,
+  // identical on every mask=15 tile regardless of variant or position —
+  // it read as a repeating "hash mark" pattern rather than peaks. Replaced
+  // with a real triangular-ridge silhouette (`generatePeakGrid`, adapted
+  // from `tileset2.ts`'s proven `mountainRidge`), one distinct apex
+  // shape/position per variant. A second, more serious bug shipped
+  // alongside it in `overworldMap.ts`'s `assignMountainTileNames`: it
+  // mutated the map's decor grid in the same forward pass it read
+  // neighbors from, so by the time a cell checked its N/W neighbors those
+  // cells had already been overwritten from the mountain sentinel to a
+  // real tile name and no longer read as "mountain" — collapsing ~93% of
+  // the map's mountain cells to the single mask "E+S present" regardless
+  // of true topology. Fixed by snapshotting the sentinel grid before any
+  // mutation. Same 80 tile slots, no reordering — only pixels changed.
   const FROZEN = {
-    owMountains: "9697667cd66f077cc23855a606793c73de4123e52b36b813c97fd7d1ec677db7"
+    owMountains: "cdb2dbdb76f56992782acd02dc21ebff4243aa5d842776f8b1cf5185854e06b9"
   } as const;
 
   it("owMountains encodes to its committed bytes", () => {

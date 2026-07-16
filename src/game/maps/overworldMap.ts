@@ -76,11 +76,17 @@ const OW_MOUNTAIN_VARIANT_COUNT = 5;
  * Converts every `MOUNTAIN_SENTINEL` decor cell into a concrete
  * `owMountain{variant}_{mask}` name (docs/CONTRACTS.md "owMountains"):
  *
- * 1. Connected-component flood fill (4-connectivity, deterministic
- *    row-major scan order so component IDs — and therefore variants — are
- *    reproducible) over the sentinel cells, clustering contiguous mountain
- *    masses. `variant = componentId % 5`, so one contiguous range reads as
- *    one consistent texture family throughout.
+ * 1. Per-cell `variant = cellHash(x, y) % 5`. A large solid mountain mass
+ *    is mostly interior cells that all share the same neighbor mask (every
+ *    side present); if variant were assigned per contiguous mass (as an
+ *    earlier version of this function did via connected-component flood
+ *    fill), the whole mass would draw the SAME cached tile over and over —
+ *    a giant mountain range would look like one texture wallpapered across
+ *    a hundred cells, and a real map's mountain border is one huge
+ *    connected ring, so in practice only 1–2 of the 5 families ever
+ *    appeared. Hashing per cell instead means neighboring interior cells
+ *    routinely draw from different families, breaking up the repeat the
+ *    way FF6/SoM interior rock texture reads as varied rather than tiled.
  * 2. A 4-bit N/E/S/W neighbor mask per mountain cell (bit0=N=1, bit1=E=2,
  *    bit2=S=4, bit3=W=8 — must match `owMountains.ts`'s bit convention
  *    exactly), using the same is-mountain predicate. A neighbor beyond the
@@ -95,45 +101,31 @@ function assignMountainTileNames(decor: (string | null)[][]): void {
   const H = decor.length;
   const W = decor[0].length;
   const inBounds = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < W && y < H;
-  const isMtn = (x: number, y: number): boolean =>
-    inBounds(x, y) && decor[y][x] === MOUNTAIN_SENTINEL;
-
-  // 1. Connected components, 4-connectivity, row-major scan order.
-  const componentId: number[][] = decor.map((row) => row.map(() => -1));
-  let nextId = 0;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!isMtn(x, y) || componentId[y][x] !== -1) continue;
-      const id = nextId++;
-      const stack: Array<[number, number]> = [[x, y]];
-      componentId[y][x] = id;
-      while (stack.length > 0) {
-        const [cx, cy] = stack.pop()!;
-        for (const [dx, dy] of [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1]
-        ] as const) {
-          const nx = cx + dx;
-          const ny = cy + dy;
-          if (isMtn(nx, ny) && componentId[ny][nx] === -1) {
-            componentId[ny][nx] = id;
-            stack.push([nx, ny]);
-          }
-        }
-      }
-    }
-  }
-
-  // 2. Per-cell neighbor mask -> owMountain{variant}_{mask}.
+  // Snapshot "is this cell mountain" BEFORE any mutation. The mask lookups
+  // below must read this frozen snapshot, never `decor` itself: if a cell's
+  // real name were written into `decor` as soon as it's computed (a single
+  // forward row-major pass, mutating in place), then by the time a later
+  // cell in the same row (or any cell in a later row) checks its W or N
+  // neighbor, that neighbor would already have been overwritten from
+  // MOUNTAIN_SENTINEL to a concrete "owMountain{v}_{m}" string — no longer
+  // matching the sentinel — so the N/W checks would read "not mountain"
+  // for almost every interior cell regardless of true topology, while E/S
+  // (not yet visited) would still read correctly. That was a real,
+  // shipped bug: it collapsed ~93% of the map's mountain cells to the
+  // single mask "E+S present, N+W open" (6) regardless of where they
+  // actually sat, which is exactly the "only one tile for every mountain"
+  // symptom reported after ship — not an art-quality issue at all.
+  const isMtnSnapshot: boolean[][] = decor.map((row) =>
+    row.map((cell) => cell === MOUNTAIN_SENTINEL)
+  );
+  const isMtn = (x: number, y: number): boolean => inBounds(x, y) && isMtnSnapshot[y][x];
   const maskNeighborPresent = (x: number, y: number): boolean =>
     inBounds(x, y) ? isMtn(x, y) : true;
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (!isMtn(x, y)) continue;
-      const variant = componentId[y][x] % OW_MOUNTAIN_VARIANT_COUNT;
+      const variant = cellHash(x, y) % OW_MOUNTAIN_VARIANT_COUNT;
       let mask = 0;
       if (maskNeighborPresent(x, y - 1)) mask |= 1; // N
       if (maskNeighborPresent(x + 1, y)) mask |= 2; // E

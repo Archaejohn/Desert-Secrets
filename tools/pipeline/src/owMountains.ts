@@ -30,18 +30,20 @@
  * - fuzzyDist < 2: a dusty transition ring in `amber`/`sand` — NOT green
  *   scrub; this is an all-mineral desert (CLAUDE.md / ART_DIRECTION.md).
  * - fuzzyDist < 4: `clay` foothill ring.
- * - else (deep interior/peak): NOT the reference's isotropic diagonal wave
- *   banding (reads flat/directionless). Instead, the FF6 3/4-view rule
- *   (ART_DIRECTION.md §1 G1/G4, and the mountain recipe in §4a /
- *   `tileset2.ts`'s `mountainRidge`) drives a lit NW flank (`sand`/`clay`)
- *   vs a shaded SE flank (`rust`/`plum`, ~half the interior mass), split by
- *   ABSOLUTE tile-local position (is this pixel closer to the tile's NW
- *   corner or SE corner along the `x + y` diagonal) — not by the mask — so
- *   light direction stays globally consistent across every tile regardless
- *   of its mask. The reference's `(x + y) % 8` wave is repurposed only to
- *   add a crest-line zigzag texture within each flank (never to decide
- *   lit-vs-shadow). Rare `ink` crag flecks (~5%, matching the reference
- *   rate) finish the interior.
+ * - else (deep interior/peak): sampled from a precomputed per-variant
+ *   "peak grid" (`generatePeakGrid`, below) — a real triangular ridge
+ *   silhouette adapted from the proven `tileset2.ts` `mountainRidge`
+ *   recipe (irregular apex, zigzag crest, lit NW flank / shaded SE flank
+ *   split by distance from the apex, sunlit apex cap, broken foot line,
+ *   sparse crag clusters), NOT a flat `x+y` diagonal split. A flat
+ *   corner-to-corner split was tried first and was wrong: it is identical
+ *   on every mask=15 (fully-surrounded) tile regardless of variant or
+ *   position, and mask=15 dominates any solid mountain mass by tile count,
+ *   so the whole mass rendered as one repeating "hash mark" pattern
+ *   instead of peaks — the actual bug reported after the first ship. The
+ *   peak grid is computed ONCE per variant (not per mask) and sampled by
+ *   (x, y) wherever a pixel falls in the deep-interior band; masks differ
+ *   only in how much of the ring erodes into that shared peak texture.
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
@@ -110,10 +112,101 @@ export function mountainDistToGrass(
   return dist;
 }
 
-/** One rounded-mask mountain tile (16x16, fully opaque). `seed` drives the
- *  fuzzy-edge noise and the interior crag/fleck texture only — the edge
- *  geometry itself is pure function of `mask`. */
-function generateMountainTile(mask: number, seed: number): PixelGrid {
+/**
+ * One distinct triangular-peak apex/shape configuration per variant family
+ * (5 entries, matching `MOUNTAIN_VARIANT_COUNT`). Apex x/y spread across the
+ * tile so the five families read as genuinely different peak positions and
+ * heights, not just fleck noise — the earlier bug's other half: even after
+ * fixing the flat-diagonal interior, if every variant's peak sat in the
+ * same spot the families would still look interchangeable. `shoulder`
+ * mirrors `mountainRidge`'s lower secondary peak for some variants (a
+ * ridge, not a single lonely spike).
+ */
+const PEAK_CONFIGS: ReadonlyArray<{ ax: number; ay: number; shoulder: boolean }> = [
+  { ax: 4, ay: 1, shoulder: true },
+  { ax: 10, ay: 3, shoulder: false },
+  { ax: 6, ay: 0, shoulder: true },
+  { ax: 12, ay: 2, shoulder: false },
+  { ax: 2, ay: 3, shoulder: true }
+];
+
+/**
+ * A real triangular ridge silhouette for one variant family, full 16x16,
+ * ignoring mask/ring concerns entirely (those are layered on top by the
+ * caller via `mountainDistToGrass`). Adapted from `tileset2.ts`'s proven
+ * `mountainRidge`: an irregular apex (optionally with a lower shoulder
+ * peak), a zigzag crest line, a lit NW flank left of the apex, a shaded SE
+ * flank right of it, a sunlit apex cap, a broken darkened foot line, and
+ * sparse seeded crag clusters. Computed once per variant and sampled by
+ * (x, y) for every mask that shares the family, so the family's interior
+ * "identity" (peak shape) stays consistent while only the outer rounding
+ * rings vary per mask.
+ */
+function generatePeakGrid(variant: number): PixelGrid {
+  const { ax, ay, shoulder } = PEAK_CONFIGS[variant];
+  const g = new PixelGrid(TILE_SIZE, TILE_SIZE);
+  const peaks = [{ ax, ay }];
+  if (shoulder) peaks.push({ ax: (ax + 8) % TILE_SIZE, ay: ay + 4 });
+
+  for (let x = 0; x < TILE_SIZE; x++) {
+    let crestY = 99;
+    let owner = peaks[0];
+    for (const p of peaks) {
+      const y = p.ay + Math.abs(x - p.ax);
+      if (y < crestY) {
+        crestY = y;
+        owner = p;
+      }
+    }
+    for (let y = 0; y < TILE_SIZE; y++) {
+      if (y < crestY) {
+        // Above this column's crest: background shadow mass (fills the
+        // corners the ridge silhouette doesn't reach).
+        g.px(x, y, "plum");
+        continue;
+      }
+      const dc = y - crestY;
+      let c: PaletteName;
+      if (dc === 0) {
+        c = ((x + y) & 2) === 0 ? "umber" : "plum"; // zigzag crest (G6 structural line)
+      } else if (x <= owner.ax) {
+        c = dc <= 3 ? "sand" : "clay"; // lit NW flank
+      } else {
+        c = dc <= 4 ? "rust" : "plum"; // shaded SE flank
+      }
+      if (y === TILE_SIZE - 1 && (x + variant * 3) % 8 < 6) c = "umber"; // broken foot shadow
+      g.px(x, y, c);
+    }
+  }
+  for (const p of peaks) {
+    if (p.ay >= 0 && p.ay < TILE_SIZE) {
+      g.px(p.ax, p.ay, "sandLight"); // sunlit apex cap
+      if (p.ay + 1 < TILE_SIZE && p.ax - 1 >= 0) g.px(p.ax - 1, p.ay + 1, "sandLight");
+    }
+  }
+  // Sparse seeded crag clusters on the faces (G5) — deterministic per variant.
+  const rng = mulberry32(7000 + variant * 53);
+  let placed = 0;
+  for (let i = 0; i < 12 && placed < 3; i++) {
+    const cx = 1 + Math.floor(rng() * (TILE_SIZE - 3));
+    const cy = 4 + Math.floor(rng() * (TILE_SIZE - 6));
+    const c = g.get(cx, cy);
+    if (c === "clay" && g.get(cx + 1, cy + 1) === "clay") {
+      g.rect(cx, cy, 2, 2, "rust");
+      placed++;
+    } else if (c === "rust" && g.get(cx + 1, cy + 1) === "rust") {
+      g.rect(cx, cy, 2, 2, "plum");
+      placed++;
+    }
+  }
+  return g;
+}
+
+/** One rounded-mask mountain tile (16x16, fully opaque). `seed` drives only
+ *  the fuzzy-edge ring noise; the edge geometry is a pure function of
+ *  `mask`, and the deep-interior colour is sampled from `peakGrid` (that
+ *  variant's precomputed peak silhouette). */
+function generateMountainTile(mask: number, peakGrid: PixelGrid, seed: number): PixelGrid {
   const g = new PixelGrid(TILE_SIZE, TILE_SIZE);
   const rng = mulberry32(seed);
 
@@ -132,17 +225,7 @@ function generateMountainTile(mask: number, seed: number): PixelGrid {
       } else if (fuzzyDist < 4) {
         c = "clay";
       } else {
-        // Deep interior/peak: FF6 lit-NW / shaded-SE flanks, anchored to
-        // ABSOLUTE tile-local position (not the mask) so light direction is
-        // globally consistent. The old isotropic (x+y)%8 wave is kept only
-        // as a crest-line zigzag texture WITHIN each flank.
-        const wave = Math.abs((((x + y) % 8) + 8) % 8 - 4);
-        if (x + y <= 15) {
-          c = wave < 2 ? "sand" : "clay"; // lit NW flank
-        } else {
-          c = wave < 2 ? "rust" : "plum"; // shaded SE flank
-        }
-        if (rng() < 0.05) c = "ink"; // sparse crag fleck
+        c = (peakGrid.get(x, y) as PaletteName | null) ?? "plum";
       }
       g.px(x, y, c);
     }
@@ -170,9 +253,10 @@ export const owMountainNames: string[] = (() => {
 export function owMountainFrames(): PixelGrid[] {
   const frames: PixelGrid[] = [];
   for (let variant = 0; variant < MOUNTAIN_VARIANT_COUNT; variant++) {
+    const peakGrid = generatePeakGrid(variant);
     for (let mask = 0; mask < MOUNTAIN_MASK_COUNT; mask++) {
       const seed = VARIANT_SEED_BASES[variant] + mask * 31;
-      frames.push(generateMountainTile(mask, seed));
+      frames.push(generateMountainTile(mask, peakGrid, seed));
     }
   }
   return frames;
