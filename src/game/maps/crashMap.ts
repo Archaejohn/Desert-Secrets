@@ -5,6 +5,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const CRASH_WIDTH = 24;
 export const CRASH_HEIGHT = 14;
@@ -105,5 +106,5 @@ export function buildCrashMap(): ZoneMap {
     }
   }
 
-  return { ground, decor };
+  return dressMap({ ground, decor });
 }

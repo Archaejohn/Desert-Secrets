@@ -20,6 +20,8 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { canopyLobes, clusterDither, hLine } from "./fx";
+import { makeCap, makeEdgeSet, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
 /** Contract tile order (row-major indices 0..15). */
@@ -40,6 +42,23 @@ export const TILE7_NAMES = [
   "kelpCanopy",
   "seaAnemone",
   "shellCluster",
+  // --- 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5) ---
+  "reefWallCap",
+  "reefWallCap2",
+  "reefWallFace",
+  "reefWallFace2",
+  "reefFloorShade",
+  "reefSiltShade",
+  "glowMossShade",
+  "mintKelpShade",
+  "siltFloorN",
+  "siltFloorE",
+  "siltFloorS",
+  "siltFloorW",
+  "siltFloorNE",
+  "siltFloorNW",
+  "siltFloorSE",
+  "siltFloorSW",
 ] as const;
 
 export type Tile7Name = (typeof TILE7_NAMES)[number];
@@ -61,90 +80,83 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
  *  within by a scatter of skyBlue/mint biolight motes; a few sand grains show
  *  through. `seed` varies the speckle grain. This is the garden's dark ground
  *  against which the cultivated glow reads bright. */
+/** Redrawn for the 2.5D pass (G5): calm tealDeep seabed with rounded indigo
+ *  silt pockets, paired slate grit chips and one soft biolight mote pair —
+ *  no half-tile band, no per-pixel speckle. */
 function reefBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "tealDeep");
-  g.rect(0, 10, TILE_SIZE, 6, "indigo"); // deeper, shaded lower floor
-  // silt grain
-  for (const [x, y] of [
-    [2, 3],
-    [7, 2],
-    [11, 4],
-    [14, 3],
-    [4, 7],
-    [9, 8],
-    [13, 9],
-    [3, 12],
-    [8, 13],
-    [12, 12],
-  ] as const) {
-    g.px(x, y, "slate");
-  }
   const rng = mulberry32(seed);
-  for (let i = 0; i < 6; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "skyBlue" : rng() < 0.5 ? "mint" : "sand"); // biolight motes + grit
+  // rounded indigo silt pockets
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 11);
+    const y = 2 + Math.floor(rng() * 11);
+    hLine(g, x + 1, y, 2, "indigo");
+    hLine(g, x, y + 1, 4, "indigo");
   }
+  // slate grit chips (2px)
+  hLine(g, 3, 3, 2, "slate");
+  hLine(g, 11, 7, 2, "slate");
+  hLine(g, 6, 12, 2, "slate");
+  // one biolight mote pair — the garden's cold light
+  const bx = 2 + Math.floor(rng() * 12);
+  const by = 2 + Math.floor(rng() * 12);
+  g.px(bx, by, "skyBlue");
+  g.px(bx + 1, by, "mint");
   return g;
 }
 
 /** Darker deep silt — walkable. A cooler, near-black tealDeep/ink floor for
  *  the deep hollow, threaded with faint indigo and a lone biolight. */
+/** Redrawn for the 2.5D pass (G5): near-black silt — indigo body, rounded
+ *  ink hollows, paired tealDeep grain and one soft mint glow. No band. */
 function reefSilt(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "indigo");
-  g.rect(0, 9, TILE_SIZE, 7, "ink"); // deepest shade
-  for (const [x, y] of [
-    [3, 2],
-    [8, 3],
-    [12, 2],
-    [5, 6],
-    [10, 7],
-    [14, 6],
-  ] as const) {
-    g.px(x, y, "tealDeep");
-  }
   const rng = mulberry32(seed);
-  for (let i = 0; i < 4; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, "skyBlue");
+  // rounded ink hollows
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 11);
+    const y = 2 + Math.floor(rng() * 11);
+    hLine(g, x + 1, y, 2, "ink");
+    hLine(g, x, y + 1, 4, "ink");
+    hLine(g, x + 1, y + 2, 2, "ink");
   }
+  // tealDeep grain (2px pairs)
+  hLine(g, 4, 3, 2, "tealDeep");
+  hLine(g, 10, 8, 2, "tealDeep");
+  hLine(g, 5, 13, 2, "tealDeep");
   g.px(6, 11, "mint"); // one soft glow
+  g.px(12, 4, "skyBlue");
+  g.px(13, 4, "skyBlue");
   return g;
 }
 
 /** Glowing moss bed — walkable and the BRIGHTEST floor in the set: the cold
  *  bioluminescent turf the crawlers grow their garden on. mint/jade lit crust
  *  over tealDeep, shot through with skyBlue and white sparks. */
+/** Redrawn for the 2.5D pass (G5, organic school): the cold luminous garden
+ *  turf as rounded jade cushions over teal, each cushion carrying a mint
+ *  lit arc, with paired skyBlue glints — no bands, no speckle. Still the
+ *  brightest floor in the set. */
 function glowMoss(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "teal");
-  g.rect(0, 0, TILE_SIZE, 5, "jade"); // brightest, lit from above by the glow
-  // luminous moss crust
-  for (const [x, y] of [
-    [1, 2],
-    [4, 1],
-    [8, 2],
-    [12, 1],
-    [2, 6],
-    [6, 7],
-    [10, 6],
-    [14, 7],
-    [3, 10],
-    [9, 11],
-    [13, 10],
-  ] as const) {
-    g.px(x, y, "mint");
-    g.px(x + 1, y, "skyBlue");
-  }
-  g.rect(0, 12, TILE_SIZE, 4, "tealDeep"); // shaded base
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "white" : "mint"); // glints in the glow
+  canopyLobes(g, seed, {
+    lobes: 5,
+    rMin: 2.2,
+    rMax: 3.4,
+    base: "jade",
+    highlight: "mint",
+    crevice: "tealDeep"
+  });
+  // cold skyBlue glints in the glow (2px pairs)
+  const rng = mulberry32(seed ^ 0x7717);
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = 1 + Math.floor(rng() * 14);
+    g.px(x, y, "skyBlue");
+    g.px(x + 1, y, "mint");
   }
   return g;
 }
@@ -437,8 +449,59 @@ function shellCluster(): PixelGrid {
   return g;
 }
 
-/** All 16 tiles in contract order (see TILE7_NAMES). */
+// ---------------------------------------------------------------------------
+// 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5).
+// ---------------------------------------------------------------------------
+
+/** 2x2 chip motif. */
+function chip7(c: "mint" | "slate"): PixelGrid {
+  const m = new PixelGrid(2, 2);
+  m.rect(0, 0, 2, 2, c);
+  return m;
+}
+
+/** The lit top of a reef wall run (§2 Cap): slate drowned stone, skyBlue
+ *  lit lip, biolight crusting the surface. */
+function reefWallCap(seed: number): PixelGrid {
+  const g = makeCap({
+    base: "slate",
+    lip: "skyBlue",
+    lipThickness: 2,
+    seed,
+    motifs: [chip7("mint"), chip7("slate")],
+    motifCount: 3
+  });
+  hLine(g, 2 + (seed % 4), 6, 3, "indigo"); // a hairline seam
+  // thin dark north edge (§2: north-facing edges stay thin — cap + edge line)
+  g.rect(0, 0, TILE_SIZE, 1, "indigo");
+  return g;
+}
+
+/** The vertical south face of a reef wall (§2 Face, G10): slate → indigo
+ *  gradient, broken strata, ink foot line and a cold biolight crack. */
+function reefWallFace(seed: number): PixelGrid {
+  const g = makeFace({ top: "slate", mid: "indigo", bottom: "indigo", foot: "ink", seed });
+  // break the gradient boundary with 2px cluster dither (G7)
+  clusterDither(g, { x: 0, y: 4, w: TILE_SIZE, h: 3 }, "slate", "indigo", seed ^ 0x55, {
+    density: 0.5
+  });
+  // biolight crusting a crack mid-face
+  g.px(4 + (seed % 4), 9, "mint");
+  g.px(5 + (seed % 4), 10, "skyBlue");
+  return g;
+}
+
+/** All contract tiles in order (see TILE7_NAMES). */
 export function tile7Frames(): PixelGrid[] {
+  // Silt owns its border against the reef floor: a floor band eaten into by
+  // clustered indigo silt fingers (organic school, no dither).
+  const siltFloor = makeEdgeSet(reefSilt(703), reefBase(701), {
+    style: "fingers",
+    fingerColor: "indigo",
+    bandDepth: 5,
+    seed: 730,
+    fingerOpts: { density: 0.5 }
+  });
   return [
     reefBase(701),
     reefBase(702),
@@ -456,5 +519,22 @@ export function tile7Frames(): PixelGrid[] {
     kelpCanopy(),
     seaAnemone(),
     shellCluster(),
+    // --- 2.5D dressing append (Phase Z) ---
+    reefWallCap(731),
+    reefWallCap(732),
+    reefWallFace(741),
+    reefWallFace(742),
+    makeShadeVariant(reefBase(701)),
+    makeShadeVariant(reefSilt(703)),
+    makeShadeVariant(glowMoss(704)),
+    makeShadeVariant(mintKelp()),
+    siltFloor.edges.n,
+    siltFloor.edges.e,
+    siltFloor.edges.s,
+    siltFloor.edges.w,
+    siltFloor.outerCorners.ne,
+    siltFloor.outerCorners.nw,
+    siltFloor.outerCorners.se,
+    siltFloor.outerCorners.sw,
   ];
 }

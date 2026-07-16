@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const SANCTUM_WIDTH = 26;
 export const SANCTUM_HEIGHT = 18;
@@ -69,6 +70,20 @@ export function buildSanctumMap(): ZoneMap {
   decor[3][22] = "chasm";
   decor[3][23] = "chasm";
   decor[3][24] = "chasm";
+  // Hand nudge: plain ice around the mouth so the dressing pass can lip its
+  // whole rim (mossGlow has no chasm-lip variants).
+  for (const [x, y] of [
+    [22, 2],
+    [23, 2],
+    [24, 2],
+    [21, 3],
+    [25, 3],
+    [22, 4],
+    [23, 4],
+    [24, 4]
+  ] as const) {
+    if (ground[y][x] === "mossGlow") ground[y][x] = "iceFloor";
+  }
   decor[5][22] = "crystalBig";
   decor[5][24] = "crystalBig";
 
@@ -91,5 +106,5 @@ export function buildSanctumMap(): ZoneMap {
     if (decor[1][x] === null && cellHash(x, 1) % 5 === 0) overhead[1][x] = "icicle";
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

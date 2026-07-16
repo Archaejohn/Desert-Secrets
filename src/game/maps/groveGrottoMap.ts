@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const GROTTO_WIDTH = 22;
 export const GROTTO_HEIGHT = 16;
@@ -71,8 +72,11 @@ export function buildGroveGrottoMap(): ZoneMap {
     decor.push([]);
     overhead.push([]);
     for (let x = 0; x < GROTTO_WIDTH; x++) {
-      const h = cellHash(x, y);
-      ground[y].push(h % 5 === 0 ? "groveGrass2" : "groveMoss");
+      // Grass shows through the moss in clustered clearings (2x2 blocks),
+      // not per-cell flecks, so the moss↔grass transitions read as authored
+      // patch boundaries instead of noise rings (§2/G9).
+      const grassPatch = cellHash(x >> 1, y >> 1) % 5 === 0;
+      ground[y].push(grassPatch ? "groveGrass2" : "groveMoss");
       decor[y].push(null);
       overhead[y].push(null);
     }
@@ -110,5 +114,5 @@ export function buildGroveGrottoMap(): ZoneMap {
   for (const [x, y] of VINE_ROCKS) decor[y][x] = "vineRock";
   for (const [x, y] of FERNS) decor[y][x] = "fern";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

@@ -41,7 +41,9 @@ const newSheets: Array<[string, PixelGrid, number, number]> = [
   ["crystalcrawler", assets.crystalcrawler, 144, 24],
   ["frostscarab", assets.frostscarab, 144, 24],
   ["warden", assets.warden, 192, 32],
-  ["tiles3", assets.tiles3, 128, 32]
+  // tiles3 grew two appended rows in the Phase Z 2.5D art pass (dressing
+  // tiles 16..31) — contract indices 0..15 are unchanged.
+  ["tiles3", assets.tiles3, 128, 64]
 ];
 
 /** [name, frames, frameSize, min adjacent-motion diff, min opaque px] */
@@ -63,14 +65,15 @@ describe("act2 sheet layout (contract §7)", () => {
     expect(png.height).toBe(h);
   });
 
-  it("miner holds 24 16x24 frames; creatures 6 square frames each; tiles3 16 tiles", () => {
+  it("miner holds 24 16x24 frames; creatures 6 square frames each; tiles3 32 tiles", () => {
     expect(minerFrames()).toHaveLength(24);
     for (const f of minerFrames()) expect([f.width, f.height]).toEqual([16, 24]);
     for (const [, frames, size] of creatures) {
       expect(frames).toHaveLength(6);
       for (const f of frames) expect([f.width, f.height]).toEqual([size, size]);
     }
-    expect(tile3Frames()).toHaveLength(16);
+    // 16 contract tiles + the 16 Phase Z dressing tiles (appended only).
+    expect(tile3Frames()).toHaveLength(32);
     for (const t of tile3Frames()) expect([t.width, t.height]).toEqual([16, 16]);
   });
 });
@@ -335,11 +338,14 @@ describe("act2 manifest", () => {
     }
   );
 
-  it("tiles3 has the complete contract name→index map", () => {
+  it("tiles3 keeps the contract name→index map (dressing tiles appended after)", () => {
     expect(manifest.tiles3.file).toBe("tiles3.png");
     expect(manifest.tiles3.tileSize).toBe(16);
     expect(manifest.tiles3.columns).toBe(8);
-    expect(manifest.tiles3.names).toEqual({
+    // The original 16 contract indices are frozen; the Phase Z dressing
+    // tiles append after them (additive only, ART_DIRECTION §7).
+    expect(Object.keys(manifest.tiles3.names)).toHaveLength(32);
+    expect(manifest.tiles3.names).toMatchObject({
       iceFloor: 0,
       iceFloor2: 1,
       iceWallDeep: 2,

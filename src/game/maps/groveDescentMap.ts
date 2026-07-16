@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const DESCENT_WIDTH = 20;
 export const DESCENT_HEIGHT = 14;
@@ -51,7 +52,9 @@ export function buildGroveDescentMap(): ZoneMap {
       const h = cellHash(x, y);
       let g: string;
       if (y >= 10) g = "sunbeam"; // the glow from the chamber below
-      else if (y >= 6) g = h % 3 === 0 ? "groveMoss" : "groveGrass2"; // moss creeps in
+      // Moss creeps in as clustered patches (2x2 blocks) so the dressing
+      // pass can author real moss↔grass transitions (§2/G9).
+      else if (y >= 6) g = cellHash(x >> 1, y >> 1) % 3 === 0 ? "groveMoss" : "groveGrass2";
       else g = h % 4 === 0 ? "campFloor2" : "campFloor"; // still cold plank up top
       ground[y].push(g);
       decor[y].push(null);
@@ -73,5 +76,5 @@ export function buildGroveDescentMap(): ZoneMap {
   // Solid rubble (walk-arounds — placed clear of the central corridor).
   for (const [x, y] of COLLAPSED) decor[y][x] = "collapsedRock";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

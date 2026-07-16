@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const ASCENT_WIDTH = 20;
 export const ASCENT_HEIGHT = 18;
@@ -96,5 +97,5 @@ export function buildSeaAscentMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

@@ -7,6 +7,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const SHED_WIDTH = 16;
 export const SHED_HEIGHT = 12;
@@ -79,5 +80,5 @@ export function buildShedMap(): ZoneMap {
     ground[1][x] = "sand2";
   }
 
-  return { ground, decor };
+  return dressMap({ ground, decor });
 }

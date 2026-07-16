@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const REEF_C_WIDTH = 22;
 export const REEF_C_HEIGHT = 16;
@@ -100,5 +101,5 @@ export function buildReefCourtMap(): ZoneMap {
   // Walkable glow decor.
   for (const [x, y] of ANEMONES) if (decor[y][x] === null) decor[y][x] = "seaAnemone";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

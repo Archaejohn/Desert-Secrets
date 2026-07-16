@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const SEA_WIDTH = 24;
 export const SEA_HEIGHT = 16;
@@ -103,5 +104,5 @@ export function buildSunlessSeaMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

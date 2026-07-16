@@ -13,9 +13,12 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { hLine } from "./fx";
+import { makeEdgeSet, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
-/** Contract tile order (row-major indices 0..15). */
+/** Contract tile order (row-major indices 0..15), plus the 2.5D dressing
+ *  append (indices 16..31, docs/ART_DIRECTION.md §2/§5 — additive only). */
 export const TILE4_NAMES = [
   "seaWater",
   "seaWater2",
@@ -32,7 +35,24 @@ export const TILE4_NAMES = [
   "anemone",
   "seaSparkle",
   "bubbles",
-  "mossRock"
+  "mossRock",
+  // --- 2.5D dressing append (Phase Z) ---
+  "floeSeaN",
+  "floeSeaE",
+  "floeSeaS",
+  "floeSeaW",
+  "floeSeaNE",
+  "floeSeaNW",
+  "floeSeaSE",
+  "floeSeaSW",
+  "floeSeaInNE",
+  "floeSeaInNW",
+  "floeSeaInSE",
+  "floeSeaInSW",
+  "templeFloorShade",
+  "templeGlyphShade",
+  "floeShade",
+  "kelpBedShade"
 ] as const;
 
 export type Tile4Name = (typeof TILE4_NAMES)[number];
@@ -57,23 +77,23 @@ function seaWater(phase: 0 | 1): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "tealDeep");
   const d = phase;
-  // deep patches
-  g.rect(2 + d, 5, 3, 2, "indigo");
-  g.rect(9 - d, 10, 4, 2, "indigo");
-  // ripple bands drift one pixel between the two frames
+  // 3-value ramp (§4a wave recipe): tealDeep body, rounded indigo swells,
+  // teal wave dashes — two per tile, loosely row-aligned, drifting.
+  g.rect(2 + d, 5, 4, 2, "indigo");
+  g.rect(9 - d, 11, 4, 2, "indigo");
   for (const [ry, len, rx] of [
-    [3, 5, 1],
-    [7, 3, 10],
-    [11, 4, 3],
-    [13, 3, 9]
+    [3, 5, 2],
+    [12, 4, 8]
   ] as const) {
     const y = (ry + d) % TILE_SIZE;
-    for (let i = 0; i < len; i++) g.px((rx + i + d) % TILE_SIZE, y, "teal");
+    const x = (rx + d) % TILE_SIZE;
+    hLine(g, x, y, len, "teal");
+    g.px(Math.min(x + len - 1, TILE_SIZE - 1), y - 1, "teal"); // the crest curls
   }
-  // bioluminescent plankton glints (mint) — the sea's own light
-  g.px((4 + d) % TILE_SIZE, (4 + d) % TILE_SIZE, "mint");
-  g.px((12 + d) % TILE_SIZE, 6, "mint");
-  g.px((7 + d) % TILE_SIZE, (12 + d) % TILE_SIZE, "mint");
+  // bioluminescent plankton (2px pairs — the sea's own light)
+  g.px((4 + d) % TILE_SIZE, 8, "mint");
+  g.px((5 + d) % TILE_SIZE, 8, "mint");
+  g.px((12 + d) % TILE_SIZE, (2 + d) % TILE_SIZE, "mint");
   return g;
 }
 
@@ -87,16 +107,17 @@ function floeBase(seed: number): PixelGrid {
   g.rect(3, 9, 10, 3, "sandLight");
   // shaded meltwater rim at the foot
   g.rect(0, 13, TILE_SIZE, 3, "skyBlue");
+  // melt-glint chips (2px motif clusters per G5, not per-pixel speckle)
   const rng = mulberry32(seed);
-  for (let i = 0; i < 6; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * 12);
-    g.px(x, y, rng() < 0.5 ? "white" : "bone");
+  for (let i = 0; i < 2; i++) {
+    const x = 3 + Math.floor(rng() * 9);
+    const y = 3 + Math.floor(rng() * 5);
+    hLine(g, x, y, 2, "white");
   }
-  // frozen seams
-  g.px(6, 5, "slate");
-  g.px(10, 8, "slate");
-  g.px(4, 11, "slate");
+  // frozen seams (2px dashes)
+  hLine(g, 6, 5, 2, "slate");
+  hLine(g, 10, 8, 2, "slate");
+  hLine(g, 4, 11, 2, "slate");
   return g;
 }
 
@@ -167,20 +188,26 @@ function reefGlow(seed: number): PixelGrid {
 function templeFloor(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
-  // flagstone courses
+  // flagstone subgrid: 8x8 flags with plum joints (speckle killed per G5)
   for (const y of [0, 8]) g.rect(0, y, TILE_SIZE, 1, "plum");
   for (const x of [0, 8]) g.rect(x, 0, 1, TILE_SIZE, "plum");
-  g.rect(4, 4, 1, TILE_SIZE, "plum");
-  g.rect(12, 4, 1, TILE_SIZE, "plum");
-  // submerged water sheen
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "skyBlue" : "slate");
+  // per-flag lit top-left bevel (G1) and a plum wear pocket low-right
+  for (const [fx, fy] of [
+    [1, 1],
+    [9, 1],
+    [1, 9],
+    [9, 9]
+  ] as const) {
+    hLine(g, fx, fy, 3, "clay");
+    g.px(fx, fy + 1, "clay");
+    g.px(fx + 5, fy + 5, "plum");
+    g.px(fx + 6, fy + 5, "plum");
   }
-  g.px(3, 2, "skyBlue");
-  g.px(11, 11, "skyBlue");
+  // one submerged water-sheen glint per tile (seeded position)
+  const rng = mulberry32(seed);
+  const x = 2 + Math.floor(rng() * 11);
+  const y = 2 + Math.floor(rng() * 11);
+  hLine(g, x, y, 2, "skyBlue");
   return g;
 }
 
@@ -234,10 +261,12 @@ function coral(): PixelGrid {
 function templePillar(): PixelGrid {
   return stamp(templeFloor(210), (l) => {
     l.rect(3, 0, 10, 2, "mauve"); // capital
+    l.rect(3, 0, 10, 1, "plum"); // dark against the ceiling (base-lit read)
     l.rect(4, 2, 8, 12, "mauve"); // shaft
     l.rect(3, 14, 10, 2, "mauve"); // base
-    for (let y = 2; y <= 13; y++) l.px(4, y, "clay"); // lit left edge
-    for (let y = 2; y <= 13; y++) l.px(11, y, "plum"); // shade
+    l.rect(3, 14, 10, 1, "clay"); // sea-glow catching the base from below
+    for (let y = 6; y <= 13; y++) l.px(4, y, "clay"); // lit lower-left edge
+    for (let y = 2; y <= 9; y++) l.px(11, y, "plum"); // shade up top
     // sun glyph carved mid-shaft
     l.px(7, 6, "amber");
     l.px(8, 6, "amber");
@@ -366,8 +395,23 @@ function mossRock(): PixelGrid {
   });
 }
 
-/** All 16 tiles in contract order (see TILE4_NAMES). */
+/** All contract tiles in order (see TILE4_NAMES). */
 export function tile4Frames(): PixelGrid[] {
+  // The floe coast ring (§4a/§5): land owns the border — dark slate lip,
+  // broken bone surf fringe, skyBlue shallow band, then open water whose
+  // pixels are copied from the seaWater tile so the seam continues.
+  const coast = makeEdgeSet(floeBase(202), seaWater(0), {
+    style: "surf",
+    seed: 430,
+    surfLip: "slate",
+    surfLipThickness: 2,
+    fringeColor: "bone",
+    fringeDepth: 2,
+    shallowColor: "skyBlue",
+    shallowDepth: 3,
+    waterDepth: 3,
+    innerCorners: true
+  });
   return [
     seaWater(0),
     seaWater(1),
@@ -384,6 +428,23 @@ export function tile4Frames(): PixelGrid[] {
     anemone(),
     seaSparkle(),
     bubbles(),
-    mossRock()
+    mossRock(),
+    // --- 2.5D dressing append (Phase Z) ---
+    coast.edges.n,
+    coast.edges.e,
+    coast.edges.s,
+    coast.edges.w,
+    coast.outerCorners.ne,
+    coast.outerCorners.nw,
+    coast.outerCorners.se,
+    coast.outerCorners.sw,
+    coast.innerCorners!.ne,
+    coast.innerCorners!.nw,
+    coast.innerCorners!.se,
+    coast.innerCorners!.sw,
+    makeShadeVariant(templeFloor(207)),
+    makeShadeVariant(templeGlyph()),
+    makeShadeVariant(floeBase(202)),
+    makeShadeVariant(kelpBed(205))
   ];
 }

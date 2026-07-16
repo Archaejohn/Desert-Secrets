@@ -2395,3 +2395,112 @@ updated to 56 tiles / 128×112), `npm run build`. `tiles.png` and
 in tests/pipeline/determinism.test.ts name it); every other sheet's pin
 is byte-identical. Visual gate previews live in `preview/` on the phase
 branch (`preview/render.mts` regenerates them).
+
+# v20: Phase Z — the 2.5D zone dressing pass (tiles3–tiles8)
+
+The zones half of the ART_DIRECTION.md upgrade (§2 grammar + §5 per-sheet
+priorities). Two deliverables: a rule-driven map post-pass, and the dressing
+tiles + redraws it consumes. Everything is additive; no existing tile index
+moved. tiles3–tiles8 were deliberately re-pinned in
+`tests/pipeline/determinism.test.ts` (tiles3 gains its first pin).
+
+## The dressing pass (`src/game/maps/dressing.ts`)
+
+`dressMap(map: ZoneMap): ZoneMap` — pure, deterministic, applied inside
+EVERY zone map builder, wrapping its return (all 38 zones;
+`overworldMap.ts` excluded — it belongs to Phase O). Rules, driven by the
+name registry exported from the same module:
+
+- **Faces/Caps** (decor): a registered wall cell whose south neighbour is
+  walkable becomes `<wall>Face`; a wall cell above a face in the same run,
+  or one whose north neighbour is walkable (a room's bottom wall), becomes
+  `<wall>Cap`. Two grains each (`Face2`/`Cap2`) alternate by `cellHash` so
+  long runs don't repeat.
+- **Foot shadows** (ground): a walkable cell whose north neighbour is a
+  face becomes `<floor>Shade` (shadow-LUT recolour of the same art);
+  registered walkable decor (`frostPrint`) shades along with it.
+- **Transitions** (ground, by 4-neighbour adjacency; owner per G9):
+  `iceFloor(2)` chasm lips, `floe(2)`↔`seaWater(2)` coast ring (with inner
+  corners), `groveMoss`→grass fingers, grass→`groveWater(2)` riverbank
+  lips, `sunbeam`→grass spilled-light fingers, `reefSilt`→reef-floor
+  fingers, `ashFloor`→ember seams (edges only).
+
+Contracts (unit-tested in `tests/game/dressing.test.ts`):
+
+- **Idempotent**: `dressMap(dressMap(m))` equals `dressMap(m)`. Rules see
+  variants as their base names and never rewrite a cell that already holds
+  a variant — which also means hand-placed dressed names survive.
+- **Tolerant**: unregistered names pass through (Act 1 maps dress to
+  themselves; tiles/tiles2 families are owned by parallel phases).
+- **Solidity is mechanical**: `isSolidName` in `types.ts` treats any
+  `Face`/`Face2`/`Cap`/`Cap2` suffix of a solid base name as solid; shade
+  and transition variants belong to walkable floors and stay walkable. No
+  per-variant listing. All 38 zones stay green on the BFS
+  enclosure/reachability suites with dressing applied.
+
+## Appended tiles (exact order; append-only after each sheet's index 15)
+
+- `tiles3` (+16, 8×4): iceWallDeepCap, iceWallDeepCap2, iceWallDeepFace,
+  iceWallDeepFace2, iceFloorShade, iceFloor2Shade, mossGlowShade,
+  lakeIceShade, iceFloorChasmN/E/S/W, iceFloorChasmNE/NW/SE/SW.
+- `tiles4` (+16, 8×4): floeSeaN/E/S/W, floeSeaNE/NW/SE/SW,
+  floeSeaInNE/InNW/InSE/InSW, templeFloorShade, templeGlyphShade,
+  floeShade, kelpBedShade.
+- `tiles5` (+8, 8×3): campWallCap, campWallCap2, campWallFace,
+  campWallFace2, campFloorShade, campFloor2Shade, campRugShade,
+  frostPrintShade.
+- `tiles6` (+32, 8×6): caveWallCap, caveWallCap2, caveWallFace,
+  caveWallFace2, groveGrassShade, groveMossShade, oldOrangeShade,
+  riverStoneShade, mossGrassN/E/S/W, mossGrassNE/NW/SE/SW,
+  grassWaterN/E/S/W, grassWaterNE/NW/SE/SW, sunGrassN/E/S/W,
+  sunGrassNE/NW/SE/SW.
+- `tiles7` (+16, 8×4): reefWallCap, reefWallCap2, reefWallFace,
+  reefWallFace2, reefFloorShade, reefSiltShade, glowMossShade,
+  mintKelpShade, siltFloorN/E/S/W, siltFloorNE/NW/SE/SW.
+- `tiles8` (+16, 8×4): basaltWallCap, basaltWallCap2, basaltWallFace,
+  basaltWallFace2, tileFloorShade, tileFloor2Shade, emberFloorShade,
+  emberFloor2Shade, ashFloorShade, lavaCrustShade, carvedStepShade,
+  ovenGlowShade, ashEmberN/E/S/W.
+
+Caps carry a 2px lit south lip and a 1px dark north edge line (§2's thin
+north-facing read); faces are G10 gradients with broken strata, cluster-
+dithered band boundaries (G7) and an ink foot line.
+
+## Redraws in place (same indices, re-pinned)
+
+- `tiles3`: iceFloor/iceFloor2 sheen bands + rubble chips (speckle killed,
+  G5); iceWallDeep calmed into a wall-top surface. All §7 Act-2 legibility
+  assertions still hold (floor ≥60% different and darker than the wall,
+  doorRime≠doorOpen, lakeIce≠lakeCrack, chasm ≥80% ink, amber lantern,
+  transparent icicle).
+- `tiles4`: seaWater wave recipe (3-value ramp + drifting dashes),
+  floe motif chips, templeFloor flagstone subgrid, templePillar base-lit.
+- `tiles5`: campFloor plank subgrid with lit board edges; campWall
+  becomes a wall-top brick texture; crate/crateStack/barrel/crateOpen get
+  lit tops and umber feet (G1/G4).
+- `tiles6`: groveGrass tuft motifs; groveMoss rounded lobed cushions;
+  sunbeam soft pooling (no hard band); caveWall top texture.
+- `tiles7`: reefFloor/reefSilt rounded pockets; glowMoss lobed luminous
+  turf; reefWater ripple recipe.
+- `tiles8`: emberFloor/ashFloor motif clusters; tileFloor bevelled checker
+  subgrid; lavaVent concentric glow ramp (rust→hpRed→amber→bone heart).
+
+## Map hand nudges (authored layouts that defeated the rules)
+
+- Grove/reef/pizzeria scatter floors clustered into 2×2/4×4 `cellHash`
+  block patches (groveChamber, groveApproach, sahraGrove, groveGrotto,
+  groveDescent, reefDescent, reefWarren, pizzaDescent, pizzaVent,
+  pizzaAscent) so transitions fire on real patch boundaries instead of
+  ringing single-cell noise.
+- crevasse/sanctum: ground orthogonally beside chasm pits normalized from
+  mossGlow to iceFloor so the whole rim takes the lip set.
+
+## Known gaps (deferred, deliberate)
+
+- tiles2 wall families (mineWall, stationWall) got no cap/face this wave —
+  that sheet is owned by the parallel overworld phase. galleries/depths
+  keep undressed mineWall runs, and mineFloor/frostSand take no foot
+  shadows, until those tiles exist.
+- glowMoss↔reefFloor and lakeIce↔iceFloor boundaries remain unauthored
+  (no tile budget this wave); orangeTreeCanopy still reads as per-tile
+  crowns rather than one merged canopy.

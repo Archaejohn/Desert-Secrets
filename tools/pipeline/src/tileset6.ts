@@ -19,6 +19,8 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { canopyLobes, clusterDither, ellipse, hLine } from "./fx";
+import { makeCap, makeEdgeSet, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
 /** Contract tile order (row-major indices 0..15). */
@@ -39,6 +41,39 @@ export const TILE6_NAMES = [
   "oldOrange",
   "needleCactus",
   "groveFlower",
+  // --- 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5) ---
+  "caveWallCap",
+  "caveWallCap2",
+  "caveWallFace",
+  "caveWallFace2",
+  "groveGrassShade",
+  "groveMossShade",
+  "oldOrangeShade",
+  "riverStoneShade",
+  "mossGrassN",
+  "mossGrassE",
+  "mossGrassS",
+  "mossGrassW",
+  "mossGrassNE",
+  "mossGrassNW",
+  "mossGrassSE",
+  "mossGrassSW",
+  "grassWaterN",
+  "grassWaterE",
+  "grassWaterS",
+  "grassWaterW",
+  "grassWaterNE",
+  "grassWaterNW",
+  "grassWaterSE",
+  "grassWaterSW",
+  "sunGrassN",
+  "sunGrassE",
+  "sunGrassS",
+  "sunGrassW",
+  "sunGrassNE",
+  "sunGrassNW",
+  "sunGrassSE",
+  "sunGrassSW",
 ] as const;
 
 export type Tile6Name = (typeof TILE6_NAMES)[number];
@@ -56,70 +91,51 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
   return base;
 }
 
-/** Lush river-fed grass — walkable. Jade/teal turf with mint highlights and
- *  a scatter of amber sun-flecks. `seed` varies the speckle grain. */
+/** Lush river-fed grass — walkable. Redrawn for the 2.5D pass (G5, SoM
+ *  organic school): a calm teal turf carrying 4 rounded jade tuft motifs
+ *  (arced blades with an occasional mint lit tip) and two tealDeep shade
+ *  pockets — no per-pixel speckle. `seed` varies the tuft layout. */
 function grassBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "teal");
-  // brighter jade blades in a loose weave
-  for (const [x, y] of [
-    [1, 2],
-    [5, 1],
-    [9, 3],
-    [13, 1],
-    [3, 6],
-    [11, 6],
-    [7, 8],
-    [2, 11],
-    [14, 10],
-    [6, 13],
-    [10, 13],
-  ] as const) {
-    g.px(x, y, "jade");
-    g.px(x, y + 1, "jade");
-  }
-  // deep tealDeep shade pockets
-  g.px(4, 9, "tealDeep");
-  g.px(12, 12, "tealDeep");
-  g.px(8, 4, "tealDeep");
   const rng = mulberry32(seed);
-  for (let i = 0; i < 6; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "mint" : "amber"); // dew + sun-flecks
+  // grass tufts: little 3-wide arcs of jade
+  for (let i = 0; i < 4; i++) {
+    const x = 1 + Math.floor(rng() * 12);
+    const y = 3 + Math.floor(rng() * 11);
+    g.px(x, y, "jade");
+    g.px(x + 1, y - 1, "jade");
+    g.px(x + 2, y, "jade");
+    if (rng() < 0.5) g.px(x + 1, y - 2, "mint"); // lit tip
+  }
+  // deep shade pockets (2px clusters)
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = 1 + Math.floor(rng() * 14);
+    hLine(g, x, y, 2, "tealDeep");
   }
   return g;
 }
 
-/** Mossy stone floor — walkable. Mauve rock furred over with jade/mint moss;
- *  a darker, cooler walkable grain than the open grass. */
+/** Mossy stone floor — walkable. Redrawn for the 2.5D pass (SoM organic
+ *  school): mauve rock with plum wear pockets, cushioned over by rounded
+ *  jade moss lobes with mint upper-left highlights — no bands, no speckle. */
 function groveMoss(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
-  g.rect(0, 10, TILE_SIZE, 6, "plum"); // shaded lower stone
-  // moss crust
-  for (const [x, y] of [
-    [1, 1],
-    [4, 2],
-    [8, 1],
-    [12, 2],
-    [2, 5],
-    [6, 5],
-    [10, 6],
-    [14, 5],
-    [3, 9],
-    [9, 10],
-    [13, 11],
-  ] as const) {
-    g.px(x, y, "jade");
-    g.px(x + 1, y, "teal");
-  }
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, "mint");
-  }
+  // plum wear pockets in the stone
+  hLine(g, 3, 12, 3, "plum");
+  hLine(g, 4, 13, 2, "plum");
+  hLine(g, 10, 3, 3, "plum");
+  // rounded moss cushions (5-8px lobes, NNW-lit)
+  canopyLobes(g, seed, {
+    lobes: 6,
+    rMin: 1.8,
+    rMax: 2.6,
+    base: "jade",
+    highlight: "mint",
+    crevice: "tealDeep"
+  });
   return g;
 }
 
@@ -129,69 +145,66 @@ function groveMoss(seed: number): PixelGrid {
 function sunbeam(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "sandLight");
-  g.rect(0, 0, TILE_SIZE, 6, "bone"); // brightest at the top of the shaft
-  // warm amber pooling
-  for (const [x, y] of [
-    [2, 8],
-    [6, 10],
-    [10, 9],
-    [13, 12],
-    [4, 13],
-    [8, 6],
-  ] as const) {
-    g.px(x, y, "amber");
-  }
-  // a few jade blades poke through the light
-  g.px(3, 11, "jade");
-  g.px(11, 13, "jade");
-  g.px(7, 12, "jade");
   const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "white" : "sandLight"); // motes in the light
+  // soft bone pooling — rounded patches, no hard rectangle (§5: the beam is
+  // a soft additive column, not a painted band)
+  for (let i = 0; i < 2; i++) {
+    const cx = 3 + Math.floor(rng() * 10);
+    const cy = 3 + Math.floor(rng() * 10);
+    ellipse(g, cx, cy, 2.5, 1.8, "bone");
   }
+  // warm amber pooling at the beam's soft edges (2px clusters)
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = 1 + Math.floor(rng() * 14);
+    hLine(g, x, y, 2, "amber");
+  }
+  // a few jade blades poke through the light (paired, no lone pixels)
+  g.px(3, 11, "jade");
+  g.px(4, 10, "jade");
+  g.px(11, 13, "jade");
+  g.px(12, 12, "jade");
   return g;
 }
 
 /** Cinnabar cave wall — SOLID. Dark ink/plum stone with a rust-cinnabar vein
  *  and a little jade moss creeping up from the grove; clearly the darkest,
  *  heaviest tile so the walls read hard against the lush floor. */
+/** Redrawn for the 2.5D pass as the TOP of the cave-wall mass (its south
+ *  facade now comes from `caveWallFace`): plum rock, ink fissures, a
+ *  cinnabar vein, mauve facet chips and creeping moss — no full-width
+ *  bands, no speckle. Still the darkest, heaviest tile in the set. */
 function caveWall(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "plum");
-  g.rect(0, 11, TILE_SIZE, 5, "ink"); // shadowed base
-  g.rect(0, 0, TILE_SIZE, 1, "mauve"); // faint lit top
-  // cinnabar (rust) ore veins
-  for (const [x, y] of [
-    [3, 3],
-    [4, 4],
-    [10, 2],
-    [11, 3],
-    [7, 6],
-    [12, 9],
-  ] as const) {
-    g.px(x, y, "rust");
-  }
-  // mortar cracks
+  // ink fissures (staggered)
   for (const [x, y] of [
     [5, 2],
     [9, 6],
     [2, 8],
     [13, 5],
+    [7, 12],
   ] as const) {
     g.rect(x, y, 1, 3, "ink");
   }
-  // moss creeping in from below
-  g.px(1, 11, "jade");
-  g.px(6, 12, "jade");
-  g.px(14, 11, "teal");
-  const rng = mulberry32(seed);
-  for (let i = 0; i < 4; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * 10);
-    g.px(x, y, "mauve");
+  // cinnabar (rust) ore vein wandering through
+  for (const [x, y] of [
+    [3, 3],
+    [4, 4],
+    [10, 2],
+    [11, 3],
+    [12, 9],
+    [6, 7],
+  ] as const) {
+    g.px(x, y, "rust");
   }
+  // mauve facet chips catching what little light reaches the rock
+  const rng = mulberry32(seed);
+  hLine(g, 2 + Math.floor(rng() * 4), 1, 3, "mauve");
+  hLine(g, 8, 10, 3, "mauve");
+  // moss creeping across the foot
+  hLine(g, 1, 13, 2, "jade");
+  hLine(g, 12, 14, 2, "teal");
   return g;
 }
 
@@ -427,8 +440,85 @@ function groveFlower(): PixelGrid {
   return g;
 }
 
-/** All 16 tiles in contract order (see TILE6_NAMES). */
+// ---------------------------------------------------------------------------
+// 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5).
+// ---------------------------------------------------------------------------
+
+/** 2x2 chip motif. */
+function chip(c: "rust" | "jade"): PixelGrid {
+  const m = new PixelGrid(2, 2);
+  m.rect(0, 0, 2, 2, c);
+  return m;
+}
+
+/** The lit top of a cave-wall run (§2 Cap): mauve stone, clay lit lip,
+ *  cinnabar and moss chips on the surface. */
+function caveWallCap(seed: number): PixelGrid {
+  const g = makeCap({
+    base: "mauve",
+    lip: "clay",
+    lipThickness: 2,
+    seed,
+    motifs: [chip("rust"), chip("jade")],
+    motifCount: 3
+  });
+  hLine(g, 3 + (seed % 4), 8, 2, "plum"); // a hairline seam
+  // thin dark north edge (§2: north-facing edges stay thin — cap + edge line)
+  g.rect(0, 0, TILE_SIZE, 1, "plum");
+  return g;
+}
+
+/** The vertical south face of a cave wall (§2 Face, G10): mauve → plum
+ *  gradient, broken strata, ink foot line, a rust vein and moss overhang. */
+function caveWallFace(seed: number): PixelGrid {
+  const g = makeFace({ top: "mauve", mid: "plum", bottom: "plum", foot: "ink", seed });
+  // break the gradient boundary with 2px cluster dither (G7)
+  clusterDither(g, { x: 0, y: 4, w: TILE_SIZE, h: 3 }, "mauve", "plum", seed ^ 0x55, {
+    density: 0.5
+  });
+  // moss spilling over the lip above
+  hLine(g, 2 + (seed % 5), 0, 2, "jade");
+  hLine(g, 10, 0, 2, "teal");
+  // a glint of cinnabar mid-face
+  g.px(6 + (seed % 3), 7, "rust");
+  g.px(7 + (seed % 3), 8, "rust");
+  return g;
+}
+
+/** All contract tiles in order (see TILE6_NAMES). */
 export function tile6Frames(): PixelGrid[] {
+  // Moss owns its border against the grass: a grass band eaten into by
+  // rounded jade moss fingers (SoM organic school, hand-AA'd — no dither).
+  const mossGrass = makeEdgeSet(groveMoss(603), grassBase(601), {
+    style: "fingers",
+    fingerColor: "jade",
+    bandDepth: 5,
+    seed: 630,
+    fingerOpts: { density: 0.5 }
+  });
+  // The sunbeam's soft edge: the beam owns its border against the grass — a
+  // grass band with sandLight fingers of spilled light reaching into it, so
+  // the shaft has no hard rectangle edge (§5).
+  const sunGrass = makeEdgeSet(sunbeam(604), grassBase(601), {
+    style: "fingers",
+    fingerColor: "sandLight",
+    bandDepth: 4,
+    seed: 650,
+    fingerOpts: { density: 0.55 }
+  });
+  // The riverbank lip: grass owns its border against the grove river — dark
+  // turf lip, broken bone waterline glint, skyBlue shallows, open water.
+  const bank = makeEdgeSet(grassBase(601), groveWater(0), {
+    style: "surf",
+    seed: 640,
+    surfLip: "tealDeep",
+    surfLipThickness: 2,
+    fringeColor: "bone",
+    fringeDepth: 2,
+    shallowColor: "skyBlue",
+    shallowDepth: 2,
+    waterDepth: 3
+  });
   return [
     grassBase(601),
     grassBase(602),
@@ -446,5 +536,38 @@ export function tile6Frames(): PixelGrid[] {
     oldOrange(),
     needleCactus(),
     groveFlower(),
+    // --- 2.5D dressing append (Phase Z) ---
+    caveWallCap(631),
+    caveWallCap(632),
+    caveWallFace(641),
+    caveWallFace(642),
+    makeShadeVariant(grassBase(601)),
+    makeShadeVariant(groveMoss(603)),
+    makeShadeVariant(oldOrange()),
+    makeShadeVariant(riverStone()),
+    mossGrass.edges.n,
+    mossGrass.edges.e,
+    mossGrass.edges.s,
+    mossGrass.edges.w,
+    mossGrass.outerCorners.ne,
+    mossGrass.outerCorners.nw,
+    mossGrass.outerCorners.se,
+    mossGrass.outerCorners.sw,
+    bank.edges.n,
+    bank.edges.e,
+    bank.edges.s,
+    bank.edges.w,
+    bank.outerCorners.ne,
+    bank.outerCorners.nw,
+    bank.outerCorners.se,
+    bank.outerCorners.sw,
+    sunGrass.edges.n,
+    sunGrass.edges.e,
+    sunGrass.edges.s,
+    sunGrass.edges.w,
+    sunGrass.outerCorners.ne,
+    sunGrass.outerCorners.nw,
+    sunGrass.outerCorners.se,
+    sunGrass.outerCorners.sw,
   ];
 }

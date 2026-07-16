@@ -10,6 +10,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const PIZZA_V_WIDTH = 26;
 export const PIZZA_V_HEIGHT = 18;
@@ -75,7 +76,10 @@ export function buildPizzaVentMap(): ZoneMap {
     overhead.push([]);
     for (let x = 0; x < PIZZA_V_WIDTH; x++) {
       const h = cellHash(x, y);
-      ground[y].push(h % 6 === 0 ? "lavaCrust" : h % 3 === 0 ? "ashFloor" : "emberFloor");
+      // Ash in clustered drifts (4x4 blocks) so the ash↔ember seams are
+      // authored by the dressing pass instead of reading as noise (§2/G9).
+      const ashDrift = cellHash(x >> 2, y >> 2) % 3 === 0;
+      ground[y].push(ashDrift ? "ashFloor" : h % 6 === 0 ? "lavaCrust" : "emberFloor");
       decor[y].push(null);
       overhead[y].push(null);
     }
@@ -96,5 +100,5 @@ export function buildPizzaVentMap(): ZoneMap {
   for (const [x, y] of PIZZA_V_VENTS) decor[y][x] = "lavaVent";
   for (const [x, y] of BASALT) decor[y][x] = "basaltWall";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

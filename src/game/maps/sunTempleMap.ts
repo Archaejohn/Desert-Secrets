@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const SUNTEMPLE_WIDTH = 22;
 export const SUNTEMPLE_HEIGHT = 16;
@@ -97,5 +98,5 @@ export function buildSunTempleMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

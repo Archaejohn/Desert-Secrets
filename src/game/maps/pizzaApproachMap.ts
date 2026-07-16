@@ -8,6 +8,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const PIZZA_A_WIDTH = 24;
 export const PIZZA_A_HEIGHT = 16;
@@ -94,5 +95,5 @@ export function buildPizzaApproachMap(): ZoneMap {
   for (const [x, y] of OVEN_RELIC) decor[y][x] = "pizzaOven";
   for (const [x, y] of SIGNS) overhead[y][x] = "hangSign";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

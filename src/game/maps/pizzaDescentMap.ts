@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const PIZZA_D_WIDTH = 20;
 export const PIZZA_D_HEIGHT = 14;
@@ -52,7 +53,9 @@ export function buildPizzaDescentMap(): ZoneMap {
       let g: string;
       if (y >= 10) g = h % 3 === 0 ? "lavaCrust" : "emberFloor2"; // lava glow from below
       else if (y >= 5) g = h % 4 === 0 ? "emberFloor2" : "emberFloor";
-      else g = h % 3 === 0 ? "ashFloor" : "emberFloor"; // cooler up top
+      // Ash drifts in clustered patches (4x4 blocks) so the dressing pass
+      // can author real ash↔ember seams (§2/G9).
+      else g = cellHash(x >> 2, y >> 2) % 3 === 0 ? "ashFloor" : "emberFloor"; // cooler up top
       ground[y].push(g);
       decor[y].push(null);
       overhead[y].push(null);
@@ -73,5 +76,5 @@ export function buildPizzaDescentMap(): ZoneMap {
   // Solid basalt (walk-arounds — placed clear of the central corridor).
   for (const [x, y] of BASALT) decor[y][x] = "basaltWall";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

@@ -14,9 +14,12 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { clusterDither, hLine } from "./fx";
+import { makeCap, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
-/** Contract tile order (row-major indices 0..15). */
+/** Contract tile order (row-major indices 0..15), plus the 2.5D dressing
+ *  append (indices 16..23, docs/ART_DIRECTION.md §2/§5 — additive only). */
 export const TILE5_NAMES = [
   "campFloor",
   "campFloor2",
@@ -34,6 +37,15 @@ export const TILE5_NAMES = [
   "crateOpen",
   "stringLights",
   "laundryLine",
+  // --- 2.5D dressing append (Phase Z) ---
+  "campWallCap",
+  "campWallCap2",
+  "campWallFace",
+  "campWallFace2",
+  "campFloorShade",
+  "campFloor2Shade",
+  "campRugShade",
+  "frostPrintShade",
 ] as const;
 
 export type Tile5Name = (typeof TILE5_NAMES)[number];
@@ -51,11 +63,15 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
   return base;
 }
 
-/** Warm packed-plank camp floor — walkable. Clay boards with rust seams,
- *  sand highlights and a scatter of amber sawdust. `seed` varies speckle. */
+/** Warm packed-plank camp floor — walkable. Redrawn for the 2.5D pass:
+ *  a real board subgrid (each plank a lit sand top edge over a clay body,
+ *  rust seams, staggered joints) with two seeded knot motifs (G5) instead
+ *  of the per-pixel sawdust speckle. */
 function floorBase(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "clay");
+  // each plank's lit top edge (G1: light from the north)
+  for (const y of [0, 4, 8, 12]) g.rect(0, y, TILE_SIZE, 1, "sand");
   // plank seams every four rows
   for (const y of [3, 7, 11, 15]) g.rect(0, y, TILE_SIZE, 1, "rust");
   // staggered board joints
@@ -63,15 +79,12 @@ function floorBase(seed: number): PixelGrid {
   g.rect(11, 4, 1, 3, "rust");
   g.rect(3, 8, 1, 3, "rust");
   g.rect(9, 12, 1, 3, "rust");
-  // lit board faces
-  g.rect(1, 1, 3, 1, "sand");
-  g.rect(7, 5, 3, 1, "sand");
-  g.rect(12, 9, 3, 1, "sand");
+  // two seeded knot/sawdust motifs (2px clusters)
   const rng = mulberry32(seed);
-  for (let i = 0; i < 6; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "amber" : "sandLight");
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = [1, 5, 9, 13][Math.floor(rng() * 4)] + Math.floor(rng() * 2);
+    hLine(g, x, y, 2, rng() < 0.5 ? "amber" : "sandLight");
   }
   return g;
 }
@@ -100,30 +113,32 @@ function campRug(): PixelGrid {
   return g;
 }
 
-/** Gallery wall — SOLID. Dark mauve/plum stone, warm-lit top course, a few
- *  sandLight mortar flecks; clearly darker/heavier than the walkable floor. */
+/** Gallery wall — SOLID. Redrawn for the 2.5D pass as the TOP of the wall
+ *  mass (its south facade now comes from `campWallFace`): dark mauve stone
+ *  with plum brick coursing and staggered head joints, clearly darker and
+ *  heavier than the walkable floor. Speckle killed per G5 — two seeded
+ *  mortar-fleck motifs only. */
 function campWall(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
-  g.rect(0, 0, TILE_SIZE, 2, "clay"); // lit top course
-  g.rect(0, 2, TILE_SIZE, 1, "rust");
-  g.rect(0, 11, TILE_SIZE, 5, "plum"); // shadowed base courses
-  // mortar joints (brick coursing)
-  for (const y of [6, 11]) g.rect(0, y, TILE_SIZE, 1, "ink");
+  // brick coursing
+  for (const y of [3, 7, 11, 15]) g.rect(0, y, TILE_SIZE, 1, "plum");
+  // staggered head joints
   for (const [x, y] of [
-    [5, 3],
-    [11, 3],
-    [8, 7],
-    [3, 12],
-    [13, 12],
+    [5, 0],
+    [11, 4],
+    [3, 8],
+    [13, 8],
+    [8, 12],
   ] as const) {
-    g.rect(x, y, 1, 3, "ink");
+    g.rect(x, y, 1, 3, "plum");
   }
+  // two mortar-fleck motifs (2px)
   const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = 3 + Math.floor(rng() * 8);
-    g.px(x, y, "sandLight");
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = [1, 5, 9, 13][Math.floor(rng() * 4)] + Math.floor(rng() * 2);
+    hLine(g, x, y, 2, "sandLight");
   }
   return g;
 }
@@ -132,16 +147,17 @@ function campWall(seed: number): PixelGrid {
 function crate(): PixelGrid {
   return stamp(floorBase(511), (l) => {
     l.rect(2, 3, 12, 11, "clay");
-    l.rect(2, 3, 12, 1, "amber"); // lit top rail
+    l.rect(2, 3, 12, 2, "sand"); // lit top plane (G1)
+    l.rect(2, 5, 12, 1, "amber"); // lip under the lid
     l.rect(2, 3, 1, 11, "amber"); // lit left rail
     l.rect(13, 3, 1, 11, "rust"); // shaded right rail
-    l.rect(2, 13, 12, 1, "rust"); // shaded bottom rail
-    // plank seams + diagonal brace
-    for (let i = 0; i < 10; i++) {
-      l.px(3 + i, 4 + i, "rust");
-      l.px(12 - i, 4 + i, "rust");
+    l.rect(2, 13, 12, 1, "umber"); // shaded foot (G4)
+    // X-brace on the shaded front face
+    for (let i = 0; i < 7; i++) {
+      l.px(4 + i, 6 + i, "rust");
+      l.px(11 - i, 6 + i, "rust");
     }
-    l.px(8, 8, "amber");
+    l.px(8, 9, "amber");
   });
 }
 
@@ -152,16 +168,17 @@ function crateStack(): PixelGrid {
     // lower crate
     l.rect(2, 8, 12, 6, "clay");
     l.rect(2, 8, 12, 1, "amber");
-    l.rect(2, 13, 12, 1, "rust");
+    l.rect(2, 13, 12, 1, "umber"); // shaded foot (G4)
     l.px(8, 11, "rust");
-    // upper crate, offset
+    // upper crate, offset — its lid is the lit top plane (G1)
     l.rect(3, 1, 11, 7, "clay");
-    l.rect(3, 1, 11, 1, "amber");
+    l.rect(3, 1, 11, 2, "sand");
+    l.rect(3, 3, 11, 1, "amber");
     l.rect(3, 1, 1, 7, "amber");
     l.rect(13, 1, 1, 7, "rust");
     l.rect(3, 7, 11, 1, "rust");
-    for (let i = 0; i < 6; i++) l.px(4 + i, 2 + i, "rust"); // brace
-    l.px(8, 4, "amber");
+    for (let i = 0; i < 4; i++) l.px(5 + i, 3 + i, "rust"); // brace
+    l.px(8, 5, "amber");
   });
 }
 
@@ -170,13 +187,15 @@ function barrel(): PixelGrid {
   return stamp(floorBase(513), (l) => {
     l.rect(4, 2, 8, 12, "clay");
     l.rect(3, 4, 10, 8, "clay"); // bulging belly
+    l.rect(4, 2, 8, 2, "sand"); // lit lid plane (G1)
     l.rect(3, 5, 3, 6, "sand"); // lit stave
     l.rect(10, 5, 2, 6, "rust"); // shaded stave
+    l.rect(4, 12, 8, 2, "umber"); // shaded foot (G4)
     // iron hoops
     l.rect(3, 5, 10, 1, "slate");
     l.rect(3, 10, 10, 1, "slate");
-    l.rect(4, 2, 8, 1, "amber"); // lid rim
-    for (let y = 3; y <= 12; y++) l.px(7, y, "rust"); // stave seam
+    l.rect(4, 4, 8, 1, "amber"); // lid rim
+    for (let y = 5; y <= 11; y++) l.px(7, y, "rust"); // stave seam
   });
 }
 
@@ -282,8 +301,9 @@ function frostPrint(): PixelGrid {
 function crateOpen(): PixelGrid {
   return stamp(floorBase(520), (l) => {
     l.rect(2, 5, 12, 9, "clay");
-    l.rect(2, 5, 12, 1, "amber");
-    l.rect(2, 13, 12, 1, "rust");
+    l.rect(2, 5, 12, 1, "sand"); // lit broken rim (G1)
+    l.rect(2, 6, 12, 1, "amber");
+    l.rect(2, 13, 12, 1, "umber"); // shaded foot (G4)
     // sprung board + jagged hole
     l.rect(3, 3, 7, 1, "rust");
     l.px(9, 4, "ink");
@@ -337,7 +357,57 @@ function laundryLine(): PixelGrid {
   return g;
 }
 
-/** All 16 tiles in contract order (see TILE5_NAMES). */
+// ---------------------------------------------------------------------------
+// 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5).
+// ---------------------------------------------------------------------------
+
+/** 2x2 rust crack chip for the cap tops. */
+function rustChip(): PixelGrid {
+  const m = new PixelGrid(2, 2);
+  m.rect(0, 0, 2, 2, "rust");
+  return m;
+}
+
+/** The lit top of a camp gallery wall (§2 Cap): warm clay stone with a sand
+ *  lit lip along the south edge and a couple of rust crack motifs. */
+function campWallCap(seed: number): PixelGrid {
+  const g = makeCap({
+    base: "clay",
+    lip: "sand",
+    lipThickness: 2,
+    seed,
+    motifs: [rustChip()],
+    motifCount: 2
+  });
+  // faint coursing on the top surface
+  hLine(g, 2 + (seed % 4), 5, 3, "rust");
+  hLine(g, 9, 9 + (seed % 2), 3, "rust");
+  // thin dark north edge (§2: north-facing edges stay thin — cap + edge line)
+  g.rect(0, 0, TILE_SIZE, 1, "plum");
+  return g;
+}
+
+/** The vertical south face of a camp wall (§2 Face, G10): mauve → plum
+ *  gradient with ink brick courses and the ink foot line. */
+function campWallFace(seed: number): PixelGrid {
+  const g = makeFace({
+    top: "mauve",
+    mid: "plum",
+    bottom: "plum",
+    foot: "ink",
+    courseLine: "ink",
+    seed
+  });
+  // break the gradient boundary with 2px cluster dither (G7)
+  clusterDither(g, { x: 0, y: 4, w: TILE_SIZE, h: 3 }, "mauve", "plum", seed ^ 0x55, {
+    density: 0.5
+  });
+  // a couple of sandLight mortar glints up top where the string lights catch
+  hLine(g, 3 + (seed % 5), 2, 2, "clay");
+  return g;
+}
+
+/** All contract tiles in order (see TILE5_NAMES). */
 export function tile5Frames(): PixelGrid[] {
   return [
     floorBase(501),
@@ -356,5 +426,14 @@ export function tile5Frames(): PixelGrid[] {
     crateOpen(),
     stringLights(),
     laundryLine(),
+    // --- 2.5D dressing append (Phase Z) ---
+    campWallCap(531),
+    campWallCap(532),
+    campWallFace(541),
+    campWallFace(542),
+    makeShadeVariant(floorBase(501)),
+    makeShadeVariant(floorBase(502)),
+    makeShadeVariant(campRug()),
+    makeShadeVariant(frostPrint()),
   ];
 }

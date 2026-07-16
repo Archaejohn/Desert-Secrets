@@ -20,6 +20,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const MAZE_WIDTH = 44;
 export const MAZE_HEIGHT = 28;
@@ -188,5 +189,5 @@ export function buildMazeMap(): ZoneMap {
     }
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

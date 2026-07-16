@@ -9,6 +9,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const PIZZA_ASCENT_WIDTH = 20;
 export const PIZZA_ASCENT_HEIGHT = 18;
@@ -44,7 +45,9 @@ export function buildPizzaAscentMap(): ZoneMap {
       let g: string;
       if (y >= 12) g = h % 3 === 0 ? "lavaCrust" : "emberFloor";
       else if (y >= 6) g = h % 4 === 0 ? "ashFloor" : "carvedStep";
-      else g = h % 3 === 0 ? "emberFloor" : "ashFloor";
+      // Ember shows through the ash in clustered patches (2x2 blocks) so
+      // the ash↔ember seams read as authored drifts, not noise rings (§2/G9).
+      else g = cellHash(x >> 1, y >> 1) % 3 === 0 ? "emberFloor" : "ashFloor";
       ground[y].push(g);
       decor[y].push(null);
       overhead[y].push(null);
@@ -70,5 +73,5 @@ export function buildPizzaAscentMap(): ZoneMap {
     if (x !== PIZZA_ASCENT_GAP_UPPER.x) decor[PIZZA_ASCENT_WALL_UPPER_Y][x] = "basaltWall";
   }
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

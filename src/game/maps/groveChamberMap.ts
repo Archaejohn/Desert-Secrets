@@ -12,6 +12,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const CHAMBER_WIDTH = 30;
 export const CHAMBER_HEIGHT = 20;
@@ -97,8 +98,11 @@ export function buildGroveChamberMap(): ZoneMap {
     decor.push([]);
     overhead.push([]);
     for (let x = 0; x < CHAMBER_WIDTH; x++) {
+      // Moss grows in clustered patches (4x4 blocks), not per-cell scatter,
+      // so the dressing pass can author real moss↔grass transitions (§2/G9).
       const h = cellHash(x, y);
-      ground[y].push(h % 7 === 0 ? "groveMoss" : h % 3 === 0 ? "groveGrass2" : "groveGrass");
+      const mossPatch = cellHash(x >> 2, y >> 2) % 5 === 0;
+      ground[y].push(mossPatch ? "groveMoss" : h % 3 === 0 ? "groveGrass2" : "groveGrass");
       decor[y].push(null);
       overhead[y].push(null);
     }
@@ -160,5 +164,5 @@ export function buildGroveChamberMap(): ZoneMap {
   // Walkable decor.
   for (const [x, y] of FLOWERS) if (decor[y][x] === null) decor[y][x] = "groveFlower";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

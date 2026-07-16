@@ -94,8 +94,26 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "stoneColumn"
 ];
 
+const SOLID_SET = new Set(SOLID_TILE_NAMES);
+
+/**
+ * Dressed wall-role suffixes (see `dressing.ts` / docs/ART_DIRECTION.md §2).
+ * Solidity is extended MECHANICALLY: every `<wall>Face` / `<wall>Cap` of a
+ * solid base is solid. Every other dressed variant (`<floor>Shade`,
+ * transition/lip tiles) belongs to a walkable base and is simply absent from
+ * the solid set, so it stays walkable without listing.
+ */
+const SOLID_ROLE_SUFFIXES = ["Face", "Face2", "Cap", "Cap2"] as const;
+
 export function isSolidName(name: string | null): boolean {
-  return name !== null && SOLID_TILE_NAMES.includes(name);
+  if (name === null) return false;
+  if (SOLID_SET.has(name)) return true;
+  for (const suffix of SOLID_ROLE_SUFFIXES) {
+    if (name.length > suffix.length && name.endsWith(suffix)) {
+      if (SOLID_SET.has(name.slice(0, -suffix.length))) return true;
+    }
+  }
+  return false;
 }
 
 export function mapSize(map: ZoneMap): { width: number; height: number } {

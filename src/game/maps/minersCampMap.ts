@@ -10,6 +10,7 @@
  */
 import { cellHash } from "./cellHash";
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const CAMP_WIDTH = 22;
 export const CAMP_HEIGHT = 14;
@@ -95,5 +96,5 @@ export function buildMinersCampMap(): ZoneMap {
   for (const x of [9, 12]) overhead[11][x] = "stringLights";
   overhead[9][11] = "stringLights";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }

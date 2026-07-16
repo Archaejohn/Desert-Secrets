@@ -17,6 +17,8 @@
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { clusterDither, ellipse, hLine } from "./fx";
+import { makeCap, makeEdgeSet, makeFace, makeShadeVariant } from "./tilecraft";
 import { TILE_SIZE } from "./tileset";
 
 /** Contract tile order (row-major indices 0..15). */
@@ -37,6 +39,23 @@ export const TILE8_NAMES = [
   "hangSign",
   "ovenGlow",
   "steamCrack",
+  // --- 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5) ---
+  "basaltWallCap",
+  "basaltWallCap2",
+  "basaltWallFace",
+  "basaltWallFace2",
+  "tileFloorShade",
+  "tileFloor2Shade",
+  "emberFloorShade",
+  "emberFloor2Shade",
+  "ashFloorShade",
+  "lavaCrustShade",
+  "carvedStepShade",
+  "ovenGlowShade",
+  "ashEmberN",
+  "ashEmberE",
+  "ashEmberS",
+  "ashEmberW",
 ] as const;
 
 export type Tile8Name = (typeof TILE8_NAMES)[number];
@@ -56,56 +75,58 @@ function stamp(base: PixelGrid, draw: (layer: PixelGrid) => void): PixelGrid {
 
 /** Warm volcanic floor — walkable. Dark basalt plum/ink shot through with ember
  *  motes glowing up from below; a few slate grains. `seed`/`warm` vary it. */
+/** Redrawn for the 2.5D pass (G5): dark basalt — plum body with rounded ink
+ *  hollows between the stones and 2–3 paired ember-glow motifs seeping up
+ *  through the cracks. No half-tile band, no per-pixel speckle. */
 function emberFloor(seed: number, warm: boolean): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "plum");
-  g.rect(0, 10, TILE_SIZE, 6, "ink"); // shaded lower floor
-  for (const [x, y] of [
-    [2, 3],
-    [7, 2],
-    [11, 5],
-    [14, 4],
-    [4, 8],
-    [9, 9],
-    [13, 11],
-    [3, 13],
-    [8, 12],
-    [12, 14],
-  ] as const) {
-    g.px(x, y, "slate");
-  }
   const rng = mulberry32(seed);
-  for (let i = 0; i < 6; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    // ember motes glowing up between the stones
-    g.px(x, y, rng() < 0.5 ? "amber" : warm ? "rust" : "hpRed");
+  // rounded ink hollows (crack pockets between crust plates)
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 11);
+    const y = 2 + Math.floor(rng() * 11);
+    hLine(g, x + 1, y, 2, "ink");
+    hLine(g, x, y + 1, 4, "ink");
   }
+  // ember motifs: a warm pair glowing in a crack (amber head, ramp tail)
+  const embers = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < embers; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = 1 + Math.floor(rng() * 14);
+    g.px(x, y, "amber");
+    g.px(x + 1, y, warm ? "rust" : "hpRed");
+  }
+  // slate grit chips
+  hLine(g, 3, 5, 2, "slate");
+  hLine(g, 11, 12, 2, "slate");
   return g;
 }
 
 /** Ashen floor — walkable. A cooler gray drift of volcanic ash: slate/mauve
  *  base with pale bone/sand ash flecks. */
+/** Redrawn for the 2.5D pass (G5): cool ash — mauve body with rounded plum
+ *  drift hollows and 2–3 pale ash-fleck motifs (2px). No band, no speckle. */
 function ashFloor(seed: number): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
-  g.rect(0, 9, TILE_SIZE, 7, "plum"); // shaded base
-  for (const [x, y] of [
-    [3, 2],
-    [8, 3],
-    [12, 2],
-    [5, 6],
-    [10, 7],
-    [14, 6],
-  ] as const) {
-    g.px(x, y, "slate");
-  }
   const rng = mulberry32(seed);
-  for (let i = 0; i < 5; i++) {
-    const x = Math.floor(rng() * TILE_SIZE);
-    const y = Math.floor(rng() * TILE_SIZE);
-    g.px(x, y, rng() < 0.5 ? "bone" : "sand"); // ash
+  // rounded plum drift hollows
+  for (let i = 0; i < 2; i++) {
+    const x = 1 + Math.floor(rng() * 11);
+    const y = 2 + Math.floor(rng() * 11);
+    hLine(g, x + 1, y, 3, "plum");
+    hLine(g, x, y + 1, 4, "plum");
   }
+  // pale ash flecks settling in pairs
+  for (let i = 0; i < 3; i++) {
+    const x = 1 + Math.floor(rng() * 13);
+    const y = 1 + Math.floor(rng() * 14);
+    hLine(g, x, y, 2, rng() < 0.5 ? "bone" : "sand");
+  }
+  // slate grit
+  hLine(g, 4, 4, 2, "slate");
+  hLine(g, 10, 11, 2, "slate");
   return g;
 }
 
@@ -168,27 +189,26 @@ function basaltWall(seed: number): PixelGrid {
 /** Molten lava vent — SOLID + animated. Glowing hpRed/rust magma veined with
  *  amber/atbGold and a black crust skin; `phase` drifts the glow so lavaVent ↔
  *  lavaVent2 churn. The heat and light of the whole act. */
+/** Redrawn for the 2.5D pass (§5 glow ramp): a molten eye — rust cooled rim
+ *  ramping through hpRed and amber to a white-hot bone centre, with crust
+ *  chips riding the melt. `phase` swings the hot centre so lavaVent ↔
+ *  lavaVent2 churn. */
 function lavaVent(phase: 0 | 1): PixelGrid {
   const g = tile();
   const d = phase;
-  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "hpRed"); // molten base
-  g.rect(0, 9, TILE_SIZE, 7, "rust"); // cooler deep pool
-  // bright molten runnels drifting with the phase
-  for (const [ry, len, rx] of [
-    [2, 6, 1],
-    [6, 4, 8],
-    [10, 5, 2],
-    [13, 4, 9],
-  ] as const) {
-    const y = (ry + d) % TILE_SIZE;
-    for (let i = 0; i < len; i++) g.px((rx + i + d) % TILE_SIZE, y, "amber");
-  }
-  // hottest atbGold sparks + a couple of black crust chips
-  g.px((4 + d) % TILE_SIZE, (4 + d) % TILE_SIZE, "atbGold");
-  g.px((11 + d) % TILE_SIZE, 7, "atbGold");
-  g.px((7 + d) % TILE_SIZE, (12 + d) % TILE_SIZE, "sandLight");
-  g.px((3 + d) % TILE_SIZE, 3, "ink"); // crust skin
-  g.px((13 + d) % TILE_SIZE, 11, "ink");
+  // the glow ramp, outside-in: rust rim → hpRed melt → amber pool → bone heart
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "rust");
+  ellipse(g, 7.5 + d, 7.5 - d, 6.5, 6, "hpRed");
+  ellipse(g, 7.5 + d, 7.5 - d, 4.2, 3.8, "amber");
+  ellipse(g, 7 + d * 2, 7 - d, 1.8, 1.4, "bone");
+  g.px(7 + d * 2, 7 - d, "white"); // the white-hot core spark
+  // atbGold flares circling the pool
+  g.px((4 + d * 3) % TILE_SIZE, 5, "atbGold");
+  g.px((11 - d * 3) % TILE_SIZE, 10, "atbGold");
+  // black crust chips riding the melt (2px, drifting)
+  hLine(g, (2 + d) % TILE_SIZE, 2, 2, "ink");
+  hLine(g, (12 + d) % TILE_SIZE, 13, 2, "ink");
+  hLine(g, (13 - d) % TILE_SIZE, 4, 2, "ink");
   return g;
 }
 
@@ -214,8 +234,11 @@ function lavaCrust(): PixelGrid {
   });
 }
 
-/** Restaurant checker floor — walkable. Warm sand/clay tiles with bone grout;
- *  `alt` flips the checker so tileFloor/tileFloor2 lay a real diamond floor. */
+/** Restaurant checker floor — walkable. Redrawn for the 2.5D pass: the 8×8
+ *  two-square checker gains a real tile subgrid — bone grout on both axes,
+ *  a sandLight lit bevel along each square's top-left (G1) and a rust worn
+ *  edge low-right. `alt` flips the checker so tileFloor/tileFloor2 lay a
+ *  real diamond floor. */
 function tileFloor(alt: boolean): PixelGrid {
   const g = tile();
   g.rect(0, 0, TILE_SIZE, TILE_SIZE, "clay");
@@ -226,11 +249,21 @@ function tileFloor(alt: boolean): PixelGrid {
       if (light) g.rect(cx * 8, cy * 8, 8, 8, "sand");
     }
   }
-  // bone grout lines
+  // bone grout between the squares
   g.rect(0, 7, TILE_SIZE, 1, "bone");
   g.rect(7, 0, 1, TILE_SIZE, "bone");
-  g.px(0, 0, "sandLight");
-  g.px(8, 8, "sandLight");
+  // each square's lit top-left bevel and worn low-right edge
+  for (const [qx, qy] of [
+    [0, 0],
+    [8, 0],
+    [0, 8],
+    [8, 8],
+  ] as const) {
+    const light = ((qx >> 3) + (qy >> 3)) % 2 === (alt ? 1 : 0);
+    hLine(g, qx, qy, 3, light ? "sandLight" : "sand");
+    g.px(qx, qy + 1, light ? "sandLight" : "sand");
+    hLine(g, qx + 4, qy + 6, 2, "rust");
+  }
   return g;
 }
 
@@ -352,8 +385,64 @@ function steamCrack(): PixelGrid {
   return g;
 }
 
-/** All 16 tiles in contract order (see TILE8_NAMES). */
+// ---------------------------------------------------------------------------
+// 2.5D dressing append (Phase Z, docs/ART_DIRECTION.md §2/§5).
+// ---------------------------------------------------------------------------
+
+/** 2x2 slate facet chip for the cap tops. */
+function slateChip(): PixelGrid {
+  const m = new PixelGrid(2, 2);
+  m.rect(0, 0, 2, 2, "slate");
+  return m;
+}
+
+/** The lit top of a basalt wall run (§2 Cap): plum volcanic stone with
+ *  slate facet chips, a mauve lit lip and one ember seam. */
+function basaltWallCap(seed: number): PixelGrid {
+  const g = makeCap({
+    base: "plum",
+    lip: "mauve",
+    lipThickness: 2,
+    seed,
+    motifs: [slateChip()],
+    motifCount: 3
+  });
+  // a hot hairline seam glowing on the top surface
+  g.px(4 + (seed % 5), 6, "amber");
+  g.px(5 + (seed % 5), 6, "rust");
+  // thin dark north edge (§2: north-facing edges stay thin — cap + edge line)
+  g.rect(0, 0, TILE_SIZE, 1, "ink");
+  return g;
+}
+
+/** The vertical south face of a basalt wall (§2 Face, G10): mauve → plum
+ *  gradient into near-black, strata courses, ink foot — and a thin amber
+ *  glow seam near the foot where the vents' light catches the rock. */
+function basaltWallFace(seed: number): PixelGrid {
+  const g = makeFace({ top: "mauve", mid: "plum", bottom: "plum", foot: "ink", seed });
+  // break the gradient boundary with 2px cluster dither (G7)
+  clusterDither(g, { x: 0, y: 4, w: TILE_SIZE, h: 3 }, "mauve", "plum", seed ^ 0x55, {
+    density: 0.5
+  });
+  // vent-light seam near the foot (a motif, not a light source)
+  g.px(3 + (seed % 6), 13, "rust");
+  g.px(4 + (seed % 6), 13, "amber");
+  g.px(5 + (seed % 6), 13, "rust");
+  return g;
+}
+
+/** All contract tiles in order (see TILE8_NAMES). */
 export function tile8Frames(): PixelGrid[] {
+  // Ash owns its border against the ember stone: clustered mauve ash
+  // fingers reaching into a band of ember floor (edges only — the drifts
+  // are authored as bands, so corners never show).
+  const ashEmber = makeEdgeSet(ashFloor(805), emberFloor(803, false), {
+    style: "fingers",
+    fingerColor: "mauve",
+    bandDepth: 4,
+    seed: 830,
+    fingerOpts: { density: 0.5 }
+  });
   return [
     emberFloor(803, false),
     emberFloor(804, true),
@@ -371,5 +460,22 @@ export function tile8Frames(): PixelGrid[] {
     hangSign(),
     ovenGlow(),
     steamCrack(),
+    // --- 2.5D dressing append (Phase Z) ---
+    basaltWallCap(831),
+    basaltWallCap(832),
+    basaltWallFace(841),
+    basaltWallFace(842),
+    makeShadeVariant(tileFloor(false)),
+    makeShadeVariant(tileFloor(true)),
+    makeShadeVariant(emberFloor(803, false)),
+    makeShadeVariant(emberFloor(804, true)),
+    makeShadeVariant(ashFloor(805)),
+    makeShadeVariant(lavaCrust()),
+    makeShadeVariant(carvedStep()),
+    makeShadeVariant(ovenGlow()),
+    ashEmber.edges.n,
+    ashEmber.edges.e,
+    ashEmber.edges.s,
+    ashEmber.edges.w,
   ];
 }

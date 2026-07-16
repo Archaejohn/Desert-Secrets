@@ -9,6 +9,7 @@
  * so the map is otherwise enclosed. No random encounters.
  */
 import type { ZoneMap } from "./types";
+import { dressMap } from "./dressing";
 
 export const PIZZA_P_WIDTH = 26;
 export const PIZZA_P_HEIGHT = 18;
@@ -130,5 +131,5 @@ export function buildPizzeriaMap(): ZoneMap {
   for (const [x, y] of VENTS) decor[y][x] = "lavaVent";
   for (const [x, y] of SIGNS) overhead[y][x] = "hangSign";
 
-  return { ground, decor, overhead };
+  return dressMap({ ground, decor, overhead });
 }
