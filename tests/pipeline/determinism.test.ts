@@ -50,14 +50,28 @@ describe("pre-act2 asset byte-stability", () => {
     gila: "8eb0b4071b8b8932c1729c5668553b328be8578c521e3fe2827d326935b0740e",
     foreman: "3a19d6645c9811766b263a7d4545cb3ccef9d07f4e7ef394acda26efac77b3d6",
     queen: "0310d5f91f7cc5fe1cee632196247bd1c8850634648468166140e068ae0fd06d",
-    // Deliberately re-pinned twice: first for docs/CONTRACTS.md "v9" (the
-    // eight appended mountain-ridge tiles), and again for the Phase O
-    // overworld art pass (docs/ART_DIRECTION.md §4a): mountain1–8 redrawn
-    // in place with the FF6 3/4-view recipe, all per-pixel speckle replaced
-    // by 2×2 motif clusters, and three rows appended (scree/shade tiles,
-    // the coast surf ring, the sand↔scree finger set). Indices 0..31
-    // unmoved; the appendix occupies 32..55 only.
-    tiles2: "6c79ca4745aa7a4e87aa552ff84fc01479288cb33847e2d5832e10cd3adbc985"
+    // Deliberately re-pinned four times: first for docs/CONTRACTS.md "v9"
+    // (the eight appended mountain-ridge tiles), again for the Phase O
+    // overworld art pass (docs/ART_DIRECTION.md §4a: mountain1–8 redrawn in
+    // place, plus scree/shade/coast/screeSand appended, indices 0..31
+    // unmoved, appendix at 32..55), again 2026-07-16 for docs/CONTRACTS.md
+    // "v22"'s first pass (the overworld map-expansion: screeWater, the
+    // road autotile, the town dressing kit), and a fourth time the same
+    // day for v22's rework: the project owner rejected the hand-drawn
+    // rectangle spine / ellipse lake AND the coast* straight-edge shore
+    // tiles once the lake stopped being a clean ellipse. coastN/E/S/W/NE/
+    // NW/SE/SW/InNE/InNW/InSE/InSW (12 tiles, formerly 36..47) were
+    // REMOVED — superseded by the new 16-mask lakeShore0..15 tileset
+    // (built from owMountains' own rounded-corner geometry, extracted to
+    // roundedMask.ts for reuse) — and the town kit grew from 8 to 12 tiles
+    // (townWall4/townRoof3/townWindow2/townDoor2 added) purely to keep the
+    // sheet's fixed-8-column layout an even multiple after the coast
+    // removal. Every tile from screeSand onward was renumbered downward by
+    // 12 as a result — a deliberate one-time reshuffle while this whole
+    // feature was still unshipped/uncommitted, not an append-only
+    // violation of any previously-shipped index. Sheet grew from 88 to 96
+    // tiles (128x176 -> 128x192).
+    tiles2: "1ea690b9158e0ab6fd32a11c7d38277939d1f4a5c55578989ddc2a6a1742cb02"
   } as const;
 
   it("all twelve pre-act2 sheets still encode to their committed bytes", () => {

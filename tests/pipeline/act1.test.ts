@@ -31,7 +31,7 @@ const newSheets: Array<[string, PixelGrid, number, number]> = [
   ["gila", assets.gila, 144, 24],
   ["foreman", assets.foreman, 144, 24],
   ["queen", assets.queen, 192, 32],
-  ["tiles2", assets.tiles2, 128, 112]
+  ["tiles2", assets.tiles2, 128, 192]
 ];
 
 /** [name, frames, frameSize, min adjacent-motion diff, min opaque px] */
@@ -53,14 +53,18 @@ describe("act1 sheet layout (contract §4)", () => {
     expect(png.height).toBe(h);
   });
 
-  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 56 tiles", () => {
+  it("rosa holds 24 16x24 frames; creatures 6 square frames each; tiles2 96 tiles", () => {
     expect(rosaFrames()).toHaveLength(24);
     for (const f of rosaFrames()) expect([f.width, f.height]).toEqual([16, 24]);
     for (const [, frames, size] of creatures) {
       expect(frames).toHaveLength(6);
       for (const f of frames) expect([f.width, f.height]).toEqual([size, size]);
     }
-    expect(tile2Frames()).toHaveLength(56);
+    // 56 pre-v22, minus the 12 coast* tiles removed for v22's lakeShore
+    // rework (docs/CONTRACTS.md "v22"), plus the v22 appendix: 8
+    // screeWater + 16 road + 12 town (8 original + 4 added to keep the
+    // sheet's fixed 8-column layout an even multiple) + 16 lakeShore.
+    expect(tile2Frames()).toHaveLength(56 - 12 + 8 + 16 + 12 + 16);
     for (const t of tile2Frames()) expect([t.width, t.height]).toEqual([16, 16]);
   });
 });
@@ -279,26 +283,76 @@ describe("act1 manifest", () => {
       scree2: 33,
       screeShade: 34,
       sandShade: 35,
-      coastN: 36,
-      coastE: 37,
-      coastS: 38,
-      coastW: 39,
-      coastNE: 40,
-      coastNW: 41,
-      coastSE: 42,
-      coastSW: 43,
-      coastInNE: 44,
-      coastInNW: 45,
-      coastInSE: 46,
-      coastInSW: 47,
-      screeSandN: 48,
-      screeSandE: 49,
-      screeSandS: 50,
-      screeSandW: 51,
-      screeSandNE: 52,
-      screeSandNW: 53,
-      screeSandSE: 54,
-      screeSandSW: 55
+      // coastN/E/S/W/NE/NW/SE/SW/InNE/InNW/InSE/InSW (the old 12-tile
+      // straight-edge sand<->water surf ring) used to live at 36..47.
+      // REMOVED for docs/CONTRACTS.md "v22" — superseded by the
+      // lakeShore0..15 mask-based autotile at the end of this map (see
+      // tileset2.ts's removal note on TILE2_NAMES for why).
+      screeSandN: 36,
+      screeSandE: 37,
+      screeSandS: 38,
+      screeSandW: 39,
+      screeSandNE: 40,
+      screeSandNW: 41,
+      screeSandSE: 42,
+      screeSandSW: 43,
+      // v22 "big world" appendix (docs/CONTRACTS.md "v22"): appended only,
+      // nothing above moved (indices renumbered downward only because the
+      // coast* removal above freed up 36..47 — a deliberate one-time
+      // reshuffle while this whole feature was still unshipped, not an
+      // append-only violation of shipped indices).
+      screeWaterN: 44,
+      screeWaterE: 45,
+      screeWaterS: 46,
+      screeWaterW: 47,
+      screeWaterNE: 48,
+      screeWaterNW: 49,
+      screeWaterSE: 50,
+      screeWaterSW: 51,
+      road0: 52,
+      road1: 53,
+      road2: 54,
+      road3: 55,
+      road4: 56,
+      road5: 57,
+      road6: 58,
+      road7: 59,
+      road8: 60,
+      road9: 61,
+      road10: 62,
+      road11: 63,
+      road12: 64,
+      road13: 65,
+      road14: 66,
+      road15: 67,
+      townWall: 68,
+      townWall2: 69,
+      townWall3: 70,
+      townWall4: 71,
+      townRoof: 72,
+      townRoof2: 73,
+      townRoof3: 74,
+      townWindow: 75,
+      townWindow2: 76,
+      townDoor: 77,
+      townDoor2: 78,
+      townSign: 79,
+      lakeShore0: 80,
+      lakeShore1: 81,
+      lakeShore2: 82,
+      lakeShore3: 83,
+      lakeShore4: 84,
+      lakeShore5: 85,
+      lakeShore6: 86,
+      lakeShore7: 87,
+      lakeShore8: 88,
+      lakeShore9: 89,
+      lakeShore10: 90,
+      lakeShore11: 91,
+      lakeShore12: 92,
+      lakeShore13: 93,
+      lakeShore14: 94,
+      lakeShore15: 95
     });
   });
 

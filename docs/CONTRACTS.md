@@ -2816,3 +2816,411 @@ renders its HUD and an NPC dialogue box pixel-identically to before
 (`?mode7tune=1`) still renders the full perspective ground, avatar and
 billboards with all four Mode7Tuner sliders working; the flat-zoom tuner
 mode (`?mode7tune=flat`) renders and live-adjusts the zoom correctly.
+
+# v22: the overworld gets a big world (valleys, a lake, a town, dirt roads)
+
+2026-07-16. The overworld POC (v9/Phase O) was a tiny 16×20 grid: solid
+mountain everywhere except one carved pass. `OVERWORLD_FLAT_ZOOM = 0.7`
+(v21) made that read as cramped rather than "big" — the whole map barely
+exceeded one screenful, so the camera was never really scrolling. The
+project owner asked for adjacent valleys on both sides of the mountains, a
+lake to the southeast, a town to the northwest, and connected dirt roads
+linking everything, without touching Mode-7 or redesigning the existing
+pass/stops/gates.
+
+## Grid and layout (`src/game/maps/overworldMap.ts`)
+
+`OVERWORLD_WIDTH`/`OVERWORLD_HEIGHT` grew from 16×20 to **64×64** — big
+enough that at zoom 0.7 (viewport ≈ 43×24 tiles) the camera has ~20+ tiles
+of scroll room on every axis no matter where the player stands. The
+original pass/stops/gates logic (`assignMountainTileNames`,
+`centerXForRow`, the S-curve waypoint carve, `OVERWORLD_SOUTH_EXIT` /
+`OVERWORLD_NORTH_EXIT` / `OVERWORLD_SOUTH_SPAWN` / `OVERWORLD_NORTH_SPAWN`)
+is untouched in shape, just repositioned: the mountain mass is no longer
+the whole grid, it's a **spine** in the middle, with the exact same
+winding pass carved through it. `PATH_WAYPOINTS` centerX is pinned to 32
+(the exit/spawn column, `SPINE_CX`) at both ends of the spine and beyond,
+so all the winding happens strictly inside the mountain mass and the pass
+meets the gate bands / open valley bands in a straight line.
+
+Everything inside the outer border ring but outside the spine starts as
+**open valley** (not mountain) — that's the entire structural change from
+v9: valleys aren't a separate carve-out, they're just "not the spine." The
+outer border ring (1 tile thick, solid mountain except the two gate bands)
+is unchanged in concept, just bigger.
+
+**The spine's shape shipped once as a hand-drawn rectangle
+(`SPINE_X1..SPINE_X2 × SPINE_Y1..SPINE_Y2`, 22..42 × 8..55) and the lake
+as a hand-drawn ellipse — both were rejected on review** ("mountain ranges
+are never rectangular... you're trying to procedurally draw a world map
+using your own thoughts instead of writing an algorithm that generates it
+one time with organic shapes") and reworked into the procedural generators
+below, same day. `SPINE_X1`/`SPINE_X2` no longer exist in the source;
+`SPINE_CX` (nominal center) and `SPINE_NOMINAL_HALF_WIDTH` (nominal
+half-width, only reached in the un-tapered middle) replace them as inputs
+to the generator, not the boundary itself.
+
+## The mountain spine: organic, solid and connected by construction
+
+`buildSpineBounds()` computes one `[left(y), right(y)]` interval per row
+instead of a fixed rectangle:
+
+- **East/west boundary**: two octaves of seeded 1D value noise per edge
+  (`smoothNoise1D` — random control points every few cells, smoothstep-
+  eased between them so the boundary wanders instead of jittering per
+  cell) added to the nominal half-width. Two octaves (a slow wide wander +
+  a faster small ripple, distinct seeds) read as a genuinely irregular
+  silhouette rather than one smooth sine-like curve.
+- **North/south "cap"**: rather than a second, independent per-column
+  noise field (the project owner's other suggested option), the SAME
+  per-row half-width is tapered smoothly to zero over `SPINE_TAPER_ROWS`
+  (6) rows at each end via `spineHalfWidthTaper` (smoothstep 0→1). This
+  was a deliberate simplification over intersecting two independent noisy
+  boundaries: doing so risks a row's valid-x interval getting cut into two
+  separate pieces by the column-noise dipping below that row in the middle
+  of an otherwise-open span — an actual hole in the mountain mass, which
+  would need a flood-fill-and-patch cleanup pass to catch. Tapering the
+  width of the SAME per-row interval instead guarantees every row's
+  mountain cells are exactly one contiguous run, so a hole is structurally
+  impossible, while still giving a non-rectangular, organically-tapering
+  north/south termination (a real range trailing into foothills, not a
+  flat cap).
+- **Connectivity**: `smoothNoise1D`'s smoothstep easing bounds how much
+  `left(y)`/`right(y)` can move between consecutive rows to something
+  small relative to the interval's own width in the un-tapered middle
+  (nominal half-width 10 vs. ≤4 combined worst-case noise per side), so
+  adjacent rows' intervals always overlap and the whole spine is one
+  connected mass — again by construction, not a post-hoc check. Both the
+  taper and the noise terms are scaled by the SAME taper value, so
+  `left <= right` is guaranteed at every row (worst case the width and the
+  noise both shrink to exactly 0 together at the very ends, never
+  inverting).
+
+Verified, not just argued: `tests/game/maps.test.ts` gained "carves a pass
+that stays inside the spine's own generated bounds, flanked by mountain on
+both sides" (samples real rows, confirms a walkable gap strictly inside
+the actual generated `[left,right]`, not merely reachable some other way)
+and "keeps the spine a genuinely organic (non-rectangular) silhouette"
+(samples several un-tapered rows and confirms the left/right bounds
+actually differ row to row — a regression back to a fixed rectangle would
+fail this). A standalone connectivity check (BFS over every walkable cell
+from the south spawn, comparing reached-count to total-walkable-count —
+see "the water2 solidity bug" below for what this actually caught) is not
+a checked-in test by itself but is exactly what the existing "lets the
+player walk the whole pass" / enclosure tests exercise implicitly across
+the whole map, not just the pass.
+
+## The lake: a noisy-radius blob
+
+`buildLakeRadiusFn()` returns `radius(angle)`: a base radius (7.5, in an
+aspect-normalized space — `LAKE_ASPECT_X=1.3`/`LAKE_ASPECT_Y=0.85`
+elongate the blob east-west before noise, since a lake reads more natural
+wider than tall) perturbed by 3 low-order sine harmonics (periods 2, 3, 5)
+with seeded random amplitude (~22% of the base radius each) and phase.
+Clamped to never drop below 40% of the base radius, which is what
+guarantees the blob stays star-shaped around its center (and therefore a
+single connected region with no holes) regardless of how the harmonics
+combine at any given angle — a radius that could hit zero or go negative
+would pinch the blob apart or puncture it.
+
+The fill loop walks a bounding box around `(LAKE_CX, LAKE_CY) = (52, 47)`
+and keeps a cell if its aspect-normalized distance from center is under
+`radius(angle)` at that cell's angle, with one extra guard:
+`x <= spineRight[y]` is skipped unconditionally, so the lake can never
+place water on/behind the spine's own (organic, per-row) east wall no
+matter where either boundary's noise happens to land on a given row.
+Wherever the two organically-generated shapes end up close together,
+that's where the screeWater tileset (below) actually gets exercised —
+checked by `tests/game/maps.test.ts`'s "screeWater cells actually exist"
+style assertions, not assumed from the nominal center positions.
+
+`water`/`water2` (the same pair the wash pool already used) fill cells
+that pass the test; the mask-based `lakeShore` autotile (see its own
+section below) dresses the shoreline afterward.
+
+Verified: "keeps the lake a genuinely organic (non-elliptical) silhouette"
+samples the shore distance from the nominal center at 8 angles and
+confirms real variation beyond what pure aspect-ratio scaling alone would
+produce (a hand-tuned ellipse would still show *some* spread from the
+aspect ratio; the noisy-radius blob's harmonics push it well past that).
+
+## The town (northwest)
+
+Three small rectangular buildings (`placeBuilding`, 4×4 cells: a roof cap
+row, plain wall body, a door-centered front row, one window punched into
+the first wall row) around a plaza the road's north branch feeds into.
+Entirely solid decor (walkable-up-to, no interior — same role as
+mineTimber/cart or truckCab/truckBox), dressed with three wall variants
+(`townWall`/`townWall2`/`townWall3`) and two roof colourways
+(`townRoof`/`townRoof2`) so the cluster doesn't wallpaper as one repeated
+box, plus a standalone `townSign` post near the plaza entrance.
+
+## The dirt-road autotile (`tools/pipeline/src/tileset2.ts`)
+
+16 tiles (`road0`..`road15`), one per 4-bit N/E/S/W neighbor mask — **the
+same bit convention as owMountains/`assignMountainTileNames` reused
+verbatim** (bit0=N=1, bit1=E=2, bit2=S=4, bit3=W=8). Thin by design (the
+project owner: "roads don't need to be very wide, maybe one pixel for the
+actual road and a pixel on each side for the transition to sand"): a fixed
+pixel lane (column/row 7 = the 1px hardpacked-`umber` core, 6 and 8 = a
+1px broken-`clay` transition into sand on each side — the same
+fixed-lane trick `duneRidges` in `tileset.ts` uses so neighbouring tiles'
+bands always line up) with arms drawn from the tile center out to
+whichever edges the mask has set.
+
+`overworldMap.ts`'s `markRoadCells` marks a plain `boolean[][]` grid (not
+tile names) for the whole network: the pass's exact walkable centerline
+(`centerXForRow(y)` for every spine row) plus axis-aligned stems/branches
+connecting the south stop → the wash → the lake, and the north stop → the
+mine mouth → the town. `applyOverworldAutotile`'s new step 5 turns that
+into `road{mask}` ground names, reading the mask from the frozen `isRoad`
+grid — never from `ground` mid-mutation — deliberately avoiding the
+mutate-before-read bug `assignMountainTileNames`'s own doc comment
+describes (see that comment for the original incident).
+
+**Two real bugs hit and fixed while building this, worth keeping as a
+record:**
+
+1. A pass "one cell per row, x drifting toward the next waypoint" walk is
+   only 8-connected wherever x changes between consecutive rows (a
+   diagonal step shares no N/E/S/W edge with its predecessor) — this
+   produced dozens of isolated `road0` (mask-0, no neighbors) cells the
+   first time the centerline was marked. Fixed by bridging each row's old
+   column to the new one with a short horizontal run at the row being
+   left (still following the same centerline, just not skipping the
+   corner), keeping the whole line 4-connected end to end. Caught by a
+   dedicated test (`tests/game/maps.test.ts`, "lays a connected dirt-road
+   autotile...", `roadMasksPresent.has(0)` must be `false`).
+2. The road's south stem/branch initially ran directly adjacent to the
+   wash pool (one cell away in one case, sharing a whole edge in another
+   after a first reposition), and the road ground pass runs *after* the
+   coast pass and unconditionally overwrites its own cells — silently
+   eating the pool's coast tiles on the side facing the road and leaving a
+   butt-jointed shore. Fixed by routing the road stem/branch a clean 2+
+   rows off the pool's own footprint. Caught by the existing "rings every
+   body of water with the coast surf set" test once it was generalized
+   (see below) rather than scoped to just the original 2×2 pool.
+
+## The screeWater tileset (mountain ↔ water)
+
+`screeWaterN/E/S/W/NE/NW/SE/SW` (8 tiles, `tools/pipeline/src/tileset2.ts`)
+— for wherever the lake touches the spine instead of open sand. Built
+**identically** to the existing `screeSand` set two tiles above it in the
+same file (`makeEdgeSet(scree, ..., {style: "fingers", fingerColor:
+"clay", bandDepth: 5})`), with the second argument swapped from the sand
+reference tile to `water(0)`: the project owner was explicit this should
+be "the exact same style of tileset as mountains/sand but with water
+instead of sand," not a new visual language. Scree still owns the border
+(fingers reach into the water-adjacent band) exactly like screeSand does
+against sand; no inner-corner set, matching screeSand's own 8-tile shape.
+`applyOverworldAutotile`'s step 3b assigns these with the same 8-branch
+single-side/corner mask logic as the existing screeSand step (step 3),
+just testing `isWater` on each side instead of open sand.
+
+**Kept at 8 pieces (not widened to the full 16-mask treatment) after
+review, deliberately** — once the spine and lake both became organic, a
+mountain edge cell touching a genuine MIX of open sand on one side and
+water on another became possible (an irregular coastline can nick a
+mountain corner in a way a hand-placed rectangle/ellipse never could). The
+project owner explicitly flagged this as worth checking after the
+organic-shapes rework. Reviewed on the actual generated map
+(`preview/render-overworld.mts` composites, "the mountain-spine + lake
+meeting point" crop below): the mixed cases that do occur fall through to
+whichever single-side/corner branch matches (or plain scree for a genuine
+3+-side/opposite-side case), the same fallback screeSand's own 8-piece set
+already relied on, and they read fine — a mountain corner with sand on one
+face and water on another still shows scree rock texture at the corner
+itself with the correct single-material transition on each flanking edge,
+which is what a real coastline meeting a rock outcrop actually looks like.
+A full mask-aware mixed-material treatment was judged unnecessary
+complexity for a transition that only affects a handful of corner cells
+per map.
+
+## The lakeShore tileset — sand↔water, ported from owMountains' geometry
+
+The original coast ring (`coastN/E/S/W/NE/NW/SE/SW/InNE/InNW/InSE/InSW`, 12
+tiles, `makeEdgeSet(sandRef, water(0), {style:"surf", ...})`) was rejected
+on the same review as the rectangle/ellipse: "those shore tiles are not
+working — they look like the entire edge of the lake has a concrete
+barrier... the sand water transition should use the same type of 16 tile
+set that the mountains use but with sand and water." A straight-edge +
+corner set literally cannot round to an organic shoreline; a 4-bit
+neighbor-mask autotile can, the same way owMountains rounds a mountain
+mass's boundary.
+
+**`tools/pipeline/src/roundedMask.ts`** (new file): `owMountains.ts`'s
+`mountainDistToGrass` — the pure per-quadrant rounded-corner distance
+field (no RNG, a function of `mask`/`x`/`y`/`curveRadius` only) — extracted
+here unchanged as `roundedMaskDist`, plus `DEFAULT_ROUNDED_CURVE_RADIUS =
+16.5` (the same tuned constant). `owMountains.ts`'s own
+`MOUNTAIN_CURVE_RADIUS`/`mountainDistToGrass` now just re-export/wrap
+these, so every existing import (`tests/pipeline/owMountains.test.ts`)
+keeps working unchanged — this was a pure extraction, zero behavior
+change, confirmed by the existing owMountains test suite staying green
+byte-for-byte.
+
+**`tools/pipeline/src/lakeShore.ts`** (new file): 16 tiles
+(`lakeShore0`..`lakeShore15`, one per mask, **no variant dimension** —
+unlike owMountains' 5 variants × 16 masks, a single family was judged
+sufficient: water tiles are already visually simple, and this dresses one
+lake plus one small pool, not a sprawling repeated landscape texture where
+variant repetition would actually be visible). Same ring-band structure as
+`generateMountainTile` (`fuzzyDist<1`/`<2`/`<4`/else), reusing `±0.75`
+uniform RNG fuzz, but sand/water coloring instead of rock: `<1` wet-sand
+edge (mostly the shared `sandBase(1)` art, sampled by pixel so it
+continues any neighbouring plain-sand tile, with a bone foam fleck at the
+waterline), `<2` broken bone/skyBlue surf fringe, `<4` skyBlue/slate
+shallow band, else sampled directly from `water(0)`'s own pixel art (so a
+shoreline tile's deep-water pixels seam exactly into an adjacent plain
+water cell).
+
+**Mask semantics deliberately mirror owMountains, not the old coast set**:
+a lakeShore tile is placed on a WATER cell, mask = which N/E/S/W neighbors
+are ALSO water (bit set = same material present, exactly like "mountain
+present" for owMountains) — not on the land cell with "which side is
+water" like the old `coastN`/etc. naming implied. This flips which side of
+the boundary "owns" the tile, but it's what makes reusing the exact same
+distance field correct: `roundedMaskDist`'s "deep interior" reading (mask
+15, all sides same-material) is what should render as uninterrupted open
+water, and only the WATER cell's own mask can express that.
+
+`applyOverworldAutotile`'s step 4 was rewritten from the old 8-branch
+land-side if/else into a proper mask computation, run against a **frozen
+snapshot** of "is this cell water" (`isWaterSnapshot`, taken before this
+step mutates any cell) — the exact same mutate-before-read discipline
+`assignMountainTileNames`'s own doc comment describes, now applied a
+second time for a second autotile pass. `isMtn`'s sibling `isWater` helper
+(used by steps 2/3) was widened to also match the `lakeShore*` prefix (not
+just literal `"water"`/`"water2"`), so any code running AFTER step 4 that
+checks "is this a water cell" (step 5's defensive road-vs-water guard)
+still gets the right answer once step 4 has renamed shoreline cells — step
+3b, which specifically needs to see the pre-rename `"water"`/`"water2"`
+names, still runs before step 4, so it's never affected either way.
+
+**Mask 15 (fully water-surrounded) is deliberately left as plain
+alternating `water`/`water2`, not `lakeShore15`**: `lakeShore15` samples
+`water(0)` uninterrupted at every pixel (dist stays ≥4 across the whole
+tile at that mask), so a big lake's interior tiling that ONE frame would
+read flatter than the established two-phase dash-offset pair. Shoreline
+cells (mask 0..14) get the new rounded treatment; deep interior keeps the
+existing look. This is a deliberate blend of the two systems, documented
+in `lakeShore.ts`'s own module doc, not an oversight.
+
+The wash pool goes through the exact same step 4 pass as the lake — no
+separate code path, per the project owner's "no reason to keep two
+different shore-tile mechanisms."
+
+## The water2 solidity bug (found by the organic lake, not by eye)
+
+`src/game/maps/types.ts`'s `SOLID_TILE_NAMES` listed `"water"` as solid
+but never `"water2"` — every OTHER act's water pair lists both phases
+(`seaWater`/`seaWater2`, `groveWater`/`groveWater2`, `reefWater`/
+`reefWater2`), but the original tiles.png pair's entry only ever had one.
+The v9 POC's tiny 2×2 wash pool never had a test that tried to walk INTO
+it, so a checkerboard of solid `water` cells with walkable `water2` cells
+between them — each 4-directionally isolated from every other walkable
+cell around it, since all its cardinal neighbors are the solid phase —
+shipped unnoticed. The v22 lake is big enough (146 plain-water interior
+cells) that this produced a real, non-hypothetical disconnected-pocket
+bug: a BFS reachability check (south spawn → every walkable cell) found 49
+cells the player could stand on but never walk to. Fixed by adding
+`"water2"` to `SOLID_TILE_NAMES`, matching the established both-phases-
+solid convention every other act already used. Verified no existing
+reachability assertion depended on `water2` being walkable (`oasisMap.ts`/
+`depthsMap.ts` both use the same `water`/`water2` edge-dither pattern for
+their own pools, and neither has a test that walks onto a pool cell).
+
+## Sheet/consumer plumbing
+
+screeWater, road, town and lakeShore were all appended to
+`tiles2.png`/`TILE2_NAMES` rather than new sheets (avoiding the
+ZoneScene/BootScene/manifest wiring a whole new tileset needs — the
+precedent `owMountains.png` set — since every consumer already resolves
+tiles2 names generically off `Object.keys(MANIFEST.tiles2.names).length`).
+The 12 old `coast*` tiles were REMOVED (not just left unused) since
+lakeShore fully supersedes them and this whole feature was still
+unshipped/uncommitted — every tile from `screeSandN` onward was
+renumbered downward by 12 as a result, a deliberate one-time reshuffle,
+not an append-only violation of any previously-shipped index. The town kit
+grew from 8 to 12 tiles (`townWall4`/`townRoof3`/`townWindow2`/
+`townDoor2` added) purely to keep the sheet's tile count a multiple of its
+fixed 8-column layout after the coast removal freed up slots at a
+different offset than the new 32 tiles needed. Net: `tiles2.png` is 96
+tiles (128×192), up from the pre-rework 88 (128×176). `src/game/maps/
+types.ts`'s `SOLID_TILE_NAMES` gained the (now eight) town building names;
+`screeWater*`/`road*`/`lakeShore*` are all ground-layer names and stay out
+of that list.
+
+`tests/pipeline/lakeShore.test.ts` (new file, mirrors
+`tests/pipeline/owMountains.test.ts`'s shape): layout/naming, determinism,
+the geometric contract evaluated directly against `roundedMaskDist`
+(mask=15 always 999/deep-interior, mask=0 never reaches the deep-interior
+band), and an explicit check that `TILE2_NAMES` and `lakeShoreNames` stay
+in sync at the exact same offset — the manual name literal in
+`TILE2_NAMES` and the generated `lakeShoreNames` array are two separate
+sources that could drift, so this test exists specifically to catch that
+rather than trusting them to agree.
+
+## Test changes (`tests/game/maps.test.ts`, `tests/pipeline/*.test.ts`)
+
+- The old "is mostly mountain: the walkable pass is a small fraction of
+  the map" assertion (`walkable < (w*h)/3`) is now backwards — v22
+  deliberately makes the map mostly open. Replaced with "is mostly open:
+  valleys flank a narrower mountain spine" (`walkable > (w*h)/2`); measured
+  empirically after the redesign at ~70% walkable.
+- The old "rings the spring pool with the coast surf set" test was
+  replaced by "dresses every water cell with the mask-correct lakeShore
+  tile (mask 15 keeps plain water)" — recomputes the expected mask per
+  water cell from a fresh neighbor reading and checks the ground name
+  matches exactly (`lakeShore{mask}` or plain water at mask 15), rather
+  than checking for the old fixed `coastN`-style literal names, which no
+  longer exist.
+- New: "carves a pass that stays inside the spine's own generated bounds,
+  flanked by mountain on both sides", "keeps the town clear of the spine's
+  generated west edge", "keeps the spine a genuinely organic
+  (non-rectangular) silhouette", "keeps the lake a genuinely organic
+  (non-elliptical) silhouette" — all described in their own sections
+  above; "uses scree↔water finger transitions where the mountain spine
+  meets the lake", "lays a connected dirt-road autotile linking the two
+  stops to the town and the lake" (asserts >1 distinct mask present and
+  mask 0 absent), and "lets the player walk from either stop out to the
+  town and the lake via the roads" (BFS reachability to each road
+  network's own hub cell from both spawns) all carried over from the
+  first v22 pass, unchanged.
+- `SCREE_FAMILY` (the "scree ground under every mountain cell" test)
+  still includes the 8 `screeWater*` names alongside `screeSand*`.
+- `tests/pipeline/act1.test.ts`: the hardcoded `tiles2.names` snapshot,
+  the `128×192` sheet-size expectation and the tile-count formula for
+  `tile2Frames()` (`56 - 12 + 8 + 16 + 12 + 16`, spelled out rather than a
+  bare number so the removal/addition arithmetic stays legible) updated
+  for the coast removal + lakeShore/town-padding additions.
+- `tests/pipeline/determinism.test.ts`: `tiles2`'s sha256 re-pinned a
+  fourth time (see the file's own dated comment for the full history).
+
+## Verification
+
+`tsc --noEmit`, full `vitest run` (1304 tests, all green), `npm run
+build`, `npm run smoke` and `npm run smoke:touch` (keyboard/touch e2e)
+all green. Rendered and reviewed actual composites via the existing
+`preview/render-overworld.mts` (still unchanged — generic manifest-based
+tile resolution) plus a scratch cropping script (deleted before
+finishing, never committed): the full 64×64 map now reads as a genuinely
+irregular mountain range (bulging, notching, tapering to points at both
+ends — not a rectangle with fuzzy edges) with the winding pass still
+clearly readable through it; the lake reads as a natural rounded blob with
+real coves and points, not a fuzzy oval; a tight crop of the lake's
+shoreline shows a proper graduated beach (sand → foam → shallows → deep
+water, following the actual organic curve) instead of the previous
+straight-edge "concrete barrier" look; a tight crop of the mountain-spine/
+lake meeting point confirms the screeWater fringe still renders correctly
+against the new irregular boundary; the town cluster and the road
+junction/switchback composites are unchanged in character from the first
+v22 pass (neither the town nor the road network needed to move — their
+nominal coordinates were verified, not just assumed, against the actual
+generated spine/lake shapes by the new "keeps the town clear.../lets the
+player walk...via the roads" tests). Mode-7/`OverworldScene.ts` were not
+touched at all, in either v22 pass — this remains a pure map-data
+(`overworldMap.ts`) and pipeline-tileset (`tools/pipeline/src/tileset2.ts`,
+plus the two new pipeline files `roundedMask.ts`/`lakeShore.ts`) change,
+with `src/game/maps/types.ts` gaining the town's solid names and the
+`water2` solidity fix.

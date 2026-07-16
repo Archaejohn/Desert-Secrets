@@ -44,15 +44,23 @@
  *   peak grid is computed ONCE per variant (not per mask) and sampled by
  *   (x, y) wherever a pixel falls in the deep-interior band; masks differ
  *   only in how much of the ring erodes into that shared peak texture.
+ *
+ * `mountainDistToGrass` (the per-pixel geometry itself, no RNG) is a thin
+ * wrapper around `roundedMask.ts`'s `roundedMaskDist` — extracted there,
+ * unchanged, for docs/CONTRACTS.md "v22" so `lakeShore.ts`'s sand↔water
+ * tileset (and any future rounded-corner blob autotile) can reuse the same
+ * geometry without re-deriving it. Everything else here — the fuzzy-edge
+ * noise, the colour bands, the peak-grid interior — stays mountain-specific.
  */
 import { PixelGrid } from "./grid";
 import { mulberry32 } from "./rng";
+import { DEFAULT_ROUNDED_CURVE_RADIUS, roundedMaskDist } from "./roundedMask";
 import { TILE_SIZE } from "./tileset";
 import type { PaletteName } from "../../../src/shared/palette";
 
 /** Deliberately > the tile's own half-width (8px) — see module doc. Ported
  *  verbatim from the reference demo's tuned value. */
-export const MOUNTAIN_CURVE_RADIUS = 16.5;
+export const MOUNTAIN_CURVE_RADIUS = DEFAULT_ROUNDED_CURVE_RADIUS;
 
 /** Five texture families for variety; one fixed seed base per family
  *  (deterministic constants, no Math.random/Date). */
@@ -81,35 +89,7 @@ export function mountainDistToGrass(
   y: number,
   curveRadius: number = MOUNTAIN_CURVE_RADIUS
 ): number {
-  const hasN = (mask & 1) !== 0;
-  const hasE = (mask & 2) !== 0;
-  const hasS = (mask & 4) !== 0;
-  const hasW = (mask & 8) !== 0;
-  const C = curveRadius;
-
-  let dist = 999;
-  if (x < 8 && y < 8) {
-    // top-left quadrant
-    if (!hasN && !hasW) dist = C - Math.hypot(C - x, C - y);
-    else if (!hasN) dist = y;
-    else if (!hasW) dist = x;
-  } else if (x >= 8 && y < 8) {
-    // top-right quadrant
-    if (!hasN && !hasE) dist = C - Math.hypot(x - (15 - C), C - y);
-    else if (!hasN) dist = y;
-    else if (!hasE) dist = 15 - x;
-  } else if (x < 8 && y >= 8) {
-    // bottom-left quadrant
-    if (!hasS && !hasW) dist = C - Math.hypot(C - x, y - (15 - C));
-    else if (!hasS) dist = 15 - y;
-    else if (!hasW) dist = x;
-  } else {
-    // bottom-right quadrant
-    if (!hasS && !hasE) dist = C - Math.hypot(x - (15 - C), y - (15 - C));
-    else if (!hasS) dist = 15 - y;
-    else if (!hasE) dist = 15 - x;
-  }
-  return dist;
+  return roundedMaskDist(mask, x, y, curveRadius);
 }
 
 /**

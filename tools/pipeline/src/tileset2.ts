@@ -21,6 +21,7 @@ import { mulberry32 } from "./rng";
 import { TILE_SIZE, sandBase, water } from "./tileset";
 import { scatterMotifs, shadeGrid, type Motif } from "./fx";
 import { makeEdgeSet } from "./tilecraft";
+import { lakeShoreFrames } from "./lakeShore";
 import type { PaletteName } from "../../../src/shared/palette";
 
 /** Contract tile order (row-major indices 0..55). */
@@ -58,22 +59,19 @@ export const TILE2_NAMES = [
   "mountain7",
   "mountain8",
   // --- Phase O appendix (2.5D art pass, ART_DIRECTION §4a) ---
+  // coastN/E/S/W/NE/NW/SE/SW/InNE/InNW/InSE/InSW (the original 12-tile
+  // straight-edge sand<->water surf ring) lived here and were REMOVED for
+  // docs/CONTRACTS.md "v22": once the lake stopped being a hand-drawn
+  // rectangle/ellipse, a straight-edge-only set couldn't round to its
+  // organic shoreline and read as "a concrete barrier, not a beach" (the
+  // project owner's own words). Superseded by the 16-mask `lakeShore*`
+  // tileset below (built from owMountains' own rounded-corner geometry via
+  // roundedMask.ts) for every water body, including the wash pool — no
+  // reason to keep two different shore-tile mechanisms side by side.
   "scree",
   "scree2",
   "screeShade",
   "sandShade",
-  "coastN",
-  "coastE",
-  "coastS",
-  "coastW",
-  "coastNE",
-  "coastNW",
-  "coastSE",
-  "coastSW",
-  "coastInNE",
-  "coastInNW",
-  "coastInSE",
-  "coastInSW",
   "screeSandN",
   "screeSandE",
   "screeSandS",
@@ -81,7 +79,66 @@ export const TILE2_NAMES = [
   "screeSandNE",
   "screeSandNW",
   "screeSandSE",
-  "screeSandSW"
+  "screeSandSW",
+  // --- v22 "big world" appendix (docs/CONTRACTS.md "v22") ---
+  "screeWaterN",
+  "screeWaterE",
+  "screeWaterS",
+  "screeWaterW",
+  "screeWaterNE",
+  "screeWaterNW",
+  "screeWaterSE",
+  "screeWaterSW",
+  "road0",
+  "road1",
+  "road2",
+  "road3",
+  "road4",
+  "road5",
+  "road6",
+  "road7",
+  "road8",
+  "road9",
+  "road10",
+  "road11",
+  "road12",
+  "road13",
+  "road14",
+  "road15",
+  "townWall",
+  "townWall2",
+  "townWall3",
+  "townWall4",
+  "townRoof",
+  "townRoof2",
+  "townRoof3",
+  "townWindow",
+  "townWindow2",
+  "townDoor",
+  "townDoor2",
+  "townSign",
+  // lakeShore0..15: the mask-based sand<->water autotile (see the removal
+  // note on the old coast* names above). `lakeShoreNames`/`lakeShoreFrames`
+  // live in lakeShore.ts; spliced in verbatim here (rather than importing
+  // the name list) so this array stays one flat literal, matching every
+  // other block in it — kept in exact sync with lakeShore.ts by a
+  // dedicated test (tests/pipeline/lakeShore.test.ts).
+  "lakeShore0",
+  "lakeShore1",
+  "lakeShore2",
+  "lakeShore3",
+  "lakeShore4",
+  "lakeShore5",
+  "lakeShore6",
+  "lakeShore7",
+  "lakeShore8",
+  "lakeShore9",
+  "lakeShore10",
+  "lakeShore11",
+  "lakeShore12",
+  "lakeShore13",
+  "lakeShore14",
+  "lakeShore15"
 ] as const;
 
 export type Tile2Name = (typeof TILE2_NAMES)[number];
@@ -756,13 +813,12 @@ function screeBase(seed: number): PixelGrid {
 }
 
 /**
- * The 24 appended Phase O tiles, in TILE2_NAMES order:
- * scree, scree2, screeShade, sandShade,
- * coast edges N/E/S/W (the letter = which side the water is on), coast
- * outer corners NE/NW/SE/SW (water on both named sides), coast inner
- * corners (water only diagonally), then the sand↔scree finger-transition
- * edges/outer corners with the same naming (letter = where the SAND is;
- * scree owns the border per G9).
+ * The 12 appended Phase O tiles, in TILE2_NAMES order: scree, scree2,
+ * screeShade, sandShade, then the sand↔scree finger-transition
+ * edges/outer corners (letter = where the SAND is; scree owns the border
+ * per G9). The coast surf ring that used to live here too was removed for
+ * v22 (see the removal note on TILE2_NAMES's old coast* entries) —
+ * superseded by lakeShore.ts's mask-based tileset.
  */
 function overworldAppendix(): PixelGrid[] {
   const sandRef = sandBase(1); // identical to the "sand" tile → perfect seams
@@ -782,15 +838,6 @@ function overworldAppendix(): PixelGrid[] {
 
   const sandShade = shadeGrid(sandRef);
 
-  // Coast surf ring (land owns the border): dark land lip → broken bone
-  // surf fringe → skyBlue shallows → open water matching the water tile.
-  const coast = makeEdgeSet(sandRef, water(0), {
-    style: "surf",
-    seed: 92,
-    surfLip: "umber",
-    innerCorners: true
-  });
-
   // Sand↔scree transition (scree owns the border): a sand band along the
   // boundary side with clustered 2px scree fingers reaching into it.
   const screeSand = makeEdgeSet(scree, sandRef, {
@@ -805,18 +852,6 @@ function overworldAppendix(): PixelGrid[] {
     scree2,
     screeShade,
     sandShade,
-    coast.edges.n,
-    coast.edges.e,
-    coast.edges.s,
-    coast.edges.w,
-    coast.outerCorners.ne,
-    coast.outerCorners.nw,
-    coast.outerCorners.se,
-    coast.outerCorners.sw,
-    coast.innerCorners!.ne,
-    coast.innerCorners!.nw,
-    coast.innerCorners!.se,
-    coast.innerCorners!.sw,
     screeSand.edges.n,
     screeSand.edges.e,
     screeSand.edges.s,
@@ -828,7 +863,262 @@ function overworldAppendix(): PixelGrid[] {
   ];
 }
 
-/** All 56 tiles in contract order (see TILE2_NAMES). */
+// ---------------------------------------------------------------------------
+// v22 "big world" appendix (docs/CONTRACTS.md "v22") — the overworld map
+// expansion: mountain-adjacent-to-water edges for wherever the new lake
+// touches the mountain range, a mask-based dirt-road autotile linking the
+// stops/landmarks, and a small town dressing kit for the northwest cluster.
+// ---------------------------------------------------------------------------
+
+/**
+ * screeWaterN/E/S/W/NE/NW/SE/SW: wherever the lake touches the mountain
+ * range instead of open sand. The project owner was explicit this should be
+ * "the exact same style of tileset as mountains/sand but with water instead
+ * of sand" — literally `screeSand`'s own `makeEdgeSet(scree, ..., {style:
+ * "fingers", fingerColor:"clay", bandDepth:5})` recipe above, with the
+ * second argument swapped from the sand reference tile to `water(0)`. Scree
+ * still owns the border (fingers reach INTO the water-adjacent band)
+ * exactly like screeSand does against sand; no inner-corner set requested,
+ * matching screeSand's own 8-tile (4 edges + 4 outer corners) shape.
+ */
+function screeWaterFrames(): PixelGrid[] {
+  const scree = screeBase(70); // same seed as overworldAppendix's `scree` — identical grid
+  const screeWater = makeEdgeSet(scree, water(0), {
+    style: "fingers",
+    seed: 94,
+    fingerColor: "clay",
+    bandDepth: 5
+  });
+  return [
+    screeWater.edges.n,
+    screeWater.edges.e,
+    screeWater.edges.s,
+    screeWater.edges.w,
+    screeWater.outerCorners.ne,
+    screeWater.outerCorners.nw,
+    screeWater.outerCorners.se,
+    screeWater.outerCorners.sw
+  ];
+}
+
+// ---- Dirt-road autotile (thin trail, mask-based) ----
+
+const ROAD_CORE_COLOR: PaletteName = "umber";
+const ROAD_TRANS_COLOR: PaletteName = "clay";
+/** Fixed core column/row every road tile shares (the same fixed-lane trick
+ *  as `duneRidges` in tileset.ts): whatever mask two neighbouring road
+ *  tiles have, their bands sit at the same pixel lane, so arms always line
+ *  up across the tile seam. Column/row 7 = the 1px hardpacked core; 6 and 8
+ *  = the 1px broken transition into sand on each side — the project
+ *  owner's own sizing ("one pixel for the actual road and a pixel on each
+ *  side for the transition to sand"). */
+const ROAD_CORE = 7;
+const ROAD_BAND: readonly number[] = [6, 7, 8];
+
+/** Paint one N/S (`vertical`) or E/W arm from `from` to `to` (exclusive)
+ *  along the fixed band, mixing in a bit of bare sand at the transition
+ *  columns/rows so the edge reads as broken/worn dirt (G6: no ruler lines)
+ *  rather than a hard rectangle. */
+function paintRoadArm(
+  g: PixelGrid,
+  vertical: boolean,
+  from: number,
+  to: number,
+  rng: () => number
+): void {
+  for (let u = from; u < to; u++) {
+    for (const b of ROAD_BAND) {
+      const [x, y] = vertical ? [b, u] : [u, b];
+      if (b === ROAD_CORE) {
+        g.px(x, y, ROAD_CORE_COLOR);
+      } else if (rng() < 0.8) {
+        g.px(x, y, ROAD_TRANS_COLOR);
+      }
+    }
+  }
+}
+
+/**
+ * One dirt-road autotile frame for a 4-bit N/E/S/W neighbor mask — the same
+ * bit convention as owMountains/`assignMountainTileNames`: N=1, E=2, S=4,
+ * W=8, reused verbatim per the project owner's own instruction. Thin by
+ * design: a 1px hardpacked-umber core with a 1px broken clay transition on
+ * each side, drawn as arms reaching from the tile center to whichever edges
+ * the mask has set. `overworldMap.ts`'s road pass always places a cell with
+ * at least one neighbor, but mask 0 is handled too (a small central hub)
+ * so the function is total.
+ */
+function roadTile(mask: number): PixelGrid {
+  const g = sandBase(300 + mask, 1);
+  const rng = mulberry32(500 + mask * 17);
+  const hasN = (mask & 1) !== 0;
+  const hasE = (mask & 2) !== 0;
+  const hasS = (mask & 4) !== 0;
+  const hasW = (mask & 8) !== 0;
+  if (hasN) paintRoadArm(g, true, 0, ROAD_CORE + 1, rng);
+  if (hasS) paintRoadArm(g, true, ROAD_CORE, TILE_SIZE, rng);
+  if (hasW) paintRoadArm(g, false, 0, ROAD_CORE + 1, rng);
+  if (hasE) paintRoadArm(g, false, ROAD_CORE, TILE_SIZE, rng);
+  if (!hasN && !hasE && !hasS && !hasW) {
+    g.rect(ROAD_CORE - 1, ROAD_CORE - 1, 3, 3, ROAD_CORE_COLOR);
+  }
+  return g;
+}
+
+function roadFrames(): PixelGrid[] {
+  const frames: PixelGrid[] = [];
+  for (let mask = 0; mask < 16; mask++) frames.push(roadTile(mask));
+  return frames;
+}
+
+// ---- Town dressing kit (the northwest landmark cluster) ----
+
+/** Town wall base: cool mauve/plum stucco — deliberately a different
+ *  family from the gas station's warm clay stucco (`stationWallBase`) so
+ *  the distant NW town reads as its own settlement rather than a second
+ *  gas station, while reusing the same base+cornice+skirt+grime recipe
+ *  shape (the project owner: reuse the vocabulary as a style reference). */
+function townWallBase(seed: number): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "mauve");
+  g.rect(0, 0, TILE_SIZE, 1, "clay"); // sun-lit cornice
+  g.rect(0, 12, TILE_SIZE, 1, "plum"); // wainscot line
+  g.rect(0, 13, TILE_SIZE, 3, "plum"); // skirt
+  g.px(0, 13, "clay");
+  scatterMotifs(g, seed, [square("plum"), square("rust")], 2, {
+    margin: 2,
+    minSpacing: 5
+  });
+  return g;
+}
+
+function townWall(): PixelGrid {
+  return townWallBase(110);
+}
+
+/** A second wall variant (a patched/boarded panel) so a long wall run
+ *  doesn't wallpaper as one repeating tile. */
+function townWall2(): PixelGrid {
+  const g = townWallBase(111);
+  g.rect(3, 4, 4, 2, "rust");
+  g.rect(3, 4, 4, 1, "clay");
+  return g;
+}
+
+/** A third wall variant — a shuttered patch — for even longer runs. */
+function townWall3(): PixelGrid {
+  const g = townWallBase(115);
+  g.rect(10, 8, 3, 4, "umber");
+  g.rect(10, 8, 3, 1, "clay");
+  return g;
+}
+
+/** A fourth wall variant — a low rust water-stain band. */
+function townWall4(): PixelGrid {
+  const g = townWallBase(116);
+  g.rect(0, 9, TILE_SIZE, 2, "rust");
+  g.rect(0, 9, TILE_SIZE, 1, "clay");
+  return g;
+}
+
+function townRoof(): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "rust");
+  for (let y = 1; y < TILE_SIZE; y += 3) g.rect(0, y, TILE_SIZE, 1, "clay");
+  g.rect(0, 0, TILE_SIZE, 1, "amber"); // sunlit ridge line
+  g.rect(0, TILE_SIZE - 1, TILE_SIZE, 1, "plum"); // eave shadow
+  return g;
+}
+
+/** A second roof colourway (cooler indigo shingles) so the cluster's three
+ *  buildings don't all wear the same roof. */
+function townRoof2(): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "indigo");
+  for (let y = 1; y < TILE_SIZE; y += 3) g.rect(0, y, TILE_SIZE, 1, "plum");
+  g.rect(0, 0, TILE_SIZE, 1, "slate"); // sunlit ridge line
+  g.rect(0, TILE_SIZE - 1, TILE_SIZE, 1, "ink"); // eave shadow
+  return g;
+}
+
+/** A third roof colourway (sun-bleached bone shingles). */
+function townRoof3(): PixelGrid {
+  const g = tile();
+  g.rect(0, 0, TILE_SIZE, TILE_SIZE, "bone");
+  for (let y = 1; y < TILE_SIZE; y += 3) g.rect(0, y, TILE_SIZE, 1, "sandShade");
+  g.rect(0, 0, TILE_SIZE, 1, "white"); // sunlit ridge line
+  g.rect(0, TILE_SIZE - 1, TILE_SIZE, 1, "clay"); // eave shadow
+  return g;
+}
+
+function townWindow(): PixelGrid {
+  const g = townWallBase(112);
+  g.rect(3, 3, 10, 8, "bone");
+  g.rect(4, 4, 8, 6, "skyBlue");
+  g.rect(4, 4, 8, 1, "white");
+  g.px(4, 5, "white");
+  g.rect(7, 4, 1, 6, "bone"); // mullion
+  return g;
+}
+
+/** A second window variant — shutters instead of a plain frame. */
+function townWindow2(): PixelGrid {
+  const g = townWallBase(117);
+  g.rect(3, 3, 10, 8, "bone");
+  g.rect(4, 4, 8, 6, "skyBlue");
+  g.rect(4, 4, 8, 1, "white");
+  g.rect(2, 3, 1, 8, "umber"); // left shutter
+  g.rect(13, 3, 1, 8, "umber"); // right shutter
+  return g;
+}
+
+function townDoor(): PixelGrid {
+  const g = townWallBase(113);
+  g.rect(4, 6, 8, 10, "umber");
+  g.rect(4, 6, 8, 1, "clay");
+  g.px(11, 11, "amber"); // handle
+  return g;
+}
+
+/** A second door variant — a lighter, rust-planked door. */
+function townDoor2(): PixelGrid {
+  const g = townWallBase(118);
+  g.rect(4, 6, 8, 10, "rust");
+  g.rect(4, 6, 8, 1, "amber");
+  g.rect(4, 10, 8, 1, "clay"); // mid rail
+  g.px(10, 11, "sandLight"); // handle
+  return g;
+}
+
+function townSign(): PixelGrid {
+  return stamp(sandBase(114, 1), (l) => {
+    l.rect(7, 4, 2, 10, "clay"); // post
+    l.rect(3, 2, 10, 5, "bone"); // board
+    l.rect(3, 2, 10, 1, "sandLight");
+    l.rect(4, 4, 2, 2, "rust"); // lettering strokes
+    l.rect(7, 4, 2, 2, "rust");
+    l.rect(10, 4, 2, 2, "rust");
+  });
+}
+
+function townFrames(): PixelGrid[] {
+  return [
+    townWall(),
+    townWall2(),
+    townWall3(),
+    townWall4(),
+    townRoof(),
+    townRoof2(),
+    townRoof3(),
+    townWindow(),
+    townWindow2(),
+    townDoor(),
+    townDoor2(),
+    townSign()
+  ];
+}
+
+/** All 96 tiles in contract order (see TILE2_NAMES). */
 export function tile2Frames(): PixelGrid[] {
   return [
     asphaltBase(20),
@@ -863,6 +1153,10 @@ export function tile2Frames(): PixelGrid[] {
     mountainRidge(47, 5),
     mountainRidge(48, 6),
     mountainRidge(49, 7),
-    ...overworldAppendix()
+    ...overworldAppendix(),
+    ...screeWaterFrames(),
+    ...roadFrames(),
+    ...townFrames(),
+    ...lakeShoreFrames()
   ];
 }
