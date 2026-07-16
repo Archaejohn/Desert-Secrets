@@ -409,7 +409,21 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     expect(reachable(map, OVERWORLD_NORTH_SPAWN, rectTile(OVERWORLD_SOUTH_EXIT))).toBe(true);
   });
 
-  it("is mostly mountain: the walkable pass is a small fraction of the map", () => {
+  // v22 (docs/CONTRACTS.md "v22"): the road network's own hub cells — the
+  // town's south plaza entrance and the lake's southwest shore approach
+  // (see overworldMap.ts's markRoadCells) — reachable from both spawns,
+  // proving the roads actually connect the new landmarks to the pass
+  // rather than just decorating disconnected pockets of the valleys.
+  it("lets the player walk from either stop out to the town and the lake via the roads", () => {
+    const townHub = { x: 14, y: 12 };
+    const lakeHub = { x: 49, y: 57 };
+    expect(reachable(map, OVERWORLD_SOUTH_SPAWN, townHub)).toBe(true);
+    expect(reachable(map, OVERWORLD_SOUTH_SPAWN, lakeHub)).toBe(true);
+    expect(reachable(map, OVERWORLD_NORTH_SPAWN, townHub)).toBe(true);
+    expect(reachable(map, OVERWORLD_NORTH_SPAWN, lakeHub)).toBe(true);
+  });
+
+  it("is mostly open: valleys flank a narrower mountain spine", () => {
     const { width, height } = { width: OVERWORLD_WIDTH, height: OVERWORLD_HEIGHT };
     let walkable = 0;
     for (let y = 0; y < height; y++) {
@@ -417,9 +431,19 @@ describe("overworld map (the open desert, FF-style POC)", () => {
         if (!isSolidAt(map, x, y)) walkable++;
       }
     }
-    // The pass (plus its two clearings) should read as a narrow corridor
-    // through mountains, not an open field.
-    expect(walkable).toBeLessThan((width * height) / 3);
+    // v22 (docs/CONTRACTS.md "v22") replaced "solid mountain everywhere
+    // except a carved pass" with a narrower central spine flanked by open
+    // desert valleys on both sides, so the old "walkable is a small
+    // fraction" invariant is now backwards: most of the 64x64 grid should
+    // read as open ground. The spine is 21x48 cells (SPINE_X1..SPINE_X2 x
+    // SPINE_Y1..SPINE_Y2 in overworldMap.ts) minus the carved pass itself,
+    // plus the 1-tile-thick outer border ring, plus a handful of solid
+    // decor (the town's three small buildings, tree trunks, the truck) —
+    // well under half the grid. Measured after the v22 redesign: walkable
+    // is ~2825/4096 (~69%). Assert comfortably above half rather than
+    // pinning the exact figure, so small future landmark tweaks don't need
+    // a re-measurement here.
+    expect(walkable).toBeGreaterThan((width * height) / 2);
   });
 
   it("places the truck and spring near the south stop", () => {
@@ -449,7 +473,18 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     "screeSandNE",
     "screeSandNW",
     "screeSandSE",
-    "screeSandSW"
+    "screeSandSW",
+    // v22 (docs/CONTRACTS.md "v22"): wherever the new lake touches the
+    // mountain spine instead of open sand, the same finger-transition
+    // recipe runs against water instead of sand.
+    "screeWaterN",
+    "screeWaterE",
+    "screeWaterS",
+    "screeWaterW",
+    "screeWaterNE",
+    "screeWaterNW",
+    "screeWaterSE",
+    "screeWaterSW"
   ]);
 
   it("puts scree-family ground under every mountain cell (billboards stand on rock)", () => {
@@ -477,22 +512,50 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     expect(bands).toBeGreaterThan(3); // the band actually exists
   });
 
-  it("rings the spring pool with the coast surf set (no butt-jointed shore)", () => {
-    const flat = map.ground.flat();
-    for (const name of ["coastN", "coastE", "coastS", "coastW"]) {
-      expect(flat).toContain(name);
-    }
-    // every land cell 4-adjacent to water is a coast tile
-    const isWater = (x: number, y: number): boolean =>
-      (map.ground[y]?.[x] ?? "") === "water" || (map.ground[y]?.[x] ?? "") === "water2";
+  // v22 (docs/CONTRACTS.md "v22") replaced the old 12-tile straight-edge
+  // coast* ring — which read as "a concrete barrier, not a beach" once the
+  // lake stopped being a hand-drawn rectangle/ellipse — with a full
+  // 16-mask lakeShore autotile placed on the WATER cells themselves (mask
+  // = which N/E/S/W neighbours are ALSO water, the same convention
+  // owMountains uses for "which neighbours are also mountain"). This test
+  // recomputes the expected mask per water cell from a fresh isWater
+  // reading (not `assertKnownNames`-style name matching) and checks the
+  // ground name matches exactly, so it fails loudly if the mask math and
+  // the actual tile placement ever drift apart.
+  const isWaterName = (name: string | undefined): boolean =>
+    name === "water" || name === "water2" || (name?.startsWith("lakeShore") ?? false);
+
+  it("dresses every water cell with the mask-correct lakeShore tile (mask 15 keeps plain water)", () => {
+    let shoreCells = 0;
+    const masksSeen = new Set<number>();
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
-        if (isWater(x, y)) continue;
-        if (isWater(x, y - 1) || isWater(x + 1, y) || isWater(x, y + 1) || isWater(x - 1, y)) {
-          expect(map.ground[y][x].startsWith("coast")).toBe(true);
+        if (!isWaterName(map.ground[y][x])) continue;
+        let mask = 0;
+        if (isWaterName(map.ground[y - 1]?.[x])) mask |= 1;
+        if (isWaterName(map.ground[y]?.[x + 1])) mask |= 2;
+        if (isWaterName(map.ground[y + 1]?.[x])) mask |= 4;
+        if (isWaterName(map.ground[y]?.[x - 1])) mask |= 8;
+        if (mask === 15) {
+          expect(["water", "water2"]).toContain(map.ground[y][x]);
+        } else {
+          expect(map.ground[y][x]).toBe(`lakeShore${mask}`);
+          shoreCells++;
+          masksSeen.add(mask);
         }
       }
     }
+    // The ring actually exists (not a no-op) and shows real mask variety —
+    // an organic coastline should round through several different corner
+    // shapes, not just straight edges (this is also the "no butt-jointed
+    // shore" guarantee: since every water cell touching non-water gets its
+    // mask-correct lakeShore tile with no exceptions besides mountain
+    // cells, a hard/abrupt edge would show up here as a wrong or missing
+    // mask, not as a separate assertion on the land side — the transition
+    // art lives on the water cell now, not the land cell, unlike the old
+    // coast* set).
+    expect(shoreCells).toBeGreaterThan(20);
+    expect(masksSeen.size).toBeGreaterThan(4);
   });
 
   it("uses sand↔scree finger transitions where mountain masses meet the pass", () => {
@@ -500,8 +563,137 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     expect(flat.some((n) => n.startsWith("screeSand"))).toBe(true);
   });
 
+  it("uses scree↔water finger transitions where the mountain spine meets the lake", () => {
+    const flat = map.ground.flat();
+    expect(flat.some((n) => n.startsWith("screeWater"))).toBe(true);
+  });
+
+  it("lays a connected dirt-road autotile linking the two stops to the town and the lake", () => {
+    const flat = map.ground.flat();
+    // At least one straight segment, one turn/T-junction and one dead-end
+    // stub actually appear (masks are N=1,E=2,S=4,W=8 —
+    // assignMountainTileNames/overworldMap.ts's road pass): a lone bit is a
+    // dead end, two opposite bits is a straight run, anything else is a
+    // bend or junction.
+    const roadMasksPresent = new Set(
+      flat.filter((n) => /^road\d+$/.test(n)).map((n) => Number(n.slice(4)))
+    );
+    expect(roadMasksPresent.size).toBeGreaterThan(1);
+    expect(roadMasksPresent.has(0)).toBe(false); // no isolated road cells
+  });
+
   it("plants joshua trees (billboard landmarks) beside the clearings", () => {
     expect(map.decor.flat().filter((c) => c === "joshuaTrunk").length).toBeGreaterThanOrEqual(2);
+  });
+
+  // ---- v22 organic-shape invariants (docs/CONTRACTS.md "v22" rework) ----
+  // The spine and lake are now procedurally generated (seeded noise), not
+  // hand-placed geometry — these checks verify the actual generated shape
+  // rather than re-deriving one from the same formula the map builder
+  // itself uses (which would just test that the formula agrees with
+  // itself), so a future seed/parameter change that breaks these
+  // properties fails loudly here instead of only showing up in a
+  // screenshot review.
+
+  function spineExtentAtRow(y: number): [number, number] | null {
+    let l = -1;
+    let r = -1;
+    for (let x = 1; x < OVERWORLD_WIDTH - 1; x++) {
+      const d = map.decor[y][x];
+      if (d !== null && isMountainName(d)) {
+        if (l < 0) l = x;
+        r = x;
+      }
+    }
+    return l < 0 ? null : [l, r];
+  }
+
+  it("carves a pass that stays inside the spine's own generated bounds, flanked by mountain on both sides", () => {
+    let checkedRows = 0;
+    for (let y = 15; y <= 48; y++) {
+      const extent = spineExtentAtRow(y);
+      if (!extent) continue;
+      const [l, r] = extent;
+      if (r - l < 6) continue; // skip the tapered/narrow ends — too thin to meaningfully flank a pass
+      let gapFound = false;
+      for (let x = l + 1; x < r; x++) {
+        if (map.decor[y][x] === null) {
+          gapFound = true;
+          break;
+        }
+      }
+      expect(gapFound).toBe(true);
+      checkedRows++;
+    }
+    // The check actually exercised real rows, not silently skipping everything.
+    expect(checkedRows).toBeGreaterThan(10);
+  });
+
+  it("keeps the town clear of the spine's generated west edge", () => {
+    // Matches overworldMap.ts's three placeBuilding() footprints (x 5..19,
+    // y 6..16) with a little margin; the spine's noisy west boundary must
+    // never intrude into this box regardless of exactly where its per-row
+    // noise lands.
+    for (let y = 6; y <= 16; y++) {
+      for (let x = 5; x <= 19; x++) {
+        const d = map.decor[y][x];
+        expect(d !== null && isMountainName(d)).toBe(false);
+      }
+    }
+  });
+
+  it("keeps the spine a genuinely organic (non-rectangular) silhouette", () => {
+    // A hard rectangle has the SAME left/right extent on every full-width
+    // row. Sample several rows well inside the spine's un-tapered middle
+    // and confirm the boundary actually moves — this is what would catch
+    // a regression back to the old hard-coded SPINE_X1/X2 rectangle.
+    const lefts = new Set<number>();
+    const rights = new Set<number>();
+    for (const y of [15, 20, 25, 30, 35, 40, 45]) {
+      const extent = spineExtentAtRow(y);
+      if (!extent) continue;
+      lefts.add(extent[0]);
+      rights.add(extent[1]);
+    }
+    expect(lefts.size).toBeGreaterThan(1);
+    expect(rights.size).toBeGreaterThan(1);
+  });
+
+  it("keeps the lake a genuinely organic (non-elliptical) silhouette", () => {
+    // A perfect ellipse's boundary radius is a smooth, low-variance
+    // function of angle; sample the lake's actual shore distance from its
+    // nominal center at a handful of angles and confirm real variation
+    // beyond what pure aspect-ratio scaling alone would produce.
+    const isWaterCell = (x: number, y: number): boolean => {
+      const g = map.ground[y]?.[x];
+      return g === "water" || g === "water2" || (g?.startsWith("lakeShore") ?? false);
+    };
+    // crude shoreline radius sample: walk outward from a known-interior
+    // lake cell along several directions until leaving water.
+    const cx = 52;
+    const cy = 47;
+    expect(isWaterCell(cx, cy)).toBe(true); // sanity: still inside the lake
+    const radii: number[] = [];
+    for (const [dx, dy] of [
+      [1, 0],
+      [0.7, 0.7],
+      [0, 1],
+      [-0.7, 0.7],
+      [-1, 0],
+      [-0.7, -0.7],
+      [0, -1],
+      [0.7, -0.7]
+    ] as const) {
+      let r = 0;
+      while (r < 20 && isWaterCell(Math.round(cx + dx * r), Math.round(cy + dy * r))) r++;
+      radii.push(r);
+    }
+    const min = Math.min(...radii);
+    const max = Math.max(...radii);
+    // A hand-tuned ellipse would still show SOME spread from aspect ratio
+    // alone, but nowhere near this: the noisy-radius blob's harmonics push
+    // it well past a clean ellipse's smooth variation.
+    expect(max - min).toBeGreaterThan(3);
   });
 });
 

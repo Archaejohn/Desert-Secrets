@@ -15,6 +15,19 @@ export interface ZoneMap {
 export const SOLID_TILE_NAMES: readonly string[] = [
   // tiles.png
   "water",
+  // "water2" (tiles.png's second water dither phase) was missing here —
+  // every OTHER act's water pair lists both phases as solid (seaWater/
+  // seaWater2, groveWater/groveWater2, reefWater/reefWater2 below), but
+  // the original v9 overworld POC's tiny 2x2 wash pool never had a test
+  // that actually tried to walk INTO it, so this omission shipped unnoticed:
+  // a checkerboard of solid "water" cells with WALKABLE "water2" cells
+  // between them, each one 4-directionally isolated from every other
+  // walkable cell around it (all its cardinal neighbours are the solid
+  // phase) — invisible in a 2-cell pool, but a real disconnected-pocket bug
+  // once docs/CONTRACTS.md "v22"'s much bigger lake exposed it (caught by
+  // the BFS-reachability invariant, not by eye). Fixed by adding it here,
+  // matching the established both-phases-solid convention.
+  "water2",
   "rock",
   "cactus",
   "brick",
@@ -91,7 +104,19 @@ export const SOLID_TILE_NAMES: readonly string[] = [
   "lavaVent2",
   "pizzaTable",
   "pizzaOven",
-  "stoneColumn"
+  "stoneColumn",
+  // tiles2.png v22 appendix (docs/CONTRACTS.md "v22") — the northwest town
+  // cluster: a solid, walkable-up-to decor block, same role as
+  // mineTimber/cart/truckCab. screeWater* and road* are ground-layer names
+  // and stay out of this list (walkable, like screeSand/coast/scree).
+  "townWall",
+  "townWall2",
+  "townWall3",
+  "townRoof",
+  "townRoof2",
+  "townWindow",
+  "townDoor",
+  "townSign"
 ];
 
 const SOLID_SET = new Set(SOLID_TILE_NAMES);
