@@ -29,23 +29,27 @@ describe("determinism", () => {
 describe("pre-act2 asset byte-stability", () => {
   // sha256 of the committed v1 + Act 1 PNGs. Act 2 work must not change
   // these — if a shared-code refactor moves a single pixel, this fails.
+  // Deliberately re-pinned for the Phase S sprite polish (docs/ART_DIRECTION.md §6):
+  // sel-out contours + NNW rim light repainted every character/creature sheet
+  // in place — same grids, same frame indices, only pixels. Tile sheets are
+  // untouched by this pass and keep their previous hashes.
   const FROZEN = {
-    hero: "f04261c56e07861c1cef3d377339d1bd22c9f7bd9be2cfdc459fadb7ed4d3d53",
-    npc: "fb33522d654c14306d02452dcfb313dafc4ebd9cff5052f19b5b61fb108e1f68",
-    scarab: "0b5a22a21161c83c75bce3d8aaffea7ae83998907b5b2a185da3fb1b2eed0842",
+    hero: "c8d99f5cc6070c1f308da9acdfe2dab6a6381efad38f10f4337c275ddf721b79",
+    npc: "f66216827e701f3845b0762116ce4f2252097354d9d481f43b27d93da1023b05",
+    scarab: "e8f2bd6732bf960ed717852c43799fef5e1a90fb49272fc00c24c7a1a24dcacf",
     // Deliberately re-pinned for the Phase O overworld art pass
     // (docs/ART_DIRECTION.md §4a, docs/CONTRACTS.md "Phase O"): the sand
     // family + water were redrawn in place — dune ridge lanes and the
     // 3-value wave recipe replace the per-pixel speckle. Same 16 tile
     // slots, no reordering; only pixels changed.
     tiles: "95672846ff4eb27b375abea6d3ea40c0635bfc1b6e0aee8a3d8b000849fc4b66",
-    rosa: "b756ef76590e50051dca7cda6b641c175f7a16d27351e2620a4b248280c03f65",
-    piggy: "72e7afe420870935d599b505e6e897d4b3b139f4f10b518dafcfbd45e9662f23",
-    jackrabbit: "3bbd64eb56c62e568d157a57a508603f651cc35bfe87682ec44b85706789cedb",
-    buzzard: "abca02c5bcf5facefc3861747efc6ee8eae56e6f536f59a2017c6b3ee241a374",
-    gila: "3d9ca6c37e39482058290a45164e98fe642a88787c50e26da881ca23f227bd42",
-    foreman: "a7842a7b01d4ad9457ef3fd13348773f4854af678f76365740d1bcf09dc0dfa2",
-    queen: "e318e9e692c82efdf9223524b1cf57d35915b70fa196ac0631fae6d44491ce30",
+    rosa: "7a34c3022fd0975aee7e72896fa7817ed050e1ff8fa569158b37a06e9058f800",
+    piggy: "cc3f766a6eb7be16010a92dee01f32f68fcb74f3fd15004cd2657fb4ca449b14",
+    jackrabbit: "673e3c6735518e804cb6889d2fa36dbc40bdc691a884497815adc843d94f24b1",
+    buzzard: "6852ce5278b03a8ceb575f6f9ef6481eb5aacab8b2a231f8eee4f7c965d21515",
+    gila: "8eb0b4071b8b8932c1729c5668553b328be8578c521e3fe2827d326935b0740e",
+    foreman: "3a19d6645c9811766b263a7d4545cb3ccef9d07f4e7ef394acda26efac77b3d6",
+    queen: "0310d5f91f7cc5fe1cee632196247bd1c8850634648468166140e068ae0fd06d",
     // Deliberately re-pinned twice: first for docs/CONTRACTS.md "v9" (the
     // eight appended mountain-ridge tiles), and again for the Phase O
     // overworld art pass (docs/ART_DIRECTION.md §4a): mountain1–8 redrawn
@@ -69,10 +73,11 @@ describe("act1-retcon asset byte-stability", () => {
   // sha256 of the newly-generated john/pamela/chicken PNGs (docs/CONTRACTS.md
   // "Act 1 retcon: John & Pamela replace Sahra"). Pinned once here so future
   // refactors can't silently move a shipped pixel.
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    john: "19999fa7f84c95a3f6051ebb19f33190e026daff5d035b494631737a313e2a1e",
-    pamela: "52f5a094c756b194f1e53ba6aba14caa9e80c81d8b2284c24f9c83d5b7444ad3",
-    chicken: "f7b656b5b02aba2522d68f9c8b5d930d7e40c87a168a354087ab4510441d67c0"
+    john: "f98e6e021b271968ddd0075e8185c99cde89e322521bbaa80754c2795996d3a4",
+    pamela: "80de26de1cab3a87195947ba6273e335ffa1a956eaefe551e326f26aa128ff1a",
+    chicken: "c5da747f347ae1642a0cee2f6eb37fcd77b099b61dd0a66f6bdf73a886db2263"
   } as const;
 
   it("john/pamela/chicken sheets encode to their committed bytes", () => {
@@ -88,8 +93,9 @@ describe("bucket asset byte-stability", () => {
   // sha256 of the newly-generated bucket.png (docs/CONTRACTS.md "Act 1
   // addition: the bucket fetch-quest + a minimal inventory (v5)"). Pinned
   // once here so future refactors can't silently move a shipped pixel.
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    bucket: "43cd2f8960b444f9862b7daa15fdc8325ea9aff0045d4256a84df627acdc6c13"
+    bucket: "830d0036b0193466c104cf54cc8615da923be72c1e0d6df4c53a595d655558a9"
   } as const;
 
   it("bucket sheet encodes to its committed bytes", () => {
@@ -105,8 +111,9 @@ describe("spigot asset byte-stability", () => {
   // sha256 of the newly-generated spigot.png (docs/CONTRACTS.md "v6:
   // inventory window, equip, and the spigot"). Pinned once here so future
   // refactors can't silently move a shipped pixel.
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    spigot: "18c897f81e8ae093972250408175094dc7fda623380fd64440dcebf947675709"
+    spigot: "010650cffe7d4d9d538e72ecd40050037bf7d0cd0fef77f5e56d96352c861ef3"
   } as const;
 
   it("spigot sheet encodes to its committed bytes", () => {
@@ -123,10 +130,11 @@ describe("act3 asset byte-stability", () => {
   // "v12: The Sunless Sea"): the three sea enemies plus the fourth tileset.
   // Pinned once here so future refactors can't silently move a shipped pixel.
   // Purely additive — no prior sheet's bytes change (asserted above).
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    anglerfish: "71c1b7097f22fa8156a859add847ad21e43da7b294f6e949ae9948503ab4314a",
-    reefeel: "ae3638b677ad4c33d1db03b226834d639e8c1efc4636d525672c566b4cc8ff34",
-    lurker: "27a52932ab8f6c5419cea0b0409e0e7bf46869b997816487afa5286c2fdaae58",
+    anglerfish: "ed32256b88db361046b9b6e7b73357b45da3a688734ace23488424ce0f3f5ffd",
+    reefeel: "af75f0b1261277f8fbf10aafda110435cf573c13c2ff4f1b4859246e254b9f44",
+    lurker: "bd1eea8907e5ad52b0397cbf91612c5d8788ebbd470dcfff0bcbdbd532a0a799",
     // tiles4 deliberately re-pinned for the Phase Z 2.5D art pass
     // (docs/ART_DIRECTION.md §5): seaWater redrawn to the wave recipe,
     // floe/templeFloor speckle replaced by motif clusters, templePillar
@@ -154,8 +162,9 @@ describe("act4 asset byte-stability", () => {
   // rather than a repeating scalloped wave that read as eyelashes — a real
   // playtester report. Same 16 tile slots, no reordering; only that one
   // tile's pixels changed.
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    middenmite: "03a1629bb638bd1824cfd79aa53470ac3624394a3be49b1276c46b585ee3f50e",
+    middenmite: "c14dc21ac560222d3e0b15e0650014d3db45e38779c0809d891860ac48a25c35",
     // tiles5 deliberately re-pinned again for the Phase Z 2.5D art pass:
     // plank floor gains a lit board subgrid, campWall becomes a wall-top
     // texture, crates/barrel get lit tops (G1), and 8 dressing tiles are
@@ -178,8 +187,9 @@ describe("act5 asset byte-stability", () => {
   // (underground orange grove) tileset. Pinned once here so future refactors
   // can't silently move a shipped pixel. Purely additive — no prior sheet's
   // bytes change (asserted above).
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    sunwasp: "de23f39059f6070b1af957854fcfa8966d9b31e7881dd9d29a60791eb047c46b",
+    sunwasp: "04f7f3606f868ce181ccbfd132b4180db663d11712fb0e92599dd463f7f4de81",
     // tiles6 deliberately re-pinned for the Phase Z 2.5D art pass: the SoM
     // organic showcase — grass/moss/sunbeam redrawn as motif clusters and
     // rounded lobes, and 24 dressing tiles appended (caveWall cap/face,
@@ -202,8 +212,9 @@ describe("act6 asset byte-stability", () => {
   // crawlers' garden) tileset. Pinned once here so future refactors can't
   // silently move a shipped pixel. Purely additive — no prior sheet's bytes
   // change (asserted above).
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    reefstalker: "3733e41a2dd2372260fb8e325d9e913bbc69bbc8bede60da728dee45606c0492",
+    reefstalker: "9c3d22957812eeee4015e9f3f4025a793a4385cbaced0f2a171823d465c50848",
     // tiles7 deliberately re-pinned for the Phase Z 2.5D art pass: reef
     // floors/water/glow-moss redrawn to motif clusters and rounded lobes,
     // and 16 dressing tiles appended (reefWall cap/face, shades, silt↔floor
@@ -226,8 +237,9 @@ describe("act7 asset byte-stability", () => {
   // (restaurant / lava-vent) tileset. Pinned once here so future refactors
   // can't silently move a shipped pixel. Purely additive — no prior sheet's
   // bytes change (asserted above).
+  // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    testudo: "bf6d3649f8c5af217aa6a174a1edb9ee2ff9b84f84096a14d7e3de718a1bffda",
+    testudo: "4d6f2d2ee453e69ca7dedab13f7d3dfc1833b823bb3b2f621ed46758481bf335",
     // tiles8 deliberately re-pinned for the Phase Z 2.5D art pass: the
     // lavaVent glow ramp (rust→amber→bone heart), ember/ash motif clusters,
     // checker-floor bevel subgrid, and 16 dressing tiles appended
@@ -255,6 +267,26 @@ describe("phase-z zone-dressing asset byte-stability", () => {
   } as const;
 
   it("tiles3 encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});
+
+describe("phase S asset byte-stability", () => {
+  // sha256 of the two Phase S sheets (docs/ART_DIRECTION.md §6; CONTRACTS.md
+  // "Phase S: sprite polish, Dusty & Sahra sheets, blob shadows"): Dusty the
+  // giant pack rat (replacing the jackrabbit stand-in in TrailScene) and
+  // Sahra the grove keeper (replacing the generic npc in SahraGroveScene).
+  // Pinned once here so future refactors can't silently move a shipped pixel.
+  const FROZEN = {
+    dusty: "da5fc1e2abe64a238deefafb86d576b4237e3c95f12034fdc30cea1094cb9147",
+    sahra: "fb91a963b0c5dc7a2270d0dcf27cade3c864566fce3a2d031c2e640b327b62a9"
+  } as const;
+
+  it("dusty/sahra encode to their committed bytes", () => {
     const assets = buildAssets();
     for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
       const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");

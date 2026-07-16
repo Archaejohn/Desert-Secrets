@@ -8,6 +8,7 @@
  */
 import { PixelGrid } from "../grid";
 import { FRAME_POSES, CHAR_FRAME_W, CHAR_FRAME_H, type Pose } from "./poses";
+import { rimTopLeft, selOut } from "./polish";
 
 function newFrame(): PixelGrid {
   return new PixelGrid(CHAR_FRAME_W, CHAR_FRAME_H);
@@ -99,7 +100,8 @@ function minerDown(p: Pose): PixelGrid {
   torsoDownUp(g, dy, true);
   armsDownUp(g, dy, p.swing);
   headDown(g, dy, true);
-  g.outline("ink");
+  rimTopLeft(g, { x: 2, y: 0, w: 11, h: 5 }); // helmet dome + brim highlight
+  selOut(g);
   return g;
 }
 
@@ -110,7 +112,8 @@ function minerUp(p: Pose): PixelGrid {
   torsoDownUp(g, dy, false);
   armsDownUp(g, dy, -p.swing);
   headDown(g, dy, false);
-  g.outline("ink");
+  rimTopLeft(g, { x: 2, y: 0, w: 11, h: 5 });
+  selOut(g);
   return g;
 }
 
@@ -184,16 +187,25 @@ function minerSide(p: Pose): PixelGrid {
   g.px(10, 7 + dy, "bone");
   g.rect(7, 8 + dy, 4, 1, "bone");
   g.px(9, 9 + dy, "bone"); // beard tip over the collar
+  g.px(10, 8 + dy, "sandLight"); // beard shade
 
-  g.outline("ink");
+  return g;
+}
+
+/** Rim + sel-out for a profile frame — applied AFTER the mirror for the left
+ *  row so the key light stays NNW in both directions. */
+function polishSide(g: PixelGrid): PixelGrid {
+  rimTopLeft(g, { x: 3, y: 0, w: 10, h: 5 });
+  selOut(g);
   return g;
 }
 
 /** All 24 frames, row-major: down(0–5), left(6–11), right(12–17), up(18–23). */
 export function minerFrames(): PixelGrid[] {
   const down = FRAME_POSES.map(minerDown);
-  const right = FRAME_POSES.map(minerSide);
-  const left = right.map((f) => f.mirrorX());
+  const sides = FRAME_POSES.map(minerSide);
+  const left = sides.map((f) => polishSide(f.mirrorX()));
+  const right = sides.map(polishSide);
   const up = FRAME_POSES.map(minerUp);
   return [...down, ...left, ...right, ...up];
 }

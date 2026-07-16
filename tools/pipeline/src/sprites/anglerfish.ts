@@ -9,6 +9,7 @@
  * skyBlue lit flank, bone teeth, amber/mint lure, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const ANGLERFISH_FRAME = 24;
 
@@ -88,7 +89,8 @@ function drawAngler(p: AnglerPose): PixelGrid {
   g.px(22, 17 + t, "teal");
   g.px(20, 12 + t, "skyBlue");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 7, y: 7, w: 8, h: 4 }); // lure-light on the brow
+  selOut(g, { bone: "indigo" }); // teeth contour cool in the deep dark
   return g;
 }
 

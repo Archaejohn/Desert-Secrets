@@ -34,6 +34,8 @@ import { sunwaspFrames } from "./sprites/sunwasp";
 import { reefstalkerFrames } from "./sprites/reefstalker";
 import { testudoFrames } from "./sprites/testudo";
 import { owBillboardFrames } from "./sprites/owBillboards";
+import { dustyFrames } from "./sprites/dusty";
+import { sahraFrames } from "./sprites/sahra";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -82,6 +84,9 @@ export interface BuiltAssets {
   tiles6: PixelGrid;
   tiles7: PixelGrid;
   tiles8: PixelGrid;
+  // Phase S (sprites) additions — appended only, never reordered.
+  dusty: PixelGrid;
+  sahra: PixelGrid;
   manifest: Manifest;
   owBillboards: PixelGrid;
 }
@@ -125,7 +130,10 @@ export const SHEET_KEYS = [
   "tiles6",
   "tiles7",
   "tiles8",
-  "owBillboards"
+  "owBillboards",
+  // Phase S (sprites) additions — appended only, never reordered.
+  "dusty",
+  "sahra"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -167,7 +175,9 @@ export function buildAssets(): BuiltAssets {
     tiles6: composeSheet(tile6Frames(), 8),
     tiles7: composeSheet(tile7Frames(), 8),
     tiles8: composeSheet(tile8Frames(), 8),
-    manifest: buildManifest(),
-    owBillboards: composeSheet(owBillboardFrames(), 6)
+    owBillboards: composeSheet(owBillboardFrames(), 6),
+    dusty: composeSheet(dustyFrames(), 6),
+    sahra: composeSheet(sahraFrames(), 6),
+    manifest: buildManifest()
   };
 }

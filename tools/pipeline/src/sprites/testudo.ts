@@ -16,6 +16,7 @@
  * bone/white/sandLight toque, amber/clay apron, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const TESTUDO_FRAME = 24;
 
@@ -84,7 +85,8 @@ function drawTestudo(p: TestudoPose): PixelGrid {
   g.px(14, 17, "clay"); // shaded fold
   g.rect(11, 18, 2, 3, "clay"); // apron pocket/tie
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 2, y: 11, w: 10, h: 4 }); // mossy shell crown highlight
+  selOut(g);
 
   // --- Stubby feet, shuffling (drawn after the outline) ---
   let ll = 0;

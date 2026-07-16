@@ -9,6 +9,7 @@
  * while it crawls. Frames: 0–1 idle (breath + glint swap), 2–5 heavy crawl.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const CRYSTALCRAWLER_FRAME = 24;
 
@@ -97,7 +98,8 @@ function drawCrawler(p: CrawlerPose): PixelGrid {
   g.px(11 + t * 3, 21, "slate"); // blunt tip
   g.px(12 + t * 3, 21, "slate");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 8, y: 2, w: 7, h: 4 }); // cold sheen on the frosted head
+  selOut(g);
 
   // --- four splayed legs, diagonal pairs (drawn after the outline) ---
   const front = 9;

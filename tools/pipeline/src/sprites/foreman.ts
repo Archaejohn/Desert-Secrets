@@ -9,6 +9,7 @@
  */
 import { PixelGrid } from "../grid";
 import { BUG_POSES, leg, type BugPose } from "./scarab";
+import { rimTopLeft, selOut } from "./polish";
 
 export const FOREMAN_FRAME = 24;
 
@@ -57,8 +58,12 @@ function drawForeman(p: BugPose): PixelGrid {
   for (let y = 10; y <= 20; y++) g.px(12, y + dy, "ink");
   g.px(12, 13 + dy, "slate"); // keel rivet
   g.px(12, 16 + dy, "slate");
+  // umber depth along the unplated right flank + skirt (G1 shade low/right)
+  for (let y = 12; y <= 16; y++) g.px(17, y + dy, "umber");
+  g.rect(10, 20 + dy, 5, 1, "umber");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 5, y: 7 + dy, w: 9, h: 6 }); // armor crown highlight
+  selOut(g);
 
   // six legs, tripod gait — same rig as the scarab
   const attachY = [12, 15, 18];

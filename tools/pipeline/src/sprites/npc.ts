@@ -8,6 +8,7 @@
  */
 import { PixelGrid } from "../grid";
 import { FRAME_POSES, CHAR_FRAME_W, CHAR_FRAME_H, type Pose } from "./poses";
+import { rimTopLeft, selOut } from "./polish";
 
 function newFrame(): PixelGrid {
   return new PixelGrid(CHAR_FRAME_W, CHAR_FRAME_H);
@@ -70,11 +71,15 @@ function npcDown(p: Pose): PixelGrid {
   g.px(11, 5 + dy, "bone");
   g.px(6, 6 + dy, "ink"); // eyes
   g.px(9, 6 + dy, "ink");
+  g.px(10, 7 + dy, "rust"); // weathered cheek shade, low/right
   // beard over the robe collar
   g.rect(5, 8 + dy, 6, 2, "bone");
   g.rect(6, 10 + dy, 4, 1, "bone");
   g.rect(7, 11 + dy, 2, 1, "bone");
-  g.outline("ink");
+  g.px(10, 9 + dy, "sandLight"); // beard shade rolling under the jaw
+  g.px(9, 10 + dy, "sandLight");
+  rimTopLeft(g, { x: 3, y: 2, w: 10, h: 4 });
+  selOut(g);
   staff(g, 14);
   return g;
 }
@@ -95,7 +100,10 @@ function npcUp(p: Pose): PixelGrid {
   // sash knot on the back
   g.px(7, 14, "mauve");
   g.px(8, 14, "mauve");
-  g.outline("ink");
+  g.px(11, 6 + dy, "sandLight"); // hair shade falling down-right
+  g.px(11, 7 + dy, "sandLight");
+  rimTopLeft(g, { x: 3, y: 2, w: 10, h: 4 });
+  selOut(g);
   staff(g, 1);
   return g;
 }
@@ -139,16 +147,26 @@ function npcSide(p: Pose): PixelGrid {
   // beard
   g.rect(8, 8 + dy, 4, 2, "bone");
   g.rect(9, 10 + dy, 2, 1, "bone");
-  g.outline("ink");
-  staff(g, 13);
+  g.px(11, 9 + dy, "sandLight"); // beard shade
+  return g;
+}
+
+/** Rim + sel-out for a profile frame — applied AFTER the mirror for the left
+ *  row so the key light stays NNW in both directions. The staff is stamped
+ *  afterwards so it stays a single pixel thin. */
+function polishSide(g: PixelGrid, staffX: number): PixelGrid {
+  rimTopLeft(g, { x: 4, y: 2, w: 9, h: 4 });
+  selOut(g);
+  staff(g, staffX);
   return g;
 }
 
 /** All 24 frames, row-major: down(0–5), left(6–11), right(12–17), up(18–23). */
 export function npcFrames(): PixelGrid[] {
   const down = FRAME_POSES.map(npcDown);
-  const right = FRAME_POSES.map(npcSide);
-  const left = right.map((f) => f.mirrorX());
+  const sides = FRAME_POSES.map(npcSide);
+  const left = sides.map((f) => polishSide(f.mirrorX(), 2));
+  const right = sides.map((f) => polishSide(f, 13));
   const up = FRAME_POSES.map(npcUp);
   return [...down, ...left, ...right, ...up];
 }

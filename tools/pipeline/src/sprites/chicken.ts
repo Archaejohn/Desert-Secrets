@@ -11,6 +11,7 @@
  * head — against otherwise bone/sand plumage. Amber beak and feet, ink eye.
  */
 import { PixelGrid } from "../grid";
+import { selOut } from "./polish";
 
 export const CHICKEN_FRAME = 16;
 
@@ -63,7 +64,13 @@ function drawChicken(p: ChickenPose): PixelGrid {
   // eye
   g.px(11 + dx, hy + 1, "ink");
 
-  g.outline("ink");
+  // sand shade rolling under the belly and tail (G1 light from NNW)
+  g.px(8 + dx, 12, "sand");
+  g.px(9 + dx, 12, "sand");
+  g.px(10 + dx, 11, "sand");
+  g.px(3 + dx, 10, "sand");
+
+  selOut(g); // warm umber contour; ink stays under the feet
 
   // --- feet: amber, drawn after the outline so they stay dainty ---
   const footY = 13;

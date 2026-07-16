@@ -14,6 +14,7 @@
  * underside shade, skyBlue/slate wings, an amber eye with a white glint.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const SUNWASP_FRAME = 24;
 
@@ -103,7 +104,8 @@ function drawWasp(p: WaspPose): PixelGrid {
   drawWing(7); // forewing
   drawWing(10); // hindwing, slightly back
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 4, y: 8 + dy, w: 6, h: 3 }); // sun on the head + thorax
+  selOut(g);
   return g;
 }
 

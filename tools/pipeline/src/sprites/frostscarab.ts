@@ -9,6 +9,7 @@
  */
 import { PixelGrid } from "../grid";
 import { BUG_POSES, leg, type BugPose } from "./scarab";
+import { rimTopLeft, selOut } from "./polish";
 
 export const FROSTSCARAB_FRAME = 24;
 
@@ -55,7 +56,8 @@ function drawFrostscarab(p: BugPose): PixelGrid {
     g.px(15, 12 + dy, "white"); // cold shimmer sliding across the shell
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 5, y: 7 + dy, w: 9, h: 6 }); // rime crown highlight
+  selOut(g, { bone: "indigo" }); // the ice sheath contours cool, not warm
 
   // six legs, tripod gait — same rig as the scarab
   const attachY = [12, 15, 18];

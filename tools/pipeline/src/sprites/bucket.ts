@@ -15,6 +15,7 @@
  * frames and drawn first; only the interior row at the rim opening differs.
  */
 import { PixelGrid } from "../grid";
+import { selOut } from "./polish";
 
 export const BUCKET_FRAME = 16;
 
@@ -53,7 +54,7 @@ function drawEmpty(): PixelGrid {
   const g = new PixelGrid(BUCKET_FRAME, BUCKET_FRAME);
   drawShell(g);
   for (let x = INTERIOR_X0; x <= INTERIOR_X1; x++) g.px(x, INTERIOR_Y, "ink"); // hollow
-  g.outline("ink");
+  selOut(g);
   return g;
 }
 
@@ -67,7 +68,7 @@ function drawFull(): PixelGrid {
   g.px(8, INTERIOR_Y, "mint");
   g.px(9, INTERIOR_Y, "skyBlue");
   g.px(10, INTERIOR_Y, "skyBlue");
-  g.outline("ink");
+  selOut(g);
   return g;
 }
 

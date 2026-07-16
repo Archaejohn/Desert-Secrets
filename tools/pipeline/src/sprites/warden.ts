@@ -11,6 +11,7 @@
  * Frames: 0–1 idle (breath + core flare), 2–5 slow heavy leg churn.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const WARDEN_FRAME = 32;
 
@@ -128,7 +129,8 @@ function drawWarden(p: WardenPose): PixelGrid {
     g.px(16, 17, "skyBlue");
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 9, y: 0, w: 13, h: 7 }); // light along the ice cap
+  selOut(g, { bone: "indigo" }); // the ice sheath contours cool, not warm
 
   // --- eight heavy legs, alternating diagonal sets ---
   const attachY = [13, 17, 21, 25];

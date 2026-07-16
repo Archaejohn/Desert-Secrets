@@ -54,7 +54,10 @@ const sheets = [
   ["tiles6.png", assets.tiles6],
   ["tiles7.png", assets.tiles7],
   ["tiles8.png", assets.tiles8],
-  ["owBillboards.png", assets.owBillboards]
+  ["owBillboards.png", assets.owBillboards],
+  // Phase S (sprites) additions — appended only, never reordered.
+  ["dusty.png", assets.dusty],
+  ["sahra.png", assets.sahra]
 ] as const;
 
 for (const [name, grid] of sheets) {

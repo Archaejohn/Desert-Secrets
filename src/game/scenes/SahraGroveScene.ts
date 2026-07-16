@@ -100,7 +100,7 @@ export class SahraGroveScene extends ZoneScene {
 
   private placeSahra(): void {
     this.addNpc({
-      sheet: "npc", // the desert elder — Sahra, keeper of the grove
+      sheet: "sahra", // the grove keeper's own rig (bone robe, teal head-wrap)
       tileX: SAHRA_NPC.x,
       tileY: SAHRA_NPC.y,
       script: () => this.sahraScript(),

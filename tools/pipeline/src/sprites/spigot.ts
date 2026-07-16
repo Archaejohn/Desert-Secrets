@@ -6,6 +6,7 @@
  * trigger tile.
  */
 import { PixelGrid } from "../grid";
+import { selOut } from "./polish";
 
 export const SPIGOT_FRAME = 16;
 
@@ -36,7 +37,7 @@ function drawSpigot(): PixelGrid {
   g.px(11, 12, "skyBlue");
   g.px(10, 13, "mint");
 
-  g.outline("ink");
+  selOut(g);
   return g;
 }
 

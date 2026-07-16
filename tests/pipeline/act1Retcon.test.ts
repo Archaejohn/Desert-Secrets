@@ -248,7 +248,10 @@ describe("act1-retcon manifest", () => {
         "middenmite",
         "sunwasp",
         "reefstalker",
-        "testudo"
+        "testudo",
+        // Phase S (sprites): the two appended sheets — see determinism.test.ts
+        "dusty",
+        "sahra"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected

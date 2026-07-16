@@ -46,6 +46,8 @@ import middenmiteUrl from "../../assets/generated/middenmite.png";
 import sunwaspUrl from "../../assets/generated/sunwasp.png";
 import reefstalkerUrl from "../../assets/generated/reefstalker.png";
 import testudoUrl from "../../assets/generated/testudo.png";
+import dustyUrl from "../../assets/generated/dusty.png";
+import sahraUrl from "../../assets/generated/sahra.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -76,7 +78,9 @@ const SHEET_URLS: Record<string, string> = {
   middenmite: middenmiteUrl,
   sunwasp: sunwaspUrl,
   reefstalker: reefstalkerUrl,
-  testudo: testudoUrl
+  testudo: testudoUrl,
+  dusty: dustyUrl,
+  sahra: sahraUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {

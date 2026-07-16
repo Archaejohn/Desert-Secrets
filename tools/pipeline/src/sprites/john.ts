@@ -13,6 +13,7 @@
  */
 import { PixelGrid } from "../grid";
 import { FRAME_POSES, CHAR_FRAME_W, CHAR_FRAME_H, type Pose } from "./poses";
+import { rimTopLeft, selOut } from "./polish";
 
 function newFrame(): PixelGrid {
   return new PixelGrid(CHAR_FRAME_W, CHAR_FRAME_H);
@@ -38,6 +39,8 @@ function headDown(g: PixelGrid, dy: number, withFace: boolean): void {
     g.px(11, 5 + dy, "bone");
     g.rect(5, 5 + dy, 6, 3, "clay");
     g.rect(6, 8 + dy, 4, 1, "clay"); // chin
+    g.px(10, 7 + dy, "rust"); // sun-weathered jaw shade, low/right
+    g.px(9, 8 + dy, "rust");
     g.px(6, 6 + dy, "ink"); // eyes
     g.px(9, 6 + dy, "ink");
   } else {
@@ -99,7 +102,8 @@ function johnDown(p: Pose): PixelGrid {
   torsoDownUp(g, dy, true);
   armsDownUp(g, dy, p.swing);
   headDown(g, dy, true);
-  g.outline("ink");
+  rimTopLeft(g, { x: 1, y: 0, w: 12, h: 5 }); // hat crown + brim catch the light
+  selOut(g);
   return g;
 }
 
@@ -110,7 +114,8 @@ function johnUp(p: Pose): PixelGrid {
   torsoDownUp(g, dy, false);
   armsDownUp(g, dy, -p.swing);
   headDown(g, dy, false);
-  g.outline("ink");
+  rimTopLeft(g, { x: 1, y: 0, w: 12, h: 5 });
+  selOut(g);
   return g;
 }
 
@@ -178,17 +183,26 @@ function johnSide(p: Pose): PixelGrid {
   g.rect(7, 6 + dy, 4, 2, "clay");
   g.px(11, 7 + dy, "clay"); // nose
   g.rect(7, 8 + dy, 3, 1, "clay"); // jaw
+  g.px(9, 8 + dy, "rust"); // jaw shade
   g.px(9, 6 + dy, "ink"); // eye
 
-  g.outline("ink");
+  return g;
+}
+
+/** Rim + sel-out for a profile frame — applied AFTER the mirror for the left
+ *  row so the key light stays NNW in both directions. */
+function polishSide(g: PixelGrid): PixelGrid {
+  rimTopLeft(g, { x: 2, y: 0, w: 11, h: 5 });
+  selOut(g);
   return g;
 }
 
 /** All 24 frames, row-major: down(0–5), left(6–11), right(12–17), up(18–23). */
 export function johnFrames(): PixelGrid[] {
   const down = FRAME_POSES.map(johnDown);
-  const right = FRAME_POSES.map(johnSide);
-  const left = right.map((f) => f.mirrorX());
+  const sides = FRAME_POSES.map(johnSide);
+  const left = sides.map((f) => polishSide(f.mirrorX()));
+  const right = sides.map(polishSide);
   const up = FRAME_POSES.map(johnUp);
   return [...down, ...left, ...right, ...up];
 }

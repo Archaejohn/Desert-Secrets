@@ -10,6 +10,7 @@
  * idle (slow breath + eye flare + lure sway), 2–5 a heavy tail-driven surge.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const LURKER_FRAME = 32;
 
@@ -104,7 +105,8 @@ function drawLurker(p: LurkerPose): PixelGrid {
   g.rect(27, 14 + t, 2, 5, "indigo");
   g.px(28, 16 + t, "skyBlue");
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 9, y: 7 - b, w: 10, h: 4 }); // pale light down the back
+  selOut(g, { bone: "indigo" });
 
   // --- the stolen lure: bitten line trailing from the jaw corner ---
   const s = p.lure;

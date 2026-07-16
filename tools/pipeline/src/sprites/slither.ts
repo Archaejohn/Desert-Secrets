@@ -10,6 +10,7 @@
  * Colourway: jade back with teal banding, mint belly, amber eye, ink outline.
  */
 import { PixelGrid } from "../grid";
+import { rimTopLeft, selOut } from "./polish";
 
 export const SLITHER_FRAME = 16;
 
@@ -57,7 +58,8 @@ function drawCoil(lift: 0 | 1, flick: boolean): PixelGrid {
     g.px(14, hy + 1, "rust");
   }
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 8, y: hy - 1, w: 5, h: 3 }); // scale sheen on the head
+  selOut(g); // tealDeep sel-out keeps the snake soft against the sand
   return g;
 }
 
@@ -85,7 +87,8 @@ function drawSlither(phase: number): PixelGrid {
   g.px(14, yh, "amber"); // eye
   g.px(12, yh + 1, "teal"); // neck shade
 
-  g.outline("ink");
+  rimTopLeft(g, { x: 11, y: yh - 2, w: 5, h: 3 });
+  selOut(g);
   return g;
 }
 
