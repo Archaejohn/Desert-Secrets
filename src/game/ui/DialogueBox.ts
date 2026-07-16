@@ -7,6 +7,7 @@ import Phaser from "phaser";
 import { DialogueRunner, type DialogueScript } from "../../core/dialogue";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { isTouchDevice, TouchListButtons } from "./touch";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 const BOX_H = 100;
 const PAD = 8;
@@ -81,6 +82,7 @@ export class DialogueBox {
     // dialogue box must never render under ice/kelp/decor tiles drawn over
     // the player's head.
     this.container.setScrollFactor(0).setDepth(5500).setVisible(false);
+    addToUiLayer(scene, this.container);
   }
 
   get isOpen(): boolean {

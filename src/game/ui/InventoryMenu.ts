@@ -22,6 +22,7 @@ import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import type { Act1State } from "../../core/gameState";
 import { isTouchDevice, TouchListButtons } from "./touch";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 const PANEL_W = 260;
 const ICON = 16;
@@ -169,6 +170,7 @@ export class InventoryMenu {
       footer
     ]);
     this.container.setScrollFactor(0).setDepth(5000);
+    addToUiLayer(scene, this.container);
 
     if (touch && this.rows.length > 0) {
       // The fixed-size button column can be taller than a 1-2 row list
