@@ -59,22 +59,89 @@ function centerXForRow(y: number): number {
   return 8;
 }
 
-const MOUNTAIN_NAMES = [
-  "mountain",
-  "mountain2",
-  "mountain3",
-  "mountain4",
-  "mountain5",
-  "mountain6",
-  "mountain7",
-  "mountain8"
-] as const;
+/** Placeholder decor value for "this cell is mountain mass", used only
+ *  during layout construction below. `assignMountainTileNames` replaces
+ *  every occurrence with a real `owMountain{variant}_{mask}` name before
+ *  `applyOverworldAutotile` (and the returned map) ever see it. */
+const MOUNTAIN_SENTINEL = "__mountainSentinel__";
 
-const MOUNTAIN_SET: ReadonlySet<string> = new Set(MOUNTAIN_NAMES);
+/** Prefix shared by every generated owMountains.png tile name
+ *  (`owMountains.ts`'s `owMountainNames`: `owMountain{0..4}_{0..15}`). */
+const OW_MOUNTAIN_PREFIX = "owMountain";
 
-/** Picks among all eight mountain variants for visual variety, like sand/sand2/sand3. */
-function mountainName(x: number, y: number): string {
-  return MOUNTAIN_NAMES[cellHash(x, y) % MOUNTAIN_NAMES.length];
+/** Five texture families (`owMountains.ts`'s `MOUNTAIN_VARIANT_COUNT`). */
+const OW_MOUNTAIN_VARIANT_COUNT = 5;
+
+/**
+ * Converts every `MOUNTAIN_SENTINEL` decor cell into a concrete
+ * `owMountain{variant}_{mask}` name (docs/CONTRACTS.md "owMountains"):
+ *
+ * 1. Connected-component flood fill (4-connectivity, deterministic
+ *    row-major scan order so component IDs — and therefore variants — are
+ *    reproducible) over the sentinel cells, clustering contiguous mountain
+ *    masses. `variant = componentId % 5`, so one contiguous range reads as
+ *    one consistent texture family throughout.
+ * 2. A 4-bit N/E/S/W neighbor mask per mountain cell (bit0=N=1, bit1=E=2,
+ *    bit2=S=4, bit3=W=8 — must match `owMountains.ts`'s bit convention
+ *    exactly), using the same is-mountain predicate. A neighbor beyond the
+ *    map edge counts as "mountain present" (bit set): the overworld's
+ *    outer border is intentionally solid mountain except at the two gate
+ *    bands (see the enclosure assertions in tests/game/maps.test.ts), so
+ *    treating off-map as sand there would round the map's own solid edge
+ *    into a false gap. Only real interior boundaries against open
+ *    sand/path (in-bounds, non-mountain neighbors) round off.
+ */
+function assignMountainTileNames(decor: (string | null)[][]): void {
+  const H = decor.length;
+  const W = decor[0].length;
+  const inBounds = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < W && y < H;
+  const isMtn = (x: number, y: number): boolean =>
+    inBounds(x, y) && decor[y][x] === MOUNTAIN_SENTINEL;
+
+  // 1. Connected components, 4-connectivity, row-major scan order.
+  const componentId: number[][] = decor.map((row) => row.map(() => -1));
+  let nextId = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!isMtn(x, y) || componentId[y][x] !== -1) continue;
+      const id = nextId++;
+      const stack: Array<[number, number]> = [[x, y]];
+      componentId[y][x] = id;
+      while (stack.length > 0) {
+        const [cx, cy] = stack.pop()!;
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ] as const) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (isMtn(nx, ny) && componentId[ny][nx] === -1) {
+            componentId[ny][nx] = id;
+            stack.push([nx, ny]);
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Per-cell neighbor mask -> owMountain{variant}_{mask}.
+  const maskNeighborPresent = (x: number, y: number): boolean =>
+    inBounds(x, y) ? isMtn(x, y) : true;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!isMtn(x, y)) continue;
+      const variant = componentId[y][x] % OW_MOUNTAIN_VARIANT_COUNT;
+      let mask = 0;
+      if (maskNeighborPresent(x, y - 1)) mask |= 1; // N
+      if (maskNeighborPresent(x + 1, y)) mask |= 2; // E
+      if (maskNeighborPresent(x, y + 1)) mask |= 4; // S
+      if (maskNeighborPresent(x - 1, y)) mask |= 8; // W
+      decor[y][x] = `${OW_MOUNTAIN_PREFIX}${variant}_${mask}`;
+    }
+  }
 }
 
 /**
@@ -92,7 +159,7 @@ function applyOverworldAutotile(ground: string[][], decor: (string | null)[][]):
   const isMtn = (x: number, y: number): boolean => {
     if (!inBounds(x, y)) return false;
     const d = decor[y][x];
-    return d !== null && MOUNTAIN_SET.has(d);
+    return d !== null && d.startsWith(OW_MOUNTAIN_PREFIX);
   };
   const isWater = (x: number, y: number): boolean =>
     inBounds(x, y) && (ground[y][x] === "water" || ground[y][x] === "water2");
@@ -185,7 +252,7 @@ export function buildOverworldMap(): ZoneMap {
       else if (h % 13 === 0) name = "sand3";
       else if (h % 61 === 0) name = "sandSparkle";
       ground[y].push(name);
-      decor[y].push(mountainName(x, y)); // everything starts as impassable mountain
+      decor[y].push(MOUNTAIN_SENTINEL); // everything starts as impassable mountain
     }
   }
 
@@ -247,12 +314,12 @@ export function buildOverworldMap(): ZoneMap {
   // Map border: solid mountain — the whole point is that nothing else is
   // reachable except this one pass.
   for (let x = 0; x < OVERWORLD_WIDTH; x++) {
-    decor[0][x] = mountainName(x, 0);
-    decor[OVERWORLD_HEIGHT - 1][x] = mountainName(x, OVERWORLD_HEIGHT - 1);
+    decor[0][x] = MOUNTAIN_SENTINEL;
+    decor[OVERWORLD_HEIGHT - 1][x] = MOUNTAIN_SENTINEL;
   }
   for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
-    decor[y][0] = mountainName(0, y);
-    decor[y][OVERWORLD_WIDTH - 1] = mountainName(OVERWORLD_WIDTH - 1, y);
+    decor[y][0] = MOUNTAIN_SENTINEL;
+    decor[y][OVERWORLD_WIDTH - 1] = MOUNTAIN_SENTINEL;
   }
 
   // Visible gates: the two stops, opened last so nothing above re-seals them.
@@ -264,6 +331,13 @@ export function buildOverworldMap(): ZoneMap {
     decor[OVERWORLD_NORTH_EXIT.y1][x] = null;
     ground[OVERWORLD_NORTH_EXIT.y1][x] = "sand2";
   }
+
+  // Rounded-corner mountain autotile: flood-fill contiguous mountain masses
+  // into variant families and pick each cell's owMountains.png tile by its
+  // N/E/S/W neighbor mask (docs/CONTRACTS.md "owMountains"). Must run
+  // before the Phase O dressing pass below, whose is-mountain predicate
+  // matches the resulting owMountain* names.
+  assignMountainTileNames(decor);
 
   // Phase O dressing: pure autotile selection over the finished layout.
   applyOverworldAutotile(ground, decor);

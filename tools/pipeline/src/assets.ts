@@ -36,6 +36,7 @@ import { testudoFrames } from "./sprites/testudo";
 import { owBillboardFrames } from "./sprites/owBillboards";
 import { dustyFrames } from "./sprites/dusty";
 import { sahraFrames } from "./sprites/sahra";
+import { owMountainFrames } from "./owMountains";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -89,6 +90,9 @@ export interface BuiltAssets {
   sahra: PixelGrid;
   manifest: Manifest;
   owBillboards: PixelGrid;
+  // owMountains: mask-based rounded-corner overworld mountain autotile —
+  // appended only, never reordered.
+  owMountains: PixelGrid;
 }
 
 /** Every sheet key that becomes a PNG (manifest excluded). */
@@ -133,7 +137,9 @@ export const SHEET_KEYS = [
   "owBillboards",
   // Phase S (sprites) additions — appended only, never reordered.
   "dusty",
-  "sahra"
+  "sahra",
+  // owMountains: mask-based rounded-corner overworld mountain autotile.
+  "owMountains"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -178,6 +184,7 @@ export function buildAssets(): BuiltAssets {
     owBillboards: composeSheet(owBillboardFrames(), 6),
     dusty: composeSheet(dustyFrames(), 6),
     sahra: composeSheet(sahraFrames(), 6),
+    owMountains: composeSheet(owMountainFrames(), 8),
     manifest: buildManifest()
   };
 }

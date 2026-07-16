@@ -102,7 +102,8 @@ import {
 
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
-  ...Object.keys(manifest.tiles2.names)
+  ...Object.keys(manifest.tiles2.names),
+  ...Object.keys(manifest.owMountains.names)
 ]);
 
 interface Pt {
@@ -434,16 +435,10 @@ describe("overworld map (the open desert, FF-style POC)", () => {
 
   // ---- Phase O autotile dressing (docs/ART_DIRECTION.md §4a) ----
 
-  const MOUNTAIN = new Set([
-    "mountain",
-    "mountain2",
-    "mountain3",
-    "mountain4",
-    "mountain5",
-    "mountain6",
-    "mountain7",
-    "mountain8"
-  ]);
+  // owMountains.png (docs/CONTRACTS.md "owMountains") replaced the eight
+  // fixed mountain1..8 names with 80 owMountain{variant}_{mask} names —
+  // matched here by prefix rather than an enumerated set.
+  const isMountainName = (name: string): boolean => name.startsWith("owMountain");
   const SCREE_FAMILY = new Set([
     "scree",
     "scree2",
@@ -461,7 +456,7 @@ describe("overworld map (the open desert, FF-style POC)", () => {
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         const d = map.decor[y][x];
-        if (d !== null && MOUNTAIN.has(d)) {
+        if (d !== null && isMountainName(d)) {
           expect(SCREE_FAMILY.has(map.ground[y][x])).toBe(true);
         }
       }
@@ -475,7 +470,7 @@ describe("overworld map (the open desert, FF-style POC)", () => {
         if (map.ground[y][x] === "screeShade") {
           bands++;
           const above = map.decor[y - 1][x];
-          expect(above !== null && MOUNTAIN.has(above)).toBe(true);
+          expect(above !== null && isMountainName(above)).toBe(true);
         }
       }
     }

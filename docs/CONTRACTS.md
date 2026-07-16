@@ -2504,3 +2504,153 @@ dithered band boundaries (G7) and an ink foot line.
 - glowMoss↔reefFloor and lakeIce↔iceFloor boundaries remain unauthored
   (no tile budget this wave); orangeTreeCanopy still reads as per-tile
   crowns rather than one merged canopy.
+
+# owMountains: the rounded-corner overworld mountain blob autotile
+
+Replaces the Phase O `mountain1..8` per-cell content-hash pick (zero
+neighbor awareness, hard square/stair-step edges where a mountain mass met
+sand) with a proper mask-based blob autotile, ported from a reference
+canvas demo the user tuned. `mountain1..8` and their `tiles2.png` slots are
+untouched and remain as unused-by-the-map legacy tiles (additive-only
+contract) — the overworld map now places `owMountains.png` tiles
+exclusively for its mountain decor.
+
+## Geometry (`tools/pipeline/src/owMountains.ts`)
+
+Per-pixel, the tile splits into four 8×8 quadrants (TL/TR/BL/BR). Within a
+quadrant, an exposed corner (both adjacent sides open to sand) rounds via
+`curveRadius - hypot(...)` from a point outside the tile; an exposed single
+side clips straight to the pixel distance from that edge; a fully-blocked
+corner (both adjacent sides mountain) stays at a 999 sentinel (deep
+interior, ported verbatim as `mountainDistToGrass`, pure and exported for
+direct testing). `MOUNTAIN_CURVE_RADIUS = 16.5` — deliberately larger than
+the tile's own half-width (8px), reading as a gentle chamfer rather than a
+round bump; ported exactly as tuned, not "fixed" down to a smaller value.
+A ±0.75 uniform RNG fuzz is added to the raw distance before banding.
+
+Colour bands (replacing the reference demo's own palette/isotropic
+banding): `fuzzyDist < 1` → `sand`/`sandLight` sand ring; `< 2` → a dusty
+`amber`/`sand` ring (no green scrub — this is an all-mineral desert,
+CLAUDE.md); `< 4` → `clay` foothill ring; else → deep interior/peak, where
+a lit NW flank (`sand`/`clay`) and shaded SE flank (`rust`/`plum`, ~half
+the interior) split on ABSOLUTE tile-local position (`x + y <= 15` = NW),
+not the mask, so light direction stays globally consistent regardless of a
+tile's individual mask; the reference's `(x+y) % 8` wave is repurposed
+only as a crest-line zigzag texture within each flank, never to choose
+lit-vs-shadow. ~5% `ink` crag flecks finish the interior. Every pixel is
+opaque (no `null`/transparent cells) and drawn only from `PALETTE` names.
+
+Verified directly against the ported formula (not assumed): a
+fully-surrounded tile (mask 15) always evaluates to the 999 sentinel for
+every pixel — 100% interior/peak texture, zero pixels reachable in any
+transition band, for any seed. A fully-isolated tile (mask 0) is the
+opposite of what a smaller-radius intuition suggests: because
+`curveRadius` (16.5) exceeds the tile half-width, the four extreme
+tile-corner pixels land deep in the sand ring (`fuzzyDist ≈ -6.8`) and even
+the tile's single farthest-from-every-edge point (dead center, `≈ 3.06`)
+never clears the foothill cutoff — an isolated single-cell mountain reads
+entirely as a small rounded sand/foothill mound with no peak texture
+anywhere, not "big peak, rounded corners." Both facts are asserted in
+`tests/pipeline/owMountains.test.ts` against `mountainDistToGrass`
+directly, rather than inferred from pixel colours (some colour names are
+legitimately shared between the transition bands and the interior).
+
+## Variant/mask indexing (frozen, append-only)
+
+Five texture families (fixed seed-base literals, no `Math.random`/`Date`),
+each spanning the full 16-value N/E/S/W neighbor mask:
+**bit0=N=1, bit1=E=2, bit2=S=4, bit3=W=8** — a set bit means "the neighbor
+on that side is also mountain" (this tile's edge on that side is interior,
+not exposed to sand). `owMountainNames`/`owMountainFrames()` order is
+**variant-major, mask-minor**: variant 0 masks 0..15, then variant 1
+masks 0..15, … variant 4 masks 0..15 — 5 × 16 = 80 frames, names
+`owMountain{0..4}_{0..15}`. `owMountains.png` is 128×160 (8 columns × 10
+rows). Manifest: a new top-level `owMountains` entry (`TileSetDef`, same
+shape as `tiles`/`tiles2` — file/tileSize/columns/names), appended after
+`owBillboards` in both the pipeline (`tools/pipeline/src/manifest.ts`) and
+game-side (`src/game/manifest.ts`) manifest types. Covered by the standard
+determinism (`SHEET_KEYS`), palette, layout, opacity and geometric-contract
+suites (`tests/pipeline/owMountains.test.ts`) plus a dedicated sha256 pin
+(`tests/pipeline/determinism.test.ts`, "owMountains blob-autotile
+byte-stability").
+
+## `overworldMap.ts`: flood fill and variant assignment
+
+`buildOverworldMap()` places every mountain cell with a
+`MOUNTAIN_SENTINEL` placeholder exactly as before (full fill → carve the
+pass → border re-assert → gates), then, before the existing Phase O
+dressing pass, `assignMountainTileNames(decor)` runs:
+
+1. **Connected-component flood fill**, 4-connectivity, deterministic
+   row-major scan order (so component IDs are reproducible), over the
+   sentinel cells — clustering contiguous mountain masses.
+   `variant = componentId % 5`, so one contiguous mass reads as one
+   consistent texture family throughout.
+2. **Per-cell N/E/S/W neighbor mask**, using the same is-mountain
+   predicate. A neighbor beyond the map edge counts as **mountain present**
+   (bit set) — the overworld's outer border is intentionally solid
+   mountain except at the two gate bands (the enclosure assertions in
+   `tests/game/maps.test.ts`), so treating off-map as sand there would
+   round the map's own solid edge into a false gap; only real interior
+   boundaries against open sand/path (in-bounds, non-mountain neighbors)
+   round off.
+3. `decor[y][x] = "owMountain" + variant + "_" + mask`.
+
+`applyOverworldAutotile`'s is-mountain predicate (scree ground placement,
+foot-shadow band, sand↔scree fingers) now matches the `owMountain` prefix
+instead of the old fixed name set — unchanged behaviour otherwise.
+Determinism, both gates, BFS reachability and walkable < ⅓ all still hold
+(same assertions as before Phase O; only decor names changed, not the
+walkable/solid shape). On the current 16×20 POC map the mountain field is
+almost entirely one or two contiguous masses (the border ring connects
+most of it), so only 1–2 of the 5 variant families are actually visible in
+this particular map — the flood fill and 5-family plumbing are correct and
+fully exercised by the pipeline tests; a map with more disconnected
+mountain clusters would show more of the variety at once.
+
+## Consumers widened for the new sheet
+
+- `src/game/maps/types.ts`: `isSolidName` gained an `owMountain` prefix
+  check (mechanically equivalent to listing all 80 names in
+  `SOLID_TILE_NAMES`).
+- `src/game/gfx/Mode7Ground.ts`: `tileFrame` resolves `owMountains`;
+  billboard eligibility (`BILLBOARD_SKIP`/ground-bake skip and the 2×2
+  mountain-cluster merge in `collectBillboards`) now matches decor names
+  by the `owMountain` prefix instead of the old fixed
+  `mountain1..8` set; the per-name `BILLBOARD_FRAME` lookup for mountain
+  masses is replaced by `mountainBillboardFrame(name)`, which parses the
+  `(variant, mask)` back out of the name and cycles it onto the same 3
+  existing `owBillboards` mass variants A/B/C exactly as the old table did
+  (`(variant*16+mask) % 3`) — landmark names (`joshuaTrunk`/`mineTimber`/
+  `truckCab`) keep their old fixed-table entries unchanged.
+- `src/game/ZoneScene.ts`: gained a ninth tileset slot
+  (`OW_MOUNTAINS_FIRSTGID`, appended after `tiles8` — additive, no
+  existing gid range moves) in `tileGid`/`tileFrame`/`buildMap`, since the
+  overworld's flat-tilemap layer (the Mode-7 fallback) is built once up
+  front for every zone regardless of whether Mode-7 ultimately renders
+  instead, and it now needs to resolve `owMountain*` names too.
+  `src/game/scenes/BootScene.ts` loads `owMountains`/`owMountains-img`
+  alongside the other eight tile sheets.
+- `tests/game/maps.test.ts`: `KNOWN_NAMES` includes
+  `manifest.owMountains.names`; the overworld dressing tests' mountain
+  matcher is a prefix check instead of the old fixed name set.
+- `preview/render-overworld.mts`: sheet preview + map composite widened
+  the same way, for the visual gate below.
+
+## Visual gate
+
+`owMountains.png` (all 80 tiles, natural 8×10 grid) and the full overworld
+map composite (both the flat-tile view and the billboard-ground view) were
+rendered via `preview/render-overworld.mts` and reviewed directly:
+mountain-mass boundaries against sand now show a soft, mottled, organic
+fringe (sand/dusty/foothill banding eating into the tile edge, plus sparse
+crag flecks) instead of a hard square cut, genuinely fixing the reported
+stair-step look; fully-interior tiles read as a diagonal lit-NW/shaded-SE
+3D peak band, not the flatter isotropic look of the reference demo's own
+banding; the visible variant(s) on this particular POC map (see above —
+only 1–2 of 5 appear, since the mass is largely one contiguous component)
+are internally coherent and the pipeline test suite confirms all 5 are
+mutually distinct. Preview PNGs committed under `preview/`
+(`ow_mountains_preview.png`, `ow_map_preview.png`,
+`ow_map_ground_preview.png`, refreshed `ow_tiles_preview.png`/
+`ow_tiles2_preview.png`/`ow_billboards_preview.png`).

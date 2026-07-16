@@ -66,6 +66,7 @@ follows them exactly.
 | `tiles6.png` | 16×16 | 8×6 | 16 named Act 5 grove tiles + 32 Phase Z dressing tiles (caveWall cap/face pairs, shades, moss↔grass + grass↔water + sunbeam↔grass 8-tile sets) — see `tileset6.ts` |
 | `tiles7.png` | 16×16 | 8×4 | 16 named Act 6 Reef tiles + 16 Phase Z dressing tiles (reefWall cap/face pairs, shades, silt↔floor 8-tile set) — see `tileset7.ts` |
 | `tiles8.png` | 16×16 | 8×4 | 16 named Act 7 pizzeria/lava tiles + 16 Phase Z dressing tiles (basaltWall cap/face pairs, shades, ash↔ember edge set) — see `tileset8.ts` |
+| `owMountains.png` | 16×16 | 8×10 | mask-based rounded-corner overworld mountain autotile (docs/CONTRACTS.md "owMountains"): 5 texture families × 16 N/E/S/W neighbor masks = 80 tiles named `owMountain{0..4}_{0..15}`, variant-major/mask-minor. Replaces the per-cell content-hash pick among the flat `mountain1..8` ridge tiles (still present in `tiles2.png`, unused by the map now) so contiguous mountain masses round their boundary against sand instead of showing hard square edges — see `owMountains.ts` |
 
 ## Layout
 
@@ -81,6 +82,7 @@ follows them exactly.
 | `tools/pipeline/src/tileset.ts` | the 16 named v1 tiles |
 | `tools/pipeline/src/tileset2.ts` | the 24 named Act 1 tiles |
 | `tools/pipeline/src/tileset3.ts`–`tileset8.ts` | the Act 2–7 zone tilesets (16 contract tiles each + the Phase Z dressing appends) |
+| `tools/pipeline/src/owMountains.ts` | the overworld's mask-based rounded-corner mountain autotile (80 tiles: 5 variants × 16 N/E/S/W neighbor masks) |
 | `tools/pipeline/src/manifest.ts` | manifest builder |
 | `tools/pipeline/src/assets.ts` | pure assembly of sheets + manifest |
 | `tools/pipeline/src/index.ts` | the only module that touches disk |

@@ -42,38 +42,56 @@ export const BILLBOARD_TEXTURE_KEY = "owBillboards";
 
 /**
  * Decor name → owBillboards frame index (frozen contract, docs/CONTRACTS.md
- * "Phase O"): the eight mountain tile variants map onto the three standing
- * mountain-mass frames; joshuaTrunk/mineTimber/truckCab map onto their
- * landmark frames.
+ * "Phase O"): joshuaTrunk/mineTimber/truckCab map onto their landmark
+ * frames. Mountain decor is handled separately below by
+ * `mountainBillboardFrame` — owMountains.png (docs/CONTRACTS.md
+ * "owMountains") replaced the old eight fixed `mountain1..8` names (which
+ * used to have their own entries here) with 80 `owMountain{variant}_{mask}`
+ * names, so a per-name lookup table is no longer practical. The
+ * `mountain1..8` tiles themselves are untouched and still exist in
+ * `tiles2.png` (additive-only contract) — they're simply unused by the
+ * overworld map now, so they no longer need an entry here either.
  */
 const BILLBOARD_FRAME: Record<string, number> = {
-  mountain: 0,
-  mountain2: 1,
-  mountain3: 2,
-  mountain4: 0,
-  mountain5: 1,
-  mountain6: 2,
-  mountain7: 0,
-  mountain8: 1,
   joshuaTrunk: 3,
   mineTimber: 4,
   truckCab: 5
 };
 
-const MOUNTAIN_FAMILY = new Set([
-  "mountain",
-  "mountain2",
-  "mountain3",
-  "mountain4",
-  "mountain5",
-  "mountain6",
-  "mountain7",
-  "mountain8"
-]);
+/** Prefix shared by every owMountains.png tile name
+ *  (`tools/pipeline/src/owMountains.ts`'s `owMountainNames`). */
+const OW_MOUNTAIN_PREFIX = "owMountain";
 
-/** Decor names left out of the flat ground bake when billboards are live.
- *  truckBox merges into the cab's single truck billboard. */
+function isMountainDecorName(name: string): boolean {
+  return name.startsWith(OW_MOUNTAIN_PREFIX);
+}
+
+/**
+ * Cyclic-by-name assignment onto the 3 existing owBillboards mass variants
+ * A/B/C (frames 0/1/2) — replaces the old per-name `BILLBOARD_FRAME`
+ * lookup (which cycled `mountain1..8` through 0,1,2,0,1,2,0,1) now that
+ * there are 80 `owMountain{variant}_{mask}` names instead of 8 fixed ones.
+ * Parses the two numbers back out of the name and cycles through 0/1/2
+ * exactly the same way, just keyed by (variant, mask) instead of by a
+ * hardcoded per-name table.
+ */
+function mountainBillboardFrame(name: string): number {
+  const m = /^owMountain(\d+)_(\d+)$/.exec(name);
+  if (!m) return 0;
+  const variant = Number(m[1]);
+  const mask = Number(m[2]);
+  return (variant * 16 + mask) % 3;
+}
+
+/** Non-mountain decor names left out of the flat ground bake when
+ *  billboards are live. truckBox merges into the cab's single truck
+ *  billboard. Mountain decor is skipped via `isMountainDecorName` instead
+ *  (see `isBillboardSkip` below), since there are 80 possible names. */
 const BILLBOARD_SKIP = new Set([...Object.keys(BILLBOARD_FRAME), "truckBox"]);
+
+function isBillboardSkip(name: string): boolean {
+  return isMountainDecorName(name) || BILLBOARD_SKIP.has(name);
+}
 
 /** Apparent world width (px) each billboard's 48px frame spans on the
  *  ground. Mountains deliberately loom larger than their tile footprint —
@@ -151,6 +169,8 @@ function tileFrame(name: string): { key: string; frame: number } {
   if (t1 !== undefined) return { key: "tiles", frame: t1 };
   const t2 = MANIFEST.tiles2.names[name];
   if (t2 !== undefined) return { key: "tiles2", frame: t2 };
+  const tm = MANIFEST.owMountains.names[name];
+  if (tm !== undefined) return { key: "owMountains", frame: tm };
   return { key: "tiles3", frame: MANIFEST.tiles3.names[name] };
 }
 
@@ -252,7 +272,7 @@ export class Mode7Ground {
         const decorName = map.decor[y][x];
         // Billboard decor stands up instead of baking flat; the ground
         // beneath it (scree, via the map's autotile pass) shows through.
-        if (decorName !== null && !(this.billboardsEnabled && BILLBOARD_SKIP.has(decorName))) {
+        if (decorName !== null && !(this.billboardsEnabled && isBillboardSkip(decorName))) {
           const d = tileFrame(decorName);
           canvas.drawFrame(d.key, d.frame, x * TILE, y * TILE, false);
         }
@@ -273,14 +293,14 @@ export class Mode7Ground {
       x < cols &&
       y < rows &&
       map.decor[y][x] !== null &&
-      MOUNTAIN_FAMILY.has(map.decor[y][x] as string);
+      isMountainDecorName(map.decor[y][x] as string);
     const used: boolean[][] = map.decor.map((row) => row.map(() => false));
 
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const name = map.decor[y][x];
         if (name === null) continue;
-        if (MOUNTAIN_FAMILY.has(name)) {
+        if (isMountainDecorName(name)) {
           if (used[y][x]) continue;
           if (
             isMtn(x + 1, y) &&
@@ -294,7 +314,7 @@ export class Mode7Ground {
             specs.push({
               wx: (x + 1) * TILE,
               wy: (y + 2) * TILE,
-              frame: BILLBOARD_FRAME[name],
+              frame: mountainBillboardFrame(name),
               worldWidth: WORLD_WIDTH_CLUSTER
             });
           } else {
@@ -302,7 +322,7 @@ export class Mode7Ground {
             specs.push({
               wx: (x + 0.5) * TILE,
               wy: (y + 1) * TILE,
-              frame: BILLBOARD_FRAME[name],
+              frame: mountainBillboardFrame(name),
               worldWidth: WORLD_WIDTH_MOUNTAIN
             });
           }

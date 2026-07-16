@@ -37,6 +37,7 @@ import { TILE6_NAMES } from "./tileset6";
 import { TILE7_NAMES } from "./tileset7";
 import { TILE8_NAMES } from "./tileset8";
 import { OW_BILLBOARD_H, OW_BILLBOARD_NAMES, OW_BILLBOARD_W } from "./sprites/owBillboards";
+import { owMountainNames } from "./owMountains";
 
 export interface AnimationDef {
   frames: number[];
@@ -115,6 +116,7 @@ export interface Manifest {
   tiles7: TileSetDef;
   tiles8: TileSetDef;
   owBillboards: BillboardSheetDef;
+  owMountains: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -248,6 +250,12 @@ export function buildManifest(): Manifest {
       frameHeight: OW_BILLBOARD_H,
       columns: 6,
       names: tileNames(OW_BILLBOARD_NAMES)
+    },
+    owMountains: {
+      file: "owMountains.png",
+      tileSize: TILE_SIZE,
+      columns: 8,
+      names: tileNames(owMountainNames)
     }
   };
 }

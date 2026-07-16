@@ -97,6 +97,15 @@ export const SOLID_TILE_NAMES: readonly string[] = [
 const SOLID_SET = new Set(SOLID_TILE_NAMES);
 
 /**
+ * owMountains.png (overworld mountain autotile, docs/CONTRACTS.md
+ * "owMountains"): 80 names `owMountain{0..4}_{0..15}` are ALL solid, same
+ * as the legacy `mountain`/`mountain2..8` names above were. Matched by
+ * prefix rather than enumerated — mechanically equivalent to listing all
+ * 80 in `SOLID_TILE_NAMES`.
+ */
+const SOLID_PREFIXES = ["owMountain"] as const;
+
+/**
  * Dressed wall-role suffixes (see `dressing.ts` / docs/ART_DIRECTION.md §2).
  * Solidity is extended MECHANICALLY: every `<wall>Face` / `<wall>Cap` of a
  * solid base is solid. Every other dressed variant (`<floor>Shade`,
@@ -108,6 +117,9 @@ const SOLID_ROLE_SUFFIXES = ["Face", "Face2", "Cap", "Cap2"] as const;
 export function isSolidName(name: string | null): boolean {
   if (name === null) return false;
   if (SOLID_SET.has(name)) return true;
+  for (const prefix of SOLID_PREFIXES) {
+    if (name.startsWith(prefix)) return true;
+  }
   for (const suffix of SOLID_ROLE_SUFFIXES) {
     if (name.length > suffix.length && name.endsWith(suffix)) {
       if (SOLID_SET.has(name.slice(0, -suffix.length))) return true;

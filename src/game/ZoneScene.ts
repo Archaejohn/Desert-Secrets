@@ -247,6 +247,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   private static readonly TILES5_COUNT = Object.keys(MANIFEST.tiles5.names).length;
   private static readonly TILES6_COUNT = Object.keys(MANIFEST.tiles6.names).length;
   private static readonly TILES7_COUNT = Object.keys(MANIFEST.tiles7.names).length;
+  private static readonly TILES8_COUNT = Object.keys(MANIFEST.tiles8.names).length;
   private static readonly TILES2_FIRSTGID = ZoneScene.TILES1_COUNT;
   private static readonly TILES3_FIRSTGID = ZoneScene.TILES1_COUNT + ZoneScene.TILES2_COUNT;
   private static readonly TILES4_FIRSTGID =
@@ -274,8 +275,24 @@ export abstract class ZoneScene extends Phaser.Scene {
     ZoneScene.TILES5_COUNT +
     ZoneScene.TILES6_COUNT +
     ZoneScene.TILES7_COUNT;
+  /** owMountains.png (docs/CONTRACTS.md "owMountains"): the overworld's
+   *  rounded-corner mountain autotile. Only `overworldMap.ts` ever places
+   *  these names, but every zone's flat tilemap is built through this same
+   *  shared machinery (the overworld's flat layer is the Mode-7 fallback,
+   *  and is always built once up front regardless of whether Mode-7
+   *  ultimately renders instead), so it needs a firstgid/tileset slot here
+   *  too, appended after tiles8 — additive, no existing gid range moves. */
+  private static readonly OW_MOUNTAINS_FIRSTGID =
+    ZoneScene.TILES1_COUNT +
+    ZoneScene.TILES2_COUNT +
+    ZoneScene.TILES3_COUNT +
+    ZoneScene.TILES4_COUNT +
+    ZoneScene.TILES5_COUNT +
+    ZoneScene.TILES6_COUNT +
+    ZoneScene.TILES7_COUNT +
+    ZoneScene.TILES8_COUNT;
 
-  /** Resolve a tile name to a global index across the seven tilesets. */
+  /** Resolve a tile name to a global index across the tilesets. */
   protected tileGid(name: string): number {
     const t1 = MANIFEST.tiles.names[name];
     if (t1 !== undefined) return t1;
@@ -293,6 +310,8 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t7 !== undefined) return ZoneScene.TILES7_FIRSTGID + t7;
     const t8 = MANIFEST.tiles8.names[name];
     if (t8 !== undefined) return ZoneScene.TILES8_FIRSTGID + t8;
+    const t9 = MANIFEST.owMountains.names[name];
+    if (t9 !== undefined) return ZoneScene.OW_MOUNTAINS_FIRSTGID + t9;
     throw new Error(`Unknown tile name: ${name}`);
   }
 
@@ -312,7 +331,9 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (t6 !== undefined) return { key: "tiles6", frame: t6 };
     const t7 = MANIFEST.tiles7.names[name];
     if (t7 !== undefined) return { key: "tiles7", frame: t7 };
-    return { key: "tiles8", frame: MANIFEST.tiles8.names[name] };
+    const t8 = MANIFEST.tiles8.names[name];
+    if (t8 !== undefined) return { key: "tiles8", frame: t8 };
+    return { key: "owMountains", frame: MANIFEST.owMountains.names[name] };
   }
 
   private buildMap(width: number, height: number): void {
@@ -325,7 +346,16 @@ export abstract class ZoneScene extends Phaser.Scene {
     const ts6 = map.addTilesetImage("t6", "tiles6-img", TILE, TILE, 0, 0, ZoneScene.TILES6_FIRSTGID)!;
     const ts7 = map.addTilesetImage("t7", "tiles7-img", TILE, TILE, 0, 0, ZoneScene.TILES7_FIRSTGID)!;
     const ts8 = map.addTilesetImage("t8", "tiles8-img", TILE, TILE, 0, 0, ZoneScene.TILES8_FIRSTGID)!;
-    const sets = [ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8];
+    const ts9 = map.addTilesetImage(
+      "t9",
+      "owMountains-img",
+      TILE,
+      TILE,
+      0,
+      0,
+      ZoneScene.OW_MOUNTAINS_FIRSTGID
+    )!;
+    const sets = [ts1, ts2, ts3, ts4, ts5, ts6, ts7, ts8, ts9];
     this.groundLayer = map.createBlankLayer("ground", sets)!;
     this.decorLayer = map.createBlankLayer("decor", sets)!;
     const overhead = map.createBlankLayer("overhead", sets)!;

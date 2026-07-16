@@ -20,6 +20,7 @@ import tiles5Url from "../../assets/generated/tiles5.png";
 import tiles6Url from "../../assets/generated/tiles6.png";
 import tiles7Url from "../../assets/generated/tiles7.png";
 import tiles8Url from "../../assets/generated/tiles8.png";
+import owMountainsUrl from "../../assets/generated/owMountains.png";
 import rosaUrl from "../../assets/generated/rosa.png";
 import piggyUrl from "../../assets/generated/piggy.png";
 import jackrabbitUrl from "../../assets/generated/jackrabbit.png";
@@ -152,7 +153,8 @@ export class BootScene extends Phaser.Scene {
       ["tiles5", tiles5Url],
       ["tiles6", tiles6Url],
       ["tiles7", tiles7Url],
-      ["tiles8", tiles8Url]
+      ["tiles8", tiles8Url],
+      ["owMountains", owMountainsUrl]
     ] as const) {
       this.load.spritesheet(key, url, { frameWidth: 16, frameHeight: 16 });
       this.load.image(`${key}-img`, url);

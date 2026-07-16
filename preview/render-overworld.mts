@@ -55,7 +55,8 @@ function blitTile(dst: PNG, sheet: PNG, idx: number, dx: number, dy: number, col
 for (const [name, out] of [
   ["tiles.png", "ow_tiles_preview.png"],
   ["tiles2.png", "ow_tiles2_preview.png"],
-  ["owBillboards.png", "ow_billboards_preview.png"]
+  ["owBillboards.png", "ow_billboards_preview.png"],
+  ["owMountains.png", "ow_mountains_preview.png"]
 ] as const) {
   writeFileSync(join(outDir, out), PNG.sync.write(scaleNN(loadPng(join(gen, name)), 8)));
   console.log("wrote", out);
@@ -65,6 +66,7 @@ for (const [name, out] of [
 const map = buildOverworldMap();
 const tiles = loadPng(join(gen, "tiles.png"));
 const tiles2 = loadPng(join(gen, "tiles2.png"));
+const owMountains = loadPng(join(gen, "owMountains.png"));
 const bb = loadPng(join(gen, "owBillboards.png"));
 const rows = map.ground.length;
 const cols = map.ground[0].length;
@@ -72,7 +74,22 @@ const cols = map.ground[0].length;
 function tileFrame(name: string): { sheet: PNG; idx: number } {
   if (manifest.tiles.names[name] !== undefined) return { sheet: tiles, idx: manifest.tiles.names[name] };
   if (manifest.tiles2.names[name] !== undefined) return { sheet: tiles2, idx: manifest.tiles2.names[name] };
+  if (manifest.owMountains.names[name] !== undefined) {
+    return { sheet: owMountains, idx: manifest.owMountains.names[name] };
+  }
   throw new Error(`unknown tile ${name}`);
+}
+
+// Billboard-eligible decor: owMountain* (any variant/mask) plus the fixed
+// landmark names (docs/CONTRACTS.md "owMountains" / "Phase O").
+function isBillboardEligible(name: string): boolean {
+  return (
+    name.startsWith("owMountain") ||
+    name === "joshuaTrunk" ||
+    name === "mineTimber" ||
+    name === "truckCab" ||
+    name === "truckBox"
+  );
 }
 
 // two variants: flat tile view (fallback look) and billboard-ground view
@@ -80,18 +97,13 @@ for (const [file, skipBillboards] of [
   ["ow_map_preview.png", false],
   ["ow_map_ground_preview.png", true]
 ] as const) {
-  const BILLBOARD_SKIP = new Set([
-    "mountain", "mountain2", "mountain3", "mountain4", "mountain5",
-    "mountain6", "mountain7", "mountain8", "joshuaTrunk", "mineTimber",
-    "truckCab", "truckBox"
-  ]);
   const img = new PNG({ width: cols * 16, height: rows * 16 });
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const g = tileFrame(map.ground[y][x]);
       blitTile(img, g.sheet, g.idx, x * 16, y * 16, 8, 16, 16);
       const d = map.decor[y][x];
-      if (d !== null && !(skipBillboards && BILLBOARD_SKIP.has(d))) {
+      if (d !== null && !(skipBillboards && isBillboardEligible(d))) {
         const df = tileFrame(d);
         blitTile(img, df.sheet, df.idx, x * 16, y * 16, 8, 16, 16);
       }

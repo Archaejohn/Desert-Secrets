@@ -294,3 +294,21 @@ describe("phase S asset byte-stability", () => {
     }
   });
 });
+
+describe("owMountains blob-autotile byte-stability", () => {
+  // sha256 of owMountains.png (docs/CONTRACTS.md "owMountains"): the
+  // mask-based rounded-corner overworld mountain autotile that replaced the
+  // old per-cell content-hash pick among eight neighbor-blind mountain1..8
+  // ridge tiles. New sheet, so pinned here from its first generation.
+  const FROZEN = {
+    owMountains: "9697667cd66f077cc23855a606793c73de4123e52b36b813c97fd7d1ec677db7"
+  } as const;
+
+  it("owMountains encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});
