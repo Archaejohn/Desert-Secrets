@@ -40,6 +40,7 @@ import { PizzeriaScene } from "./scenes/PizzeriaScene";
 import { PizzaAscentScene } from "./scenes/PizzaAscentScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
+import { initUpdateCheck } from "./updateCheck";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -102,3 +103,5 @@ const game = new Phaser.Game({
 
 // Exposed for headless smoke tests and debugging.
 (window as unknown as { __game: Phaser.Game }).__game = game;
+
+initUpdateCheck();
