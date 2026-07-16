@@ -424,11 +424,30 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     expect(buildOverworldMap()).toEqual(map);
   });
 
-  it("is fully enclosed by solid border tiles except its two stops", () => {
-    assertEnclosed(map, [
-      ...edgeGate(OVERWORLD_SOUTH_EXIT, "south", map),
-      ...edgeGate(OVERWORLD_NORTH_EXIT, "north", map)
-    ]);
+  it("is fully enclosed by solid border tiles (the two stops are interior now)", () => {
+    // v24: the mine/spring stops moved inside the map, so the mountain border
+    // is completely closed — there are no edge gates to leave gaps for.
+    assertEnclosed(map);
+  });
+
+  it("puts both stops well inside the map, not against any edge", () => {
+    for (const r of [OVERWORLD_NORTH_EXIT, OVERWORLD_SOUTH_EXIT]) {
+      expect(r.y1).toBeGreaterThan(4);
+      expect(r.y2).toBeLessThan(OVERWORLD_HEIGHT - 5);
+    }
+    for (const p of [OVERWORLD_NORTH_SPAWN, OVERWORLD_SOUTH_SPAWN]) {
+      expect(p.y).toBeGreaterThan(4);
+      expect(p.y).toBeLessThan(OVERWORLD_HEIGHT - 5);
+      expect(p.x).toBeGreaterThan(4);
+      expect(p.x).toBeLessThan(OVERWORLD_WIDTH - 5);
+    }
+  });
+
+  it("keeps each arrival spawn off its own exit band (no instant re-trigger)", () => {
+    const onBand = (p: Pt, r: { x1: number; y1: number; x2: number; y2: number }) =>
+      p.x >= r.x1 && p.x <= r.x2 && p.y >= r.y1 && p.y <= r.y2;
+    expect(onBand(OVERWORLD_NORTH_SPAWN, OVERWORLD_NORTH_EXIT)).toBe(false);
+    expect(onBand(OVERWORLD_SOUTH_SPAWN, OVERWORLD_SOUTH_EXIT)).toBe(false);
   });
 
   it("keeps both spawns and both stops walkable", () => {
@@ -492,11 +511,12 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     // test below, which checks this mask math directly).
     expect(map.ground.flat().some((n) => n === "water" || n === "water2" || n.startsWith("lakeShore"))).toBe(true);
     const gateCx = (OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2;
+    const gateCy = (OVERWORLD_SOUTH_EXIT.y1 + OVERWORLD_SOUTH_EXIT.y2) / 2;
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         if (map.decor[y][x] === "truckCab" || map.decor[y][x] === "truckBox") {
           expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
-          expect(OVERWORLD_HEIGHT - 1 - y).toBeLessThanOrEqual(10);
+          expect(Math.abs(y - gateCy)).toBeLessThanOrEqual(6);
         }
       }
     }
@@ -507,11 +527,12 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     expect(decorFlat).toContain("mineTimber");
     expect(decorFlat).toContain("cart");
     const gateCx = (OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2;
+    const gateCy = (OVERWORLD_NORTH_EXIT.y1 + OVERWORLD_NORTH_EXIT.y2) / 2;
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       for (let x = 0; x < OVERWORLD_WIDTH; x++) {
         if (map.decor[y][x] === "mineTimber" || map.decor[y][x] === "cart") {
           expect(Math.abs(x - gateCx)).toBeLessThanOrEqual(8);
-          expect(y).toBeLessThanOrEqual(10);
+          expect(Math.abs(y - gateCy)).toBeLessThanOrEqual(6);
         }
       }
     }
@@ -723,16 +744,15 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     expect(depths.size).toBeGreaterThan(1);
   });
 
-  it("keeps the literal border ring solid everywhere except the two gate bands (enclosure holds regardless of buffer noise)", () => {
+  it("keeps the literal border ring solid on all four edges (fully closed — stops are interior)", () => {
     // Redundant with "is fully enclosed..." above by design — this is the
     // same guarantee restated as a direct decor check, so a future change
     // to the border/buffer logic that broke enclosure in a way `isSolidAt`
     // didn't happen to catch (e.g. a ground-only leak) still fails loudly.
+    // v24: no edge gates anymore, so every border cell is solid.
     for (let x = 0; x < OVERWORLD_WIDTH; x++) {
-      const topOpen = x >= OVERWORLD_NORTH_EXIT.x1 && x <= OVERWORLD_NORTH_EXIT.x2;
-      const bottomOpen = x >= OVERWORLD_SOUTH_EXIT.x1 && x <= OVERWORLD_SOUTH_EXIT.x2;
-      expect(map.decor[0][x] === null).toBe(topOpen);
-      expect(map.decor[OVERWORLD_HEIGHT - 1][x] === null).toBe(bottomOpen);
+      expect(map.decor[0][x]).not.toBeNull();
+      expect(map.decor[OVERWORLD_HEIGHT - 1][x]).not.toBeNull();
     }
     for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
       expect(map.decor[y][0]).not.toBeNull();
@@ -748,17 +768,24 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
   // layout tiles exactly the way the generator would, and that the editor's
   // seed (deriveAuthoredLayout) and the game's finish (buildAuthoredMap) are
   // faithful inverses.
+  const exitCenter = (r: { x1: number; y1: number; x2: number; y2: number }): Pt => ({
+    x: Math.round((r.x1 + r.x2) / 2),
+    y: Math.round((r.y1 + r.y2) / 2)
+  });
+  const stopsFromExports = () => ({
+    northGate: exitCenter(OVERWORLD_NORTH_EXIT),
+    northSpawn: OVERWORLD_NORTH_SPAWN,
+    southGate: exitCenter(OVERWORLD_SOUTH_EXIT),
+    southSpawn: OVERWORLD_SOUTH_SPAWN
+  });
+
   it("round-trips the procedural map through derive→finish unchanged", () => {
-    const northGateX = Math.round((OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2);
-    const southGateX = Math.round((OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2);
-    const layout = deriveAuthoredLayout(map, northGateX, southGateX);
+    const layout = deriveAuthoredLayout(map, stopsFromExports());
     expect(buildAuthoredMap(layout)).toEqual(map);
   });
 
   it("finishes an authored layout into a valid, fully-reachable map", () => {
-    const northGateX = Math.round((OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2);
-    const southGateX = Math.round((OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2);
-    const authored = buildAuthoredMap(deriveAuthoredLayout(map, northGateX, southGateX));
+    const authored = buildAuthoredMap(deriveAuthoredLayout(map, stopsFromExports()));
     assertDimensions(authored, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
     assertKnownNames(authored);
     let walkable = 0;

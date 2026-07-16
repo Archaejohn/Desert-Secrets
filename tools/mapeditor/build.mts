@@ -23,7 +23,9 @@ import {
   deriveAuthoredLayout,
   OVERWORLD_HEIGHT,
   OVERWORLD_NORTH_EXIT,
+  OVERWORLD_NORTH_SPAWN,
   OVERWORLD_SOUTH_EXIT,
+  OVERWORLD_SOUTH_SPAWN,
   OVERWORLD_WIDTH
 } from "../../src/game/maps/overworldMap";
 import { SOLID_TILE_NAMES } from "../../src/game/maps/types";
@@ -48,8 +50,16 @@ const sheets = SHEET_KEYS.map((key) => {
   };
 });
 
-const gateX = (r: { x1: number; x2: number }): number => Math.round((r.x1 + r.x2) / 2);
-const seed = deriveAuthoredLayout(buildOverworldMap(), gateX(OVERWORLD_NORTH_EXIT), gateX(OVERWORLD_SOUTH_EXIT));
+const exitCenter = (r: { x1: number; y1: number; x2: number; y2: number }) => ({
+  x: Math.round((r.x1 + r.x2) / 2),
+  y: Math.round((r.y1 + r.y2) / 2)
+});
+const seed = deriveAuthoredLayout(buildOverworldMap(), {
+  northGate: exitCenter(OVERWORLD_NORTH_EXIT),
+  northSpawn: OVERWORLD_NORTH_SPAWN,
+  southGate: exitCenter(OVERWORLD_SOUTH_EXIT),
+  southSpawn: OVERWORLD_SOUTH_SPAWN
+});
 
 const data = {
   width: OVERWORLD_WIDTH,

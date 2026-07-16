@@ -3409,3 +3409,47 @@ touched — this remains a pure map-data (`overworldMap.ts`) change; no
 pass uses (`owMountain*`, `scree*`, `lakeShore*`, `mineTimber`, `cart`,
 `truckCab`/`truckBox`, `joshuaTrunk`, `creosote`, `bones`) already shipped
 in v22 or earlier.
+
+# v24: the two stops move interior, and a human-touch map editor
+
+2026-07-16. Two connected changes to the same terrain-first overworld.
+
+**Interior stops.** The project owner: "I don't want the gates and spawns
+at the edges of the map." The mine mouth (north) and the spring/truck stop
+(south) are no longer openings punched through the map's edge — they are
+INTERIOR landmarks you walk up to, and the mountain border is now FULLY
+closed on all four sides (the v23 enclosure test that allowed two edge gate
+bands became a plain "every border cell solid" check). `overworldMap.ts`:
+`findGateX` (edge scan) is replaced by `findInteriorStop`, which radiates
+out from a target point set well inside the map (`STOP_INSET = 12`) until a
+stop's whole clearing is free of mountain, so a stop lands in genuinely open
+desert rather than punching a hole in a range. Each stop's exit is a 3-wide
+band of threshold sand at the stop (`openStopExit`), and its arrival spawn
+sits two rows clear of that band so re-entering the overworld never lands
+you back on the exit tile (the exit-trigger check in `ZoneScene.update` has
+no just-spawned grace, so this offset is load-bearing — a map test asserts
+each spawn is off its own exit band). Barriers (phase 3) take the two stop
+clearings as keep-clear boxes. `OverworldScene`/`MineEntranceScene`/
+`OasisScene` were not touched: they already consume `OVERWORLD_*_EXIT`
+(now interior rects) and `OVERWORLD_*_SPAWN` (now interior points) as
+opaque values.
+
+**The human-touch editor (`tools/mapeditor`, `npm run mapeditor`).** A
+self-contained HTML tool for hand-authoring the overworld at the SEMANTIC
+layer, so a person can shape it without fighting the autotiler. It exports
+an `AuthoredOverworld` — a compact, diff-friendly layout: terrain rows of
+`.`/`#`/`~` (sand/mountain/water), a landmark list, and the two stops as
+interior `northGate`/`northSpawn`/`southGate`/`southSpawn` points — never
+concrete `owMountain*`/`scree*`/`lakeShore*` names. `buildOverworldMap()`
+finishes an authored layout (dropped into `overworldMap.authored.ts`, `null`
+by default so the procedural build ships unchanged) through the SAME passes
+as the generator (`finishAuthoredLayout` reuses `assignMountainTileNames` +
+`applyOverworldAutotile` + `applyScatter`), so a hand-drawn map tiles
+identically to a generated one. `deriveAuthoredLayout` is the inverse (the
+editor's seed); a map test asserts `buildAuthoredMap(deriveAuthoredLayout(
+map)) === map` byte-for-byte. The editor previews the real autotiled result
+with a JS port of the finishing passes, proven byte-identical to the TS
+`buildAuthoredMap` on both the seed and an edited layout, and mirrors the
+BFS reachability test as a live overlay so a walled-off pocket shows up
+before export. No `tools/pipeline/` files were touched — every tile name is
+unchanged from v23.

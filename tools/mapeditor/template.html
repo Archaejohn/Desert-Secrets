@@ -73,9 +73,9 @@
     <div id="terrainBrushes"></div>
     <div class="lbl">Landmarks</div>
     <div id="landmarkBrushes"></div>
-    <div class="lbl">Gates</div>
+    <div class="lbl">Gates &amp; spawns</div>
     <div id="gateBrushes"></div>
-    <div class="hint">Gate tools: click a column on the top (mine) or bottom (spring) edge to move that 3-wide opening. The spawn sits just inside it.</div>
+    <div class="hint">The two stops are interior — pick a marker, then click anywhere to place it. <b>Gate</b> (green) is the exit you step on; <b>spawn</b> (gold) is where you arrive back. Keep each spawn a couple of tiles off its gate so re-entry doesn't bounce.</div>
   </div>
   <div id="stage"><canvas id="canvas"></canvas></div>
   <div id="right">
@@ -260,8 +260,9 @@
       }
     }
     for (const lm of layout.landmarks) if (lm.y >= 0 && lm.y < h && lm.x >= 0 && lm.x < w) decor[lm.y][lm.x] = lm.name;
-    const bands = [[layout.northGateX, 0], [layout.southGateX, h - 1]];
-    for (const [gx, ey] of bands) for (let x = gx - 1; x <= gx + 1; x++) if (x >= 0 && x < w) { decor[ey][x] = null; ground[ey][x] = "sand2"; }
+    const openGate = (g) => { for (let x = g.x - 1; x <= g.x + 1; x++) if (x >= 0 && x < w && g.y >= 0 && g.y < h) { decor[g.y][x] = null; ground[g.y][x] = "sand2"; } };
+    openGate(layout.northGate); openGate(layout.southGate);
+    for (const s of [layout.northSpawn, layout.southSpawn]) if (s.x >= 0 && s.x < w && s.y >= 0 && s.y < h) decor[s.y][s.x] = null;
     applyScatter(ground, decor);
     assignMountainTileNames(decor);
     applyOverworldAutotile(ground, decor);
@@ -269,9 +270,9 @@
   }
 
   // ---- state --------------------------------------------------------------
-  const LS_KEY = "desert-secrets-ow-editor-v2";
+  const LS_KEY = "desert-secrets-ow-editor-v3";
   const LANDMARKS = ["mineTimber", "cart", "truckBox", "truckCab", "joshuaTrunk"];
-  let terrain, landmarks, northGateX, southGateX; // core state
+  let terrain, landmarks, gates; // gates = {northGate,northSpawn,southGate,southSpawn} (interior Pts)
   let brush = { kind: "terrain", value: MTN };
   let tool = "paint", scale = 11, viewTiles = true;
   let showGrid = false, showReach = true, showSolid = false;
@@ -281,13 +282,16 @@
   function seedFrom(src) {
     terrain = src.terrainRows.map((r) => r.split(""));
     landmarks = new Map(src.landmarks.map((l) => [l.x + "," + l.y, l.name]));
-    northGateX = src.northGateX; southGateX = src.southGateX;
+    gates = {
+      northGate: { ...src.northGate }, northSpawn: { ...src.northSpawn },
+      southGate: { ...src.southGate }, southSpawn: { ...src.southSpawn }
+    };
   }
   function layoutObj() {
     const lms = [];
     for (const [k, name] of landmarks) { const [x, y] = k.split(",").map(Number); lms.push({ x, y, name }); }
     lms.sort((a, b) => a.y - b.y || a.x - b.x);
-    return { terrainRows: terrain.map((r) => r.join("")), landmarks: lms, northGateX, southGateX };
+    return { terrainRows: terrain.map((r) => r.join("")), landmarks: lms, ...gates };
   }
   function snapshot() { return JSON.stringify(layoutObj()); }
   function restore(json) { seedFrom(JSON.parse(json)); recompute(); render(); }
@@ -315,7 +319,7 @@
     for (let y = 0; y < H; y++) { solid.push([]); for (let x = 0; x < W; x++) solid[y].push(isSolidName(finished.decor[y][x]) || isSolidName(finished.ground[y][x])); }
     const seen = Array.from({ length: H }, () => new Array(W).fill(false));
     const q = [];
-    for (const s of [{ x: northGateX, y: 2 }, { x: southGateX, y: H - 3 }]) {
+    for (const s of [gates.northSpawn, gates.southSpawn]) {
       if (s.x >= 0 && s.x < W && s.y >= 0 && s.y < H && !solid[s.y][s.x] && !seen[s.y][s.x]) { seen[s.y][s.x] = true; q.push(s); }
     }
     for (let i = 0; i < q.length; i++) {
@@ -375,14 +379,14 @@
       for (let y = 0; y <= H; y++) { ctx.moveTo(0, y * S + .5); ctx.lineTo(W * S, y * S + .5); }
       ctx.stroke();
     }
-    // gates + spawns
-    drawGate(northGateX, 0); drawGate(southGateX, H - 1);
-    drawSpawn(northGateX, 2); drawSpawn(southGateX, H - 3);
+    // gates (green 3-wide exit band) + spawns (gold dot)
+    drawGate(gates.northGate); drawGate(gates.southGate);
+    drawSpawn(gates.northSpawn.x, gates.northSpawn.y); drawSpawn(gates.southSpawn.x, gates.southSpawn.y);
   }
-  function drawGate(gx, ey) {
+  function drawGate(g) {
     const S = scale;
     ctx.strokeStyle = getVar("--ok"); ctx.lineWidth = 2;
-    ctx.strokeRect((gx - 1) * S + 1, ey * S + 1, 3 * S - 2, S - 2);
+    ctx.strokeRect((g.x - 1) * S + 1, g.y * S + 1, 3 * S - 2, S - 2);
   }
   function drawSpawn(x, y) {
     const S = scale;
@@ -417,7 +421,7 @@
     }
   }
   function applyBrushAt(x, y, erase) {
-    if (brush.kind === "gate") { if (brush.value === "north") northGateX = Math.min(W - 2, Math.max(1, x)); else southGateX = Math.min(W - 2, Math.max(1, x)); return; }
+    if (brush.kind === "marker") { gates[brush.value] = { x: Math.min(W - 2, Math.max(1, x)), y: Math.min(H - 2, Math.max(1, y)) }; return; }
     if (tool === "pick") { pickAt(x, y); return; }
     if (erase) { if (tool === "fill") floodFill(x, y, SAND); else eraseCell(x, y); return; }
     if (brush.kind === "landmark") { placeLandmark(x, y, brush.value); return; }
@@ -441,7 +445,7 @@
     e.preventDefault();
     const { x, y } = cellAt(e); if (x < 0 || y < 0 || x >= W || y >= H) return;
     eraseMode = e.button === 2;
-    if (tool === "pick" && brush.kind !== "gate") { pickAt(x, y); return; }
+    if (tool === "pick" && brush.kind !== "marker") { pickAt(x, y); return; }
     beginStroke();
     if (tool === "rect" && (brush.kind === "terrain" || eraseMode)) { rectStart = { x, y }; painting = true; canvas.setPointerCapture(e.pointerId); return; }
     painting = true; canvas.setPointerCapture(e.pointerId);
@@ -496,15 +500,23 @@
     const lRoot = document.getElementById("landmarkBrushes");
     for (const name of LANDMARKS) { const br = { kind: "landmark", value: name }; const b = makeBrushBtn(name, "", tileSwatch(name), () => setBrush(br)); b.dataset.k = "landmark:" + name; lRoot.appendChild(b); }
     const gRoot = document.getElementById("gateBrushes");
-    for (const [l, v] of [["North gate (mine)", "north"], ["South gate (spring)", "south"]]) {
-      const br = { kind: "gate", value: v }; const chip = document.createElement("div"); chip.className = "chip"; chip.style.background = getVar("--ok");
-      const b = makeBrushBtn(l, "click an edge column", chip, () => setBrush(br)); b.dataset.k = "gate:" + v; gRoot.appendChild(b);
+    const markerDefs = [
+      ["North gate (mine)", "northGate", "--ok"],
+      ["North spawn", "northSpawn", "--gold"],
+      ["South gate (spring)", "southGate", "--ok"],
+      ["South spawn", "southSpawn", "--gold"]
+    ];
+    for (const [l, v, color] of markerDefs) {
+      const br = { kind: "marker", value: v };
+      const chip = document.createElement("div"); chip.className = "chip"; chip.style.background = getVar(color);
+      const b = makeBrushBtn(l, "click to place", chip, () => setBrush(br)); b.dataset.k = "marker:" + v; gRoot.appendChild(b);
     }
   }
   function setBrush(br) {
     brush = br;
     document.querySelectorAll(".brush").forEach((b) => b.classList.toggle("sel", b.dataset.k === br.kind + ":" + br.value));
     document.getElementById("fBrush").textContent = br.kind === "terrain" ? { ".": "sand", "#": "mountain", "~": "water" }[br.value] : br.value;
+    canvas.style.cursor = br.kind === "marker" ? "cell" : "crosshair";
   }
 
   // ---- toolbar ------------------------------------------------------------
@@ -535,7 +547,9 @@
     s += "export const AUTHORED_OVERWORLD: AuthoredOverworld = {\n  terrainRows: [\n";
     s += L.terrainRows.map((r) => "    " + JSON.stringify(r)).join(",\n") + "\n  ],\n";
     s += "  landmarks: [\n" + L.landmarks.map((l) => "    { x: " + l.x + ", y: " + l.y + ", name: " + JSON.stringify(l.name) + " }").join(",\n") + "\n  ],\n";
-    s += "  northGateX: " + L.northGateX + ",\n  southGateX: " + L.southGateX + "\n};\n";
+    const pt = (p) => "{ x: " + p.x + ", y: " + p.y + " }";
+    s += "  northGate: " + pt(L.northGate) + ",\n  northSpawn: " + pt(L.northSpawn) + ",\n";
+    s += "  southGate: " + pt(L.southGate) + ",\n  southSpawn: " + pt(L.southSpawn) + "\n};\n";
     return s;
   }
   function copy(t, label) { navigator.clipboard.writeText(t).then(() => flash(label + " copied ✓"), () => prompt("Copy manually:", t)); }
@@ -568,7 +582,7 @@
     _test: {
       paint(x, y, ch) { setTerrain(x, y, ch); recompute(); render(); },
       landmark(x, y, name) { placeLandmark(x, y, name); recompute(); render(); },
-      gates(n, s) { northGateX = n; southGateX = s; recompute(); render(); }
+      marker(name, x, y) { gates[name] = { x, y }; recompute(); render(); }
     }
   };
 
