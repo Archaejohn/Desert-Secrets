@@ -82,7 +82,32 @@ export class OverworldScene extends ZoneScene {
     // by default. Lets the project owner drag elevation/zoom/angle live on
     // their own device and read off the exact numbers to hand back as the
     // new MODE7_* defaults (see Mode7Tuner's doc comment).
-    const tuning = new URLSearchParams(window.location.search).has("mode7tune");
+    //
+    // Persisted to localStorage, not just read from the URL: the PWA
+    // manifest sets display:"fullscreen", so once installed to a home
+    // screen the app always launches from its bare start_url with no
+    // address bar to type a query string into. Visiting the URL with
+    // ?mode7tune=1 ONCE in a normal browser tab latches it on for every
+    // future launch, including the installed app; ?mode7tune=0 latches it
+    // back off.
+    const params = new URLSearchParams(window.location.search);
+    let tuning: boolean;
+    if (params.has("mode7tune")) {
+      tuning = params.get("mode7tune") !== "0";
+      try {
+        if (tuning) window.localStorage.setItem("mode7tune", "1");
+        else window.localStorage.removeItem("mode7tune");
+      } catch {
+        // Storage unavailable (private mode, etc.) — the query param still
+        // works for this one page load.
+      }
+    } else {
+      try {
+        tuning = window.localStorage.getItem("mode7tune") === "1";
+      } catch {
+        tuning = false;
+      }
+    }
     if (tuning) {
       this.tuner = new Mode7Tuner(this, (overrides) => this.mode7?.setOverrides(overrides));
     }
