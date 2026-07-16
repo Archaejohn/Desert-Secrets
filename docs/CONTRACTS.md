@@ -3453,3 +3453,21 @@ with a JS port of the finishing passes, proven byte-identical to the TS
 BFS reachability test as a live overlay so a walled-off pocket shows up
 before export. No `tools/pipeline/` files were touched — every tile name is
 unchanged from v23.
+
+**First shipped authored map + the test split.** The owner hand-authored a
+full Open Desert (a central basin threaded with mountain ranges, a river/lake
+down the east side, mine mouth and spring stops) and asked to ship it, so
+`overworldMap.authored.ts` is now non-null. A hand-authored world can
+DELIBERATELY wall off an "outside desert" you never reach (the mountain ranges
+cut the central play area off from the rest — the owner's original ask), which
+the generator's "every walkable cell reachable" invariant forbids. So the
+overworld tests split in two: `describe("… procedural generator …")` tests the
+GENERATOR against its own build (`buildProceduralOverworld()`, which ignores
+the override) with the strict invariants (fully-closed border, every cell
+reachable, landmarks hugging their gate); `describe("… shipped build …")` tests
+whatever `buildOverworldMap()` actually returns with PLAYABILITY invariants
+only — correct size/names, valid walkable stops, each spawn off its exit band,
+and a connected play path (from the south/entry spawn you can reach both exits
+and the mine-side spawn). The editor's connectivity overlay mirrors that play-
+path check rather than raw reachability, so an intentional outside reads as
+"ok" and only a genuinely cut-off stop warns.

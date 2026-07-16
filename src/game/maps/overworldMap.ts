@@ -890,3 +890,26 @@ export function buildAuthoredMap(a: AuthoredOverworld): ZoneMap {
   const fresh = finishAuthoredLayout(a);
   return { ground: fresh.ground, decor: fresh.decor };
 }
+
+/** The procedural generator's own build, ALWAYS (ignoring any authored
+ *  override) — its map plus its interior stops. Exposed so the generator's
+ *  strict invariants can be tested directly even when a hand-authored layout
+ *  is the one that actually ships. */
+export interface OverworldBuild {
+  map: ZoneMap;
+  northExit: { x1: number; y1: number; x2: number; y2: number };
+  southExit: { x1: number; y1: number; x2: number; y2: number };
+  northSpawn: { x: number; y: number };
+  southSpawn: { x: number; y: number };
+}
+
+export function buildProceduralOverworld(): OverworldBuild {
+  const w = generateWorld();
+  return {
+    map: { ground: w.ground, decor: w.decor },
+    northExit: w.northExit,
+    southExit: w.southExit,
+    northSpawn: w.northSpawn,
+    southSpawn: w.southSpawn
+  };
+}

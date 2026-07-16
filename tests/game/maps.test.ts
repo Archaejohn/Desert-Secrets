@@ -47,6 +47,7 @@ import {
 import {
   buildAuthoredMap,
   buildOverworldMap,
+  buildProceduralOverworld,
   deriveAuthoredLayout,
   OVERWORLD_HEIGHT,
   OVERWORLD_NORTH_EXIT,
@@ -409,8 +410,18 @@ describe("shed map (the shed)", () => {
 
 // ------------------------------------------------------------ overworld
 
-describe("overworld map (the open desert, terrain-first v23)", () => {
-  const map = buildOverworldMap();
+describe("overworld map (procedural generator, terrain-first v23/v24)", () => {
+  // These invariants describe the GENERATOR — the fallback used when no
+  // hand-authored layout is active — tested against its own build directly, so
+  // they hold even when an authored map is the one that actually ships
+  // (validated separately below). The local consts shadow the module exports
+  // with the procedural build's own stops.
+  const build = buildProceduralOverworld();
+  const map = build.map;
+  const OVERWORLD_NORTH_EXIT = build.northExit;
+  const OVERWORLD_SOUTH_EXIT = build.southExit;
+  const OVERWORLD_NORTH_SPAWN = build.northSpawn;
+  const OVERWORLD_SOUTH_SPAWN = build.southSpawn;
 
   it("has the declared dimensions", () => {
     assertDimensions(map, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
@@ -421,7 +432,7 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
   });
 
   it("is deterministic", () => {
-    expect(buildOverworldMap()).toEqual(map);
+    expect(buildProceduralOverworld().map).toEqual(map);
   });
 
   it("is fully enclosed by solid border tiles (the two stops are interior now)", () => {
@@ -794,6 +805,71 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
     }
     const reached = reachableSet(authored, [OVERWORLD_SOUTH_SPAWN, OVERWORLD_NORTH_SPAWN]);
     expect(reached.size).toBe(walkable);
+  });
+});
+
+// The map that actually SHIPS — whatever `buildOverworldMap()` returns, which
+// is the hand-authored layout (`overworldMap.authored.ts`) when one is present,
+// else the procedural build. A hand-authored world may deliberately wall off an
+// "outside desert" you can never reach (mountain ranges cutting the central
+// area off from the rest), so the shipped map's invariants are about
+// PLAYABILITY — correct size/names, valid stops, and a connected play path —
+// not the generator-only guarantees (fully-closed border, every cell reachable,
+// landmarks hugging their gate) checked above.
+describe("overworld map (shipped build — honors a hand-authored layout)", () => {
+  const map = buildOverworldMap();
+
+  it("has the declared dimensions", () => {
+    assertDimensions(map, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
+  });
+
+  it("only uses tile names from the manifest tilesets", () => {
+    assertKnownNames(map);
+  });
+
+  it("is deterministic", () => {
+    expect(buildOverworldMap()).toEqual(map);
+  });
+
+  it("keeps both spawns and both exit bands walkable", () => {
+    for (const p of [
+      OVERWORLD_SOUTH_SPAWN,
+      OVERWORLD_NORTH_SPAWN,
+      rectTile(OVERWORLD_SOUTH_EXIT),
+      rectTile(OVERWORLD_NORTH_EXIT)
+    ]) {
+      expect(isSolidAt(map, p.x, p.y)).toBe(false);
+    }
+  });
+
+  it("keeps each arrival spawn off its own exit band (no instant re-trigger)", () => {
+    const onBand = (p: Pt, r: { x1: number; y1: number; x2: number; y2: number }) =>
+      p.x >= r.x1 && p.x <= r.x2 && p.y >= r.y1 && p.y <= r.y2;
+    expect(onBand(OVERWORLD_NORTH_SPAWN, OVERWORLD_NORTH_EXIT)).toBe(false);
+    expect(onBand(OVERWORLD_SOUTH_SPAWN, OVERWORLD_SOUTH_EXIT)).toBe(false);
+  });
+
+  it("connects both stops and the far spawn to the entry (the play path works)", () => {
+    // You enter from the oasis at the south spawn and must be able to reach
+    // BOTH exits and the mine-side spawn. This is the playability guarantee —
+    // NOT "every cell reachable", since a hand-authored outside desert is a
+    // legitimate, deliberately-unreachable region.
+    const reached = reachableSet(map, [OVERWORLD_SOUTH_SPAWN]);
+    const bandReached = (r: { x1: number; y1: number; x2: number; y2: number }): boolean => {
+      for (let x = r.x1; x <= r.x2; x++) for (let y = r.y1; y <= r.y2; y++) if (reached.has(`${x},${y}`)) return true;
+      return false;
+    };
+    expect(bandReached(OVERWORLD_NORTH_EXIT)).toBe(true);
+    expect(bandReached(OVERWORLD_SOUTH_EXIT)).toBe(true);
+    expect(reached.has(`${OVERWORLD_NORTH_SPAWN.x},${OVERWORLD_NORTH_SPAWN.y}`)).toBe(true);
+  });
+
+  it("is mostly open desert (a real play area, not a maze)", () => {
+    let walkable = 0;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) if (!isSolidAt(map, x, y)) walkable++;
+    }
+    expect(walkable).toBeGreaterThan((OVERWORLD_WIDTH * OVERWORLD_HEIGHT) / 3);
   });
 });
 

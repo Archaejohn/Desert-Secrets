@@ -321,17 +321,22 @@
     try { localStorage.setItem(LS_KEY, snapshot()); const el = document.getElementById("fSaved"); el.textContent = "saved ✓"; clearTimeout(saveTimer); saveTimer = setTimeout(() => (el.textContent = ""), 1000); } catch (e) {}
   }
 
-  // ---- compute finished + reachability ------------------------------------
+  // ---- compute finished + stop connectivity -------------------------------
+  // What matters for a playable map is NOT that every cell is reachable — an
+  // intentional "outside desert" walled off by mountains is fine — but that
+  // both stops connect to where you start. So the check floods from the south
+  // spawn (the canonical entry, arriving from the oasis) and verifies the two
+  // gates and the north spawn are all in that one component. Cells cut off
+  // from the start (the intended outside included) are the red overlay.
   function recompute() {
     finished = finish(layoutObj());
-    // reachability: BFS from the two spawns over non-solid cells
     const solid = [];
     for (let y = 0; y < H; y++) { solid.push([]); for (let x = 0; x < W; x++) solid[y].push(isSolidName(finished.decor[y][x]) || isSolidName(finished.ground[y][x])); }
     const seen = Array.from({ length: H }, () => new Array(W).fill(false));
     const q = [];
-    for (const s of [gates.northSpawn, gates.southSpawn]) {
-      if (s.x >= 0 && s.x < W && s.y >= 0 && s.y < H && !solid[s.y][s.x] && !seen[s.y][s.x]) { seen[s.y][s.x] = true; q.push(s); }
-    }
+    const start = gates.southSpawn;
+    const inB = (p) => p.x >= 0 && p.x < W && p.y >= 0 && p.y < H;
+    if (inB(start) && !solid[start.y][start.x]) { seen[start.y][start.x] = true; q.push(start); }
     for (let i = 0; i < q.length; i++) {
       const { x, y } = q[i];
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -343,9 +348,25 @@
     let walkable = 0, reached = 0;
     reachMiss = Array.from({ length: H }, () => new Array(W).fill(false));
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!solid[y][x]) { walkable++; if (seen[y][x]) reached++; else reachMiss[y][x] = true; }
+    // A gate counts as connected if any tile of its 3-wide band is reached.
+    const gateReached = (g) => [-1, 0, 1].some((d) => inB({ x: g.x + d, y: g.y }) && seen[g.y][g.x + d]);
+    const spawnReached = (s) => inB(s) && seen[s.y][s.x];
+    const problems = [];
+    if (!inB(start) || solid[start.y][start.x]) problems.push("south spawn is on a solid tile");
+    else {
+      if (!gateReached(gates.northGate)) problems.push("mine gate");
+      if (!gateReached(gates.southGate)) problems.push("spring gate");
+      if (!spawnReached(gates.northSpawn)) problems.push("mine spawn");
+    }
     const warn = document.getElementById("warn");
-    if (reached === walkable) { warn.textContent = "reachable ✓ (" + walkable + " open)"; warn.className = "ok"; }
-    else { warn.textContent = "⚠ " + (walkable - reached) + " unreachable cell(s)"; warn.className = ""; }
+    const cutoff = walkable - reached;
+    if (problems.length === 0) {
+      warn.textContent = "stops connected ✓" + (cutoff ? "  ·  " + cutoff + " tiles are outside desert (ok)" : "");
+      warn.className = "ok";
+    } else {
+      warn.textContent = "⚠ cut off from start: " + problems.join(", ");
+      warn.className = "";
+    }
   }
 
   // ---- drawing ------------------------------------------------------------
