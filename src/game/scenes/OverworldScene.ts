@@ -79,9 +79,9 @@ export class OverworldScene extends ZoneScene {
     if (this.game.renderer.type !== Phaser.WEBGL) return; // Canvas fallback: keep the flat tilemap.
 
     // Dev-only camera tuner (?mode7tune in the URL) — never shown to players
-    // by default. Lets the project owner drag elevation/zoom/angle live on
-    // their own device and read off the exact numbers to hand back as the
-    // new MODE7_* defaults (see Mode7Tuner's doc comment).
+    // by default. Lets the project owner drag elevation/zoom/angle/peak
+    // height live on their own device and read off the exact numbers to
+    // hand back as the new defaults (see Mode7Tuner's doc comment).
     //
     // Persisted to localStorage, not just read from the URL: the PWA
     // manifest sets display:"fullscreen", so once installed to a home
@@ -109,11 +109,16 @@ export class OverworldScene extends ZoneScene {
       }
     }
     if (tuning) {
-      this.tuner = new Mode7Tuner(this, (overrides) => this.mode7?.setOverrides(overrides));
+      this.tuner = new Mode7Tuner(
+        this,
+        (overrides) => this.mode7?.setOverrides(overrides),
+        (peakHeight) => this.mode7?.setBillboardHeightScale(peakHeight)
+      );
     }
 
     try {
       this.mode7 = new Mode7Ground(this, this.cfg.map, GROUND_DEPTH, this.tuner?.current());
+      if (this.tuner) this.mode7.setBillboardHeightScale(this.tuner.currentPeakHeight());
 
       // The flat tilemap keeps driving collision but must not be seen; the
       // real player sprite likewise stays the source of truth for position

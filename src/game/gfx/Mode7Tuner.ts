@@ -1,7 +1,12 @@
 /**
  * Mode-7 camera tuner — a dev-only on-screen panel with +/- buttons for
- * elevation (camera height), zoom (focal length) and angle (horizon
- * fraction), with the live numeric value shown next to each. Built so the
+ * elevation (camera height), zoom (focal length), angle (horizon fraction),
+ * and peak height (a camera-independent vertical squash on the mountain
+ * billboards, since raising/lowering camera pitch turned out to be a
+ * separate, currently-nonexistent degree of freedom — squashing the
+ * standees themselves shorter is a real, working substitute for "make the
+ * mountains loom less" that doesn't require touching the projection math
+ * at all), with the live numeric value shown next to each. Built so the
  * project owner can adjust the overworld's Mode-7 framing by hand on their
  * own device and read off the exact numbers to hand back as the new
  * defaults — NOT a player-facing feature. Only ever constructed when
@@ -20,7 +25,7 @@ import {
   type Mode7Overrides
 } from "../../core/mode7";
 
-type ParamKey = "height" | "focal" | "horizonFraction";
+type ParamKey = "height" | "focal" | "horizonFraction" | "peakHeight";
 
 interface Param {
   key: ParamKey;
@@ -34,27 +39,40 @@ interface Param {
 const PARAMS: readonly Param[] = [
   { key: "height", label: "Elevation", step: 4, min: 8, max: 240, decimals: 0 },
   { key: "focal", label: "Zoom", step: 10, min: 20, max: 400, decimals: 0 },
-  { key: "horizonFraction", label: "Angle", step: 0.02, min: 0.05, max: 0.75, decimals: 2 }
+  { key: "horizonFraction", label: "Angle", step: 0.02, min: 0.05, max: 0.75, decimals: 2 },
+  // Camera-independent: squashes the mountain billboards shorter/flatter
+  // without touching the projection at all (Mode7Ground.setBillboardHeightScale).
+  // 1 = today's shipped look (full standee height); lower = shorter/flatter.
+  { key: "peakHeight", label: "Peak Ht", step: 0.05, min: 0.15, max: 1.5, decimals: 2 }
 ];
 
 const DEPTH = 9000;
 const ROW_H = 15;
 const PANEL_W = 150;
 
+const DEFAULT_PEAK_HEIGHT = 1;
+
 export class Mode7Tuner {
   private readonly scene: Phaser.Scene;
-  private readonly onChange: (v: Mode7Overrides) => void;
+  private readonly onCameraChange: (v: Mode7Overrides) => void;
+  private readonly onPeakHeightChange: (scale: number) => void;
   private values: Record<ParamKey, number>;
   private readonly valueTexts = new Map<ParamKey, Phaser.GameObjects.Text>();
   private readonly objects: Phaser.GameObjects.GameObject[] = [];
 
-  constructor(scene: Phaser.Scene, onChange: (v: Mode7Overrides) => void) {
+  constructor(
+    scene: Phaser.Scene,
+    onCameraChange: (v: Mode7Overrides) => void,
+    onPeakHeightChange: (scale: number) => void
+  ) {
     this.scene = scene;
-    this.onChange = onChange;
+    this.onCameraChange = onCameraChange;
+    this.onPeakHeightChange = onPeakHeightChange;
     this.values = {
       height: MODE7_CAMERA_HEIGHT,
       focal: MODE7_FOCAL_LENGTH,
-      horizonFraction: MODE7_HORIZON_FRACTION
+      horizonFraction: MODE7_HORIZON_FRACTION,
+      peakHeight: DEFAULT_PEAK_HEIGHT
     };
     this.build();
   }
@@ -132,20 +150,30 @@ export class Mode7Tuner {
     this.values = {
       height: MODE7_CAMERA_HEIGHT,
       focal: MODE7_FOCAL_LENGTH,
-      horizonFraction: MODE7_HORIZON_FRACTION
+      horizonFraction: MODE7_HORIZON_FRACTION,
+      peakHeight: DEFAULT_PEAK_HEIGHT
     };
     for (const p of PARAMS) this.valueTexts.get(p.key)?.setText(this.fmt(p));
     this.emit();
   }
 
   private emit(): void {
-    this.onChange({ ...this.values });
+    this.onCameraChange(this.current());
+    this.onPeakHeightChange(this.values.peakHeight);
   }
 
   /** Current values as Mode7Overrides, for the initial Mode7Ground(...) call
-   *  (the panel starts at the MODE7_* defaults, same as an empty override). */
+   *  (the panel starts at the MODE7_* defaults, same as an empty override).
+   *  peakHeight is deliberately excluded — it's not a camera param, see
+   *  `currentPeakHeight()`. */
   current(): Mode7Overrides {
-    return { ...this.values };
+    return { height: this.values.height, focal: this.values.focal, horizonFraction: this.values.horizonFraction };
+  }
+
+  /** Current billboard height-squash factor, for the initial
+   *  Mode7Ground.setBillboardHeightScale(...) call. */
+  currentPeakHeight(): number {
+    return this.values.peakHeight;
   }
 
   destroy(): void {

@@ -204,6 +204,14 @@ export class Mode7Ground {
    *  `mode7tune` URL gate). Empty by default: every field falls back to its
    *  MODE7_* constant exactly as before this existed. */
   private overrides: Mode7Overrides;
+  /** Vertical-only scale applied to every billboard on top of its normal
+   *  width-derived scale (Mode7Tuner's "Peak Height", dev-only) — 1 = full
+   *  height (today's look), lower values squash mountains shorter/flatter
+   *  while keeping their footprint (world width, ground-contact base
+   *  point) unchanged. A camera-independent lever: unlike height/focal/
+   *  horizonFraction this doesn't touch the projection at all, it just
+   *  scales the standee sprites themselves. */
+  private billboardHeightScale = 1;
 
   constructor(scene: Phaser.Scene, map: ZoneMap, depth: number, overrides: Mode7Overrides = {}) {
     this.scene = scene;
@@ -356,6 +364,10 @@ export class Mode7Ground {
     this.overrides = next;
   }
 
+  setBillboardHeightScale(scale: number): void {
+    this.billboardHeightScale = scale;
+  }
+
   /** Track the player: the camera looks north from just behind their position. */
   update(playerX: number, playerY: number): void {
     const { width, height } = this.scene.scale;
@@ -375,7 +387,7 @@ export class Mode7Ground {
         continue;
       }
       const displayW = b.worldWidth * s.scale;
-      const displayH = (displayW * b.img.height) / frameW;
+      const displayH = ((displayW * b.img.height) / frameW) * this.billboardHeightScale;
       // Lateral / below-screen culling (worldToScreen already culled depth).
       if (s.x + displayW / 2 < 0 || s.x - displayW / 2 > width || s.y - displayH > height) {
         b.img.setVisible(false);
@@ -383,10 +395,11 @@ export class Mode7Ground {
       }
       const depth01 = Math.min((cam.y - b.wy) / cam.maxDepth, 1);
       const haze = Math.pow(depth01, 0.7);
+      const scaleX = displayW / frameW;
       b.img
         .setVisible(true)
         .setPosition(s.x, s.y)
-        .setScale(displayW / frameW)
+        .setScale(scaleX, scaleX * this.billboardHeightScale) // origin (0.5,1): base stays planted, only the top compresses
         .setDepth(s.y) // painter's order: nearer (lower on screen) draws on top
         .setAlpha(1 - haze * 0.75)
         .setTint(hazeTint(haze * 0.8));
