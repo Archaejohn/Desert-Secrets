@@ -3224,3 +3224,188 @@ touched at all, in either v22 pass — this remains a pure map-data
 plus the two new pipeline files `roundedMask.ts`/`lakeShore.ts`) change,
 with `src/game/maps/types.ts` gaining the town's solid names and the
 `water2` solidity fix.
+
+# v23: the overworld gets rebuilt terrain-first (no pre-decided path)
+
+2026-07-16. The project owner rejected v22's whole approach, not just its
+geometry: "so maybe we're going about this the wrong way. how about let's
+make a new map entirely generated. we have this one as a proof of concept
+so save it. we might come back to it. but right now we're trying to build
+world around an existing zigzag path. and I think that's the wrong
+approach. let's build the world first. then add in the mine and truck
+turnover spot and spring into that world. we can add barriers after it's
+made." v22 (even after its own organic-shapes rework, above) still decided
+`PATH_WAYPOINTS` and the gate x-position (`SPINE_CX = 32`) FIRST and
+carved a mountain spine around that fixed shape — landmarks were the
+thing terrain was built around, backwards from what the owner wanted.
+
+**v22 is preserved verbatim, not deleted**, as `src/game/maps/
+overworldMapPocV1.ts` — every exported identifier suffixed `_POC`/`Poc`
+(`buildOverworldMapPoc`, `OVERWORLD_WIDTH_POC`, etc.) so it can never
+collide with `overworldMap.ts`'s own exports. It still type-checks (`tsc`
+covers it) but nothing in `src/` imports it — dead code kept on purpose,
+per "we might come back to it." `overworldMap.ts` itself was rewritten
+from scratch as three sequential, genuinely separate phases.
+
+## Phase 1 — terrain, with zero knowledge of any landmark or gate position
+
+`generateWorld()`'s first phase places 6 mountain masses (`TERRAIN_TIERS`:
+2 elongated "ranges", 2 rounder "massifs", 2 small "buttes") using a
+seeded rng stream (`TERRAIN_SEED`) that never reads or references a gate
+x-coordinate, an exit rect, or a landmark position — those don't exist
+yet at this point in the build. This is the literal fix for the owner's
+complaint: terrain generation and landmark placement are now two separate
+functions run in a fixed order, not one intertwined pass.
+
+**Each mass is v22's own lake technique** (`buildLakeRadiusFn`'s "noisy-
+radius blob": a base radius perturbed by 3 seeded sine harmonics, periods
+2/3/5, clamped well above zero so the shape stays star-shaped/simply-
+connected around its own center) **generalized from "one lake" to "any
+number of independently-shaped, independently-rotated masses"**
+(`massRadiusFactorAt`/`massContains` in `overworldMap.ts`): each mass adds
+its own rotation angle and independent long/short-axis aspect on top of
+the same radius-harmonic core, so the SAME primitive produces both round
+buttes (aspect ≈ 1) and elongated ranges (aspect up to 1.6:0.65) at any
+orientation, not just axis-aligned. Star-shaped by construction exactly
+like the lake was — no flood-fill cleanup pass, same guarantee.
+
+`sampleMaxFactor` (72-sample angular scan, +5% safety margin — comfortably
+resolves the highest harmonic frequency, k=5) computes each mass's TRUE
+peak radius before it's placed, rather than a loose worst-case bound; this
+makes `placeMass`'s margin/spacing math exact instead of overly
+conservative, which matters because an overly conservative bound made
+early drafts of this file unable to fit two "range"-tier masses in a
+64-row map at all. `placeMass` rejection-samples a position (`MASS_MIN_GAP
+= 5` from every other already-placed mass or landmark-corridor keep-clear
+box, `MASS_EDGE_MARGIN = 3` from the literal map edge), and if no position
+fits at the drawn size, shrinks `base` by a fixed factor (harmonics are
+proportional to `base`, so shrinking is a pure rescale, not a re-roll) and
+retries, down to a floor — deterministic, and a mass that truly can't fit
+is simply omitted rather than blocking the build or violating a margin.
+
+## Phase 2 — landmarks placed into whatever phase 1 actually left open
+
+`findGateX` scans the north (`y=0`) and south (`y=height-1`) edges for an
+x position where a `(2×GATE_SCAN_HALF+1)`-wide, `CORRIDOR_DEPTH`-deep box
+is entirely mountain-free, radiating outward from the map's horizontal
+center (`center, center±1, center±2, ...`) so a central gate is preferred
+when available but the search genuinely adapts to wherever phase 1's
+masses actually ended up — this is the "real freedom to choose WHERE
+along each edge the gate sits" the task called for, not a re-hardcoded
+`x=32`. (A fallback exists — clear the few blocking cells at whichever
+column has the fewest, rather than hand-carving a whole corridor — for
+the case where literally every column is blocked at every depth down to a
+floor; not exercised by the current seeds, kept for robustness.)
+
+Both landmarks are placed with fixed offsets from their own discovered
+gate x (mine: `mineTimber`×2 + `cart` + `joshuaTrunk`×2 north; spring:
+`truckBox`/`truckCab` + a 2×2 water pool + `joshuaTrunk`×2 south) — the
+gate POSITION is the only thing computed; "what a mine mouth looks like"
+is authored flavor, same as it always was. `OVERWORLD_SOUTH_EXIT`/
+`OVERWORLD_NORTH_EXIT`/`OVERWORLD_SOUTH_SPAWN`/`OVERWORLD_NORTH_SPAWN` are
+now derived from the discovered gate x at module load (`generateWorld()`
+runs once to populate them, then `buildOverworldMap()` re-runs it fresh
+on every call — deterministic, so both produce identical results; the
+re-run is cheap for a 64×64 grid and avoids the exported constants ever
+aliasing a mutable array a caller could corrupt).
+
+## Phase 3 — barriers, added last, allowed to see the landmarks
+
+Up to 2 more masses (`BARRIER_TIER`, a bit smaller than the "range" tier)
+are placed using the exact same `placeMass` primitive, but now with the
+north/south landmark corridor boxes passed in as `keepClear` — the one
+place in the whole build where mass placement is landmark-aware, exactly
+matching "add barriers after it's made." A barrier that can't find room
+without touching a corridor or another mass too closely is simply
+omitted, same as any other mass — nothing about the map's core structure
+depends on either barrier existing.
+
+**Verified, not eyeballed**: `tests/game/maps.test.ts`'s new "reaches
+every walkable cell on the map from at least one of the two spawns" is a
+full-grid multi-source BFS (`reachableSet`, walkable-cell count vs.
+reached-cell count from both spawns) — the HARD requirement the task
+specified, checked directly rather than inferred from a few named
+point-to-point checks. It currently passes with zero unreached cells.
+
+## The border: still solid everywhere, no longer a flat 1-cell rectangle
+
+The owner's core objection ("mountain ranges are never rectangular") also
+applies at the map's own edge — v22's border was a uniform 1-cell-thick
+ring. `applyBorder` keeps the LITERAL edge ring unconditionally solid
+(enclosure holds no matter what) but adds an inward "buffer" of 0–3 extra
+cells per edge position, driven by the same smoothed 1D noise v22's own
+spine boundary used (`smoothNoise1D`, ported unchanged) — an irregular,
+variable-thickness rim instead of one flat frame. `MASS_EDGE_MARGIN = 3`
+on every interior mass guarantees rows/columns 0..2 next to any edge are
+never a terrain mass, which is what lets the new "keeps the outer border
+an irregular, variable-thickness rim" test measure the buffer's own depth
+generically (by sampling border-only columns) without needing to know
+where any mass actually landed.
+
+## What's explicitly NOT in this pass
+
+The lake, the town, and the dirt-road network from v22 are out of scope
+per the owner's own staged instructions ("then add in the mine and truck
+turnover spot and spring into that world. we can add barriers after") —
+they still exist, fully working, in `overworldMapPocV1.ts` if a future
+pass wants to layer them back onto the new terrain. `applyOverworldAutotile`
+correspondingly drops v22's road-autotile step (step 5) and the town-
+building placement entirely; the scree/screeShade/screeSand/screeWater/
+lakeShore dressing steps are kept unchanged and generic (they already
+never assumed the mountain shape was "a spine" or the water body was "the
+lake" — they just read whichever cells the current build actually
+produced mountain/water).
+
+## Test changes (`tests/game/maps.test.ts`)
+
+The whole "overworld map" describe block was rewritten, not just
+edited — the old spine/lake/road/town-specific assertions
+(`SPINE_CX`-adjacent bounds checks, lake-ellipse sampling, road mask
+variety, town-clearance box) don't apply to an architecture with none of
+those fixed features. New coverage: the full-grid BFS reachability
+requirement above; "scatters multiple separate mountain masses across the
+map, not one wall or blob" (8-connected flood fill over interior mountain
+decor cells, asserts ≥3 real components and that no single one exceeds
+60% of total mountain area — measured empirically at 7 components,
+largest at ~24%, for the current seeds); "keeps the outer border an
+irregular, variable-thickness rim"; "shows real owMountain texture
+variety" (≥3 variants, ≥5 masks — measured at all 5 variants, 13 masks);
+both landmark-placement tests now also assert positional proximity to
+their own discovered gate x (`Math.abs(x - gateCx) <= 8`) rather than just
+"the decor name exists somewhere on the map." The lakeShore mask-dressing
+test's thresholds were lowered from v22's big-lake numbers (`shoreCells >
+20`) to match the spring pool's real size (a 2×2 pool has exactly 4
+shore cells, all with distinct masks — asserted `>= 4`/`>= 2`).
+
+## Verification
+
+`tsc --noEmit`, full `vitest run` (1302 tests, all green — 1 test file
+touched), `npm run build`, `npm run smoke` and `npm run smoke:touch`
+(keyboard/touch e2e) all green. Rendered and reviewed actual composites
+via the existing `preview/render-overworld.mts` (unchanged — generic
+manifest-based tile resolution) plus a scratch cropping script (deleted
+before finishing, never committed): the full 64×64 map reads as genuinely
+scattered organic ranges/buttes of varied size with open valley between
+and around them, not a rectangle or a single spine bisecting the map; the
+outer border shows a visibly irregular, varying-thickness rim rather than
+a flat frame; a crop of the mine-mouth stop shows both `mineTimber`
+uprights, the `cart`, and open sand connecting north to the interior; a
+crop of the spring/truck stop shows the truck, both joshua trees, and the
+2×2 pool dressed with 4 distinct `lakeShore{mask}` tiles forming a real
+rounded-corner beach, not a straight edge; the mountain massing itself
+shows real texture variety (multiple `owMountain{0..4}` variants and a
+wide spread of masks visible across different masses, not one repeated
+tile — the exact bug `assignMountainTileNames`'s own doc comment
+describes, re-verified here since this function's snapshot-before-mutate
+discipline was ported unchanged but is exercised against entirely new
+mass shapes). A separate script cross-checked component connectivity
+directly (8-connected flood fill including the border ring): the border
+splits into exactly 2 pieces (the two gate openings, as expected from
+removing 2 short arcs from one closed loop) and 7 further, well-separated
+terrain/barrier masses exist with no evidence of a mass discretizing into
+spurious disconnected fragments. Mode-7/`OverworldScene.ts` were not
+touched — this remains a pure map-data (`overworldMap.ts`) change; no
+`tools/pipeline/` files were touched either, since every tile name this
+pass uses (`owMountain*`, `scree*`, `lakeShore*`, `mineTimber`, `cart`,
+`truckCab`/`truckBox`, `joshuaTrunk`, `creosote`, `bones`) already shipped
+in v22 or earlier.
