@@ -55,6 +55,7 @@
  */
 import { cellHash } from "./cellHash";
 import { makeRng } from "../../core/rng";
+import { AUTHORED_OVERWORLD } from "./overworldMap.authored";
 import type { ZoneMap } from "./types";
 
 export const OVERWORLD_WIDTH = 64;
@@ -550,6 +551,37 @@ function applyOverworldAutotile(ground: string[][], decor: (string | null)[][]):
   }
 }
 
+/**
+ * Sparse non-blocking scatter (creosote / bones) across whatever open ground
+ * is left — skipping any cell already carrying decor, and any cell adjacent to
+ * water. Extracted so the procedural build and an authored layout dress their
+ * open desert identically. Deterministic (keyed on `cellHash`), same as the
+ * rest of the map.
+ */
+function applyScatter(ground: string[][], decor: (string | null)[][]): void {
+  const H = ground.length;
+  const W = ground[0].length;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      if (decor[y][x] !== null) continue;
+      let nearWater = false;
+      for (let dy = -1; dy <= 1 && !nearWater; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const g = ground[y + dy]?.[x + dx];
+          if (g === "water" || g === "water2") {
+            nearWater = true;
+            break;
+          }
+        }
+      }
+      if (nearWater) continue;
+      const h = cellHash(x, y);
+      if (h % 29 === 0) decor[y][x] = "creosote";
+      else if (h % 41 === 0) decor[y][x] = "bones";
+    }
+  }
+}
+
 interface GeneratedWorld {
   ground: string[][];
   decor: (string | null)[][];
@@ -672,27 +704,8 @@ function generateWorld(): GeneratedWorld {
   const southSpawn: Pt = { x: southGateCx, y: H - 3 };
   const northSpawn: Pt = { x: northGateCx, y: 2 };
 
-  // Sparse non-blocking scatter across whatever open ground is left —
-  // clear of mountain, water and any decor already placed.
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      if (decor[y][x] !== null) continue;
-      let nearWater = false;
-      for (let dy = -1; dy <= 1 && !nearWater; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const g = ground[y + dy]?.[x + dx];
-          if (g === "water" || g === "water2") {
-            nearWater = true;
-            break;
-          }
-        }
-      }
-      if (nearWater) continue;
-      const h = cellHash(x, y);
-      if (h % 29 === 0) decor[y][x] = "creosote";
-      else if (h % 41 === 0) decor[y][x] = "bones";
-    }
-  }
+  // Sparse non-blocking scatter across whatever open ground is left.
+  applyScatter(ground, decor);
 
   assignMountainTileNames(decor);
   applyOverworldAutotile(ground, decor);
@@ -700,7 +713,146 @@ function generateWorld(): GeneratedWorld {
   return { ground, decor, southExit, northExit, southSpawn, northSpawn };
 }
 
-const WORLD = generateWorld();
+// ---------------------------------------------------------------------------
+// The human-touch path — a hand-authored layout (`tools/mapeditor`).
+//
+// The editor is a LAYOUT tool, not a tile-painting one: a person paints the
+// semantic terrain (mountain / open sand / water) and drops the two landmarks
+// and gates, and that is ALL an `AuthoredOverworld` stores — a compact
+// terrain field plus a handful of markers, never concrete `owMountain*` /
+// `scree*` / `lakeShore*` names. Turning that layout into a finished ZoneMap
+// runs the exact same finishing passes as the procedural build
+// (`assignMountainTileNames` + `applyOverworldAutotile` + `applyScatter`), so
+// a hand-drawn map autotiles identically to a generated one and can never
+// disagree with the game's own tiling. The editor previews with a JS port of
+// those same passes, checked for parity in the map tests.
+// ---------------------------------------------------------------------------
+
+/** The compact, hand-editable overworld layout the map editor exports. */
+export interface AuthoredOverworld {
+  /**
+   * One string per row, each `OVERWORLD_WIDTH` chars wide:
+   * `.` = open sand, `#` = mountain mass, `~` = spring water.
+   */
+  terrainRows: string[];
+  /** Landmark decor (mineTimber, cart, truckBox, truckCab, joshuaTrunk, …),
+   *  placed at explicit cells rather than derived from a gate offset. */
+  landmarks: ReadonlyArray<{ x: number; y: number; name: string }>;
+  /** Column of the 3-wide north (mine) gate at the top edge. */
+  northGateX: number;
+  /** Column of the 3-wide south (spring/oasis) gate at the bottom edge. */
+  southGateX: number;
+}
+
+const TERRAIN_MOUNTAIN = "#";
+const TERRAIN_WATER = "~";
+
+/**
+ * Finishes a hand-authored layout into a ZoneMap using the SAME passes as the
+ * procedural build. The authored terrain already contains whatever border the
+ * human drew (the editor seeds from the procedural map, border included), so
+ * this deliberately does NOT re-run `applyBorder` or the gate search — it only
+ * opens the two explicit gate bands, then autotiles.
+ */
+function finishAuthoredLayout(a: AuthoredOverworld): GeneratedWorld {
+  const H = a.terrainRows.length;
+  const W = a.terrainRows[0].length;
+  const ground: string[][] = [];
+  const decor: (string | null)[][] = [];
+  for (let y = 0; y < H; y++) {
+    ground.push([]);
+    decor.push([]);
+    for (let x = 0; x < W; x++) {
+      const cell = a.terrainRows[y][x];
+      const h = cellHash(x, y);
+      let g = "sand";
+      if (h % 17 === 0) g = "sand2";
+      else if (h % 13 === 0) g = "sand3";
+      else if (h % 61 === 0) g = "sandSparkle";
+      let d: string | null = null;
+      if (cell === TERRAIN_MOUNTAIN) d = MOUNTAIN_SENTINEL;
+      else if (cell === TERRAIN_WATER) g = h % 2 === 0 ? "water" : "water2";
+      ground[y].push(g);
+      decor[y].push(d);
+    }
+  }
+
+  // Landmark decor, exactly where the author placed it.
+  for (const lm of a.landmarks) {
+    if (lm.y >= 0 && lm.y < H && lm.x >= 0 && lm.x < W) decor[lm.y][lm.x] = lm.name;
+  }
+
+  // Open the two 3-wide gate bands at the true edges, last, so nothing above
+  // re-seals them.
+  const northExit: Rect = { x1: a.northGateX - 1, y1: 0, x2: a.northGateX + 1, y2: 0 };
+  const southExit: Rect = { x1: a.southGateX - 1, y1: H - 1, x2: a.southGateX + 1, y2: H - 1 };
+  for (let x = northExit.x1; x <= northExit.x2; x++) {
+    decor[0][x] = null;
+    ground[0][x] = "sand2";
+  }
+  for (let x = southExit.x1; x <= southExit.x2; x++) {
+    decor[H - 1][x] = null;
+    ground[H - 1][x] = "sand2";
+  }
+
+  applyScatter(ground, decor);
+  assignMountainTileNames(decor);
+  applyOverworldAutotile(ground, decor);
+
+  const northSpawn: Pt = { x: a.northGateX, y: 2 };
+  const southSpawn: Pt = { x: a.southGateX, y: H - 3 };
+  return { ground, decor, southExit, northExit, southSpawn, northSpawn };
+}
+
+/** Landmark decor the editor treats as movable markers (everything else on
+ *  the decor layer is either mountain mass or regenerated scatter). */
+const AUTHORED_LANDMARK_NAMES: ReadonlySet<string> = new Set([
+  "mineTimber",
+  "cart",
+  "truckBox",
+  "truckCab",
+  "joshuaTrunk"
+]);
+
+/**
+ * Derives the editable semantic layout from a finished ZoneMap — the seed the
+ * map editor loads, and the inverse of `finishAuthoredLayout`. Mountains
+ * become `#`, water/shore become `~`, everything walkable becomes `.`;
+ * scatter (creosote/bones) is intentionally dropped (it is regenerated), while
+ * the named landmarks are captured as markers. Round-tripping a procedural map
+ * through derive→finish reproduces it exactly (asserted in the map tests).
+ */
+export function deriveAuthoredLayout(
+  map: ZoneMap,
+  northGateX: number,
+  southGateX: number
+): AuthoredOverworld {
+  const H = map.decor.length;
+  const W = map.decor[0].length;
+  const terrainRows: string[] = [];
+  const landmarks: Array<{ x: number; y: number; name: string }> = [];
+  for (let y = 0; y < H; y++) {
+    let row = "";
+    for (let x = 0; x < W; x++) {
+      const d = map.decor[y][x];
+      const g = map.ground[y][x];
+      if (d !== null && d.startsWith(OW_MOUNTAIN_PREFIX)) row += TERRAIN_MOUNTAIN;
+      else if (g === "water" || g === "water2" || g.startsWith("lakeShore")) row += TERRAIN_WATER;
+      else row += ".";
+      if (d !== null && AUTHORED_LANDMARK_NAMES.has(d)) landmarks.push({ x, y, name: d });
+    }
+    terrainRows.push(row);
+  }
+  return { terrainRows, landmarks, northGateX, southGateX };
+}
+
+/** A hand-authored layout, if one has been dropped in, wins over the
+ *  procedural build; otherwise the terrain-first generator runs. */
+function buildWorld(): GeneratedWorld {
+  return AUTHORED_OVERWORLD ? finishAuthoredLayout(AUTHORED_OVERWORLD) : generateWorld();
+}
+
+const WORLD = buildWorld();
 
 /** South-edge exit band → back to the oasis (the spring/truck stop). */
 export const OVERWORLD_SOUTH_EXIT = WORLD.southExit;
@@ -715,6 +867,14 @@ export function buildOverworldMap(): ZoneMap {
   // A fresh independent build every call (not a shared/aliased reference
   // to `WORLD`) — cheap for a 64x64 grid, and it means nothing downstream
   // can mutate the module-level constants above by mutating a returned map.
-  const fresh = generateWorld();
+  const fresh = buildWorld();
+  return { ground: fresh.ground, decor: fresh.decor };
+}
+
+/** Finishes an authored layout to a ZoneMap through the shared autotile
+ *  passes — the same transform `buildOverworldMap()` applies when an authored
+ *  layout is active. Exposed for the editor's parity check and tests. */
+export function buildAuthoredMap(a: AuthoredOverworld): ZoneMap {
+  const fresh = finishAuthoredLayout(a);
   return { ground: fresh.ground, decor: fresh.decor };
 }

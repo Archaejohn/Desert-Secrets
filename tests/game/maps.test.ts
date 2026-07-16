@@ -45,7 +45,9 @@ import {
   SHED_WIDTH
 } from "../../src/game/maps/shedMap";
 import {
+  buildAuthoredMap,
   buildOverworldMap,
+  deriveAuthoredLayout,
   OVERWORLD_HEIGHT,
   OVERWORLD_NORTH_EXIT,
   OVERWORLD_NORTH_SPAWN,
@@ -736,6 +738,35 @@ describe("overworld map (the open desert, terrain-first v23)", () => {
       expect(map.decor[y][0]).not.toBeNull();
       expect(map.decor[y][OVERWORLD_WIDTH - 1]).not.toBeNull();
     }
+  });
+
+  // ---- authored (human-touch) path parity ----
+  // The map editor (tools/mapeditor) exports a semantic AuthoredOverworld; the
+  // game finishes it through the SAME autotile passes as the procedural build.
+  // Deriving a layout from the procedural map and finishing it again must
+  // reproduce that map byte-for-byte — this is what guarantees a hand-authored
+  // layout tiles exactly the way the generator would, and that the editor's
+  // seed (deriveAuthoredLayout) and the game's finish (buildAuthoredMap) are
+  // faithful inverses.
+  it("round-trips the procedural map through derive→finish unchanged", () => {
+    const northGateX = Math.round((OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2);
+    const southGateX = Math.round((OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2);
+    const layout = deriveAuthoredLayout(map, northGateX, southGateX);
+    expect(buildAuthoredMap(layout)).toEqual(map);
+  });
+
+  it("finishes an authored layout into a valid, fully-reachable map", () => {
+    const northGateX = Math.round((OVERWORLD_NORTH_EXIT.x1 + OVERWORLD_NORTH_EXIT.x2) / 2);
+    const southGateX = Math.round((OVERWORLD_SOUTH_EXIT.x1 + OVERWORLD_SOUTH_EXIT.x2) / 2);
+    const authored = buildAuthoredMap(deriveAuthoredLayout(map, northGateX, southGateX));
+    assertDimensions(authored, OVERWORLD_WIDTH, OVERWORLD_HEIGHT);
+    assertKnownNames(authored);
+    let walkable = 0;
+    for (let y = 0; y < OVERWORLD_HEIGHT; y++) {
+      for (let x = 0; x < OVERWORLD_WIDTH; x++) if (!isSolidAt(authored, x, y)) walkable++;
+    }
+    const reached = reachableSet(authored, [OVERWORLD_SOUTH_SPAWN, OVERWORLD_NORTH_SPAWN]);
+    expect(reached.size).toBe(walkable);
   });
 });
 
