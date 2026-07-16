@@ -5,18 +5,26 @@
  * the overturned truck; north climbs to the Cinnabar Mine entrance.
  * Random encounters run the length of the pass, same as the Trail.
  *
- * This is the one zone rendered with a true SNES-Mode-7 perspective ground
- * plane (see src/game/gfx/Mode7Ground.ts + src/core/mode7.ts) instead of the
- * flat top-down tilemap every other zone uses. Movement, collision, exits and
- * encounters still run in ordinary tile-grid space exactly as the base class
- * drives them — only the RENDERING is swapped, and only here. If the Mode-7
- * setup fails (no WebGL, texture/shader error) it falls back to the flat
- * tilemap rather than crashing.
+ * Renders with the same flat top-down tilemap every other zone uses, just
+ * zoomed further out (`OVERWORLD_FLAT_ZOOM`) for a "see more of the map at
+ * once" big-world feel — this is the default (docs/CONTRACTS.md "v21").
+ * Movement, collision, exits and encounters run in ordinary tile-grid space
+ * exactly as the base class drives them regardless of which view is active.
+ *
+ * A true SNES-Mode-7 perspective ground plane (see src/game/gfx/
+ * Mode7Ground.ts + src/core/mode7.ts) is also kept fully intact behind the
+ * `mode7tune` dev flag (see `readDebugMode()`) for a planned future
+ * vehicle sequence (a rocketship, possibly a motorcycle/speedboat later) —
+ * it is NOT the shipped default anymore, but every line of it still works
+ * exactly as before when that flag selects it. If Mode-7 setup fails (no
+ * WebGL, texture/shader error) it falls back to the flat tilemap rather
+ * than crashing.
  */
 import Phaser from "phaser";
 import { ZoneScene, type ZoneConfig } from "../ZoneScene";
 import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
 import { Mode7Tuner } from "../gfx/Mode7Tuner";
+import { FlatZoomTuner } from "../gfx/FlatZoomTuner";
 import { MANIFEST } from "../manifest";
 import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
@@ -32,12 +40,30 @@ const GROUND_DEPTH = -100;
 const AVATAR_SCALE = 2.5;
 /** Player avatar feet, as a fraction of the ground band (horizon..bottom). */
 const AVATAR_FEET_FRACTION = 0.66;
+/**
+ * Default camera zoom for the flat overworld view (every other zone stays
+ * at the implicit default of 1 — see ZoneScene's camera setup). At zoom=1
+ * the 16×20-tile POC map's full north-south span (320px) doesn't quite fit
+ * the 270px-tall viewport; 0.8 was the least-aggressive zoom that reveals
+ * the whole pass (both gates) at once while keeping the player sprite, HUD
+ * text and tile art crisp at the game's 480×270 internal resolution —
+ * verified visually via Playwright screenshots (see docs/CONTRACTS.md
+ * "v21"). The map (256px) is narrower than even the old zoom=1 viewport
+ * (480px), so some dead space past the map's east edge is unavoidable at
+ * ANY zoom ≤ 1 regardless of this constant — that's a pre-existing
+ * property of this small POC map's width, not something this zoom
+ * choice causes or can fix; see docs/CONTRACTS.md "v21" for the full note.
+ */
+export const OVERWORLD_FLAT_ZOOM = 0.8;
+
+type DebugMode = "off" | "mode7" | "flat";
 
 export class OverworldScene extends ZoneScene {
   private mode7: Mode7Ground | null = null;
   private avatar: Phaser.GameObjects.Sprite | null = null;
   private avatarAnimKey = "";
   private tuner: Mode7Tuner | null = null;
+  private flatZoomTuner: FlatZoomTuner | null = null;
 
   constructor() {
     super("overworld");
@@ -67,9 +93,83 @@ export class OverworldScene extends ZoneScene {
   protected populate(): void {
     this.addExit({ ...OVERWORLD_SOUTH_EXIT }, "oasis", OASIS_NORTH_SPAWN);
     this.addExit({ ...OVERWORLD_NORTH_EXIT }, "mineEntrance", MINE_ENTRANCE_SPAWN);
-    this.setupMode7();
+    this.setupView();
   }
 
+  /**
+   * Picks the overworld's rendering: the flat tilemap (default, zoomed out
+   * for "see more of the map" — every other zone's own rendering, just
+   * zoomed) or Mode-7 (dev-only, kept intact for a future vehicle
+   * sequence), based on `readDebugMode()`. Zoom is set unconditionally
+   * first so a Mode-7 setup failure still falls back to the flat *zoomed*
+   * view rather than the old unzoomed default; a successful Mode-7 setup
+   * then resets zoom to 1, since Mode-7's shader quad and billboards are
+   * screen-space content that a camera zoom would distort/clip (the same
+   * "zoom scales scrollFactor(0) content too" behavior this whole
+   * architecture works around for the HUD — see ZoneScene's uiCamera).
+   */
+  private setupView(): void {
+    const mode = this.readDebugMode();
+    this.cameras.main.setZoom(OVERWORLD_FLAT_ZOOM);
+    if (mode === "mode7") {
+      this.setupMode7();
+      if (this.mode7) this.cameras.main.setZoom(1);
+    } else if (mode === "flat") {
+      this.flatZoomTuner = new FlatZoomTuner(this, OVERWORLD_FLAT_ZOOM, (zoom) =>
+        this.cameras.main.setZoom(zoom)
+      );
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.flatZoomTuner?.destroy();
+        this.flatZoomTuner = null;
+      });
+    }
+  }
+
+  /**
+   * Dev-only camera-view flag (`?mode7tune` in the URL) — never shown to
+   * players by default. Tri-state, not boolean: `"off"` (default) is the
+   * flat zoomed view with no tuner; `"mode7"` is full Mode-7 + Mode7Tuner,
+   * exactly as this flag always behaved before the flat view existed;
+   * `"flat"` is the flat zoomed view + FlatZoomTuner, for tuning
+   * `OVERWORLD_FLAT_ZOOM` itself. `?mode7tune=1` (or any value that isn't
+   * `"0"` or `"flat"`) means `"mode7"`, so existing bookmarks/localStorage
+   * from before this flag went tri-state keep behaving exactly as they did.
+   *
+   * Persisted to localStorage, not just read from the URL: the PWA
+   * manifest sets display:"fullscreen", so once installed to a home
+   * screen the app always launches from its bare start_url with no
+   * address bar to type a query string into. Visiting the URL with
+   * ?mode7tune=1 (or =flat) ONCE in a normal browser tab latches it on for
+   * every future launch, including the installed app; ?mode7tune=0
+   * latches it back off.
+   */
+  private readDebugMode(): DebugMode {
+    const params = new URLSearchParams(window.location.search);
+    let mode: DebugMode;
+    if (params.has("mode7tune")) {
+      const raw = params.get("mode7tune");
+      mode = raw === "flat" ? "flat" : raw === "0" || raw === null ? "off" : "mode7";
+      try {
+        if (mode === "off") window.localStorage.removeItem("mode7tune");
+        else window.localStorage.setItem("mode7tune", mode === "flat" ? "flat" : "1");
+      } catch {
+        // Storage unavailable (private mode, etc.) — the query param still
+        // works for this one page load.
+      }
+    } else {
+      try {
+        const stored = window.localStorage.getItem("mode7tune");
+        mode = stored === "flat" ? "flat" : stored === "1" ? "mode7" : "off";
+      } catch {
+        mode = "off";
+      }
+    }
+    return mode;
+  }
+
+  /** Dev-only, gated behind readDebugMode() === "mode7" — Mode-7's tuner is
+   *  always shown alongside it (there's no case where Mode-7 renders for a
+   *  player without the tuner; see setupView()). */
   private setupMode7(): void {
     this.mode7 = null;
     this.avatar = null;
@@ -78,43 +178,11 @@ export class OverworldScene extends ZoneScene {
     this.tuner = null;
     if (this.game.renderer.type !== Phaser.WEBGL) return; // Canvas fallback: keep the flat tilemap.
 
-    // Dev-only camera tuner (?mode7tune in the URL) — never shown to players
-    // by default. Lets the project owner drag elevation/zoom/angle/peak
-    // height live on their own device and read off the exact numbers to
-    // hand back as the new defaults (see Mode7Tuner's doc comment).
-    //
-    // Persisted to localStorage, not just read from the URL: the PWA
-    // manifest sets display:"fullscreen", so once installed to a home
-    // screen the app always launches from its bare start_url with no
-    // address bar to type a query string into. Visiting the URL with
-    // ?mode7tune=1 ONCE in a normal browser tab latches it on for every
-    // future launch, including the installed app; ?mode7tune=0 latches it
-    // back off.
-    const params = new URLSearchParams(window.location.search);
-    let tuning: boolean;
-    if (params.has("mode7tune")) {
-      tuning = params.get("mode7tune") !== "0";
-      try {
-        if (tuning) window.localStorage.setItem("mode7tune", "1");
-        else window.localStorage.removeItem("mode7tune");
-      } catch {
-        // Storage unavailable (private mode, etc.) — the query param still
-        // works for this one page load.
-      }
-    } else {
-      try {
-        tuning = window.localStorage.getItem("mode7tune") === "1";
-      } catch {
-        tuning = false;
-      }
-    }
-    if (tuning) {
-      this.tuner = new Mode7Tuner(
-        this,
-        (overrides) => this.mode7?.setOverrides(overrides),
-        (peakHeight) => this.mode7?.setBillboardHeightScale(peakHeight)
-      );
-    }
+    this.tuner = new Mode7Tuner(
+      this,
+      (overrides) => this.mode7?.setOverrides(overrides),
+      (peakHeight) => this.mode7?.setBillboardHeightScale(peakHeight)
+    );
 
     try {
       this.mode7 = new Mode7Ground(this, this.cfg.map, GROUND_DEPTH, this.tuner?.current());

@@ -10,6 +10,7 @@
  */
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 export function isTouchDevice(scene: Phaser.Scene): boolean {
   return scene.sys.game.device.input.touch;
@@ -34,6 +35,7 @@ export function addFullscreenButton(scene: Phaser.Scene, y = 16): void {
     .setScrollFactor(0)
     .setDepth(7000)
     .setInteractive({ useHandCursor: true });
+  addToUiLayer(scene, btn);
   btn.on("pointerdown", () => {
     if (scene.scale.isFullscreen) {
       scene.scale.stopFullscreen();
@@ -66,6 +68,7 @@ export function addInventoryButton(scene: Phaser.Scene, onTap: () => void, y = 1
     .setScrollFactor(0)
     .setDepth(7000)
     .setInteractive({ useHandCursor: true });
+  addToUiLayer(scene, btn);
   btn.on("pointerdown", onTap);
 }
 
@@ -86,6 +89,8 @@ export class JoystickVisual {
     this.thumb = scene.add.graphics().setScrollFactor(0).setDepth(6501).setVisible(false);
     this.thumb.fillStyle(hexToInt(PALETTE.sandLight), 0.8);
     this.thumb.fillCircle(0, 0, 8);
+    addToUiLayer(scene, this.base);
+    addToUiLayer(scene, this.thumb);
   }
 
   show(x: number, y: number): void {
@@ -130,7 +135,9 @@ export function addActionButtonHint(scene: Phaser.Scene): Phaser.GameObjects.Con
     })
     .setOrigin(0.5)
     .setAlpha(0.85);
-  return scene.add.container(0, 0, [g, t]).setScrollFactor(0).setDepth(6500);
+  const container = scene.add.container(0, 0, [g, t]).setScrollFactor(0).setDepth(6500);
+  addToUiLayer(scene, container);
+  return container;
 }
 
 /**

@@ -98,8 +98,8 @@ export class PizzaAscentScene extends ZoneScene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.cameras.main.fadeIn(600, 0, 0, 0);
-    this.add.rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 1).setScrollFactor(0).setDepth(7000);
-    this.add
+    const backdrop = this.add.rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 1).setScrollFactor(0).setDepth(7000);
+    const title = this.add
       .text(w / 2, h / 2 - 40, "END OF PART ONE", {
         fontFamily: "monospace",
         fontSize: "18px",
@@ -109,7 +109,7 @@ export class PizzaAscentScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     // A genuine, evocative cliffhanger card — NOT a "next act coming soon" stub.
-    this.add
+    const blurb = this.add
       .text(
         w / 2,
         h / 2 - 4,
@@ -125,7 +125,7 @@ export class PizzaAscentScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
-    this.add
+    const tease = this.add
       .text(w / 2, h / 2 + 34, "What waits below has no name yet.", {
         fontFamily: "monospace",
         fontSize: "9px",
@@ -134,7 +134,7 @@ export class PizzaAscentScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
-    this.add
+    const prompt = this.add
       .text(w / 2, h / 2 + 58, "SPACE — to the title", {
         fontFamily: "monospace",
         fontSize: "9px",
@@ -143,6 +143,11 @@ export class PizzaAscentScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
+    // Screen-space chrome above the HUD/dialogue's own depth (6000/5500):
+    // must render via uiCamera too, or the two-camera split (ZoneScene's
+    // world/UI camera architecture) would let uiCamera's HUD draw on top of
+    // this "the end" card instead of the other way around.
+    this.uiLayer.add([backdrop, title, blurb, tease, prompt]);
 
     // Part Two isn't built yet — return to the title. The presentation is an
     // intentional cliffhanger ending, not an unfinished stub.

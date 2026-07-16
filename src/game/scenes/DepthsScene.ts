@@ -173,11 +173,11 @@ export class DepthsScene extends ZoneScene {
   private showEndCard(): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    this.add
+    const backdrop = this.add
       .rectangle(w / 2, h / 2, w, h, hexToInt(PALETTE.ink), 0.94)
       .setScrollFactor(0)
       .setDepth(7000);
-    this.add
+    const title = this.add
       .text(w / 2, h / 2 - 28, "END OF ACT 1", {
         fontFamily: "monospace",
         fontSize: "18px",
@@ -186,7 +186,7 @@ export class DepthsScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
-    this.add
+    const next = this.add
       .text(w / 2, h / 2, "ACT 2: THE ICE BELOW", {
         fontFamily: "monospace",
         fontSize: "11px",
@@ -195,7 +195,7 @@ export class DepthsScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
-    this.add
+    const prompt = this.add
       .text(w / 2, h / 2 + 26, "SPACE to descend", {
         fontFamily: "monospace",
         fontSize: "9px",
@@ -204,6 +204,10 @@ export class DepthsScene extends ZoneScene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(7001);
+    // See PizzaAscentScene's showEndCard() for why this must join uiLayer
+    // (the two-camera world/UI split would otherwise let the HUD draw on
+    // top of this card instead of under it).
+    this.uiLayer.add([backdrop, title, next, prompt]);
 
     // The Act 2 hand-off: descend into the crevasse, keeping all progress.
     let descended = false;

@@ -19,6 +19,7 @@ import {
 } from "../../core/fishing";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { inFullscreenButtonZone } from "./touch";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 const GAUGE_W = 220;
 const GAUGE_H = 16;
@@ -101,6 +102,7 @@ export class FishingMenu {
       .container(0, 0, [bg, title, this.gfx, this.pips, this.status, btn])
       .setScrollFactor(0)
       .setDepth(6800);
+    addToUiLayer(scene, this.container);
 
     this.redraw();
 

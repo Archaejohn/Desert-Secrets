@@ -90,6 +90,39 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected decorLayer!: Phaser.Tilemaps.TilemapLayer;
   protected inputLocked = false;
 
+  /**
+   * Two-camera world/UI split (docs/CONTRACTS.md "v21"). `uiLayer` is an
+   * explicit allow-list: every screen-fixed UI element (Hud, DialogueBox,
+   * InventoryMenu/PerkMenu/CookingMenu/FishingMenu, the touch controls,
+   * talkPrompt, the entry hint) adds itself here at construction. `uiCamera`
+   * renders ONLY `uiLayer`, at a fixed zoom/scroll, so UI never inherits a
+   * world camera zoom change (see OverworldScene's flat-view zoom) the way
+   * a naive `cameras.main.setZoom()` would — scrollFactor(0) cancels
+   * SCROLL-following only, not zoom.
+   *
+   * Deliberately NOT a mirrored `worldLayer`: a Layer's `ignore()` sets a
+   * bitmask on the Layer object itself (checked at render time, so it's
+   * agnostic to when children are added/removed — see Phaser's
+   * `Layer.js`/`BaseCamera.ignore`), but reparenting is a one-time move at
+   * add() time, and this codebase creates world content (tilemap layers,
+   * the player, NPCs, blob shadows, addProp() props, world-follower rigs,
+   * per-zone cameo sprites, floating XP text, Mode-7's shader quad and
+   * billboards) from dozens of call sites across 38 zone files — hand-
+   * tracking every one of them into a `worldLayer` is exactly the kind of
+   * exhaustive, easy-to-silently-miss sweep that regresses the moment a
+   * future zone script adds a sprite without knowing the convention.
+   * Instead, `syncUiCameraIgnore()` (called every `update()`) sweeps the
+   * scene's own top-level display list (`this.children.list`) each frame
+   * and marks everything NOT already parented into `uiLayer` as ignored by
+   * `uiCamera` — since `Layer.add()` removes an object from the scene's
+   * default display list (Phaser's `Layer.addChildCallback`), anything
+   * added to `uiLayer` is automatically excluded from that sweep. This is
+   * self-healing for any object creation anywhere, present or future,
+   * without per-call-site bookkeeping.
+   */
+  protected uiLayer!: Phaser.GameObjects.Layer;
+  protected uiCamera!: Phaser.Cameras.Scene2D.Camera;
+
   private npcs: Npc[] = [];
   private blobShadows: Array<{
     owner: Phaser.Physics.Arcade.Sprite;
@@ -152,6 +185,11 @@ export abstract class ZoneScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Created before anything else this frame so every UI widget built
+    // below (dialogue, hud, talkPrompt, touch controls, ...) has somewhere
+    // to register itself as it's constructed.
+    this.uiLayer = this.add.layer();
+
     this.cfg = this.config();
     const { width, height } = mapSize(this.cfg.map);
 
@@ -176,6 +214,7 @@ export abstract class ZoneScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(6000)
       .setVisible(false);
+    this.uiLayer.add(this.talkPrompt);
 
     if (this.cfg.encounterZone) {
       this.encounterClock = new EncounterClock(makeRng(Math.floor(Math.random() * 0xffffffff)));
@@ -198,6 +237,16 @@ export abstract class ZoneScene extends Phaser.Scene {
     }
     this.cameras.main.setRoundPixels(true);
     this.cameras.main.fadeIn(400);
+
+    // Second camera: renders only `uiLayer`, at a fixed zoom of 1 and no
+    // scroll/bounds/follow (scrollFactor(0) content renders at the same
+    // fixed screen position on any camera regardless of that camera's own
+    // scroll, so uiCamera never needs to track the player). Mirrors the
+    // entry fade so UI doesn't pop in ahead of (or lag behind) the world.
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+    this.uiCamera.setRoundPixels(true);
+    this.cameras.main.ignore(this.uiLayer);
+    this.uiCamera.fadeIn(400);
 
     addFullscreenButton(this);
     if (isTouchDevice(this)) {
@@ -225,10 +274,15 @@ export abstract class ZoneScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setScrollFactor(0)
       .setDepth(6000);
+    this.uiLayer.add(hint);
     this.tweens.add({ targets: hint, alpha: 0, delay: 7000, duration: 800 });
 
     this.populate();
     this.hud.update(getState(this));
+    // Initial sweep so the very first rendered frame is already correct —
+    // update() (which repeats this every frame) doesn't run until after
+    // this first frame renders.
+    this.syncUiCameraIgnore();
   }
 
   // ---------- construction helpers ----------
@@ -576,6 +630,12 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.cameras.main.flash(150, 255, 255, 255);
     this.cameras.main.fadeOut(400);
+    // Mirrored onto uiCamera: it renders a disjoint set of objects
+    // (uiLayer) from a separate camera, so the world camera's flash/fadeOut
+    // wouldn't otherwise touch the HUD/dialogue box at all, and the screen
+    // would flash-and-fade everywhere except behind the UI.
+    this.uiCamera.flash(150, 255, 255, 255);
+    this.uiCamera.fadeOut(400);
     const returnTo = { scene: this.cfg.zoneId, x: this.player.x, y: this.player.y };
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start("battle", {
@@ -593,9 +653,30 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.transitioning = true;
     this.player.setVelocity(0, 0);
     this.cameras.main.fadeOut(350);
+    this.uiCamera.fadeOut(350); // see startBattle()'s comment — same reasoning.
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start(target, { spawnTile } satisfies ZoneEntryData);
     });
+  }
+
+  /**
+   * Marks every game object NOT already parented into `uiLayer` as ignored
+   * by `uiCamera`, so `uiCamera` only ever draws `uiLayer`'s contents. Run
+   * every frame (see `update()`) rather than once: `Camera.ignore()` sets a
+   * bitmask on each object at call time (Phaser's `BaseCamera.ignore`), not
+   * a live relationship, so a one-time sweep would miss anything added
+   * later (NPCs/props from populate(), floating XP text, world-follower
+   * spawns, cutscene sprites, ...). `this.uiLayer` itself is a top-level
+   * scene child too (that's how `this.add.layer()` works), so the blanket
+   * sweep over `this.children.list` would also mark the layer itself as
+   * ignored by uiCamera — the explicit unmask after it undoes exactly that
+   * one bit. Cheap: `ignore()` is just an OR of a bitmask per object, and
+   * the top-level child list is small (a few dozen to a couple hundred
+   * objects for a densely propped zone).
+   */
+  private syncUiCameraIgnore(): void {
+    this.uiCamera.ignore(this.children.list);
+    this.uiLayer.cameraFilter &= ~this.uiCamera.id;
   }
 
   // ---------- runtime ----------
@@ -737,6 +818,11 @@ export abstract class ZoneScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
+    // Runs unconditionally, ahead of every early-return below, so newly
+    // added objects (mid-dialogue cutscene sprites, floating XP text, a
+    // follower's first spawn(), ...) never get one stray frame of
+    // double-rendering through both cameras.
+    this.syncUiCameraIgnore();
     if (this.transitioning) return;
     const dt = deltaMs / 1000;
 

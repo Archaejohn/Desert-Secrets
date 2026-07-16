@@ -2654,3 +2654,165 @@ mutually distinct. Preview PNGs committed under `preview/`
 (`ow_mountains_preview.png`, `ow_map_preview.png`,
 `ow_map_ground_preview.png`, refreshed `ow_tiles_preview.png`/
 `ow_tiles2_preview.png`/`ow_billboards_preview.png`).
+
+# v21: a two-camera world/UI split, and the overworld defaults to the flat view
+
+The project owner tried Mode-7 (v10/Phase O) extensively via the
+`mode7tune` live tuner and decided they prefer the ordinary flat top-down
+tilemap every other zone already uses for the overworld too — same
+rendering, just zoomed further out for a "see more of the map at once"
+big-world feel. Mode-7 is kept **fully intact**, not deleted: it's wanted
+for a future vehicle sequence (a rocketship for Thomas, possibly a
+motorcycle/speedboat later).
+
+## The naive fix was unsafe
+
+`this.cameras.main.setZoom(0.5)` in OverworldScene visibly broke the HUD,
+dialogue box, joystick, action hint and talk prompt — all shrank and
+repositioned. `setScrollFactor(0)` only cancels an object's SCROLL
+following; it does **not** make it immune to the camera's ZOOM. Every UI
+element in this game was rendered through the same single camera as world
+content (tilemap layers, player, NPCs), so any camera zoom applied to that
+camera hits the UI too.
+
+A depth-based "ignore everything above depth N" heuristic is also unsafe:
+the `overhead` tilemap layer (world content, e.g. ice/kelp drawn over the
+player's head) sits at depth 5000, and `InventoryMenu`'s container is
+*also* depth 5000 — world and UI depths overlap, so depth can't
+distinguish them.
+
+## The real fix: two cameras, one explicit UI allow-list
+
+`ZoneScene` (the shared base class for all 38 zones) now owns:
+
+- `protected uiLayer: Phaser.GameObjects.Layer` — every screen-fixed UI
+  element (Hud, DialogueBox, InventoryMenu, PerkMenu, CookingMenu,
+  FishingMenu, the touch controls in `touch.ts`, talkPrompt, the
+  zone-entry hint, FlatZoomTuner) adds itself here at construction, via a
+  one-line `addToUiLayer(scene, obj)` call (`src/game/gfx/sceneUi.ts`) —
+  Mode7Tuner is the one exception, deliberately left off this list (see
+  below).
+- `protected uiCamera: Phaser.Cameras.Scene2D.Camera` — a second camera,
+  added via `this.cameras.add(...)`, fixed at zoom 1 with no
+  scroll/bounds/follow. `scrollFactor(0)` content renders at the same
+  fixed screen position on any camera regardless of that camera's own
+  scroll, so `uiCamera` never needs to track the player.
+- `this.cameras.main.ignore(this.uiLayer)` — the world camera never draws
+  UI, so its zoom can never distort it.
+- `syncUiCameraIgnore()`, run every `update()`: `this.uiCamera.ignore(this.children.list)`
+  followed by `this.uiLayer.cameraFilter &= ~this.uiCamera.id` to unmask
+  the layer itself (it's a top-level scene child too, so the blanket sweep
+  would otherwise catch it). `uiCamera` therefore only ever draws
+  `uiLayer`'s contents.
+
+A `Layer`'s `ignore()` sets a bitmask on the **Layer object itself**
+(`entry.cameraFilter |= id` in Phaser's `BaseCamera.ignore`; a Layer does
+not have `isParent = true`, so it is never expanded into its children —
+only `Group` is), and a Layer's own render gate
+(`Layer.js`'s `willRender`) checks that single bitmask before drawing any
+of its children. That means the ignore relationship is evaluated fresh
+every frame from one flag, not baked in at add() time — objects added to
+`uiLayer` at any point, including well after camera setup, are correctly
+excluded from `uiCamera`'s sweep with no extra bookkeeping. Confirmed
+against Phaser's own source (`node_modules/phaser/src/gameobjects/layer/
+Layer.js` `addChildCallback` calls `gameObject.removeFromDisplayList()`),
+not just inferred from docs.
+
+## Deliberately NOT a mirrored `worldLayer`
+
+The obvious symmetric design — a `worldLayer` that every world object is
+explicitly reparented into, with `uiCamera.ignore(worldLayer)` — was
+tried first and rejected. World content (tilemap layers, the player,
+NPCs, blob shadows, `addProp()` props, the `SlitherFollower`/
+`FluffballFollower`/`PiggyFollower` rigs, Mode-7's shader quad and
+billboards, and dozens of one-off per-zone cameo sprites and `floatText()`
+copies) is created from **dozens of call sites spread across all 38 zone
+files**, not one shared choke point. Hand-tracking every one of them into
+a `worldLayer` is exhaustive, easy to silently miss (a future zone script
+that adds a sprite without knowing the convention regresses silently —
+the object simply double-renders, once correctly through the world
+camera and once as a frozen "ghost" at its raw unscrolled position through
+`uiCamera`), and doesn't scale.
+
+The per-frame negative sweep (`syncUiCameraIgnore`) achieves the identical
+observable result — `uiCamera` draws only `uiLayer` — without requiring a
+single line of change at any of those world-side call sites: anything not
+explicitly parented into `uiLayer` is automatically treated as world
+content, present and future, self-healing. The one place this trade
+required extra edits was three "end of act" full-screen cards
+(`DepthsScene`/`SanctumScene`/`PizzaAscentScene`'s `showEndCard()`) that
+draw a screen-fixed backdrop + text above the HUD's depth — those were
+moved into `uiLayer` so `uiCamera` (which now renders after `cameras.main`
+in draw order) keeps drawing the HUD *under* the card instead of on top of
+it, matching the pre-existing depth-sorted look.
+
+`startBattle()`'s flash/fadeOut and `goToZone()`'s fadeOut (previously a
+single `cameras.main` call, since there was only one camera) are now
+mirrored onto `uiCamera` too, so a battle transition or zone change still
+flashes/fades the whole screen — HUD and dialogue box included — instead
+of only the world layer. Same reasoning for the zone-entry `fadeIn(400)`
+in `create()`.
+
+Mode7Tuner (the Mode-7 debug panel) and the Mode-7 shader quad/billboards
+are intentionally left OFF `uiLayer` — they fall through to the default
+"world" sweep. This only matters when Mode-7 is active, and Mode-7 always
+keeps `cameras.main`'s zoom at 1 (see below), so rendering through the
+world camera at zoom 1 is pixel-identical to the old single-camera
+behaviour. `FlatZoomTuner` (new, see below) is the one dev panel that
+*does* need `uiLayer`: it's tuning the very camera zoom it's drawn under,
+so it must stay legible while that zoom changes.
+
+## OverworldScene: flat view by default, Mode-7 behind a flag
+
+`OverworldScene.setupView()` picks the rendering:
+
+- **Default** (`readDebugMode() === "off"`): the flat tilemap, zoomed via
+  `this.cameras.main.setZoom(OVERWORLD_FLAT_ZOOM)` — `0.8`. At zoom 1 the
+  16×20-tile POC map's north-south span (320px) doesn't quite fit the
+  270px-tall viewport; 0.8 was the least-aggressive zoom that reveals the
+  whole pass (both gates) in one screen while keeping the player sprite,
+  HUD text and tile art crisp — chosen by comparing Playwright screenshots
+  at 0.5/0.65/0.75/0.8/0.85/1. **Known limitation, not caused by this
+  zoom choice:** the map (256px wide) is narrower than even the OLD
+  zoom=1 viewport (480px wide), so dead space past the map's east edge is
+  unavoidable at any zoom ≤ 1 regardless of `OVERWORLD_FLAT_ZOOM` — it was
+  simply invisible before because Mode-7's shader always painted the full
+  screen. Widening the POC map is a content decision, out of scope here.
+- **`"mode7"`**: `setupMode7()` runs exactly as before (Mode7Ground +
+  Mode7Tuner), and `cameras.main.setZoom(1)` is forced once Mode-7 setup
+  succeeds — Mode-7's shader quad and billboards are screen-space content
+  that a camera zoom would distort/clip (the identical
+  scrollFactor(0)-still-gets-zoomed hazard this whole architecture works
+  around for the HUD). If Mode-7 setup throws (no WebGL, shader error),
+  the flat *zoomed* view is the fallback rather than the old unzoomed one.
+- **`"flat"`**: the flat zoomed view plus `FlatZoomTuner`
+  (`src/game/gfx/FlatZoomTuner.ts`), a new small dev panel — same
+  +/-/RESET style as Mode7Tuner — for live-tuning `OVERWORLD_FLAT_ZOOM`
+  itself.
+
+`readDebugMode()` reuses the existing `mode7tune` URL-param/localStorage
+flag, now tri-state instead of boolean: `?mode7tune=1` (or any value that
+isn't `"0"` or `"flat"`) means `"mode7"`, so bookmarks/localStorage set
+before this change keep behaving exactly as they did (full Mode-7 +
+tuner). `?mode7tune=flat` is the new third state. `?mode7tune=0` (or no
+flag, the default) is the flat view with no tuner. Persistence to
+localStorage is unchanged (the PWA's `display:"fullscreen"` manifest means
+an installed app has no address bar to type a query string into after the
+first visit).
+
+## Verification
+
+`tsc --noEmit`, full `vitest run` (1288 tests, all pre-existing —
+`syncUiCameraIgnore`/the camera split have no dedicated new unit test
+since they're Phaser-runtime behaviour with no pure-core counterpart;
+`tests/game/` has no existing camera assertions this touched), `npm run
+build`, `npm run smoke` (keyboard e2e, all 7 acts) and `npm run
+smoke:touch` (touch e2e) both green with zero new failures. Playwright
+screenshots confirmed: the flat overworld's HUD/hint text render at normal
+size while the world is visibly zoomed out; the inventory menu opens
+correctly over the zoomed overworld; a non-overworld zone (the oasis)
+renders its HUD and an NPC dialogue box pixel-identically to before
+(camera zoom reads back as exactly `1`); Mode-7 debug mode
+(`?mode7tune=1`) still renders the full perspective ground, avatar and
+billboards with all four Mode7Tuner sliders working; the flat-zoom tuner
+mode (`?mode7tune=flat`) renders and live-adjusts the zoom correctly.

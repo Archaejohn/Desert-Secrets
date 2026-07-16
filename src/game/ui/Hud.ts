@@ -8,6 +8,7 @@ import { heroStats } from "../../core/gameState";
 import type { Act1State } from "../../core/gameState";
 import { levelForXp, xpToNext, LEVEL_THRESHOLDS } from "../../core/progression";
 import { objectiveFor } from "../../core/objective";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 export class Hud {
   private bars: Phaser.GameObjects.Graphics;
@@ -61,6 +62,7 @@ export class Hud {
       this.bucketIcon,
       this.invText
     ]);
+    addToUiLayer(scene, c);
   }
 
   update(state: Act1State): void {

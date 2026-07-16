@@ -11,6 +11,7 @@ import Phaser from "phaser";
 import { PERKS, type PerkId } from "../../core/progression";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { isTouchDevice, TouchListButtons } from "./touch";
+import { addToUiLayer } from "../gfx/sceneUi";
 
 const PANEL_W = 260;
 const ROW_H = 22;
@@ -53,6 +54,7 @@ export class PerkMenu {
 
     this.container = scene.add.container(x, y, [bg, title]);
     this.container.setScrollFactor(0).setDepth(5000);
+    addToUiLayer(scene, this.container);
 
     // Description column narrows on touch to leave room for the ▲/✓/▼
     // buttons on the right, so neither ever overlaps the other.
