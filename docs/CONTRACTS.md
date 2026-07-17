@@ -3977,3 +3977,41 @@ hero tracks persistent HP between fights (that HP rationale still holds). On a
 party victory the hero is now revived to ≥1 HP, since a companion can land the
 winning blow while Joseph is down. `BattleScene` lays out 1–4 party members
 (`PARTY_COLS`). Tests: `roster.test.ts`, `progressionRoster.test.ts`.
+
+# v38: the Equipment tab becomes a per-character, near-fullscreen icon UI
+
+The Equipment tab is no longer the interim hero-only slot list (v35/v36). It's a
+bespoke, near-fullscreen PER-CHARACTER view (`src/game/ui/EquipmentPanel.ts`),
+which InventoryMenu mounts in place of its generic list/detail framework while
+that tab is up (and unmounts on tab-switch/close, resyncing state via
+`currentState()`). The STATUS window itself grew to ~456×250 to hold it, and the
+zone HUD is hidden while the window is open (it renders above the panel). Three
+columns, icons over words:
+
+- **LEFT** — a square sprite-button per member you have (`availablePartyIds`),
+  no names; the highlighted one is the character being dressed.
+- **MIDDLE** — the shared item POOL: every owned equippable as icon + free count
+  (`availableCount`, FF6-style = owned − equipped-across-everyone), `✓ worn` when
+  the selected member wears it, `locked` when a tag rule bars them (penguin-only
+  frost feather), `in use` when all copies are worn elsewhere.
+- **RIGHT** — the member's five slots (hat·weapon·torso·legs·shoes): the worn
+  item's icon + name, or a grayed slot-placeholder icon when empty, plus a live
+  buffed ATK/DEF/SPD readout.
+
+Input: ↑↓ move the pool cursor · ←→ change character · SPACE toggles the
+highlighted item on the current member (equip if free & eligible, unequip if
+that member already wears it — so the pool doubles as the unequip path). Touch
+taps a character button, a pool row (toggle), or a filled right-hand slot
+(unequip). `InventoryCallbacks` changed from the single hero-only `onToggleEquip`
+to per-character `onEquip(charId, id)` / `onUnequip(charId, slot)`, wired in
+`ZoneScene` straight onto the core `equipItem` / `unequipSlot` (the pool/tag
+rules already live there, so a restricted or none-free action is a safe no-op).
+
+New art: `gearIcons` — a 16×16, one-row-of-12 sheet
+(`tools/pipeline/src/sprites/gearIcons.ts`): 5 muted slot/class placeholders
+(hat·weapon·torso·legs·shoes) + 7 colour item icons (miner's hat·stick·pickaxe·
+t-shirt·jeans·flip-flops·frost feather); the bucket keeps its own fill-state
+sheet. The frame ORDER is the contract the UI indexes by
+(`src/game/ui/equipmentIcons.ts`); the sheet is sha256-pinned in
+`determinism.test.ts` ("gearIcons byte-stability"), so a reorder there fails a
+test — keep the two in lockstep, append never reorder.

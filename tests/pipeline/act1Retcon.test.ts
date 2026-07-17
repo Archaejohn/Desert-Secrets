@@ -252,7 +252,9 @@ describe("act1-retcon manifest", () => {
         "testudo",
         // Phase S (sprites): the two appended sheets — see determinism.test.ts
         "dusty",
-        "sahra"
+        "sahra",
+        // v38: Equipment-tab icon set.
+        "gearIcons"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected

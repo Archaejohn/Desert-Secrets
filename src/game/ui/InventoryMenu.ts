@@ -28,29 +28,19 @@
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import {
-  availableCount,
   equippedSlotsFor,
   heroStats,
-  ownedCount,
   type Act1State,
 } from "../../core/gameState";
 import { PERKS, levelForXp } from "../../core/progression";
-import { rosterById } from "../../core/roster";
-import {
-  BUFF_STATS,
-  EQUIPMENT,
-  EQUIP_SLOTS,
-  hasNoBuffs,
-  itemAllowsTags,
-  type Equipment,
-  type EquipId,
-  type EquipSlot,
-} from "../../core/equipment";
+import type { EquipId, EquipSlot } from "../../core/equipment";
+import type { RosterId } from "../../core/roster";
 import { isTouchDevice, TouchListButtons } from "./touch";
 import { addToUiLayer } from "../gfx/sceneUi";
+import { EquipmentPanel } from "./EquipmentPanel";
 
-const PANEL_W = 320;
-const PANEL_H = 186;
+const PANEL_W = 456;
+const PANEL_H = 250;
 const TABS_Y = 22;
 const TAB_H = 13;
 const CONTENT_TOP = 44;
@@ -93,11 +83,10 @@ interface TabDef {
 }
 
 export interface InventoryCallbacks {
-  /**
-   * Toggle an equippable item's equip slot (equip if not worn, unequip if it
-   * is); returns the updated items for a live re-render.
-   */
-  onToggleEquip: (id: EquipId) => Act1State["items"];
+  /** Equip `id` on `charId` (Equipment tab); returns the updated items. */
+  onEquip: (charId: RosterId, id: EquipId) => Act1State["items"];
+  /** Take whatever `charId` wears in `slot` off; returns the updated items. */
+  onUnequip: (charId: RosterId, slot: EquipSlot) => Act1State["items"];
   onClose: () => void;
 }
 
@@ -105,35 +94,6 @@ export interface InventoryCallbacks {
 function fitHeight(sprite: Phaser.GameObjects.Sprite, px: number): void {
   const h = sprite.height || px;
   sprite.setScale(px / h);
-}
-
-/** "ATK +0  DEF +2  SPD -1" — the equipment detail-panel buff preview. */
-function buffPreview(item: Equipment): string {
-  const fmt = (n: number | undefined): string => {
-    const v = n ?? 0;
-    return v > 0 ? `+${v}` : `${v}`;
-  };
-  const label: Record<(typeof BUFF_STATS)[number], string> = {
-    attack: "ATK",
-    defense: "DEF",
-    speed: "SPD",
-  };
-  return BUFF_STATS.map((k) => `${label[k]} ${fmt(item.buffs[k])}`).join("  ");
-}
-
-/** Human labels for the five equip slots (menu grouping). */
-const SLOT_LABEL: Record<EquipSlot, string> = {
-  hat: "Hat",
-  weapon: "Weapon",
-  torso: "Torso",
-  legs: "Legs",
-  shoes: "Shoes",
-};
-
-/** Whether the player owns at least one of a given equippable (pool count;
- *  bucket via its fill-state, handled inside `ownedCount`). */
-function ownsEquip(s: Act1State, id: EquipId): boolean {
-  return ownedCount(s, id) > 0;
 }
 
 const TABS: TabDef[] = [
@@ -267,48 +227,10 @@ const TABS: TabDef[] = [
     id: "equipment",
     title: "Equipment",
     emptyText: "No gear to wear yet.",
-    // INTERIM Phase-2 UI: operates on the HERO (Joseph) only. Lists every OWNED
-    // equippable grouped by slot (hat · weapon · torso · legs · shoes), each
-    // with a "✓ worn" marker, its buff preview, and its pool AVAILABLE count.
-    // The equip toggle is auto-wired off `equipId` in buildEntries and equips on
-    // Joseph; a penguin-only item (frost feather) still LISTS here (he carries
-    // it) but won't equip — the detail panel calls out the restriction.
-    // TODO(Phase 3): replace this with a near-fullscreen, PER-CHARACTER selector
-    // (pick a party member, then their five slots) — see docs/CONTRACTS.md.
-    build: (s) => {
-      const heroSlots = equippedSlotsFor(s, "hero");
-      const heroTags = rosterById("hero").tags;
-      const out: Entry[] = [];
-      for (const slot of EQUIP_SLOTS) {
-        for (const item of EQUIPMENT) {
-          if (item.slot !== slot || !ownsEquip(s, item.id)) continue;
-          const worn = heroSlots[slot] === item.id;
-          const filled = item.id === "bucket" && s.items.bucket === "filled";
-          const eligible = itemAllowsTags(item, heroTags);
-          const avail = availableCount(s, item.id);
-          const action = !eligible
-            ? "Joseph can't wear this — penguin only."
-            : worn
-              ? "Worn. SPACE to take it off."
-              : avail > 0
-                ? "SPACE to wear it."
-                : "None free to equip.";
-          out.push({
-            label: `${SLOT_LABEL[slot]}: ${item.name}`,
-            tag: worn ? "  ✓" : "",
-            equipId: item.id,
-            icon: item.id === "bucket" ? { sheet: "bucket", frame: filled ? 1 : 0 } : undefined,
-            detailTitle: worn ? `${item.name} (worn)` : item.name,
-            detailBody:
-              `${item.description}\n` +
-              `Slot: ${SLOT_LABEL[slot]}   Available: ${avail}\n` +
-              `${hasNoBuffs(item) ? "No stat bonus." : buffPreview(item)}\n` +
-              action
-          });
-        }
-      }
-      return out;
-    }
+    // The Equipment tab is NOT a generic list — it renders through the bespoke
+    // per-character EquipmentPanel (mounted/unmounted in loadTab). This stub
+    // build keeps it a first-class tab (chip + title) without any list entries.
+    build: () => []
   }
 ];
 
@@ -329,7 +251,10 @@ export class InventoryMenu {
   private detailTitle: Phaser.GameObjects.Text;
   private detailBody: Phaser.GameObjects.Text;
   private emptyText: Phaser.GameObjects.Text;
+  private footer!: Phaser.GameObjects.Text;
   private touchButtons: TouchListButtons | null = null;
+  /** The bespoke per-character view, live only while the Equipment tab is up. */
+  private equipPanel: EquipmentPanel | null = null;
 
   private tab = 0;
   private sel = 0;
@@ -391,19 +316,12 @@ export class InventoryMenu {
       lineSpacing: 3
     });
 
-    const footer = scene.add
-      .text(
-        PANEL_W / 2,
-        FOOTER_Y,
-        this.touch
-          ? "tap a tab · ▲▼ move · ✓ use · ✕ close"
-          : "↑↓ move · ←→ tabs · SPACE use · ESC/I close",
-        {
-          fontFamily: "monospace",
-          fontSize: "8px",
-          color: PALETTE.mauve
-        }
-      )
+    this.footer = scene.add
+      .text(PANEL_W / 2, FOOTER_Y, "", {
+        fontFamily: "monospace",
+        fontSize: "8px",
+        color: PALETTE.mauve
+      })
       .setOrigin(0.5, 0);
 
     this.container = scene.add.container(x, y, [
@@ -415,7 +333,7 @@ export class InventoryMenu {
       this.emptyText,
       this.detailTitle,
       this.detailBody,
-      footer
+      this.footer
     ]);
     this.container.setScrollFactor(0).setDepth(5000);
     addToUiLayer(scene, this.container);
@@ -445,8 +363,8 @@ export class InventoryMenu {
       ["keydown-DOWN", () => this.move(1)],
       ["keydown-W", () => this.move(-1)],
       ["keydown-S", () => this.move(1)],
-      ["keydown-LEFT", () => this.switchTab(-1)],
-      ["keydown-RIGHT", () => this.switchTab(1)],
+      ["keydown-LEFT", () => this.horiz(-1)],
+      ["keydown-RIGHT", () => this.horiz(1)],
       ["keydown-Q", () => this.switchTab(-1)],
       ["keydown-E", () => this.switchTab(1)],
       ["keydown-SPACE", () => this.activate()],
@@ -492,41 +410,76 @@ export class InventoryMenu {
     }
   }
 
-  /** Switch to a fresh tab: rebuild entries and reset the cursor. */
+  private isEquipTab(index = this.tab): boolean {
+    return TABS[index].id === "equipment";
+  }
+
+  /** Switch to a fresh tab: rebuild entries and reset the cursor. The Equipment
+   *  tab swaps the generic list/detail out for the bespoke EquipmentPanel. */
   private loadTab(index: number): void {
+    // Leaving the Equipment tab: resync our state snapshot from the panel
+    // (it held authoritative run state while mounted) and tear it down.
+    if (this.equipPanel) {
+      this.state = this.equipPanel.currentState();
+      this.equipPanel.unmount();
+      this.equipPanel = null;
+    }
     this.tab = ((index % TABS.length) + TABS.length) % TABS.length;
     this.sel = 0;
     this.scroll = 0;
-    this.entries = this.buildEntries();
-    this.rebuildRows();
     this.renderTabs();
-    this.renderList();
+    this.footer.setText(this.footerHint());
+    if (this.isEquipTab()) {
+      this.setGenericVisible(false);
+      this.equipPanel = new EquipmentPanel(this.scene, this.container, this.state, {
+        onEquip: (charId, id) => this.cb.onEquip(charId, id),
+        onUnequip: (charId, slot) => this.cb.onUnequip(charId, slot)
+      });
+      this.equipPanel.mount();
+    } else {
+      this.setGenericVisible(true);
+      this.entries = this.buildEntries();
+      this.rebuildRows();
+      this.renderList();
+    }
   }
 
   private buildEntries(): Entry[] {
-    const entries = TABS[this.tab].build(this.state);
-    // Wire equip actions here (tab data can't close over the live callbacks).
-    // Keyed off the stable `equipId`, never off display text — so the toggle
-    // is tab-agnostic and survives any relabelling of the entry.
-    for (const e of entries) {
-      if (e.equipId) {
-        const id = e.equipId;
-        e.activate = () => this.toggleEquip(id);
-      }
-    }
-    return entries;
+    return TABS[this.tab].build(this.state);
   }
 
-  private toggleEquip(id: EquipId): void {
-    const items = this.cb.onToggleEquip(id);
-    this.state = { ...this.state, items };
-    this.entries = this.buildEntries();
-    this.rebuildRows();
-    this.renderList();
+  /** Show/hide the generic list/detail chrome (hidden under the Equipment tab). */
+  private setGenericVisible(v: boolean): void {
+    this.emptyText.setVisible(v);
+    this.detailTitle.setVisible(v);
+    this.detailBody.setVisible(v);
+    this.rowHighlight.setVisible(v);
+    this.detailIcon?.setVisible(v);
+    for (const t of this.rowTexts) t.setVisible(v);
+    for (const ic of this.rowIcons) ic?.setVisible(v);
+    this.touchButtons?.container.setVisible(v);
+    if (!v) this.rowHighlight.clear();
+  }
+
+  private footerHint(): string {
+    if (this.isEquipTab()) {
+      return this.touch
+        ? "tap hero · tap gear to equip · tap a slot to remove · ✕ close"
+        : "↑↓ gear · ←→ hero · SPACE equip/remove · Q/E tabs · ESC close";
+    }
+    return this.touch
+      ? "tap a tab · ▲▼ move · ✓ use · ✕ close"
+      : "↑↓ move · ←→ tabs · SPACE use · ESC/I close";
   }
 
   private switchTab(delta: number): void {
     this.loadTab(this.tab + delta);
+  }
+
+  /** ←/→: change character on the Equipment tab, else switch tabs. */
+  private horiz(delta: number): void {
+    if (this.equipPanel) this.equipPanel.changeChar(delta);
+    else this.switchTab(delta);
   }
 
   /** Destroy and recreate the visible list-row Text/Sprite objects. */
@@ -559,6 +512,10 @@ export class InventoryMenu {
   }
 
   private move(delta: number): void {
+    if (this.equipPanel) {
+      this.equipPanel.moveItem(delta);
+      return;
+    }
     if (this.entries.length === 0) return;
     this.sel = (this.sel + delta + this.entries.length) % this.entries.length;
     // Keep the selection inside the visible window.
@@ -653,6 +610,10 @@ export class InventoryMenu {
   }
 
   private activate(): void {
+    if (this.equipPanel) {
+      this.equipPanel.toggle();
+      return;
+    }
     const entry = this.entries[this.sel];
     entry?.activate?.();
   }
@@ -674,6 +635,11 @@ export class InventoryMenu {
         }
       }
     }
+    // Equipment tab: hand content taps to the bespoke panel.
+    if (this.equipPanel) {
+      if (localY > CONTENT_TOP - 6) this.equipPanel.tapAt(localX, localY);
+      return;
+    }
     // Touch ▲/✓/▼ column.
     if (this.touchButtons) {
       const hit = this.touchButtons.hitTest(localX, localY);
@@ -694,6 +660,8 @@ export class InventoryMenu {
   }
 
   private close(): void {
+    this.equipPanel?.unmount();
+    this.equipPanel = null;
     const kb = this.scene.input.keyboard!;
     for (const [ev, fn] of this.keyHandlers) kb.off(ev, fn);
     this.scene.input.off("pointerdown", this.pointerHandler);

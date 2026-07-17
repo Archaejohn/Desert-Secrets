@@ -18,9 +18,11 @@ export class Hud {
   private invBg: Phaser.GameObjects.Graphics;
   private bucketIcon: Phaser.GameObjects.Sprite;
   private invText: Phaser.GameObjects.Text;
+  private root: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene, zoneName: string) {
     const c = scene.add.container(0, 0).setScrollFactor(0).setDepth(6000);
+    this.root = c;
     this.bars = scene.add.graphics();
     this.levelText = scene.add.text(5, 3, "", {
       fontFamily: "monospace",
@@ -63,6 +65,12 @@ export class Hud {
       this.invText
     ]);
     addToUiLayer(scene, c);
+  }
+
+  /** Hide/show the whole HUD — used while the full-screen STATUS window is up
+   *  (it renders above the panel, so it must step aside). */
+  setVisible(v: boolean): void {
+    this.root.setVisible(v);
   }
 
   update(state: Act1State): void {

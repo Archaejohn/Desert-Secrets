@@ -1303,6 +1303,99 @@
           "repeat": -1
         }
       }
+    },
+    "gearIcons": {
+      "file": "gearIcons.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "columns": 12,
+      "rows": 1,
+      "animations": {
+        "gearIcons-hat": {
+          "frames": [
+            0
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-weapon": {
+          "frames": [
+            1
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-torso": {
+          "frames": [
+            2
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-legs": {
+          "frames": [
+            3
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-shoes": {
+          "frames": [
+            4
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-minersHat": {
+          "frames": [
+            5
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-stick": {
+          "frames": [
+            6
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-pickaxe": {
+          "frames": [
+            7
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-tshirt": {
+          "frames": [
+            8
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-jeans": {
+          "frames": [
+            9
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-flipFlops": {
+          "frames": [
+            10
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        },
+        "gearIcons-frostFeather": {
+          "frames": [
+            11
+          ],
+          "frameRate": 1,
+          "repeat": 0
+        }
+      }
     }
   },
   "tiles": {

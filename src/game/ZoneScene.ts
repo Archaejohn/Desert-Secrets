@@ -13,8 +13,7 @@ import { InventoryMenu } from "./ui/InventoryMenu";
 import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
-import { equipItem, unequipSlot, respawn, type Act1State, type ZoneId } from "../core/gameState";
-import { equipmentById } from "../core/equipment";
+import { equipItem, unequipSlot, respawn, type ZoneId } from "../core/gameState";
 import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
@@ -834,24 +833,27 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.play(`hero-idle-${this.facing}`, true);
     this.talkPrompt.setVisible(false);
     this.actionHint?.setVisible(false);
+    // The STATUS window is near-fullscreen; the HUD renders above it, so tuck
+    // the HUD away while it's open and restore it on close.
+    this.hud.setVisible(false);
     this.inventoryMenu = new InventoryMenu(this, getState(this), {
-      onToggleEquip: (id) => {
-        // Interim Phase-2 UI: toggles gear on the HERO only (Phase 3 makes the
-        // menu per-character). Equipping the already-worn item takes it off;
-        // otherwise equip it (a no-op if restricted / none available — e.g. the
-        // penguin-only frost feather won't go on Joseph).
-        const s = getState(this);
-        const item = equipmentById(id);
-        let next: Act1State = s;
-        if (item) {
-          const worn = s.items.equipped.hero?.[item.slot] === id;
-          next = worn ? unequipSlot(s, "hero", item.slot) : equipItem(s, "hero", id);
-        }
+      // Per-character equip/unequip: the Equipment tab picks the party member,
+      // and the shared pool enforces availability/tag rules in the core helpers
+      // (a no-op state if restricted or none free — e.g. the penguin-only frost
+      // feather won't go on Joseph).
+      onEquip: (charId, id) => {
+        const next = equipItem(getState(this), charId, id);
+        setState(this, next);
+        return next.items;
+      },
+      onUnequip: (charId, slot) => {
+        const next = unequipSlot(getState(this), charId, slot);
         setState(this, next);
         return next.items;
       },
       onClose: () => {
         this.inventoryMenu = null;
+        this.hud.setVisible(true);
       }
     });
   }

@@ -37,6 +37,7 @@ import { testudoFrames } from "./sprites/testudo";
 import { owBillboardFrames } from "./sprites/owBillboards";
 import { dustyFrames } from "./sprites/dusty";
 import { sahraFrames } from "./sprites/sahra";
+import { gearIconsFrames } from "./sprites/gearIcons";
 import { owMountainFrames } from "./owMountains";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
@@ -90,6 +91,7 @@ export interface BuiltAssets {
   // Phase S (sprites) additions — appended only, never reordered.
   dusty: PixelGrid;
   sahra: PixelGrid;
+  gearIcons: PixelGrid;
   manifest: Manifest;
   owBillboards: PixelGrid;
   // owMountains: mask-based rounded-corner overworld mountain autotile —
@@ -141,6 +143,7 @@ export const SHEET_KEYS = [
   // Phase S (sprites) additions — appended only, never reordered.
   "dusty",
   "sahra",
+  "gearIcons",
   // owMountains: mask-based rounded-corner overworld mountain autotile.
   "owMountains"
 ] as const;
@@ -188,6 +191,7 @@ export function buildAssets(): BuiltAssets {
     owBillboards: composeSheet(owBillboardFrames(), 6),
     dusty: composeSheet(dustyFrames(), 6),
     sahra: composeSheet(sahraFrames(), 6),
+    gearIcons: composeSheet(gearIconsFrames(), 12),
     owMountains: composeSheet(owMountainFrames(), 8),
     manifest: buildManifest()
   };

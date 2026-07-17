@@ -50,6 +50,7 @@ import reefstalkerUrl from "../../assets/generated/reefstalker.png";
 import testudoUrl from "../../assets/generated/testudo.png";
 import dustyUrl from "../../assets/generated/dusty.png";
 import sahraUrl from "../../assets/generated/sahra.png";
+import gearIconsUrl from "../../assets/generated/gearIcons.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -83,7 +84,8 @@ const SHEET_URLS: Record<string, string> = {
   reefstalker: reefstalkerUrl,
   testudo: testudoUrl,
   dusty: dustyUrl,
-  sahra: sahraUrl
+  sahra: sahraUrl,
+  gearIcons: gearIconsUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {

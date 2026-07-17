@@ -59,6 +59,7 @@ const sheets = [
   // Phase S (sprites) additions — appended only, never reordered.
   ["dusty.png", assets.dusty],
   ["sahra.png", assets.sahra],
+  ["gearIcons.png", assets.gearIcons],
   // owMountains: mask-based rounded-corner overworld mountain autotile.
   ["owMountains.png", assets.owMountains]
 ] as const;
