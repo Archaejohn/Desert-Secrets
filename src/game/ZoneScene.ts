@@ -673,6 +673,44 @@ export abstract class ZoneScene extends Phaser.Scene {
   }
 
   /**
+   * Like `goToZone`, but the player visibly GOES THROUGH the exit first
+   * instead of the screen just fading — used for the major "act boundary"
+   * hand-offs so they read as a real threshold, not a teleport. The kind
+   * picks the beat: `"ladder"` climbs up (walk-up pose + rise), `"door"`
+   * steps up/through, `"elevator"` sinks down (riding the cage). The player
+   * fades out on the beat, then the cameras fade and the target zone starts.
+   * Input is locked for the ~0.6s beat. The caller supplies the visible
+   * door/ladder tile at the exit; this only plays the character's part.
+   */
+  protected exitVia(
+    kind: "door" | "ladder" | "elevator",
+    target: ZoneId,
+    spawnTile: { x: number; y: number }
+  ): void {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.inputLocked = true;
+    this.player.setVelocity(0, 0);
+    const dy = kind === "ladder" ? -TILE * 1.4 : kind === "elevator" ? TILE * 0.7 : -TILE * 0.7;
+    const facing: Dir = kind === "elevator" ? this.facing : "up";
+    if (this.anims.exists(`hero-walk-${facing}`)) this.player.play(`hero-walk-${facing}`, true);
+    this.tweens.add({
+      targets: this.player,
+      y: this.player.y + dy,
+      alpha: 0,
+      duration: 640,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        this.cameras.main.fadeOut(300);
+        this.uiCamera.fadeOut(300);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.scene.start(target, { spawnTile } satisfies ZoneEntryData);
+        });
+      }
+    });
+  }
+
+  /**
    * Marks every game object NOT already parented into `uiLayer` as ignored
    * by `uiCamera`, so `uiCamera` only ever draws `uiLayer`'s contents. Run
    * every frame (see `update()`) rather than once: `Camera.ignore()` sets a

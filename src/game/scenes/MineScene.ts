@@ -120,7 +120,8 @@ export class MineScene extends ZoneScene {
       { ...MINE_ELEVATOR },
       () => {
         if (getState(this).flags.foremanDefeated) {
-          this.goToZone("depths", DEPTHS_SPAWN);
+          // Ride the cage down rather than a bare fade (act-boundary ceremony).
+          this.exitVia("elevator", "depths", DEPTHS_SPAWN);
         }
       },
       false

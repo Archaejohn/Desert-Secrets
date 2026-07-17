@@ -3684,3 +3684,28 @@ added to the Act 1 map test's KNOWN_NAMES rather than treated as a stray tile.
 The five posts sit at chamber corners/edges (all in wide chambers, none
 narrowing a path — BFS-verified). LightMask sits at depth 4000: above the
 actors and decor it darkens, below the HUD.
+
+# v31: act-boundary transitions become a walk-through (door/ladder/elevator)
+
+2026-07-17. The bigger "end of act" hand-offs shouldn't read as a teleport, so
+`ZoneScene.exitVia(kind, target, spawnTile)` plays a short beat on the player —
+`"ladder"` climbs up (walk-up pose + rise + fade), `"door"` steps up/through,
+`"elevator"` sinks down (riding the cage) — then fades the cameras and starts
+the target zone (input locked for the ~0.6s beat). It's `goToZone` with a
+threshold moment; the caller supplies the visible door/ladder tile, this plays
+the character's part.
+
+Scope (the owner's call): ACT BOUNDARIES ONLY — small room-to-room exits keep
+their quick fade — and the kind is auto-picked by direction (descending/
+climbing between levels = ladder; lateral/building = door), overridable where
+it'd be wrong. First two wired:
+- **Mine → Depths** (Act 1): `"elevator"` — a ride-down beat, keeping the
+  established elevator rather than forcing a ladder (a deliberate override).
+- **Sea Ascent → Miners' Camp** (Act 3→4): `"ladder"` — a visible service
+  ladder (the reef `kelpTrellis` reused as rungs, placed OVERHEAD at the top of
+  the shaft so the party climbs up THROUGH it; the walkable shaft underneath is
+  untouched since kelpTrellis is solid). tileGid resolves it cross-sheet.
+
+Remaining act boundaries (Act 4→5/5→6/6→7 descents = ladders; the Act 1→2 /
+2→3 end-card hand-offs need the beat inserted after the card, not at a walk-
+exit) are wired the same way as they're confirmed.

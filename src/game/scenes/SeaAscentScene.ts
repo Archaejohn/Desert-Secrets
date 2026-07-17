@@ -59,7 +59,9 @@ export class SeaAscentScene extends ZoneScene {
       () => {
         const s = getState(this);
         setState(this, { ...s, flags: { ...s.flags, act4Started: true } });
-        this.goToZone("minersCamp", CAMP_SPAWN);
+        // Climb the last rungs up and out (act-boundary ceremony) rather than
+        // a bare fade — the Act 3 → Act 4 hand-off.
+        this.exitVia("ladder", "minersCamp", CAMP_SPAWN);
       },
       false
     );
