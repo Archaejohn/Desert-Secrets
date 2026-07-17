@@ -37,7 +37,13 @@ import {
 // heroStats is a hoisted function export; the roster/gameState import cycle is
 // type-only + lazy (predicates and stat fns are only CALLED at battle time, never
 // at module load), so it resolves cleanly.
-import { heroStats, type Act1State, type PartyMember } from "./gameState";
+import {
+  equippedSlotsFor,
+  heroStats,
+  type Act1State,
+  type PartyMember,
+} from "./gameState";
+import { applyEquipmentBuffs } from "./equipment";
 
 /** Stable ids for every playable character. Extend by appending. */
 export type RosterId = "hero" | "slither" | "fluffball" | "piggy";
@@ -95,7 +101,8 @@ export const ROSTER: readonly RosterEntry[] = [
     name: "Slither",
     sprite: "slither",
     baseFrame: 0,
-    statsFor: (s) => slitherStatsForLevel(levelForXp(s.hero.xp)),
+    statsFor: (s) =>
+      applyEquipmentBuffs(slitherStatsForLevel(levelForXp(s.hero.xp)), equippedSlotsFor(s, "slither")),
     commandsFor: () => [...SLITHER_COMMANDS],
     available: (s) => !!s.flags.slitherJoined,
     tags: ["reptile"],
@@ -106,7 +113,8 @@ export const ROSTER: readonly RosterEntry[] = [
     name: "Fluffball",
     sprite: "fluffball",
     baseFrame: 0,
-    statsFor: (s) => fluffballStatsForLevel(levelForXp(s.hero.xp)),
+    statsFor: (s) =>
+      applyEquipmentBuffs(fluffballStatsForLevel(levelForXp(s.hero.xp)), equippedSlotsFor(s, "fluffball")),
     commandsFor: () => [...FLUFFBALL_COMMANDS],
     available: (s) => !!s.flags.fluffballJoined,
     tags: ["penguin"],
@@ -117,7 +125,8 @@ export const ROSTER: readonly RosterEntry[] = [
     name: "Piggy",
     sprite: "piggy",
     baseFrame: 0,
-    statsFor: (s) => piggyStatsForLevel(levelForXp(s.hero.xp)),
+    statsFor: (s) =>
+      applyEquipmentBuffs(piggyStatsForLevel(levelForXp(s.hero.xp)), equippedSlotsFor(s, "piggy")),
     commandsFor: () => [...PIGGY_COMMANDS],
     available: (s) => !!s.flags.piggyCaught,
     tags: ["penguin"],

@@ -27,13 +27,21 @@
  */
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
-import { heroStats, type Act1State } from "../../core/gameState";
+import {
+  availableCount,
+  equippedSlotsFor,
+  heroStats,
+  ownedCount,
+  type Act1State,
+} from "../../core/gameState";
 import { PERKS, levelForXp } from "../../core/progression";
+import { rosterById } from "../../core/roster";
 import {
   BUFF_STATS,
   EQUIPMENT,
   EQUIP_SLOTS,
   hasNoBuffs,
+  itemAllowsTags,
   type Equipment,
   type EquipId,
   type EquipSlot,
@@ -122,10 +130,10 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
   shoes: "Shoes",
 };
 
-/** Whether the player owns a given equippable (bucket via its fill-state). */
+/** Whether the player owns at least one of a given equippable (pool count;
+ *  bucket via its fill-state, handled inside `ownedCount`). */
 function ownsEquip(s: Act1State, id: EquipId): boolean {
-  if (id === "bucket") return s.items.bucket !== "none";
-  return s.items[id] === true;
+  return ownedCount(s, id) > 0;
 }
 
 const TABS: TabDef[] = [
@@ -142,7 +150,7 @@ const TABS: TabDef[] = [
         const filled = items.bucket === "filled";
         out.push({
           label: filled ? "Bucket (full)" : "Bucket (empty)",
-          tag: items.equipped.hat === "bucket" ? "  ✓" : "",
+          tag: equippedSlotsFor(s, "hero").hat === "bucket" ? "  ✓" : "",
           icon: { sheet: "bucket", frame: filled ? 1 : 0 },
           detailTitle: filled ? "Bucket (full)" : "Bucket (empty)",
           detailBody: filled
@@ -259,18 +267,32 @@ const TABS: TabDef[] = [
     id: "equipment",
     title: "Equipment",
     emptyText: "No gear to wear yet.",
-    // Every OWNED equippable, grouped by slot (hat · weapon · torso · legs ·
-    // shoes) so the five independent slots read clearly, each with its own
-    // "✓ worn" marker. Joseph's starter clothes fill torso/legs/shoes from the
-    // start. Each entry's equip toggle is auto-wired off `equipId` in
-    // buildEntries (keyed off the stable id, never display text).
+    // INTERIM Phase-2 UI: operates on the HERO (Joseph) only. Lists every OWNED
+    // equippable grouped by slot (hat · weapon · torso · legs · shoes), each
+    // with a "✓ worn" marker, its buff preview, and its pool AVAILABLE count.
+    // The equip toggle is auto-wired off `equipId` in buildEntries and equips on
+    // Joseph; a penguin-only item (frost feather) still LISTS here (he carries
+    // it) but won't equip — the detail panel calls out the restriction.
+    // TODO(Phase 3): replace this with a near-fullscreen, PER-CHARACTER selector
+    // (pick a party member, then their five slots) — see docs/CONTRACTS.md.
     build: (s) => {
+      const heroSlots = equippedSlotsFor(s, "hero");
+      const heroTags = rosterById("hero").tags;
       const out: Entry[] = [];
       for (const slot of EQUIP_SLOTS) {
         for (const item of EQUIPMENT) {
           if (item.slot !== slot || !ownsEquip(s, item.id)) continue;
-          const worn = s.items.equipped[slot] === item.id;
+          const worn = heroSlots[slot] === item.id;
           const filled = item.id === "bucket" && s.items.bucket === "filled";
+          const eligible = itemAllowsTags(item, heroTags);
+          const avail = availableCount(s, item.id);
+          const action = !eligible
+            ? "Joseph can't wear this — penguin only."
+            : worn
+              ? "Worn. SPACE to take it off."
+              : avail > 0
+                ? "SPACE to wear it."
+                : "None free to equip.";
           out.push({
             label: `${SLOT_LABEL[slot]}: ${item.name}`,
             tag: worn ? "  ✓" : "",
@@ -279,9 +301,9 @@ const TABS: TabDef[] = [
             detailTitle: worn ? `${item.name} (worn)` : item.name,
             detailBody:
               `${item.description}\n` +
-              `Slot: ${SLOT_LABEL[slot]}\n` +
+              `Slot: ${SLOT_LABEL[slot]}   Available: ${avail}\n` +
               `${hasNoBuffs(item) ? "No stat bonus." : buffPreview(item)}\n` +
-              (worn ? "Worn. SPACE to take it off." : "SPACE to wear it.")
+              action
           });
         }
       }

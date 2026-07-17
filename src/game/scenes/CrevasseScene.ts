@@ -27,9 +27,9 @@ import {
   awardXp,
   canBuyEquip,
   grantEquipment,
-  spendShinies,
-  type OwnedEquipId
+  spendShinies
 } from "../../core/gameState";
+import type { EquipId } from "../../core/equipment";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { LightMask } from "../gfx/LightMask";
@@ -80,7 +80,7 @@ export class CrevasseScene extends ZoneScene {
         CREVASSE_CAMP.gus,
         () => {
           const s = getState(this);
-          return shopScriptFor(gusShopScript, canBuyEquip(s, PICKAXE_PRICE, s.items.pickaxe));
+          return shopScriptFor(gusShopScript, canBuyEquip(s, PICKAXE_PRICE, "pickaxe"));
         },
         (endNodeId) => this.tryBuy(endNodeId, gus, PICKAXE_PRICE, "pickaxe")
       );
@@ -127,7 +127,7 @@ export class CrevasseScene extends ZoneScene {
       script: () => {
         const s = getState(this);
         if (!s.flags.minerMo) return minerMoScript;
-        return shopScriptFor(moShopScript, canBuyEquip(s, MINERS_HAT_PRICE, s.items.minersHat));
+        return shopScriptFor(moShopScript, canBuyEquip(s, MINERS_HAT_PRICE, "minersHat"));
       },
       onClose: (endNodeId) => {
         const s = getState(this);
@@ -153,11 +153,13 @@ export class CrevasseScene extends ZoneScene {
     endNodeId: string | null,
     sprite: Phaser.Physics.Arcade.Sprite,
     price: number,
-    id: OwnedEquipId
+    id: EquipId
   ): void {
     if (endNodeId !== "buy-end") return;
     const s = getState(this);
-    if (!canBuyEquip(s, price, s.items[id] === true)) return;
+    if (!canBuyEquip(s, price, id)) return;
+    // Buying adds one copy to the shared pool; the player equips it from the
+    // Equipment tab (shops don't auto-equip).
     setState(this, grantEquipment(spendShinies(s, price), id));
     this.floatText(sprite.x, sprite.y - 12, `-${price} shinies`);
     this.hud.update(getState(this));

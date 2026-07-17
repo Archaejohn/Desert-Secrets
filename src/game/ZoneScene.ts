@@ -13,7 +13,7 @@ import { InventoryMenu } from "./ui/InventoryMenu";
 import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
-import { respawn, type ZoneId } from "../core/gameState";
+import { equipItem, unequipSlot, respawn, type Act1State, type ZoneId } from "../core/gameState";
 import { equipmentById } from "../core/equipment";
 import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
@@ -836,17 +836,19 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.actionHint?.setVisible(false);
     this.inventoryMenu = new InventoryMenu(this, getState(this), {
       onToggleEquip: (id) => {
+        // Interim Phase-2 UI: toggles gear on the HERO only (Phase 3 makes the
+        // menu per-character). Equipping the already-worn item takes it off;
+        // otherwise equip it (a no-op if restricted / none available — e.g. the
+        // penguin-only frost feather won't go on Joseph).
         const s = getState(this);
         const item = equipmentById(id);
-        const equipped = { ...s.items.equipped };
+        let next: Act1State = s;
         if (item) {
-          // Swap within the item's own slot: equipping replaces whatever was
-          // worn there; toggling the already-worn item empties that slot.
-          equipped[item.slot] = equipped[item.slot] === id ? null : id;
+          const worn = s.items.equipped.hero?.[item.slot] === id;
+          next = worn ? unequipSlot(s, "hero", item.slot) : equipItem(s, "hero", id);
         }
-        const items = { ...s.items, equipped };
-        setState(this, { ...s, items });
-        return items;
+        setState(this, next);
+        return next.items;
       },
       onClose: () => {
         this.inventoryMenu = null;

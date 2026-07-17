@@ -5,8 +5,7 @@
  * saves), so closing the browser mid-act keeps progress.
  */
 import type Phaser from "phaser";
-import { type Act1State, newGame } from "../core/gameState";
-import { normalizeEquipSlots } from "../core/equipment";
+import { type Act1State, newGame, normalizeItemEquipment, ownedCount } from "../core/gameState";
 
 const KEY = "act1";
 const SAVE_KEY = "desert-secrets-save-v1";
@@ -31,20 +30,29 @@ export function loadSavedState(): Act1State | null {
     }
     // Merge over a fresh state so saves survive newly added flags/fields.
     const fresh = newGame();
-    return {
+    // Coerce the equipment blob: a save from EITHER the old single-loadout model
+    // (boolean ownership + one `equipped` record) or the current per-character
+    // pool model resolves to the pool shape, so a mid-refactor reload can't
+    // crash. `normalizeItemEquipment` sees the raw (possibly legacy) items.
+    const { owned, equipped } = normalizeItemEquipment(s.items as unknown);
+    const items = { ...fresh.items, ...s.items, owned, equipped };
+    // Drop any stale legacy boolean-ownership keys so they aren't re-persisted.
+    for (const k of ["stick", "minersHat", "pickaxe", "tshirt", "jeans", "flipFlops"]) {
+      delete (items as Record<string, unknown>)[k];
+    }
+    const merged: Act1State = {
       ...fresh,
       ...s,
-      items: {
-        ...fresh.items,
-        ...s.items,
-        // Normalize the worn-gear record: a pre-two-slot save may hold the old
-        // single-slot string shape (or a partial record) — coerce it to a full
-        // five-slot `EquipSlots` so a mid-session reload can't crash.
-        equipped: normalizeEquipSlots(s.items?.equipped)
-      },
+      items,
       flags: { ...fresh.flags, ...s.flags },
       hero: { ...fresh.hero, ...s.hero }
     };
+    // Back-fill the frost feather for a legacy save that already picked it up
+    // (the crashFeather flag) before the item existed in the pool.
+    if (merged.flags.crashFeather && ownedCount(merged, "frostFeather") === 0) {
+      merged.items.owned = { ...merged.items.owned, frostFeather: 1 };
+    }
+    return merged;
   } catch {
     return null;
   }

@@ -15,7 +15,7 @@ import {
 import { OASIS_WEST_SPAWN } from "../maps/oasisMap";
 import { rosaCrashScript } from "../../core/scripts/rosaCrash";
 import { getState, setState } from "../state";
-import { awardXp } from "../../core/gameState";
+import { awardXp, grantEquipment } from "../../core/gameState";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE } from "../../shared/palette";
 
@@ -56,7 +56,9 @@ export class CrashScene extends ZoneScene {
       }
     });
 
-    // The frost feather by the crate: one-time +5 XP pickup.
+    // The frost feather by the crate: one-time +5 XP pickup that ALSO drops a
+    // frostFeather into the shared pool. Joseph carries it from here, but it's
+    // a penguin-only weapon — only Fluffball or Piggy can wear it later.
     if (!getState(this).flags.crashFeather) {
       const feather = this.addProp("iceChip", CRASH_FEATHER.x, CRASH_FEATHER.y);
       this.addTrigger(
@@ -64,7 +66,8 @@ export class CrashScene extends ZoneScene {
         () => {
           feather.destroy();
           const { state } = awardXp(getState(this), 5);
-          setState(this, { ...state, flags: { ...state.flags, crashFeather: true } });
+          const withFeather = grantEquipment(state, "frostFeather");
+          setState(this, { ...withFeather, flags: { ...withFeather.flags, crashFeather: true } });
           this.floatText(CRASH_FEATHER.x * TILE + TILE / 2, CRASH_FEATHER.y * TILE, "+5 XP");
         }
       );

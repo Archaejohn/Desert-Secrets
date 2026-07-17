@@ -4,7 +4,7 @@
  */
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
-import { heroStats } from "../../core/gameState";
+import { equippedSlotsFor, heroStats } from "../../core/gameState";
 import type { Act1State } from "../../core/gameState";
 import { levelForXp, xpToNext, LEVEL_THRESHOLDS } from "../../core/progression";
 import { objectiveFor } from "../../core/objective";
@@ -97,7 +97,7 @@ export class Hud {
    * can't go stale showing an item the player is merely carrying.
    */
   private updateInventory(state: Act1State): void {
-    if (state.items.equipped.hat !== "bucket") {
+    if (equippedSlotsFor(state, "hero").hat !== "bucket") {
       this.invBg.setVisible(false);
       this.bucketIcon.setVisible(false);
       this.invText.setText("");

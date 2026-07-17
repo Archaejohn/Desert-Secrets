@@ -5,8 +5,10 @@ import {
   STAT_FLOOR,
   applyEquipmentBuffs,
   defaultEquipSlots,
+  emptyEquipSlots,
   equipmentById,
   hasNoBuffs,
+  itemAllowsTags,
   normalizeEquipSlots,
   type EquipSlots,
 } from "../../src/core/equipment";
@@ -51,6 +53,40 @@ describe("equipment catalog", () => {
   it("equipmentById returns null for null/undefined ids", () => {
     expect(equipmentById(null)).toBeNull();
     expect(equipmentById(undefined)).toBeNull();
+  });
+
+  it("ships the frost feather as a penguin-only weapon", () => {
+    const feather = equipmentById("frostFeather");
+    expect(feather).not.toBeNull();
+    expect(feather!.slot).toBe("weapon");
+    expect(feather!.allowedTags).toEqual(["penguin"]);
+    expect(hasNoBuffs(feather!)).toBe(false);
+  });
+});
+
+describe("itemAllowsTags", () => {
+  it("lets anyone wear an unrestricted item", () => {
+    const stick = equipmentById("stick")!;
+    expect(itemAllowsTags(stick, ["human"])).toBe(true);
+    expect(itemAllowsTags(stick, ["reptile"])).toBe(true);
+  });
+
+  it("gates a restricted item on a tag intersection", () => {
+    const feather = equipmentById("frostFeather")!;
+    expect(itemAllowsTags(feather, ["human"])).toBe(false);
+    expect(itemAllowsTags(feather, ["penguin"])).toBe(true);
+  });
+});
+
+describe("emptyEquipSlots", () => {
+  it("is an all-null five-slot record (an undressed member)", () => {
+    expect(emptyEquipSlots()).toEqual({
+      hat: null,
+      weapon: null,
+      torso: null,
+      legs: null,
+      shoes: null,
+    });
   });
 });
 

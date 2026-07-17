@@ -237,19 +237,22 @@ let s = await waitFor(page, (x) => x.zoneKey === "crash", 8000);
 // ---------- Beat 1: crash site ----------
 check("New Game starts the crash site", s.zoneKey === "crash", JSON.stringify(s.active));
 
-// Joseph starts dressed: t-shirt/jeans/flip-flops OWNED and WORN in their
-// torso/legs/shoes slots; the hat and weapon slots start empty.
+// Joseph starts dressed: t-shirt/jeans/flip-flops OWNED (pool count 1 each) and
+// WORN by the HERO in their torso/legs/shoes slots; hat/weapon start empty.
 {
   const it = s.state.items;
-  const eq = it.equipped;
+  const eq = it.equipped.hero;
   check(
     "starts owning and wearing the default outfit",
-    it.tshirt === true && it.jeans === true && it.flipFlops === true &&
+    it.owned.tshirt === 1 && it.owned.jeans === 1 && it.owned.flipFlops === 1 &&
       eq.torso === "tshirt" && eq.legs === "jeans" && eq.shoes === "flipFlops" &&
       eq.hat === null && eq.weapon === null,
-    JSON.stringify(eq)
+    JSON.stringify(it)
   );
 }
+
+// The frost feather is a shared-pool item Joseph carries but can't wear (it's
+// penguin-only) — asserted after the crash pickup below.
 
 // Movement + walk animation still work.
 await page.waitForTimeout(600);
@@ -285,6 +288,11 @@ if (trig.length) {
 }
 s = await snapshot(page);
 check("frost feather awards XP", s.state.hero.xp >= 5, `xp=${s.state.hero.xp}`);
+check(
+  "frost feather drops one into the shared pool",
+  s.state.items.owned.frostFeather === 1,
+  `owned=${JSON.stringify(s.state.items.owned)}`
+);
 
 // ---------- Beat 2: oasis, deliberate defeat, then tutorial win ----------
 // The crash->oasis exit is a gated trigger; visit trigger rects until the zone changes.
@@ -499,9 +507,9 @@ await tap(page, "KeyE");
 await page.waitForTimeout(300);
 s = await snapshot(page);
 check(
-  "the stick auto-equips to the weapon slot on pickup",
-  s.state.items.stick === true && s.state.items.equipped.weapon === "stick",
-  `stick=${s.state.items.stick} weapon=${s.state.items.equipped.weapon}`
+  "the stick enters the pool and auto-equips to the hero's weapon slot",
+  s.state.items.owned.stick === 1 && s.state.items.equipped.hero.weapon === "stick",
+  `owned.stick=${s.state.items.owned.stick} weapon=${s.state.items.equipped.hero.weapon}`
 );
 
 // 3) Open the inventory window and equip the bucket from the EQUIPMENT tab
@@ -520,7 +528,7 @@ await page.waitForTimeout(150);
 await tap(page, "Space"); // equip the bucket (hat slot)
 await page.waitForTimeout(200);
 s = await snapshot(page);
-check("equipping the bucket on the Equipment tab fills the hat slot", s.state.items.equipped.hat === "bucket", `equipped=${JSON.stringify(s.state.items.equipped)}`);
+check("equipping the bucket on the Equipment tab fills the hero's hat slot", s.state.items.equipped.hero.hat === "bucket", `equipped=${JSON.stringify(s.state.items.equipped)}`);
 await tap(page, "KeyI"); // close
 await page.waitForTimeout(250);
 invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -551,7 +559,7 @@ check(
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
     s.state.items.bucket === "empty" &&
-    s.state.items.equipped.hat === "bucket",
+    s.state.items.equipped.hero.hat === "bucket",
   `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${JSON.stringify(s.state.items.equipped)}`
 );
 
@@ -844,9 +852,9 @@ check("can reopen dialogue with the rescued Mo", talkedMo === true);
 await talkThrough(page, { pickIndex: 0 }); // pick "Buy the miner's hat"
 s = await snapshot(page);
 check(
-  "buying the miner's hat from Mo grants it and spends 2 shinies",
-  s.state.items.minersHat === true && s.state.items.shinies === shiniesBeforeBuy - 2,
-  `minersHat=${s.state.items.minersHat} shinies=${s.state.items.shinies}`
+  "buying the miner's hat from Mo adds it to the pool and spends 2 shinies",
+  s.state.items.owned.minersHat === 1 && s.state.items.shinies === shiniesBeforeBuy - 2,
+  `owned.minersHat=${s.state.items.owned.minersHat} shinies=${s.state.items.shinies}`
 );
 
 s = await exitTo("crevasse", "maze");
