@@ -231,7 +231,7 @@ function caveWall(seed: number): PixelGrid {
 /** Collapsed rubble from the cave-in — SOLID. A heap of ink/mauve broken
  *  stone with jade moss and vines beginning to reclaim it. */
 function collapsedRock(): PixelGrid {
-  return stamp(grassBase(611), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 6, 12, 8, "mauve");
     l.rect(3, 4, 9, 3, "mauve");
     l.rect(1, 10, 14, 4, "plum"); // shaded pile foot
@@ -251,7 +251,7 @@ function collapsedRock(): PixelGrid {
 
 /** Mossy grove boulder draped in vines — SOLID walk-around. */
 function vineRock(): PixelGrid {
-  return stamp(grassBase(612), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(3, 5, 10, 9, "mauve");
     l.rect(4, 4, 8, 1, "mauve");
     l.px(3, 5, "clay"); // lit top-left
@@ -278,7 +278,7 @@ function vineRock(): PixelGrid {
 
 /** Fern clump — SOLID leafy walk-around: arching jade/mint fronds. */
 function fern(): PixelGrid {
-  return stamp(grassBase(613), (l) => {
+  return stamp(tile(), (l) => {
     // crown of arching fronds from a low base
     for (const [dx, dir] of [
       [-1, -1],
@@ -346,7 +346,7 @@ function riverStone(): PixelGrid {
 /** Orange-tree trunk — SOLID. Clay/rust bark, the base of the one tree at
  *  the centre of the grove; the canopy is the separate OVERHEAD tile above. */
 function orangeTreeTrunk(): PixelGrid {
-  return stamp(grassBase(615), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(5, 0, 6, 16, "clay");
     l.rect(5, 0, 1, 16, "amber"); // lit left edge
     l.rect(10, 0, 1, 16, "rust"); // shaded right edge
@@ -464,7 +464,7 @@ function orangeCanopyPieces(): PixelGrid[] {
 /** The grove's oldest row — walkable landmark: windfall oranges piled in the
  *  grass, the ripe ones Piggy (and Sahra's trade) are after. */
 function oldOrange(): PixelGrid {
-  const g = grassBase(616);
+  const g = tile();
   for (const [x, y] of [
     [3, 4],
     [6, 6],
@@ -486,7 +486,7 @@ function oldOrange(): PixelGrid {
 /** Dense needle-cactus — SOLID. The thicket too tight for Joseph to follow
  *  Piggy into: a wall of jade/teal paddles bristling with bone/sand spines. */
 function needleCactus(): PixelGrid {
-  return stamp(grassBase(617), (l) => {
+  return stamp(tile(), (l) => {
     // clustered paddles
     l.rect(2, 5, 4, 9, "teal");
     l.rect(6, 2, 4, 12, "jade");

@@ -134,7 +134,7 @@ function duneEdge(): PixelGrid {
 }
 
 function rock(): PixelGrid {
-  return stamp(sandBase(5, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 6, 8, 6, "mauve");
     l.rect(5, 5, 6, 1, "mauve");
     l.rect(5, 12, 6, 1, "mauve");
@@ -150,7 +150,7 @@ function rock(): PixelGrid {
 }
 
 function cactus(): PixelGrid {
-  return stamp(sandBase(6, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(7, 2, 2, 12, "jade"); // trunk
     // left arm (out then up)
     l.px(6, 8, "jade");
@@ -250,7 +250,7 @@ export function water(phase: 0 | 1): PixelGrid {
 }
 
 function palmTrunk(): PixelGrid {
-  return stamp(sandBase(7, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(6, 0, 4, 16, "clay");
     for (const y of [2, 5, 8, 11, 14]) l.rect(6, y, 4, 1, "rust"); // ring bands
     for (let y = 0; y < 16; y++) if (y % 3 !== 2) l.px(6, y, "amber"); // lit edge
@@ -258,7 +258,7 @@ function palmTrunk(): PixelGrid {
 }
 
 function palmTop(): PixelGrid {
-  return stamp(sandBase(8, 1), (l) => {
+  return stamp(tile(), (l) => {
     // crown centre over the trunk line
     l.rect(7, 9, 2, 2, "clay");
     // fronds: sideways, upward and drooping diagonals
@@ -288,7 +288,7 @@ function palmTop(): PixelGrid {
 }
 
 function pot(): PixelGrid {
-  return stamp(sandBase(9, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(6, 3, 4, 1, "rust"); // rim
     l.rect(6, 4, 4, 2, "clay"); // neck
     l.rect(5, 6, 6, 5, "clay"); // belly
@@ -305,7 +305,7 @@ function pot(): PixelGrid {
 
 function bones(): PixelGrid {
   // half-buried remains: soft rust shadows instead of hard ink outlines
-  const g = sandBase(10, 1);
+  const g = tile();
   g.rect(3, 8, 9, 1, "bone"); // spine
   for (const x of [4, 6, 8, 10]) {
     g.px(x, 6, "bone");
@@ -324,7 +324,7 @@ function bones(): PixelGrid {
 }
 
 function ruinPillar(): PixelGrid {
-  return stamp(sandBase(11, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 0, 8, 2, "mauve"); // capital
     l.rect(5, 2, 6, 12, "mauve"); // shaft
     l.rect(4, 14, 8, 2, "mauve"); // base

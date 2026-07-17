@@ -211,7 +211,7 @@ function asphaltLine(): PixelGrid {
 /** Truck cab (left tile) — nose left, cab body flush to the right edge so
  *  it joins truckBox. Crashed: buckled hood, cracked windshield, flat tire. */
 function truckCab(): PixelGrid {
-  return stamp(sandBase(22, 1), (l) => {
+  return stamp(tile(), (l) => {
     // hood, buckled up at the crash point
     l.rect(1, 7, 5, 4, "rust");
     l.px(1, 6, "rust"); // crumpled lip
@@ -241,7 +241,7 @@ function truckCab(): PixelGrid {
 /** Truck box (right tile) — cargo box flush to the left edge, torn open at
  *  the back. Composes with truckCab on its left into one crashed truck. */
 function truckBox(): PixelGrid {
-  return stamp(sandBase(23, 1), (l) => {
+  return stamp(tile(), (l) => {
     // container spanning from the left edge (continues the cab silhouette)
     l.rect(0, 2, 14, 11, "bone");
     l.rect(0, 2, 14, 1, "sandLight"); // roof light
@@ -266,7 +266,7 @@ function truckBox(): PixelGrid {
 }
 
 function crateBroken(): PixelGrid {
-  return stamp(sandBase(24, 1), (l) => {
+  return stamp(tile(), (l) => {
     // crate shell, stove in at the top-right
     l.rect(3, 5, 10, 8, "clay");
     l.rect(3, 5, 10, 1, "amber"); // lit top plank
@@ -291,7 +291,7 @@ function crateBroken(): PixelGrid {
 
 /** Joshua tree trunk — shaggy, fills the column under joshuaTop's stem. */
 function joshuaTrunk(): PixelGrid {
-  return stamp(sandBase(25, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(6, 0, 4, 16, "clay");
     // shaggy dead-leaf thatch
     for (let y = 1; y < 16; y += 2) {
@@ -308,7 +308,7 @@ function joshuaTrunk(): PixelGrid {
 /** Joshua tree crown — jade/teal spiky rosettes on a forked stem; the stem
  *  meets the bottom edge where joshuaTrunk continues. */
 function joshuaTop(): PixelGrid {
-  return stamp(sandBase(26, 1), (l) => {
+  return stamp(tile(), (l) => {
     // forked stem rising from the trunk line
     l.rect(7, 10, 2, 6, "clay");
     l.px(6, 9, "clay");
@@ -340,7 +340,7 @@ function joshuaTop(): PixelGrid {
 }
 
 function creosote(): PixelGrid {
-  return stamp(sandBase(27, 1), (l) => {
+  return stamp(tile(), (l) => {
     // scraggly forked stems
     l.px(7, 12, "rust");
     l.px(8, 12, "rust");
@@ -423,7 +423,7 @@ function stationSign(): PixelGrid {
 }
 
 function gasPump(): PixelGrid {
-  return stamp(sandBase(31, 1), (l) => {
+  return stamp(tile(), (l) => {
     // pump body
     l.rect(5, 3, 6, 10, "rust");
     l.rect(5, 3, 6, 1, "clay"); // lit top
@@ -491,7 +491,7 @@ function mineFloor(seed: number): PixelGrid {
 }
 
 function mineTimber(): PixelGrid {
-  const g = mineWall();
+  const g = tile();
   // clay support beams framing the wall: two posts + header
   const layer = tile();
   layer.rect(1, 2, 3, 14, "clay");
@@ -529,7 +529,7 @@ function rail(): PixelGrid {
 }
 
 function cart(): PixelGrid {
-  const g = mineFloor(34);
+  const g = tile();
   const layer = tile();
   // riveted tub, wider at the top
   layer.rect(2, 5, 12, 2, "slate");
@@ -556,7 +556,7 @@ function cart(): PixelGrid {
 /** Lever on mine floor. `on` throws the handle to the other side and lights
  *  the indicator jade. */
 function leverBase(on: boolean): PixelGrid {
-  const g = mineFloor(on ? 36 : 35);
+  const g = tile();
   const layer = tile();
   // mounting block
   layer.rect(5, 10, 6, 3, "slate");
@@ -671,7 +671,7 @@ function frostSand(): PixelGrid {
 
 /** A collectible shard of impossible ice, half-buried in sand. */
 function iceChip(): PixelGrid {
-  return stamp(sandBase(39, 1), (l) => {
+  return stamp(tile(), (l) => {
     // angular shard leaning right
     l.px(8, 4, "mint");
     l.rect(7, 5, 3, 2, "mint");
@@ -690,7 +690,7 @@ function iceChip(): PixelGrid {
 
 /** Scarab egg cluster on the dark depths floor. */
 function eggCluster(): PixelGrid {
-  const g = mineFloor(40);
+  const g = tile();
   const layer = tile();
   // heaped bone eggs, sandLight where the queen's lamplight hits
   layer.rect(4, 8, 4, 4, "bone");
@@ -1091,7 +1091,7 @@ function townDoor2(): PixelGrid {
 }
 
 function townSign(): PixelGrid {
-  return stamp(sandBase(114, 1), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(7, 4, 2, 10, "clay"); // post
     l.rect(3, 2, 10, 5, "bone"); // board
     l.rect(3, 2, 10, 1, "sandLight");

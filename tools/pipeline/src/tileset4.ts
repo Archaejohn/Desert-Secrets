@@ -213,7 +213,7 @@ function templeFloor(seed: number): PixelGrid {
 
 /** Tall kelp stalk — SOLID column of jade/teal fronds blocking the water. */
 function kelpStalk(): PixelGrid {
-  return stamp(seaWater(0), (l) => {
+  return stamp(tile(), (l) => {
     // twin trunks
     l.rect(5, 0, 2, 16, "teal");
     l.rect(9, 1, 2, 15, "teal");
@@ -236,7 +236,7 @@ function kelpStalk(): PixelGrid {
 
 /** Reef coral outcrop — SOLID branching clay/rust coral with jade polyps. */
 function coral(): PixelGrid {
-  return stamp(seaWater(1), (l) => {
+  return stamp(tile(), (l) => {
     // stony base
     l.rect(4, 9, 8, 5, "clay");
     l.rect(6, 12, 4, 3, "rust");
@@ -259,7 +259,7 @@ function coral(): PixelGrid {
 /** Sun-temple pillar, submerged — SOLID mauve column with a skyBlue water
  *  line and a faint amber sun glyph still catching the sea-glow. */
 function templePillar(): PixelGrid {
-  return stamp(templeFloor(210), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(3, 0, 10, 2, "mauve"); // capital
     l.rect(3, 0, 10, 1, "plum"); // dark against the ceiling (base-lit read)
     l.rect(4, 2, 8, 12, "mauve"); // shaft
@@ -309,7 +309,7 @@ function templeGlyph(): PixelGrid {
 
 /** Sea anemone — walkable decor: mint/jade tendrils on a floe. */
 function anemone(): PixelGrid {
-  return stamp(floeBase(212), (l) => {
+  return stamp(tile(), (l) => {
     // stalk
     l.rect(7, 9, 2, 4, "mauve");
     // crown of tendrils
@@ -367,7 +367,7 @@ function bubbles(): PixelGrid {
 
 /** Mint-crusted boulder — SOLID mauve rock furred with jade/mint moss. */
 function mossRock(): PixelGrid {
-  return stamp(seaWater(0), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(3, 5, 10, 8, "mauve");
     l.rect(4, 4, 8, 1, "mauve");
     l.rect(4, 13, 8, 1, "mauve");

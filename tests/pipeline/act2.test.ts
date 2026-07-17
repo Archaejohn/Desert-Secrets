@@ -219,10 +219,20 @@ describe("act2 tiles3 legibility (contract §7)", () => {
     return sum / n;
   }
 
-  it("every non-overhead tile is fully opaque (no holes in maps)", () => {
+  // icicle is the overhead tile; the object-props now carry a transparent
+  // background so they composite over the ground layer (docs/CONTRACTS.md
+  // "v27"). Only ground/wall/terrain tiles must be hole-free.
+  const TRANSPARENT_PROPS = ["crystalSmall", "crystalBig", "lanternPost"];
+  it("every ground tile is fully opaque (no holes in maps)", () => {
     for (const name of TILE3_NAMES) {
-      if (name === "icicle") continue;
+      if (name === "icicle" || TRANSPARENT_PROPS.includes(name)) continue;
       expect(tileOf(name).countOpaque(), `${name} has holes`).toBe(16 * 16);
+    }
+  });
+
+  it("props carry a transparent background (composite over the ground layer)", () => {
+    for (const name of TRANSPARENT_PROPS) {
+      expect(tileOf(name).countOpaque(), `${name} not transparent`).toBeLessThan(16 * 16);
     }
   });
 

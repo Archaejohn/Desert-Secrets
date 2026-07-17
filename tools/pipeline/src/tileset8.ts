@@ -270,7 +270,7 @@ function tileFloor(alt: boolean): PixelGrid {
 /** A set dinner table — SOLID walk-around. A round clay/sand table with a bone
  *  plate and a single lit candle — set for a guest three thousand years gone. */
 function pizzaTable(): PixelGrid {
-  return stamp(tileFloor(false), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(3, 5, 10, 8, "clay"); // table top
     l.rect(4, 4, 8, 2, "sand"); // lit near edge
     l.rect(3, 12, 10, 2, "rust"); // shaded skirt
@@ -287,7 +287,7 @@ function pizzaTable(): PixelGrid {
 /** The great pizza oven — SOLID. A domed clay/sand brick oven with a black
  *  arched mouth glowing hpRed/amber inside — Testudo's oven, the act's hearth. */
 function pizzaOven(): PixelGrid {
-  return stamp(carvedStep(), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 3, 12, 11, "clay"); // dome body
     l.rect(3, 2, 10, 2, "sand"); // lit crown
     l.rect(2, 13, 12, 2, "rust"); // shaded base
@@ -307,7 +307,7 @@ function pizzaOven(): PixelGrid {
 /** A temple column — SOLID. A fluted sand/clay pillar with an ink shade side —
  *  the old kitchens' structure, holding the roof up over the dining room. */
 function stoneColumn(): PixelGrid {
-  return stamp(tileFloor(true), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 0, 8, TILE_SIZE, "sand"); // shaft
     l.rect(4, 0, 2, TILE_SIZE, "sandLight"); // lit edge
     l.rect(10, 0, 2, TILE_SIZE, "clay"); // shade edge
