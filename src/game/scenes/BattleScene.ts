@@ -93,19 +93,19 @@ const PARTY_VISUALS: Record<
   string,
   { sheet: string; anim: string; fallback?: string; scale: number; flipX: boolean }
 > = {
-  hero: { sheet: "hero", anim: "hero-idle-left", scale: 2.5, flipX: false },
+  hero: { sheet: "hero", anim: "hero-idle-left", scale: 2, flipX: false },
   slither: {
     sheet: "slither",
     anim: "slither-idle",
     fallback: "slither-move",
-    scale: 2.5,
+    scale: 2,
     flipX: true
   },
   fluffball: {
     sheet: "fluffball",
     anim: "fluffball-idle",
     fallback: "fluffball-walk",
-    scale: 2.5,
+    scale: 2,
     flipX: true
   },
   piggy: {
@@ -113,29 +113,33 @@ const PARTY_VISUALS: Record<
     sheet: "piggy",
     anim: "piggy-idle",
     fallback: "piggy-walk",
-    scale: 2,
+    scale: 1.6,
     flipX: true
   }
 };
-/** Party sprite positions by party size: a staggered column down the RIGHT
- *  side of the field, mirroring ENEMY_ROWS on the left. The hero always takes
- *  slot 0. Sized for 1–4 members (Piggy fills the 4th slot in Part Two). */
+/** Party sprite positions by party size: a two-column ZIG-ZAG in the upper-right
+ *  of the field (hero always slot 0). It stays in the top ~2/3 and never runs
+ *  into the command box, which anchors to the bottom-right corner and, at its
+ *  tallest (the hero's full command list), reaches up to about y=169 — so every
+ *  slot here keeps its feet above that. The alternating x columns (≈350 / ≈400)
+ *  give the classic staggered party look without stacking a 3rd/4th member
+ *  behind the menu. Sized for 1–4 members (Piggy fills the 4th slot in Part Two). */
 const PARTY_COLS: Record<number, Array<{ x: number; y: number }>> = {
-  1: [{ x: 372, y: 150 }],
+  1: [{ x: 372, y: 96 }],
   2: [
-    { x: 370, y: 138 },
-    { x: 388, y: 200 }
+    { x: 350, y: 84 },
+    { x: 398, y: 120 }
   ],
   3: [
-    { x: 368, y: 120 },
-    { x: 388, y: 166 },
-    { x: 368, y: 212 }
+    { x: 350, y: 70 },
+    { x: 398, y: 104 },
+    { x: 350, y: 138 }
   ],
   4: [
-    { x: 366, y: 112 },
-    { x: 388, y: 150 },
-    { x: 366, y: 188 },
-    { x: 388, y: 226 }
+    { x: 350, y: 64 },
+    { x: 398, y: 92 },
+    { x: 350, y: 120 },
+    { x: 398, y: 148 }
   ]
 };
 /** Largest party size PARTY_COLS lays out without overlap. */
