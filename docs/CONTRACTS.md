@@ -3611,3 +3611,58 @@ Still never auto-reloads — applying is always the player's tap, so it can't
 yank the page out from under an active battle. Detection unchanged
 (`version.json` fetched `no-store`, checked on load / every 10 min / on tab
 re-focus). No gameplay code touched; `initUpdateCheck()` still no-ops headless.
+
+# v29: a reusable light-mask / lighting-overlay subsystem (`LightMask`)
+
+2026-07-17. A new presentation subsystem for lighting effects — torches,
+glows, flashes, pulses, directional washes and hard-edged shafts — added as
+`src/game/gfx/LightMask.ts`, with the load-bearing math split into the pure,
+unit-tested `src/core/lighting.ts` (`tests/core/lighting.test.ts`, 28 cases).
+No game rules touched; nothing renders unless a scene opts in.
+
+**What it does.** A `LightMask` owns a screen-space overlay: a variable-opacity
+full-screen base tint plus any number of positioned lights. Each light is a
+multi-stop gradient (arbitrary colour + alpha + offset per stop) with:
+- **blend** `"reveal"` (torch — a dark base with the light punched through via
+  `RenderTexture.erase`/destination-out, so the world shows at full brightness
+  under it and darkens at the edges), `"add"` (additive glow), or `"normal"`;
+- **anchor** `"world"` (tracks the camera — projected each frame) or
+  `"screen"` (fixed);
+- **shape** `"circle"` (euclidean falloff) or `"square"` (chebyshev — a boxy
+  glow); **gradient** `"radial"` or `"linear"` (directional wash at an angle);
+- an optional hard-edge **mask** (rect or polygon, clipped crisply at bake
+  time via canvas `destination-in`) — light through a doorway;
+- **follow** a sprite, **pulse** a time-driven breathe, and a one-shot
+  `flash()`. Handles from `addLight()` update/remove live.
+
+**Two things done carefully** (the brief flagged both as easy to break):
+
+1. **ERASE inside a RenderTarget.** `BlendModes.ERASE` only works drawing INTO
+   a render target, so the base darkness AND every torch "hole" go into ONE
+   `RenderTexture`, then it's displayed. `rt.erase(stamp)` honours the stamp's
+   own alpha, so a pulse dims the torch. Additive glows are separate ADD-blend
+   Images layered on top.
+2. **The two-camera split (v21).** The overlay is an ordinary scene child (NOT
+   on `uiLayer`) at a high depth (default 5000), so `syncUiCameraIgnore()`
+   already makes `uiCamera` ignore it (no double draw) and it renders through
+   `cameras.main` only; the HUD stays legible because `uiCamera` draws after
+   the world camera regardless of depth. The wrinkle: `scrollFactor(0)`
+   cancels camera SCROLL but not camera ZOOM, and the overworld runs at a
+   fractional zoom — so every screen-space overlay object is counter-scaled by
+   `1/zoom` and repositioned about the camera pivot each frame, and world-
+   anchored lights go through `projectWorldToScreen` (pure, tested at zoom 1
+   and fractional zoom). In a plain zoom-1 zone all of that is the identity.
+
+**Performance.** Gradients (including hard masks) bake to a canvas texture
+ONCE, cached by signature, then only get positioned/scaled/alpha'd per frame —
+never a per-frame canvas gradient fill (too slow for mobile). The per-pixel
+bake indexes a 256-entry stop LUT rather than re-walking stops. All animation
+is driven off the scene clock (no `Math.random`).
+
+**Dev demo.** Gated behind the `?lighttest` URL flag (latched to localStorage,
+same tri-state pattern as `?mode7tune`), wired into `OverworldScene`. It lays
+every capability onto the live overworld at once — a player-following torch, a
+character glow, a pulsing "ice wall", a blue→white→clear multi-stop light, a
+square-falloff glow, a linear wash, and a hard-edged doorway shaft — plus an
+on-demand white flash (`F`). Off by default; normal play is untouched. No tile
+art changed, no determinism hashes re-pinned.
