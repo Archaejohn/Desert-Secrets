@@ -24,9 +24,13 @@ import { kelpForestEntryScript } from "../../core/scripts/kelpForestEntry";
 import { kelpRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 export class KelpForestScene extends ZoneScene {
   private slither = new SlitherFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("kelpForest");
@@ -67,9 +71,21 @@ export class KelpForestScene extends ZoneScene {
         });
       });
     }
+
+    // A mild, even gloom the party's lamp cuts through — the light is already
+    // thinning down here, a lighter foretaste of the near-black deep bed just
+    // east (where "the light gives out"). Kept generous so the hub stays easy
+    // to navigate and fight in.
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.3 },
+      follow: this.player,
+      followRadius: 132,
+      followIntensity: 0.92
+    });
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
   }
 }

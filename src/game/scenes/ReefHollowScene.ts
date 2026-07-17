@@ -20,10 +20,14 @@ import { reefHollowEntryScript } from "../../core/scripts/reefHollowEntry";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 export class ReefHollowScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("reefHollow");
@@ -60,9 +64,29 @@ export class ReefHollowScene extends ZoneScene {
         });
       });
     }
+
+    this.setupGlowLighting();
+  }
+
+  /**
+   * Lit only by the kelp's own glow: a bioluminescent ambient dark the party's
+   * lamp reveals, plus a soft green breathe on every glow-moss bed so the
+   * hollow reads as a still, self-lit cavern. Kept navigable — the lamp is
+   * generous and the moss glows do most of the work.
+   */
+  private setupGlowLighting(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 },
+      follow: this.player,
+      followRadius: 110,
+      followIntensity: 0.82,
+      green: this.tileCentersNamed("glowMoss"),
+      greenIntensity: 0.6
+    });
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
   }

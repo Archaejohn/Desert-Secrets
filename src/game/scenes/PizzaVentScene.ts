@@ -18,10 +18,14 @@ import { pizzaVentEntryScript } from "../../core/scripts/pizzaVentEntry";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 export class PizzaVentScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("pizzaVent");
@@ -57,9 +61,28 @@ export class PizzaVentScene extends ZoneScene {
         });
       });
     }
+
+    this.setupVentLighting();
+  }
+
+  /**
+   * A dark volcanic gallery lit only by its molten vents: an ambient dark the
+   * party's lamp reveals, plus a warm amber flicker on each lava vent so the
+   * glowing cracks the party must "stay off" actually glow. Kept navigable.
+   */
+  private setupVentLighting(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 },
+      follow: this.player,
+      followRadius: 110,
+      followIntensity: 0.82,
+      amber: this.tileCentersNamed("lavaVent").map((p) => ({ ...p, radius: 66 })),
+      amberIntensity: 0.7
+    });
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
   }

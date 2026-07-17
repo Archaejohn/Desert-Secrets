@@ -26,6 +26,8 @@ import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupSunbeamShaft } from "../gfx/zoneLighting";
 
 /** Sahra, once the oranges have changed hands. */
 const groveChatterScript: DialogueScript = {
@@ -50,6 +52,7 @@ const meetFirstScript: DialogueScript = {
 export class SahraGroveScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("sahraGrove");
@@ -96,6 +99,10 @@ export class SahraGroveScene extends ZoneScene {
     }
 
     this.placeSahra();
+
+    // Sahra's corner sits under the same cave-in sun as the great tree next
+    // door: a bright additive shaft over her sunlit patch (no darkening).
+    this.lightMask = setupSunbeamShaft(this, this.tileCentersNamed("sunbeam"));
   }
 
   private placeSahra(): void {
@@ -156,6 +163,7 @@ export class SahraGroveScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
   }

@@ -21,7 +21,9 @@ import { FishingMenu } from "../ui/FishingMenu";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE } from "../../shared/palette";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 const alreadyCaughtScript: DialogueScript = {
   start: "have",
@@ -45,6 +47,7 @@ const needFluffballScript: DialogueScript = {
 export class DeepBedScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fishingMenu: FishingMenu | null = null;
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("deepBed");
@@ -91,6 +94,23 @@ export class DeepBedScene extends ZoneScene {
     }
 
     this.placeFishingSpot();
+    this.setupDeepDarkness();
+  }
+
+  /**
+   * Past where the light gives out: a heavy ambient dark with ONLY the party's
+   * own dim lamp reaching into it — the daylight from the surface has finally
+   * run out this deep, exactly as the zone's text says. No glows; the lamp is
+   * kept small and partial so the deep bed reads as the black at the bottom of
+   * the sea, while still leaving the fishing spot and exit findable.
+   */
+  private setupDeepDarkness(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.62 },
+      follow: this.player,
+      followRadius: 92,
+      followIntensity: 0.72
+    });
   }
 
   /** The silverfin fishing spot: cast → Lurker steal → fight → recast → catch. */
@@ -167,6 +187,7 @@ export class DeepBedScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
   }
 

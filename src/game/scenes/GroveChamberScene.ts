@@ -28,10 +28,13 @@ import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
 import { PALETTE } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupSunbeamShaft } from "../gfx/zoneLighting";
 
 export class GroveChamberScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("groveChamber");
@@ -72,6 +75,11 @@ export class GroveChamberScene extends ZoneScene {
     }
 
     this.placeJoin();
+
+    // The cave-in's sun shaft pouring down onto the orange tree at dead centre
+    // — the Act 5 focal reveal. Additive only (no darkening; the chamber is the
+    // one bright, green room in the mine).
+    this.lightMask = setupSunbeamShaft(this, this.tileCentersNamed("sunbeam"));
   }
 
   /** At the foot of the tree, Fluffball edges out of the ferns and joins. */
@@ -105,6 +113,7 @@ export class GroveChamberScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
   }

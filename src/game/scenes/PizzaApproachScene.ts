@@ -4,7 +4,7 @@
  * repurposed. Two gates: north back to the vents, south into the restaurant.
  * Both follower rigs pumped. No random encounters.
  */
-import { ZoneScene, type ZoneConfig } from "../ZoneScene";
+import { ZoneScene, TILE, type ZoneConfig } from "../ZoneScene";
 import {
   buildPizzaApproachMap,
   PIZZA_A_ENTRY_TRIGGER,
@@ -18,10 +18,14 @@ import { pizzaApproachEntryScript } from "../../core/scripts/pizzaApproachEntry"
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
+import { LightMask } from "../gfx/LightMask";
+import { setupLightShaft } from "../gfx/zoneLighting";
+import { PALETTE, hexToInt } from "../../shared/palette";
 
 export class PizzaApproachScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("pizzaApproach");
@@ -56,9 +60,37 @@ export class PizzaApproachScene extends ZoneScene {
         });
       });
     }
+
+    this.setupDoorwayLight();
+  }
+
+  /**
+   * Warm light streaming UP out of the restaurant below: a doorway shaft hung
+   * on the south gate (the way into La Pizzeria), spilling into the kitchens
+   * toward the player — the golden glow the room's text promises. Additive
+   * only (the kitchens stay fully navigable); pulsed each frame from onUpdate.
+   */
+  private setupDoorwayLight(): void {
+    const gate = PIZZA_A_EXIT_SOUTH;
+    const cx = ((gate.x1 + gate.x2 + 1) / 2) * TILE; // centre of the two-tile gate
+    this.lightMask = setupLightShaft(this, {
+      x: cx,
+      y: TILE * 11, // rising up into the kitchens from the south threshold
+      width: 96,
+      height: TILE * 8,
+      direction: "up",
+      intensity: 0.8,
+      pulse: { min: 0.72, max: 1, periodMs: 2400 },
+      stops: [
+        { offset: 0, color: hexToInt(PALETTE.amber), alpha: 0.6 },
+        { offset: 0.5, color: hexToInt(PALETTE.sand), alpha: 0.28 },
+        { offset: 1, color: hexToInt(PALETTE.sand), alpha: 0 }
+      ]
+    });
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
   }
