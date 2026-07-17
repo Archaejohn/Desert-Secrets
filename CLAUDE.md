@@ -64,11 +64,17 @@ named Piggy. Full design docs live in `docs/`:
 - Verification bar before calling anything done: `tsc --noEmit`,
   `vitest run`, `npm run build`, `npm run smoke` (keyboard e2e),
   `npm run smoke:touch` (touch-emulated e2e).
-- Git flow: develop on `claude/android-rpg-art-pipeline-wrxwhv`, push,
-  then fast-forward `main` from it (`git push origin
-  claude/android-rpg-art-pipeline-wrxwhv:main`); refresh `docs/play/`
-  (`npm run pages`) as its own commit; keep the live Artifact republished
-  at the same stable URL.
+- Git flow: develop on the session's own designated branch (each session is
+  given one — never commit straight to `main`), push it, then open a pull
+  request into `main` and land it with a **regular merge commit** (NOT a
+  fast-forward — the owner finds fast-forwards confusing, and wants each
+  finished piece to show up as a merged PR so `main` is an unambiguous
+  "everything's done" starting point for the next session). If a session's PR
+  is already merged, restart the same-named branch from the latest `main`
+  before doing follow-up work rather than stacking onto merged history.
+  Separately (outward-facing, ask first): refresh `docs/play/` (`npm run
+  pages`) as its own commit and keep the live Artifact republished at the
+  same stable URL.
 - For large/novel subsystems, delegate to an Agent (Opus for the build,
   independent review before merging) — the pattern was established when the
   Mode-7 renderer was built (a dev-only option now, see above). Isolate
