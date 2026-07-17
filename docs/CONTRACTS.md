@@ -3578,3 +3578,36 @@ All eight tile-sheet sha256 hashes were deliberately re-pinned
 (`determinism.test.ts`) — only prop pixels changed, no tile index moved. The
 "every tile fully opaque (no holes)" invariant became "every GROUND tile fully
 opaque", with a companion assertion that each converted prop IS transparent.
+
+# v28: make PWA/web updates actually apply (beat the caching)
+
+2026-07-17. The version-check existed (a `version.json` vs baked
+`__APP_VERSION__` compare, badging a small corner button) but players still
+couldn't reliably get a current build — the update was DETECTED but wouldn't
+APPLY, and the "available" signal was easy to miss. Two caching layers and a
+weak UI, all fixed:
+
+1. **The service worker never changed bytes between deploys** (`public/sw.js`
+   had a constant `CACHE = "desert-secrets-v1"`). A browser only re-installs a
+   SW when its bytes differ, so the old SW — and its cache, and its fetch
+   logic — lived forever. Fixed: the build stamps `APP_VERSION` into
+   `dist/sw.js` (`__SW_VERSION__` placeholder, replaced in vite.config.ts's
+   `writeBundle` alongside `version.json`) and the cache name is
+   `desert-secrets-${VERSION}`. Every deploy is now a new SW that installs,
+   `skipWaiting()`s, claims clients, and deletes every prior cache.
+2. **Plain `fetch()` in the SW still honoured the browser HTTP cache**, so on
+   GitHub Pages (index.html served with a max-age) even a "network-first" SW
+   could answer a reload from stale HTTP cache. Fixed: navigations are fetched
+   with `{ cache: "reload" }` — a true network round-trip. The single-file
+   build means the navigation is the whole app, so that one bypass covers
+   everything.
+3. **The "update available" signal was just a recoloured 26px button.** Added
+   a prominent top-center banner ("New version available" + a gold "Update
+   now" button + dismiss) that slides in only when a newer build is detected.
+
+Applying is now bulletproof (`updateCheck.ts` `applyUpdate()`): pull the new
+SW + tell it to take over, delete every Cache Storage entry, then reload.
+Still never auto-reloads — applying is always the player's tap, so it can't
+yank the page out from under an active battle. Detection unchanged
+(`version.json` fetched `no-store`, checked on load / every 10 min / on tab
+re-focus). No gameplay code touched; `initUpdateCheck()` still no-ops headless.

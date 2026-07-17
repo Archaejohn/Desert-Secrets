@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
@@ -20,10 +20,15 @@ function writeVersionFile() {
     name: "write-version-file",
     apply: "build" as const,
     writeBundle(options: { dir?: string }) {
-      writeFileSync(
-        path.join(options.dir ?? "dist", "version.json"),
-        JSON.stringify({ version: APP_VERSION })
-      );
+      const dir = options.dir ?? "dist";
+      writeFileSync(path.join(dir, "version.json"), JSON.stringify({ version: APP_VERSION }));
+      // Stamp the same version into the copied service worker so its BYTES
+      // change every deploy — the only thing that makes a browser re-install
+      // the SW (and thus purge old caches / run newer fetch logic). Without
+      // this the SW is byte-identical forever and updates never propagate.
+      const swPath = path.join(dir, "sw.js");
+      const sw = readFileSync(swPath, "utf8").replaceAll("__SW_VERSION__", APP_VERSION);
+      writeFileSync(swPath, sw);
     }
   };
 }
