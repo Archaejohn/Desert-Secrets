@@ -15,42 +15,39 @@ import {
 } from "../maps/crevasseMap";
 import { MAZE_SPAWN } from "../maps/mazeMap";
 import { minerMoScript } from "../../core/scripts/minerMo";
+import {
+  MINERS_HAT_PRICE,
+  PICKAXE_PRICE,
+  gusShopScript,
+  moShopScript,
+  shopScriptFor
+} from "../../core/scripts/minerShop";
 import { getState, setState } from "../state";
-import { awardXp } from "../../core/gameState";
+import {
+  awardXp,
+  canBuyEquip,
+  grantEquipment,
+  spendShinies
+} from "../../core/gameState";
+import type { EquipId } from "../../core/equipment";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { LightMask } from "../gfx/LightMask";
 import { setupZoneLighting } from "../gfx/zoneLighting";
 
-/** Camp chatter once a miner has been rescued. */
-const campScripts: Record<"mo" | "edda" | "gus", DialogueScript> = {
-  mo: {
-    start: "camp",
-    nodes: [
-      {
-        id: "camp",
-        lines: [{ speaker: "Mo", text: "Camp's holding. Trust the amber lanterns." }]
-      }
-    ]
-  },
-  edda: {
-    start: "camp",
-    nodes: [
-      {
-        id: "camp",
-        lines: [{ speaker: "Edda", text: "Two true roads through that ice. Told you." }]
-      }
-    ]
-  },
-  gus: {
-    start: "camp",
-    nodes: [
-      {
-        id: "camp",
-        lines: [{ speaker: "Gus", text: "Still smell tomato pie some nights. Swear it." }]
-      }
-    ]
-  }
+/**
+ * Camp chatter once a miner has been rescued. Mo and Gus double as shops (see
+ * scripts/minerShop.ts) — those live scripts are built per-open in the scene so
+ * the "Buy" choice can be gated on shinies/ownership. Edda just chats.
+ */
+const eddaCampScript: DialogueScript = {
+  start: "camp",
+  nodes: [
+    {
+      id: "camp",
+      lines: [{ speaker: "Edda", text: "Two true roads through that ice. Told you." }]
+    }
+  ]
 };
 
 export class CrevasseScene extends ZoneScene {
@@ -76,8 +73,18 @@ export class CrevasseScene extends ZoneScene {
 
     // Rescued elsewhere, gathered here: Edda (maze) and Gus (galleries).
     const flags = getState(this).flags;
-    if (flags.minerEdda) this.addCampMiner(CREVASSE_CAMP.edda, campScripts.edda);
-    if (flags.minerGus) this.addCampMiner(CREVASSE_CAMP.gus, campScripts.gus);
+    if (flags.minerEdda) this.addCampMiner(CREVASSE_CAMP.edda, () => eddaCampScript);
+    if (flags.minerGus) {
+      // Gus sells the pickaxe. "Buy" is offered only when affordable & unowned.
+      const gus = this.addCampMiner(
+        CREVASSE_CAMP.gus,
+        () => {
+          const s = getState(this);
+          return shopScriptFor(gusShopScript, canBuyEquip(s, PICKAXE_PRICE, "pickaxe"));
+        },
+        (endNodeId) => this.tryBuy(endNodeId, gus, PICKAXE_PRICE, "pickaxe")
+      );
+    }
 
     this.setupIceLighting();
   }
@@ -116,10 +123,18 @@ export class CrevasseScene extends ZoneScene {
       sheet: "miner",
       tileX: spot.x,
       tileY: spot.y,
-      script: () => (getState(this).flags.minerMo ? campScripts.mo : minerMoScript),
-      onClose: () => {
+      // Before rescue: the plea. After: Mo's shop (sells the miner's hat).
+      script: () => {
         const s = getState(this);
-        if (s.flags.minerMo) return; // camp chatter, already rescued
+        if (!s.flags.minerMo) return minerMoScript;
+        return shopScriptFor(moShopScript, canBuyEquip(s, MINERS_HAT_PRICE, "minersHat"));
+      },
+      onClose: (endNodeId) => {
+        const s = getState(this);
+        if (s.flags.minerMo) {
+          this.tryBuy(endNodeId, mo, MINERS_HAT_PRICE, "minersHat");
+          return;
+        }
         const { state } = awardXp(s, 30);
         setState(this, { ...state, flags: { ...state.flags, minerMo: true } });
         this.floatText(mo.x, mo.y - 12, "+30 XP");
@@ -127,6 +142,27 @@ export class CrevasseScene extends ZoneScene {
         this.walkToCamp(mo);
       }
     });
+  }
+
+  /**
+   * Complete a camp purchase: on the `buy-end` node, if the buy is still valid
+   * (affordable and unowned), spend the shinies and grant the item. Idempotent
+   * and defensive — a stale script can't double-charge or grant for free.
+   */
+  private tryBuy(
+    endNodeId: string | null,
+    sprite: Phaser.Physics.Arcade.Sprite,
+    price: number,
+    id: EquipId
+  ): void {
+    if (endNodeId !== "buy-end") return;
+    const s = getState(this);
+    if (!canBuyEquip(s, price, id)) return;
+    // Buying adds one copy to the shared pool; the player equips it from the
+    // Equipment tab (shops don't auto-equip).
+    setState(this, grantEquipment(spendShinies(s, price), id));
+    this.floatText(sprite.x, sprite.y - 12, `-${price} shinies`);
+    this.hud.update(getState(this));
   }
 
   /** Mo picks his way out of the pocket and settles at the camp corner. */
@@ -152,12 +188,17 @@ export class CrevasseScene extends ZoneScene {
     });
   }
 
-  private addCampMiner(spot: { x: number; y: number }, script: DialogueScript): void {
-    this.addNpc({
+  private addCampMiner(
+    spot: { x: number; y: number },
+    script: () => DialogueScript,
+    onClose?: (endNodeId: string | null) => void
+  ): Phaser.Physics.Arcade.Sprite {
+    return this.addNpc({
       sheet: "miner",
       tileX: spot.x,
       tileY: spot.y,
-      script: () => script
+      script,
+      onClose
     });
   }
 

@@ -4,7 +4,7 @@
  */
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
-import { heroStats } from "../../core/gameState";
+import { equippedSlotsFor, heroStats } from "../../core/gameState";
 import type { Act1State } from "../../core/gameState";
 import { levelForXp, xpToNext, LEVEL_THRESHOLDS } from "../../core/progression";
 import { objectiveFor } from "../../core/objective";
@@ -18,9 +18,11 @@ export class Hud {
   private invBg: Phaser.GameObjects.Graphics;
   private bucketIcon: Phaser.GameObjects.Sprite;
   private invText: Phaser.GameObjects.Text;
+  private root: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene, zoneName: string) {
     const c = scene.add.container(0, 0).setScrollFactor(0).setDepth(6000);
+    this.root = c;
     this.bars = scene.add.graphics();
     this.levelText = scene.add.text(5, 3, "", {
       fontFamily: "monospace",
@@ -65,6 +67,12 @@ export class Hud {
     addToUiLayer(scene, c);
   }
 
+  /** Hide/show the whole HUD — used while the full-screen STATUS window is up
+   *  (it renders above the panel, so it must step aside). */
+  setVisible(v: boolean): void {
+    this.root.setVisible(v);
+  }
+
   update(state: Act1State): void {
     const stats = heroStats(state);
     const level = levelForXp(state.hero.xp);
@@ -97,7 +105,7 @@ export class Hud {
    * can't go stale showing an item the player is merely carrying.
    */
   private updateInventory(state: Act1State): void {
-    if (state.items.equipped !== "bucket") {
+    if (equippedSlotsFor(state, "hero").hat !== "bucket") {
       this.invBg.setVisible(false);
       this.bucketIcon.setVisible(false);
       this.invText.setText("");

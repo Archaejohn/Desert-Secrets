@@ -37,6 +37,7 @@ import frostscarabUrl from "../../assets/generated/frostscarab.png";
 import wardenUrl from "../../assets/generated/warden.png";
 import johnUrl from "../../assets/generated/john.png";
 import pamelaUrl from "../../assets/generated/pamela.png";
+import thomasUrl from "../../assets/generated/thomas.png";
 import chickenUrl from "../../assets/generated/chicken.png";
 import bucketUrl from "../../assets/generated/bucket.png";
 import spigotUrl from "../../assets/generated/spigot.png";
@@ -49,6 +50,7 @@ import reefstalkerUrl from "../../assets/generated/reefstalker.png";
 import testudoUrl from "../../assets/generated/testudo.png";
 import dustyUrl from "../../assets/generated/dusty.png";
 import sahraUrl from "../../assets/generated/sahra.png";
+import gearIconsUrl from "../../assets/generated/gearIcons.png";
 
 const SHEET_URLS: Record<string, string> = {
   hero: heroUrl,
@@ -70,6 +72,7 @@ const SHEET_URLS: Record<string, string> = {
   warden: wardenUrl,
   john: johnUrl,
   pamela: pamelaUrl,
+  thomas: thomasUrl,
   chicken: chickenUrl,
   bucket: bucketUrl,
   spigot: spigotUrl,
@@ -81,7 +84,8 @@ const SHEET_URLS: Record<string, string> = {
   reefstalker: reefstalkerUrl,
   testudo: testudoUrl,
   dusty: dustyUrl,
-  sahra: sahraUrl
+  sahra: sahraUrl,
+  gearIcons: gearIconsUrl
 };
 
 const ZONE_NAMES: Record<ZoneId, string> = {

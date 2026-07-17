@@ -16,6 +16,8 @@ export const SHED_HEIGHT = 12;
 export const SHED_SPAWN = { x: 8, y: 2 } as const;
 /** The bucket sits out in the open, a short straight walk from the gate. */
 export const SHED_BUCKET = { x: 8, y: 5 } as const;
+/** A stick leans nearby — a free starter weapon, just east of the bucket. */
+export const SHED_STICK = { x: 10, y: 5 } as const;
 /** North-edge exit band → back to the oasis, south of the coop. */
 export const SHED_NORTH_EXIT = { x1: 7, y1: 0, x2: 8, y2: 0 } as const;
 

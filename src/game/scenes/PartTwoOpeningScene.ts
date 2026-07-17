@@ -11,9 +11,8 @@
  * Part Two isn't built, so after the four lines it resets to the title.
  *
  * The four exact lines live in `partTwoOpeningScript` (core, unit-tested).
- * Thomas is drawn with the generic `npc` sheet — no new art (art is sha256-
- * pinned; this is a placeholder standee for the cutscene, not a new character
- * sprite).
+ * Thomas has his own character sheet now (`thomas` — a broad-shouldered
+ * muscle-man body-type; see tools/pipeline/src/sprites/thomas.ts).
  */
 import Phaser from "phaser";
 import { DialogueBox } from "../ui/DialogueBox";
@@ -60,8 +59,8 @@ export class PartTwoOpeningScene extends Phaser.Scene {
     if (this.anims.exists("slither-idle")) slither.play("slither-idle");
 
     // Thomas's side (right): standing, facing back toward Joseph.
-    const thomas = this.add.sprite(w - 96, groundY - 4, "npc", 0).setScale(1.4);
-    if (this.anims.exists("npc-idle-left")) thomas.play("npc-idle-left");
+    const thomas = this.add.sprite(w - 96, groundY - 4, "thomas", 0).setScale(1.4);
+    if (this.anims.exists("thomas-idle-left")) thomas.play("thomas-idle-left");
 
     // The radio link between them: a dotted arc plus a blinking crackle glyph.
     const link = this.add.graphics().setDepth(10);

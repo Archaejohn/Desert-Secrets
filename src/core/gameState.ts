@@ -5,18 +5,27 @@
  */
 
 import {
-  SLITHER_COMMANDS,
   baseStatsForLevel,
-  commandsForLevel,
   grantXp,
-  levelForXp,
-  slitherStatsForLevel,
   statsForBuild,
   type CommandId,
   type HeroBuild,
   type PerkId,
 } from "./progression";
-import { applyEquipmentBuffs, type EquipId } from "./equipment";
+import {
+  applyEquipmentBuffs,
+  coerceSlots,
+  defaultEquipSlots,
+  emptyEquipSlots,
+  equipmentById,
+  itemAllowsTags,
+  EQUIPMENT,
+  EQUIP_SLOTS,
+  type EquipId,
+  type EquipSlot,
+  type EquipSlots,
+} from "./equipment";
+import { ROSTER, activeParty, rosterById, type RosterId } from "./roster";
 import type { Stats } from "./atb";
 
 export type ZoneId =
@@ -235,7 +244,21 @@ export interface Act1State {
     coldPack: boolean;
     shinies: number;
     bucket: BucketState;
-    equipped: EquipId | null;
+    /**
+     * SHARED item pool (FF6-style availability): how many of each equippable
+     * the player owns TOTAL, keyed by `EquipId`. The bucket is EXCLUDED here —
+     * its ownership is its fill-state (`bucket !== "none"` = owns one), kept as
+     * the single source of truth so the chore/headgear axes stay orthogonal;
+     * `ownedCount("bucket")` derives from the fill-state. Availability for any
+     * id is `owned − (copies equipped across every member's slots)`.
+     */
+    owned: Partial<Record<EquipId, number>>;
+    /**
+     * PER-CHARACTER worn gear: roster id -> a five-slot record
+     * (hat/weapon/torso/legs/shoes). A member absent from the map wears nothing.
+     * A benched member keeps their loadout (it still counts against the pool).
+     */
+    equipped: Partial<Record<RosterId, EquipSlots>>;
     /** Act 3: the silverfin caught in the Sunless Sea (Piggy's favorite). */
     silverfin: boolean;
     /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
@@ -246,6 +269,14 @@ export interface Act1State {
     seaweed: boolean;
   };
   flags: Record<string, boolean>;
+  /**
+   * Optional explicit combat-party selection (ordered roster ids) — the
+   * Part-Two swap UI's output. Unset through Part One, where the party is
+   * flag-derived (see `roster.ts` `activeParty`). When present it overrides
+   * the flag-derived default: `activeParty` filters it to available members
+   * and caps it at four.
+   */
+  selectedParty?: RosterId[];
 }
 
 export function newGame(): Act1State {
@@ -270,7 +301,12 @@ export function newGame(): Act1State {
       coldPack: false,
       shinies: 0,
       bucket: "none",
-      equipped: null,
+      // Starter gear is Joseph's alone: he owns one each of the outfit pieces
+      // and wears them; other members start with nothing. The pool grows as
+      // gear is found/bought (stick in the shed, hat/pick at the camp, the
+      // frost feather at the crash).
+      owned: { tshirt: 1, jeans: 1, flipFlops: 1 },
+      equipped: { hero: defaultEquipSlots() },
       silverfin: false,
       stinkySocks: false,
       oranges: false,
@@ -280,33 +316,55 @@ export function newGame(): Act1State {
   };
 }
 
+/** Deep-copy a per-character loadout map (each member's slots cloned). */
+function cloneEquipped(
+  e: Partial<Record<RosterId, EquipSlots>>,
+): Partial<Record<RosterId, EquipSlots>> {
+  const out: Partial<Record<RosterId, EquipSlots>> = {};
+  for (const id of Object.keys(e) as RosterId[]) {
+    const slots = e[id];
+    if (slots) out[id] = { ...slots };
+  }
+  return out;
+}
+
 function clone(s: Act1State): Act1State {
   return {
     zone: s.zone,
     hero: { xp: s.hero.xp, perks: [...s.hero.perks] },
     hp: s.hp,
     pendingPerks: s.pendingPerks,
-    items: { ...s.items },
+    items: {
+      ...s.items,
+      owned: { ...s.items.owned },
+      equipped: cloneEquipped(s.items.equipped),
+    },
     flags: { ...s.flags },
+    ...(s.selectedParty ? { selectedParty: [...s.selectedParty] } : {}),
   };
 }
 
 /**
- * Full build stats — with any equipped gear's buffs layered on
- * (`items.equipped`) — and hp clamped to the state's current hp. This is the
- * single splice point where equipment reaches battle: `partyFor` and the
- * status screen both read the hero through here. (Equipment only touches
- * combat stats, not maxHp, so the hp/heal accounting on `statsForBuild`
- * stays authoritative — see equipment.ts.)
+ * Full build stats — with the HERO's own equipped gear buffs layered on
+ * (`items.equipped.hero`) — and hp clamped to the state's current hp. This is
+ * the single splice point where the hero's equipment reaches battle: `partyFor`
+ * and the status screen both read the hero through here. (Each other member
+ * layers their own loadout in `roster.ts`'s `statsFor`.) Equipment only touches
+ * combat stats, not maxHp, so the hp/heal accounting on `statsForBuild` stays
+ * authoritative — see equipment.ts.
  */
 export function heroStats(s: Act1State): Stats {
-  const stats = applyEquipmentBuffs(statsForBuild(s.hero), s.items.equipped);
+  const stats = applyEquipmentBuffs(statsForBuild(s.hero), equippedSlotsFor(s, "hero"));
   return { ...stats, hp: Math.min(s.hp, stats.maxHp) };
 }
 
-/** A party-side combatant seed plus its command list, for BattleScene. */
+/**
+ * A party-side combatant seed plus its command list, for BattleScene. `id` is
+ * a roster id (see roster.ts) — the stable key the Phase-2 equipment system
+ * will attach per-character loadouts to.
+ */
 export interface PartyMember {
-  id: "hero" | "slither";
+  id: RosterId;
   name: string;
   stats: Stats;
   commands: CommandId[];
@@ -314,32 +372,15 @@ export interface PartyMember {
 }
 
 /**
- * The battle party for the current state. The hero always leads (stats
- * clamped to current hp, commands by level, cactusGuard from level 3).
- * Slither joins once flags.slitherJoined: level-matched stats at full hp
- * every battle, Bite/Coil/Venom, no cactus guard.
+ * The battle party for the current state — now roster-driven. This delegates to
+ * `activeParty` (roster.ts), which fills up to four slots from the ROSTER by
+ * availability (hero always; Slither on slitherJoined; Fluffball on
+ * fluffballJoined; Piggy on piggyCaught) and honours an explicit
+ * `state.selectedParty` when the Part-Two swap sets one. Kept as a thin alias
+ * so BattleScene and existing call sites are unchanged in shape.
  */
 export function partyFor(s: Act1State): PartyMember[] {
-  const level = levelForXp(s.hero.xp);
-  const party: PartyMember[] = [
-    {
-      id: "hero",
-      name: "Joseph",
-      stats: heroStats(s),
-      commands: commandsForLevel(level),
-      cactusGuard: level >= 3,
-    },
-  ];
-  if (s.flags.slitherJoined) {
-    party.push({
-      id: "slither",
-      name: "Slither",
-      stats: slitherStatsForLevel(level),
-      commands: [...SLITHER_COMMANDS],
-      cactusGuard: false,
-    });
-  }
-  return party;
+  return activeParty(s);
 }
 
 /**
@@ -395,6 +436,172 @@ export function spendShiny(s: Act1State): Act1State {
   const next = clone(s);
   next.items.shinies = Math.max(0, s.items.shinies - 1);
   return next;
+}
+
+/** Spend `n` shinies at once, clamped at zero (never goes negative). Pure. */
+export function spendShinies(s: Act1State, n: number): Act1State {
+  const next = clone(s);
+  next.items.shinies = Math.max(0, s.items.shinies - Math.max(0, n));
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// Equipment pool + per-character loadout helpers (FF6 availability). Pure.
+// ---------------------------------------------------------------------------
+
+/** This member's worn gear (empty slots if they've never been dressed). */
+export function equippedSlotsFor(s: Act1State, charId: RosterId): EquipSlots {
+  return s.items.equipped[charId] ?? emptyEquipSlots();
+}
+
+/**
+ * How many of an equippable the player owns TOTAL. The bucket is special-cased
+ * to its fill-state (owns one while `bucket !== "none"`); everything else reads
+ * the shared `owned` count pool.
+ */
+export function ownedCount(s: Act1State, id: EquipId): number {
+  if (id === "bucket") return s.items.bucket !== "none" ? 1 : 0;
+  return s.items.owned[id] ?? 0;
+}
+
+/** How many copies of an id are currently worn across ALL members' slots. */
+export function equippedCount(s: Act1State, id: EquipId): number {
+  let n = 0;
+  for (const charId of Object.keys(s.items.equipped) as RosterId[]) {
+    const slots = s.items.equipped[charId];
+    if (!slots) continue;
+    for (const slot of EQUIP_SLOTS) if (slots[slot] === id) n++;
+  }
+  return n;
+}
+
+/** Free-to-equip copies: owned minus copies already worn somewhere. */
+export function availableCount(s: Act1State, id: EquipId): number {
+  return Math.max(0, ownedCount(s, id) - equippedCount(s, id));
+}
+
+/**
+ * Whether `charId` may equip `id` right now: the item exists, the character's
+ * roster tags satisfy any `allowedTags` restriction, and at least one copy is
+ * free in the pool. (A slot is always free to swap — equipping displaces
+ * whatever's there back to the pool — so there's no separate slot check.)
+ */
+export function canEquip(s: Act1State, charId: RosterId, id: EquipId): boolean {
+  const item = equipmentById(id);
+  if (!item) return false;
+  if (!itemAllowsTags(item, rosterById(charId).tags)) return false;
+  return availableCount(s, id) >= 1;
+}
+
+/**
+ * Equip `id` on `charId`, immutably. Consumes one copy from the pool and drops
+ * whatever was in that member's target slot back to the pool (availability is
+ * implicit — nothing tracks "in the pool" explicitly). No-op (returns the input
+ * state) if the item can't be equipped: unknown id, tag-restricted, none
+ * available, or already worn in that slot by this member.
+ */
+export function equipItem(s: Act1State, charId: RosterId, id: EquipId): Act1State {
+  const item = equipmentById(id);
+  if (!item) return s;
+  if (equippedSlotsFor(s, charId)[item.slot] === id) return s; // already worn
+  if (!canEquip(s, charId, id)) return s;
+  const next = clone(s);
+  const slots = { ...(next.items.equipped[charId] ?? emptyEquipSlots()) };
+  slots[item.slot] = id;
+  next.items.equipped = { ...next.items.equipped, [charId]: slots };
+  return next;
+}
+
+/**
+ * Take whatever `charId` wears in `slot` off, immutably (the copy returns to
+ * the pool implicitly). No-op if the slot is already empty.
+ */
+export function unequipSlot(s: Act1State, charId: RosterId, slot: EquipSlot): Act1State {
+  const current = s.items.equipped[charId];
+  if (!current || current[slot] === null) return s;
+  const next = clone(s);
+  const slots = { ...(next.items.equipped[charId] ?? emptyEquipSlots()) };
+  slots[slot] = null;
+  next.items.equipped = { ...next.items.equipped, [charId]: slots };
+  return next;
+}
+
+/**
+ * Add `n` copies of an equippable to the shared pool (default 1). Pure. Used by
+ * found/bought gear (shed stick, camp hat/pick, crash frost feather). NOT for
+ * the bucket, whose ownership rides its fill-state.
+ */
+export function grantEquipment(s: Act1State, id: EquipId, n = 1): Act1State {
+  const next = clone(s);
+  next.items.owned = { ...next.items.owned, [id]: (next.items.owned[id] ?? 0) + n };
+  return next;
+}
+
+/**
+ * Whether a shop purchase is offerable: the player doesn't already own the
+ * item AND holds enough shinies. Shops gate the "Buy" choice on this and, on
+ * confirm, `spendShinies` + `grantEquipment`.
+ */
+export function canBuyEquip(s: Act1State, price: number, id: EquipId): boolean {
+  return ownedCount(s, id) === 0 && s.items.shinies >= price;
+}
+
+/**
+ * Migration/normalizer for the persisted `items` blob — coerces BOTH the old
+ * single-loadout model (boolean ownership flags + one `equipped` slot record)
+ * and the current per-character pool model into the pool shape, so a save from
+ * either era loads without crashing. Pure; consumed by the load path in
+ * `src/game/state.ts`.
+ */
+export function normalizeItemEquipment(raw: unknown): {
+  owned: Partial<Record<EquipId, number>>;
+  equipped: Partial<Record<RosterId, EquipSlots>>;
+} {
+  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return { owned: coerceOwned(r), equipped: coercePerChar(r.equipped) };
+}
+
+/** Owned-pool half of the migration: new count map, else old boolean flags. */
+function coerceOwned(r: Record<string, unknown>): Partial<Record<EquipId, number>> {
+  const out: Partial<Record<EquipId, number>> = {};
+  const rawOwned = r.owned;
+  if (rawOwned && typeof rawOwned === "object") {
+    const o = rawOwned as Record<string, unknown>;
+    for (const item of EQUIPMENT) {
+      if (item.id === "bucket") continue; // bucket ownership = fill-state
+      const n = o[item.id];
+      if (typeof n === "number" && n > 0) out[item.id] = Math.floor(n);
+    }
+    return out;
+  }
+  // Legacy boolean ownership -> one owned copy per truthy flag.
+  for (const id of ["tshirt", "jeans", "flipFlops", "stick", "minersHat", "pickaxe"] as const) {
+    if (r[id] === true) out[id] = 1;
+  }
+  return out;
+}
+
+/** Loadout half of the migration: old single record -> hero; else per-char. */
+function coercePerChar(raw: unknown): Partial<Record<RosterId, EquipSlots>> {
+  const out: Partial<Record<RosterId, EquipSlots>> = {};
+  if (typeof raw === "string") {
+    out.hero = coerceSlots(raw, true); // legacy single-slot string
+    return out;
+  }
+  if (!raw || typeof raw !== "object") return out;
+  const r = raw as Record<string, unknown>;
+  // A bare slot record (an equip-slot key at top level) is the old single
+  // loadout — Joseph's.
+  if (EQUIP_SLOTS.some((slot) => slot in r)) {
+    out.hero = coerceSlots(r, true);
+    return out;
+  }
+  // Per-character shape keyed by roster id. Only the hero gets outfit defaults
+  // for absent slots; everyone else fills empty.
+  for (const entry of ROSTER) {
+    if (entry.id in r) out[entry.id] = coerceSlots(r[entry.id], entry.id === "hero");
+  }
+  return out;
 }
 
 /** Record the hero's hp after a battle, clamped to 0..maxHp. */

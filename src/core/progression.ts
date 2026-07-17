@@ -101,6 +101,60 @@ export function slitherStatsForLevel(level: number): Stats {
   };
 }
 
+/** Fluffball's per-level base stats (party member, Act 5+). A scrappy, fast
+ *  striker: lighter than Slither but hits harder and moves quicker. */
+const FLUFFBALL_L1: Omit<Stats, "hp"> = { maxHp: 20, attack: 7, defense: 2, speed: 16 };
+
+/**
+ * Fluffball's stats at a level: maxHp 20+4·(level−1), attack 7+2·(level−1),
+ * defense 2+⌊(level−1)/2⌋, speed 16+2·(level−1) (the fast growth that makes
+ * him the party's darting harasser). hp = maxHp (he enters every battle
+ * fresh, like Slither). Throws on levels outside 1..MAX_LEVEL.
+ */
+export function fluffballStatsForLevel(level: number): Stats {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) {
+    throw new Error(
+      `fluffballStatsForLevel: level ${level} out of range (1..${MAX_LEVEL})`,
+    );
+  }
+  const steps = level - 1;
+  const maxHp = FLUFFBALL_L1.maxHp + 4 * steps;
+  return {
+    maxHp,
+    hp: maxHp,
+    attack: FLUFFBALL_L1.attack + 2 * steps,
+    defense: FLUFFBALL_L1.defense + Math.floor(steps / 2),
+    speed: FLUFFBALL_L1.speed + 2 * steps,
+  };
+}
+
+/** Piggy's per-level base stats (party member, Act 7+). She's a baby: the
+ *  smallest, lightest fighter — low hp/defense, modest speed. */
+const PIGGY_L1: Omit<Stats, "hp"> = { maxHp: 16, attack: 5, defense: 1, speed: 13 };
+
+/**
+ * Piggy's stats at a level: maxHp 16+3·(level−1), attack 5+2·(level−1),
+ * defense 1+⌊(level−1)/2⌋, speed 13+(level−1). The slimmest curve of any
+ * member — she's a baby penguin — but her attack still climbs so she never
+ * becomes dead weight late. hp = maxHp. Throws on levels outside 1..MAX_LEVEL.
+ */
+export function piggyStatsForLevel(level: number): Stats {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) {
+    throw new Error(
+      `piggyStatsForLevel: level ${level} out of range (1..${MAX_LEVEL})`,
+    );
+  }
+  const steps = level - 1;
+  const maxHp = PIGGY_L1.maxHp + 3 * steps;
+  return {
+    maxHp,
+    hp: maxHp,
+    attack: PIGGY_L1.attack + 2 * steps,
+    defense: PIGGY_L1.defense + Math.floor(steps / 2),
+    speed: PIGGY_L1.speed + steps,
+  };
+}
+
 export interface HeroBuild {
   xp: number;
   perks: PerkId[];
@@ -144,6 +198,14 @@ export function commandsForLevel(level: number): CommandId[] {
 
 /** Slither's battle commands (shown by the scene as Bite/Coil/Venom). */
 export const SLITHER_COMMANDS: CommandId[] = ["attack", "guard", "venom"];
+
+/** Fluffball's battle commands (shown by the scene as Peck/Fluff Up/Pounce).
+ *  A scrappy striker: a basic hit, a guard, and Focus for a big pounce. */
+export const FLUFFBALL_COMMANDS: CommandId[] = ["attack", "guard", "focus"];
+
+/** Piggy's battle commands (shown by the scene as Nip/Hide/Nap). She's a baby:
+ *  a basic hit, a guard, and second-wind as a little recovery nap. */
+export const PIGGY_COMMANDS: CommandId[] = ["attack", "guard", "second-wind"];
 
 /**
  * Add XP to a build. Pure: returns a new build plus the number of levels

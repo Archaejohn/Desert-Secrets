@@ -28,6 +28,7 @@ import { SUNWASP_FRAME } from "./sprites/sunwasp";
 import { REEFSTALKER_FRAME } from "./sprites/reefstalker";
 import { TESTUDO_FRAME } from "./sprites/testudo";
 import { DUSTY_FRAME } from "./sprites/dusty";
+import { GEARICONS_FRAME } from "./sprites/gearIcons";
 import { TILE_NAMES, TILE_SIZE } from "./tileset";
 import { TILE2_NAMES } from "./tileset2";
 import { TILE3_NAMES } from "./tileset3";
@@ -80,6 +81,7 @@ export interface Manifest {
     rosa: SheetDef;
     john: SheetDef;
     pamela: SheetDef;
+    thomas: SheetDef;
     chicken: SheetDef;
     bucket: SheetDef;
     piggy: SheetDef;
@@ -106,6 +108,7 @@ export interface Manifest {
     // Phase S (sprites) additions — appended only, never reordered.
     dusty: SheetDef;
     sahra: SheetDef;
+    gearIcons: SheetDef;
   };
   tiles: TileSetDef;
   tiles2: TileSetDef;
@@ -124,7 +127,7 @@ const DIRECTIONS = ["down", "left", "right", "up"] as const;
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
 function characterSheet(
-  prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela" | "sahra"
+  prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela" | "sahra" | "thomas"
 ): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
@@ -206,6 +209,7 @@ export function buildManifest(): Manifest {
       rosa: characterSheet("rosa"),
       john: characterSheet("john"),
       pamela: characterSheet("pamela"),
+      thomas: characterSheet("thomas"),
       chicken: creatureSheet("chicken", CHICKEN_FRAME, "move", 3, 10),
       bucket: propSheet("bucket", BUCKET_FRAME, [
         ["empty", 0],
@@ -234,7 +238,22 @@ export function buildManifest(): Manifest {
       testudo: creatureSheet("testudo", TESTUDO_FRAME, "move", 2, 6),
       // Phase S (sprites) additions — appended only, never reordered.
       dusty: creatureSheet("dusty", DUSTY_FRAME, "move", 3, 10),
-      sahra: characterSheet("sahra")
+      sahra: characterSheet("sahra"),
+      // Equipment-tab icons: 5 slot placeholders + 7 item icons, one row of 12.
+      gearIcons: propSheet("gearIcons", GEARICONS_FRAME, [
+        ["hat", 0],
+        ["weapon", 1],
+        ["torso", 2],
+        ["legs", 3],
+        ["shoes", 4],
+        ["minersHat", 5],
+        ["stick", 6],
+        ["pickaxe", 7],
+        ["tshirt", 8],
+        ["jeans", 9],
+        ["flipFlops", 10],
+        ["frostFeather", 11]
+      ])
     },
     tiles: { file: "tiles.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE_NAMES) },
     tiles2: { file: "tiles2.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(TILE2_NAMES) },

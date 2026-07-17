@@ -13,7 +13,7 @@ import { InventoryMenu } from "./ui/InventoryMenu";
 import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
-import { respawn, type ZoneId } from "../core/gameState";
+import { equipItem, unequipSlot, respawn, type ZoneId } from "../core/gameState";
 import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
@@ -638,7 +638,8 @@ export abstract class ZoneScene extends Phaser.Scene {
    * respawn() heal-to-full — the same function defeat/level-up use) and plays
    * a short zone-appropriate flavor line. Wired by Acts 3–7 to close the
    * mid-chain "no way to restore HP between fights" gap (see docs/CONTRACTS.md
-   * "v19"). Slither always fights at full HP and Fluffball is non-combat, so
+   * "v19"). The companions (Slither, Fluffball, Piggy) are stateless in battle —
+   * they enter every fight at full HP — so only the hero tracks persistent HP;
    * healing the hero fully heals the party — no extra plumbing needed. Reusable
    * every time: the caller's addInteractPoint stays `once: false` (the default).
    */
@@ -832,16 +833,27 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.play(`hero-idle-${this.facing}`, true);
     this.talkPrompt.setVisible(false);
     this.actionHint?.setVisible(false);
+    // The STATUS window is near-fullscreen; the HUD renders above it, so tuck
+    // the HUD away while it's open and restore it on close.
+    this.hud.setVisible(false);
     this.inventoryMenu = new InventoryMenu(this, getState(this), {
-      onToggleEquip: (id) => {
-        const s = getState(this);
-        const equipped = s.items.equipped === id ? null : id;
-        const items = { ...s.items, equipped };
-        setState(this, { ...s, items });
-        return items;
+      // Per-character equip/unequip: the Equipment tab picks the party member,
+      // and the shared pool enforces availability/tag rules in the core helpers
+      // (a no-op state if restricted or none free — e.g. the penguin-only frost
+      // feather won't go on Joseph).
+      onEquip: (charId, id) => {
+        const next = equipItem(getState(this), charId, id);
+        setState(this, next);
+        return next.items;
+      },
+      onUnequip: (charId, slot) => {
+        const next = unequipSlot(getState(this), charId, slot);
+        setState(this, next);
+        return next.items;
       },
       onClose: () => {
         this.inventoryMenu = null;
+        this.hud.setVisible(true);
       }
     });
   }

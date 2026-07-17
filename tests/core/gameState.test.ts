@@ -9,15 +9,27 @@ import {
   ACT7_FLAGS,
   PART2_FLAGS,
   applyBattleResult,
+  availableCount,
   awardXp,
+  canBuyEquip,
+  canEquip,
   choosePerk,
+  equipItem,
+  equippedCount,
+  equippedSlotsFor,
+  grantEquipment,
   grantShiny,
   heroStats,
   newGame,
+  normalizeItemEquipment,
+  ownedCount,
   respawn,
+  spendShinies,
   spendShiny,
+  unequipSlot,
   type Act1State,
 } from "../../src/core/gameState";
+import { rosterById } from "../../src/core/roster";
 import { levelForXp, statsForBuild } from "../../src/core/progression";
 
 function snapshot(s: Act1State): string {
@@ -35,7 +47,10 @@ describe("newGame", () => {
       coldPack: false,
       shinies: 0,
       bucket: "none",
-      equipped: null,
+      // Starter gear = Joseph only: owns one each of the outfit pieces, worn on
+      // the hero; other members absent.
+      owned: { tshirt: 1, jeans: 1, flipFlops: 1 },
+      equipped: { hero: { hat: null, weapon: null, torso: "tshirt", legs: "jeans", shoes: "flipFlops" } },
       silverfin: false,
       stinkySocks: false,
       oranges: false,
@@ -96,12 +111,9 @@ describe("heroStats", () => {
     expect(heroStats(s).attack).toBe(10);
   });
 
-  it("layers equipped gear buffs on top of the build (bucket = +2 DEF / -1 SPD)", () => {
+  it("layers the HERO's equipped gear buffs on top of the build (bucket = +2 DEF / -1 SPD)", () => {
     const bare = newGame();
-    const worn: Act1State = {
-      ...bare,
-      items: { ...bare.items, bucket: "empty", equipped: "bucket" },
-    };
+    const worn = equipItem({ ...bare, items: { ...bare.items, bucket: "empty" } }, "hero", "bucket");
     // Base level-1: defense 3, speed 12. Bucket layers +2 DEF, -1 SPD.
     expect(heroStats(bare).defense).toBe(3);
     expect(heroStats(bare).speed).toBe(12);
@@ -112,12 +124,11 @@ describe("heroStats", () => {
   });
 
   it("survives a clone/reload round-trip: equip persists and still buffs", () => {
-    const s = newGame();
-    s.items.bucket = "empty";
-    s.items.equipped = "bucket";
+    const base = newGame();
+    const s = equipItem({ ...base, items: { ...base.items, bucket: "empty" } }, "hero", "bucket");
     // JSON round-trip mimics the save->load the registry persists through.
     const reloaded: Act1State = JSON.parse(JSON.stringify(s));
-    expect(reloaded.items.equipped).toBe("bucket");
+    expect(reloaded.items.equipped.hero?.hat).toBe("bucket");
     expect(heroStats(reloaded).defense).toBe(heroStats(s).defense);
     expect(heroStats(reloaded).defense).toBe(5);
   });
@@ -246,6 +257,70 @@ describe("shiny economy", () => {
   });
 });
 
+describe("miner-shop buy helpers", () => {
+  const withShinies = (n: number): Act1State => {
+    const s = newGame();
+    s.items.shinies = n;
+    return s;
+  };
+
+  it("spendShinies removes N at once, clamped at zero", () => {
+    expect(spendShinies(withShinies(3), 2).items.shinies).toBe(1);
+    expect(spendShinies(withShinies(1), 2).items.shinies).toBe(0);
+    expect(spendShinies(withShinies(2), 0).items.shinies).toBe(2);
+  });
+
+  it("grantEquipment adds one copy to the shared pool and nothing else", () => {
+    const s = withShinies(5);
+    const after = grantEquipment(s, "minersHat");
+    expect(after.items.owned.minersHat).toBe(1);
+    expect(ownedCount(after, "minersHat")).toBe(1);
+    expect(after).toEqual({ ...s, items: { ...s.items, owned: { ...s.items.owned, minersHat: 1 } } });
+  });
+
+  it("canBuyEquip gates on affordability AND not already owning it", () => {
+    expect(canBuyEquip(withShinies(2), 2, "minersHat")).toBe(true); // exact price
+    expect(canBuyEquip(withShinies(1), 2, "minersHat")).toBe(false); // too poor
+    expect(canBuyEquip(grantEquipment(withShinies(9), "minersHat"), 2, "minersHat")).toBe(false); // owned
+  });
+
+  it("a full purchase: spend the price and gain the item", () => {
+    let s = withShinies(3);
+    const price = 2;
+    expect(canBuyEquip(s, price, "minersHat")).toBe(true);
+    s = grantEquipment(spendShinies(s, price), "minersHat");
+    expect(ownedCount(s, "minersHat")).toBe(1);
+    expect(s.items.shinies).toBe(1);
+    // Second purchase is now gated off (already owned).
+    expect(canBuyEquip(s, price, "minersHat")).toBe(false);
+  });
+
+  it("both are pure: never mutate the input state", () => {
+    const s = withShinies(4);
+    const before = snapshot(s);
+    spendShinies(s, 2);
+    grantEquipment(s, "pickaxe");
+    expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("clone / equipped isolation", () => {
+  it("mutating a cloned state's equipped slots never leaks back", () => {
+    const s = newGame();
+    // awardXp clones internally; mutate the result and check the original.
+    const cloned = awardXp(s, 0).state;
+    cloned.items.equipped.hero!.hat = "bucket";
+    expect(s.items.equipped.hero!.hat).toBeNull();
+  });
+
+  it("mutating a cloned state's owned pool never leaks back", () => {
+    const s = newGame();
+    const cloned = awardXp(s, 0).state;
+    cloned.items.owned.pickaxe = 3;
+    expect(s.items.owned.pickaxe).toBeUndefined();
+  });
+});
+
 describe("applyBattleResult", () => {
   it("records the hero's post-battle hp", () => {
     expect(applyBattleResult(newGame(), 7).hp).toBe(7);
@@ -274,7 +349,7 @@ describe("respawn", () => {
     s.items.coldPack = true;
     s.items.shinies = 2;
     s.items.bucket = "filled";
-    s.items.equipped = "bucket";
+    s = equipItem(s, "hero", "bucket");
     s.flags.foremanDefeated = true;
     const after = respawn(s);
     expect(after.hp).toBe(statsForBuild(s.hero).maxHp);
@@ -284,7 +359,8 @@ describe("respawn", () => {
       coldPack: true,
       shinies: 2,
       bucket: "filled",
-      equipped: "bucket",
+      owned: { tshirt: 1, jeans: 1, flipFlops: 1 },
+      equipped: { hero: { hat: "bucket", weapon: null, torso: "tshirt", legs: "jeans", shoes: "flipFlops" } },
       silverfin: false,
       stinkySocks: false,
       oranges: false,
@@ -299,6 +375,150 @@ describe("respawn", () => {
     const before = snapshot(s);
     respawn(s);
     expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("equipment pool (FF6 availability)", () => {
+  it("ownedCount reads the pool; bucket derives from its fill-state", () => {
+    const s = newGame();
+    expect(ownedCount(s, "tshirt")).toBe(1);
+    expect(ownedCount(s, "pickaxe")).toBe(0);
+    expect(ownedCount(s, "bucket")).toBe(0);
+    const withBucket = { ...s, items: { ...s.items, bucket: "empty" as const } };
+    expect(ownedCount(withBucket, "bucket")).toBe(1);
+  });
+
+  it("equippedCount counts copies across every member's slots", () => {
+    const s = newGame(); // hero wears tshirt/jeans/flipFlops
+    expect(equippedCount(s, "tshirt")).toBe(1);
+    expect(equippedCount(s, "pickaxe")).toBe(0);
+  });
+
+  it("availableCount = owned − equipped, floored at zero", () => {
+    let s = grantEquipment(newGame(), "pickaxe"); // owned 1, equipped 0
+    expect(availableCount(s, "pickaxe")).toBe(1);
+    s = equipItem(s, "hero", "pickaxe"); // now equipped by hero
+    expect(availableCount(s, "pickaxe")).toBe(0);
+    // The starter tshirt is owned 1 / worn 1 -> none free.
+    expect(availableCount(s, "tshirt")).toBe(0);
+  });
+
+  it("equipItem consumes availability and auto-unequips the slot's prior item", () => {
+    let s = grantEquipment(grantEquipment(newGame(), "stick"), "pickaxe");
+    s = equipItem(s, "hero", "stick");
+    expect(equippedSlotsFor(s, "hero").weapon).toBe("stick");
+    // Swapping in the pickaxe (same weapon slot) returns the stick to the pool.
+    s = equipItem(s, "hero", "pickaxe");
+    expect(equippedSlotsFor(s, "hero").weapon).toBe("pickaxe");
+    expect(availableCount(s, "stick")).toBe(1); // stick freed
+    expect(availableCount(s, "pickaxe")).toBe(0);
+  });
+
+  it("can't equip at 0 available (no second copy)", () => {
+    let s = grantEquipment(newGame(), "pickaxe"); // one only
+    s = equipItem(s, "hero", "pickaxe");
+    // Fluffball can't also wear the single pickaxe.
+    const tryFluff = equipItem(s, "fluffball", "pickaxe");
+    expect(equippedSlotsFor(tryFluff, "fluffball").weapon).toBeNull();
+    expect(tryFluff).toBe(s); // no-op returns the same state
+  });
+
+  it("unequipSlot returns a copy to the pool", () => {
+    let s = grantEquipment(newGame(), "pickaxe");
+    s = equipItem(s, "hero", "pickaxe");
+    expect(availableCount(s, "pickaxe")).toBe(0);
+    s = unequipSlot(s, "hero", "weapon");
+    expect(equippedSlotsFor(s, "hero").weapon).toBeNull();
+    expect(availableCount(s, "pickaxe")).toBe(1);
+  });
+
+  it("all pool helpers are pure", () => {
+    const s = grantEquipment(newGame(), "pickaxe");
+    const before = snapshot(s);
+    equipItem(s, "hero", "pickaxe");
+    unequipSlot(s, "hero", "torso");
+    grantEquipment(s, "stick");
+    expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("equip restrictions by tag", () => {
+  it("the frost feather is penguin-only", () => {
+    const s = grantEquipment(newGame(), "frostFeather");
+    // Joseph (human) is rejected.
+    expect(canEquip(s, "hero", "frostFeather")).toBe(false);
+    expect(equipItem(s, "hero", "frostFeather")).toBe(s); // no-op
+    // A penguin is accepted.
+    expect(rosterById("fluffball").tags).toContain("penguin");
+    expect(canEquip(s, "fluffball", "frostFeather")).toBe(true);
+    const worn = equipItem(s, "fluffball", "frostFeather");
+    expect(equippedSlotsFor(worn, "fluffball").weapon).toBe("frostFeather");
+  });
+
+  it("unrestricted gear equips on anyone", () => {
+    const s = grantEquipment(newGame(), "pickaxe");
+    expect(canEquip(s, "hero", "pickaxe")).toBe(true);
+    expect(canEquip(s, "slither", "pickaxe")).toBe(true);
+  });
+});
+
+describe("per-character equipment buffs", () => {
+  it("gear buffs whoever wears it (frost feather = +1 ATK / +1 SPD on a penguin)", () => {
+    const s = grantEquipment(newGame(), "frostFeather");
+    const bare = rosterById("fluffball").statsFor(s);
+    const worn = equipItem(s, "fluffball", "frostFeather");
+    const buffed = rosterById("fluffball").statsFor(worn);
+    expect(buffed.attack).toBe(bare.attack + 1);
+    expect(buffed.speed).toBe(bare.speed + 1);
+    // The hero, who isn't wearing it, is unaffected.
+    expect(heroStats(worn).attack).toBe(heroStats(s).attack);
+  });
+});
+
+describe("normalizeItemEquipment (save migration)", () => {
+  it("coerces the OLD boolean-ownership + single-loadout shape", () => {
+    const legacy = {
+      stick: true,
+      minersHat: true,
+      tshirt: true,
+      jeans: true,
+      flipFlops: true,
+      equipped: { hat: "minersHat", weapon: "stick", torso: "tshirt", legs: "jeans", shoes: "flipFlops" },
+    };
+    const { owned, equipped } = normalizeItemEquipment(legacy);
+    expect(owned).toEqual({ stick: 1, minersHat: 1, tshirt: 1, jeans: 1, flipFlops: 1 });
+    // The old single loadout becomes Joseph's.
+    expect(equipped.hero).toEqual({
+      hat: "minersHat",
+      weapon: "stick",
+      torso: "tshirt",
+      legs: "jeans",
+      shoes: "flipFlops",
+    });
+    expect(equipped.slither).toBeUndefined();
+  });
+
+  it("passes the NEW per-character pool shape through", () => {
+    const current = {
+      owned: { pickaxe: 2, frostFeather: 1 },
+      equipped: {
+        hero: { hat: null, weapon: "pickaxe", torso: "tshirt", legs: "jeans", shoes: "flipFlops" },
+        fluffball: { hat: null, weapon: "frostFeather", torso: null, legs: null, shoes: null },
+      },
+    };
+    const { owned, equipped } = normalizeItemEquipment(current);
+    expect(owned).toEqual({ pickaxe: 2, frostFeather: 1 });
+    expect(equipped.hero?.weapon).toBe("pickaxe");
+    expect(equipped.fluffball?.weapon).toBe("frostFeather");
+    // A non-hero's absent slots stay empty (not dressed in Joseph's outfit).
+    expect(equipped.fluffball?.torso).toBeNull();
+  });
+
+  it("newGame round-trips through the migration unchanged", () => {
+    const s = newGame();
+    const { owned, equipped } = normalizeItemEquipment(s.items);
+    expect(owned).toEqual(s.items.owned);
+    expect(equipped).toEqual(s.items.equipped);
   });
 });
 

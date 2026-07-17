@@ -237,6 +237,23 @@ let s = await waitFor(page, (x) => x.zoneKey === "crash", 8000);
 // ---------- Beat 1: crash site ----------
 check("New Game starts the crash site", s.zoneKey === "crash", JSON.stringify(s.active));
 
+// Joseph starts dressed: t-shirt/jeans/flip-flops OWNED (pool count 1 each) and
+// WORN by the HERO in their torso/legs/shoes slots; hat/weapon start empty.
+{
+  const it = s.state.items;
+  const eq = it.equipped.hero;
+  check(
+    "starts owning and wearing the default outfit",
+    it.owned.tshirt === 1 && it.owned.jeans === 1 && it.owned.flipFlops === 1 &&
+      eq.torso === "tshirt" && eq.legs === "jeans" && eq.shoes === "flipFlops" &&
+      eq.hat === null && eq.weapon === null,
+    JSON.stringify(it)
+  );
+}
+
+// The frost feather is a shared-pool item Joseph carries but can't wear (it's
+// penguin-only) — asserted after the crash pickup below.
+
 // Movement + walk animation still work.
 await page.waitForTimeout(600);
 s = await snapshot(page);
@@ -271,6 +288,11 @@ if (trig.length) {
 }
 s = await snapshot(page);
 check("frost feather awards XP", s.state.hero.xp >= 5, `xp=${s.state.hero.xp}`);
+check(
+  "frost feather drops one into the shared pool",
+  s.state.items.owned.frostFeather === 1,
+  `owned=${JSON.stringify(s.state.items.owned)}`
+);
 
 // ---------- Beat 2: oasis, deliberate defeat, then tutorial win ----------
 // The crash->oasis exit is a gated trigger; visit trigger rects until the zone changes.
@@ -472,10 +494,29 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
 
+// 2b) The stick sits just east of the bucket: grabbing it AUTO-EQUIPS into
+// the (empty) weapon slot — an instant +1 ATK, no menu step needed. The bucket
+// was a `once` interact and is filtered out after firing, so the stick is now
+// the sole remaining interact point (index 0).
+const stickPoint = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("shed");
+  return w["interactPoints"][0];
+});
+s = await walkUntilNear(page, "ArrowRight", stickPoint.x, stickPoint.y);
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check(
+  "the stick enters the pool and auto-equips to the hero's weapon slot",
+  s.state.items.owned.stick === 1 && s.state.items.equipped.hero.weapon === "stick",
+  `owned.stick=${s.state.items.owned.stick} weapon=${s.state.items.equipped.hero.weapon}`
+);
+
 // 3) Open the inventory window and equip the bucket from the EQUIPMENT tab
 // (the equip toggle moved there) — only an equipped item can be used out in
 // the world. Tabs run Inventory · Party · Skills · Equipment, so three taps
-// right lands on Equipment, where the bucket is the only (selected) row.
+// right lands on Equipment. Entries are grouped by slot (hat first), so the
+// bucket is row 0 (selected); Space equips it into the HAT slot.
 await tap(page, "KeyI");
 await page.waitForTimeout(250);
 let invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -484,10 +525,10 @@ await tap(page, "ArrowRight"); // -> Party
 await tap(page, "ArrowRight"); // -> Skills
 await tap(page, "ArrowRight"); // -> Equipment
 await page.waitForTimeout(150);
-await tap(page, "Space"); // equip the bucket
+await tap(page, "Space"); // equip the bucket (hat slot)
 await page.waitForTimeout(200);
 s = await snapshot(page);
-check("equipping the bucket on the Equipment tab equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
+check("equipping the bucket on the Equipment tab fills the hero's hat slot", s.state.items.equipped.hero.hat === "bucket", `equipped=${JSON.stringify(s.state.items.equipped)}`);
 await tap(page, "KeyI"); // close
 await page.waitForTimeout(250);
 invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -518,8 +559,8 @@ check(
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
     s.state.items.bucket === "empty" &&
-    s.state.items.equipped === "bucket",
-  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${s.state.items.equipped}`
+    s.state.items.equipped.hero.hat === "bucket",
+  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${JSON.stringify(s.state.items.equipped)}`
 );
 
 // ---------- Beat 3: the trail ----------
@@ -763,8 +804,10 @@ async function driveTriggersUntil(zone, pred, maxRounds = 3) {
       if (cur.zoneKey !== zone) return cur;
       await healUp(page);
       await teleport(page, r.x1, r.y1);
-      await page.waitForTimeout(500);
-      cur = await snapshot(page);
+      // Wait for the trigger's reaction rather than a fixed delay: some
+      // triggers only open their dialogue after a ~900ms tween (e.g. the reef
+      // warren chase), which races a hardcoded 500ms wait and flakes.
+      cur = await waitFor(page, (x) => x.dialogueOpen || x.battle || x.zoneKey !== zone, 2500);
       if (cur.dialogueOpen) await talkThrough(page, { pickIndex: 0 });
       await fightIfBattle(page, zone);
       cur = await snapshot(page);
@@ -794,6 +837,26 @@ async function exitTo(zone, target) {
 await talkAllNpcs("crevasse");
 s = await snapshot(page);
 check("Mo rescued in the crevasse", s.state.flags.minerMo === true, JSON.stringify(s.state.flags));
+
+// Mo's shop: once rescued he sells the miner's hat for 2 shinies. Top up the
+// purse, talk to him, take the "Buy" choice (index 0) and confirm the hat is
+// granted and the shinies spent.
+await page.waitForTimeout(2500); // let Mo finish walking to the camp corner
+const shiniesBeforeBuy = 3;
+await page.evaluate((n) => {
+  const st = window.__game.registry.get("act1");
+  window.__game.registry.set("act1", { ...st, items: { ...st.items, shinies: n } });
+}, shiniesBeforeBuy);
+const talkedMo = await talkToNpc(page, "crevasse", 0);
+check("can reopen dialogue with the rescued Mo", talkedMo === true);
+await talkThrough(page, { pickIndex: 0 }); // pick "Buy the miner's hat"
+s = await snapshot(page);
+check(
+  "buying the miner's hat from Mo adds it to the pool and spends 2 shinies",
+  s.state.items.owned.minersHat === 1 && s.state.items.shinies === shiniesBeforeBuy - 2,
+  `owned.minersHat=${s.state.items.owned.minersHat} shinies=${s.state.items.shinies}`
+);
+
 s = await exitTo("crevasse", "maze");
 check("crevasse leads to the ice maze", s.zoneKey === "maze");
 
@@ -1161,8 +1224,9 @@ check("Fluffball joins the party in the grove chamber", s.state.flags.fluffballJ
 if (s.zoneKey !== "groveChamber") s = await waitFor(page, (x) => x.zoneKey === "groveChamber", 8000);
 await page.screenshot({ path: path.join(root, "../act5-chamber-tree.png") }).catch(() => {});
 
-// Fluffball is a NON-COMBAT companion: joining must NOT change the battle
-// party. Force a grove encounter and confirm the party is hero + Slither only.
+// Fluffball is now a REAL combatant: joining adds him to the battle party.
+// Force a grove encounter and confirm the party is a three-strong
+// hero + Slither + Fluffball (the roster-driven 3-member layout).
 await page.evaluate(() => window.__game.scene.getScene("groveChamber").startBattle(["sunwasp"]));
 s = await waitFor(page, (x) => x.battle, 6000);
 check("a sunwasp guards the grove (Act 5 encounter starts)", s.battle === true);
@@ -1170,8 +1234,11 @@ const partyKeys = await page.evaluate(() =>
   Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
 );
 check(
-  "Fluffball is non-combat: the battle party stays hero + Slither only",
-  partyKeys.includes("hero") && partyKeys.includes("slither") && !partyKeys.includes("fluffball"),
+  "Fluffball fights: the Act 5 party is hero + Slither + Fluffball (3 members)",
+  partyKeys.length === 3 &&
+    partyKeys.includes("hero") &&
+    partyKeys.includes("slither") &&
+    partyKeys.includes("fluffball"),
   JSON.stringify(partyKeys)
 );
 await page.screenshot({ path: path.join(root, "../act5-sunwasp-fight.png") }).catch(() => {});
@@ -1255,8 +1322,9 @@ s = await exitTo("reefDescent", "reefGarden");
 check("the descent leads into the crawlers' garden", s.zoneKey === "reefGarden", `zone=${s.zoneKey}`);
 check("checkpoint updated to the crawlers' garden", s.state.zone === "reefGarden");
 
-// Zone 2 (garden): entry beat + a reef encounter that confirms Fluffball stays
-// NON-COMBAT (the party is hero + Slither, never Fluffball) — same as Act 5.
+// Zone 2 (garden): entry beat + a reef encounter that confirms Fluffball keeps
+// fighting (the party is the three-strong hero + Slither + Fluffball) — same as
+// Act 5, now that Fluffball is a real combatant.
 await healUp(page);
 s = await driveTriggersUntil("reefGarden", (x) => x.state.flags.sawReefGarden);
 check("the crawlers'-garden entry beat plays", s.state.flags.sawReefGarden === true, JSON.stringify(s.state.flags));
@@ -1274,8 +1342,11 @@ const reefParty = await page.evaluate(() =>
   Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
 );
 check(
-  "Fluffball stays non-combat in Act 6: the battle party is hero + Slither only",
-  reefParty.includes("hero") && reefParty.includes("slither") && !reefParty.includes("fluffball"),
+  "Fluffball keeps fighting in Act 6: the party is hero + Slither + Fluffball (3 members)",
+  reefParty.length === 3 &&
+    reefParty.includes("hero") &&
+    reefParty.includes("slither") &&
+    reefParty.includes("fluffball"),
   JSON.stringify(reefParty)
 );
 s = await fightThrough(page, { timeoutMs: 120_000 });

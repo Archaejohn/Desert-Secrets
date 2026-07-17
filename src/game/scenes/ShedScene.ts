@@ -4,9 +4,10 @@
  * Entirely optional; nothing here blocks the main storyline.
  */
 import { ZoneScene, TILE, type ZoneConfig } from "../ZoneScene";
-import { buildShedMap, SHED_BUCKET, SHED_NORTH_EXIT, SHED_SPAWN } from "../maps/shedMap";
+import { buildShedMap, SHED_BUCKET, SHED_NORTH_EXIT, SHED_SPAWN, SHED_STICK } from "../maps/shedMap";
 import { OASIS_SOUTH_SPAWN } from "../maps/oasisMap";
 import { getState, setState } from "../state";
+import { equipItem, grantEquipment, ownedCount } from "../../core/gameState";
 import { PALETTE } from "../../shared/palette";
 
 export class ShedScene extends ZoneScene {
@@ -43,6 +44,25 @@ export class ShedScene extends ZoneScene {
           const s = getState(this);
           setState(this, { ...s, items: { ...s.items, bucket: "empty" } });
           this.floatText(SHED_BUCKET.x * TILE + TILE / 2, SHED_BUCKET.y * TILE, "Got a bucket. Open the bag (I) to equip it.");
+        },
+        { once: true }
+      );
+    }
+
+    // A free starter weapon: pick up the stick and it goes straight into the
+    // (empty) weapon slot, so it's an equipped +1 ATK the instant you grab it.
+    if (ownedCount(getState(this), "stick") === 0) {
+      const stick = this.addProp("palmTrunk", SHED_STICK.x, SHED_STICK.y, { depthSort: true });
+      this.addInteractPoint(
+        SHED_STICK.x,
+        SHED_STICK.y,
+        () => {
+          stick.destroy();
+          // Add the stick to the pool, then equip it into Joseph's (empty)
+          // weapon slot — an instant +1 ATK the moment you grab it.
+          const withStick = grantEquipment(getState(this), "stick");
+          setState(this, equipItem(withStick, "hero", "stick"));
+          this.floatText(SHED_STICK.x * TILE + TILE / 2, SHED_STICK.y * TILE, "Got a stick! Equipped (+1 ATK).");
         },
         { once: true }
       );

@@ -3904,3 +3904,114 @@ profile, buff layering, the floor clamp, purity); `gameState.test.ts` (bare vs
 worn `heroStats`, maxHp untouched, JSON reload round-trip). Smoke updated: the
 keyboard e2e equips via the Equipment tab (three taps right) and asserts
 delivery leaves `bucket:"empty", equipped:"bucket"`.
+
+# v36: equipment grows to FIVE slots, new gear, and the miner-camp shops
+
+`items.equipped` stops being a single `EquipId | null` and becomes a
+**five-slot record** `EquipSlots = Record<"hat"|"weapon"|"torso"|"legs"|"shoes",
+EquipId | null>`. Each `Equipment` now declares a `slot`. `applyEquipmentBuffs`
+takes the whole record and **SUMS** every worn slot's deltas before clamping
+each combat stat to `STAT_FLOOR`. The bucket is now the `hat` slot (was the lone
+slot); the coop/spigot chore and the Hud readout check `equipped.hat ===
+"bucket"` (was `equipped === "bucket"`). `ZoneScene.onToggleEquip` swaps within
+the item's own slot (equipping replaces that slot; toggling the worn item empties
+it), so hat and weapon are independent.
+
+**New catalog entries** (`equipment.ts`): `stick` (weapon, +1 ATK), `minersHat`
+(hat, +1 DEF), `pickaxe` (weapon, +2 ATK), plus Joseph's default outfit —
+`tshirt` (torso), `jeans` (legs), `flipFlops` (shoes), all zero-buff plain
+clothes. Ownership: the bucket still reads off `items.bucket`; the rest get
+boolean item flags (`items.stick/minersHat/pickaxe/tshirt/jeans/flipFlops`).
+`newGame()` starts Joseph **owning and wearing** the three clothes
+(`defaultEquipSlots()` → hat/weapon null, torso/legs/shoes filled); `clone`
+deep-copies `equipped`. `normalizeEquipSlots(raw)` coerces any persisted shape
+(including the LEGACY single-slot string `"bucket"`) into a full record, defaulting
+missing slots to the starter outfit — `state.ts loadSavedState` runs it so a
+mid-session reload of an old save can't crash.
+
+**Equipment tab** now lists every OWNED equippable grouped by slot (`SLOT_LABEL`
+prefix, e.g. `Hat: Bucket` / `Weapon: Pickaxe`), each with its own "✓ worn"
+marker and a per-item buff preview (plain clothes read "No stat bonus.").
+
+**Stick pickup** (`ShedScene`): a `palmTrunk`-marked interact just east of the
+bucket; grabbing it sets `items.stick` AND auto-equips it to the empty weapon
+slot (instant +1 ATK). `SHED_STICK` added to `shedMap`.
+
+**Miner-camp shops** (`CrevasseScene` + `core/scripts/minerShop.ts`, pure
+scripts). Once rescued, **Mo** sells the miner's hat (`MINERS_HAT_PRICE = 2`) and
+**Gus** sells the pickaxe (`PICKAXE_PRICE = 3`). Same copy-and-strip pattern as
+Dusty: the "Buy" choice appears only when `canBuyEquip(s, price, owned)` (unowned
+AND affordable); on the `buy-end` node the scene runs `spendShinies` +
+`grantEquipment`. Buy logic is pure/tested (`gameState.ts`: `spendShinies`,
+`grantEquipment`, `canBuyEquip`; `OwnedEquipId`). Tests: `equipment.test.ts`
+(slots, buff-summing, normalizer, starter outfit), `gameState.test.ts` (new
+items shape, buy helpers, clone isolation), `minerShop.test.ts` (script validity,
+gating strip, 48-char budget). Smoke: asserts the starter outfit at newGame, the
+stick auto-equip, the bucket filling the hat slot, and buying Mo's hat.
+
+# v37: the party becomes a data-driven roster, and everyone fights (up to 4)
+
+The party is no longer "hero (+ Slither)". `src/core/roster.ts` is the single
+source of truth: a `ROSTER` of `RosterEntry` records (`hero`, `slither`,
+`fluffball`, `piggy`), each with a level-driven `statsFor`, `commandsFor`, an
+`available(state)` predicate (its unlock flag), equip-eligibility `tags`
+(`human`/`reptile`/`penguin`, for the gear system), and `cactusGuard`. Adding a
+member (Thomas in Part Two) is one appended entry — but note the coupling:
+raising the party size past four also needs `MAX_PARTY` bumped and a matching
+`PARTY_COLS` layout row in `BattleScene`.
+
+`activeParty(state)` derives the combat party (≤ `MAX_PARTY` = 4): it honours an
+explicit `state.selectedParty` ordered id list (which the **Part-Two swap UI**
+will set — the rocket-ship party management), filtered to currently-available
+members and capped at four; absent that, it's every available member in roster
+order (hero always leads). `partyFor` is now a thin alias for `activeParty`.
+`selectedParty?: RosterId[]` is an optional `Act1State` field (omitted by
+newGame, conditionally cloned; old saves default to derivation).
+
+**Fluffball and Piggy are now real combatants** (`fluffballStatsForLevel` /
+`piggyStatsForLevel` + `FLUFFBALL_COMMANDS` / `PIGGY_COMMANDS`), available on
+`fluffballJoined` / `piggyCaught`. This SUPERSEDES every earlier "Fluffball is
+non-combat" statement in this doc (v16–v19) and in scene comments. Companions
+are still stateless per battle — they enter at full HP each time, so only the
+hero tracks persistent HP between fights (that HP rationale still holds). On a
+party victory the hero is now revived to ≥1 HP, since a companion can land the
+winning blow while Joseph is down. `BattleScene` lays out 1–4 party members
+(`PARTY_COLS`). Tests: `roster.test.ts`, `progressionRoster.test.ts`.
+
+# v38: the Equipment tab becomes a per-character, near-fullscreen icon UI
+
+The Equipment tab is no longer the interim hero-only slot list (v35/v36). It's a
+bespoke, near-fullscreen PER-CHARACTER view (`src/game/ui/EquipmentPanel.ts`),
+which InventoryMenu mounts in place of its generic list/detail framework while
+that tab is up (and unmounts on tab-switch/close, resyncing state via
+`currentState()`). The STATUS window itself grew to ~456×250 to hold it, and the
+zone HUD is hidden while the window is open (it renders above the panel). Three
+columns, icons over words:
+
+- **LEFT** — a square sprite-button per member you have (`availablePartyIds`),
+  no names; the highlighted one is the character being dressed.
+- **MIDDLE** — the shared item POOL: every owned equippable as icon + free count
+  (`availableCount`, FF6-style = owned − equipped-across-everyone), `✓ worn` when
+  the selected member wears it, `locked` when a tag rule bars them (penguin-only
+  frost feather), `in use` when all copies are worn elsewhere.
+- **RIGHT** — the member's five slots (hat·weapon·torso·legs·shoes): the worn
+  item's icon + name, or a grayed slot-placeholder icon when empty, plus a live
+  buffed ATK/DEF/SPD readout.
+
+Input: ↑↓ move the pool cursor · ←→ change character · SPACE toggles the
+highlighted item on the current member (equip if free & eligible, unequip if
+that member already wears it — so the pool doubles as the unequip path). Touch
+taps a character button, a pool row (toggle), or a filled right-hand slot
+(unequip). `InventoryCallbacks` changed from the single hero-only `onToggleEquip`
+to per-character `onEquip(charId, id)` / `onUnequip(charId, slot)`, wired in
+`ZoneScene` straight onto the core `equipItem` / `unequipSlot` (the pool/tag
+rules already live there, so a restricted or none-free action is a safe no-op).
+
+New art: `gearIcons` — a 16×16, one-row-of-12 sheet
+(`tools/pipeline/src/sprites/gearIcons.ts`): 5 muted slot/class placeholders
+(hat·weapon·torso·legs·shoes) + 7 colour item icons (miner's hat·stick·pickaxe·
+t-shirt·jeans·flip-flops·frost feather); the bucket keeps its own fill-state
+sheet. The frame ORDER is the contract the UI indexes by
+(`src/game/ui/equipmentIcons.ts`); the sheet is sha256-pinned in
+`determinism.test.ts` ("gearIcons byte-stability"), so a reorder there fails a
+test — keep the two in lockstep, append never reorder.

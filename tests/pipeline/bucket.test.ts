@@ -132,6 +132,7 @@ describe("bucket manifest", () => {
         "rosa",
         "john",
         "pamela",
+        "thomas",
         "chicken",
         "bucket",
         "piggy",
@@ -157,7 +158,9 @@ describe("bucket manifest", () => {
         "testudo",
         // Phase S (sprites): the two appended sheets — see determinism.test.ts
         "dusty",
-        "sahra"
+        "sahra",
+        // v38: Equipment-tab icon set.
+        "gearIcons"
       ].sort()
     );
     // spot-check a couple of pre-existing entries are unaffected
