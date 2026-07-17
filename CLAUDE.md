@@ -47,6 +47,20 @@ named Piggy. Full design docs live in `docs/`:
   tested. Presentation lives in `src/game/` (Phaser scenes/UI).
 - Every zone map is BFS-verified reachable/enclosed in
   `tests/game/maps.test.ts`.
+- **The overworld ships as the flat top-down tilemap, NOT Mode-7.** It uses
+  the same tilemap renderer as every other zone, just zoomed out
+  (`OVERWORLD_FLAT_ZOOM` in `OverworldScene`) and drawn seam-free through
+  `ScaledGroundView` (`src/game/gfx/`, a single-texture LINEAR bake — see
+  CONTRACTS.md "v25"). The mountains are ordinary tilemap decor (the
+  `owMountains` rounded-corner autotile), **not** 3D and not standing
+  billboards. The **Mode-7** perspective renderer (`Mode7Ground.ts`,
+  `src/core/mode7.ts`, `Mode7Tuner.ts`, and the `owBillboards` standees) is a
+  **dev-only** option gated behind the `?mode7tune` URL flag (latched in
+  localStorage) — it stays fully intact and is fun to poke at, and it's
+  earmarked for a possible future vehicle sequence (rocketship / asteroid
+  flythrough), but it is NOT the shipped overworld. Don't assume, describe,
+  or "restore" the overworld as Mode-7; if you're unsure which view is live,
+  it's the flat one.
 - Verification bar before calling anything done: `tsc --noEmit`,
   `vitest run`, `npm run build`, `npm run smoke` (keyboard e2e),
   `npm run smoke:touch` (touch-emulated e2e).
@@ -56,5 +70,6 @@ named Piggy. Full design docs live in `docs/`:
   (`npm run pages`) as its own commit; keep the live Artifact republished
   at the same stable URL.
 - For large/novel subsystems, delegate to an Agent (Opus for the build,
-  independent review before merging) — established for the Mode-7
-  overworld renderer. Isolate risky parallel builds in a git worktree.
+  independent review before merging) — the pattern was established when the
+  Mode-7 renderer was built (a dev-only option now, see above). Isolate
+  risky parallel builds in a git worktree.
