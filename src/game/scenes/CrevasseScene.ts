@@ -18,7 +18,9 @@ import { minerMoScript } from "../../core/scripts/minerMo";
 import { getState, setState } from "../state";
 import { awardXp } from "../../core/gameState";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE } from "../../shared/palette";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 /** Camp chatter once a miner has been rescued. */
 const campScripts: Record<"mo" | "edda" | "gus", DialogueScript> = {
@@ -52,6 +54,8 @@ const campScripts: Record<"mo" | "edda" | "gus", DialogueScript> = {
 };
 
 export class CrevasseScene extends ZoneScene {
+  private lightMask: LightMask | null = null;
+
   constructor() {
     super("crevasse");
   }
@@ -74,6 +78,30 @@ export class CrevasseScene extends ZoneScene {
     const flags = getState(this).flags;
     if (flags.minerEdda) this.addCampMiner(CREVASSE_CAMP.edda, campScripts.edda);
     if (flags.minerGus) this.addCampMiner(CREVASSE_CAMP.gus, campScripts.gus);
+
+    this.setupIceLighting();
+  }
+
+  /**
+   * The ice-cave lighting: a cool ambient dark the party's lamp reveals,
+   * warm flickering amber on the lantern posts (as Mo says, "trust the amber
+   * lanterns"), and a cold blue pulse off the ice crystals so the ice reads
+   * as putting off its own light.
+   */
+  private setupIceLighting(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.indigo), alpha: 0.42 },
+      follow: this.player,
+      amber: this.tileCentersNamed("lanternPost"),
+      blue: [
+        ...this.tileCentersNamed("crystalBig"),
+        ...this.tileCentersNamed("crystalSmall").map((p) => ({ ...p, radius: 30 }))
+      ]
+    });
+  }
+
+  protected onUpdate(): void {
+    this.lightMask?.update();
   }
 
   /** Mo: in the dead-end pocket until rescued, at the camp afterwards. */

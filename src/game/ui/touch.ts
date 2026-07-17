@@ -1,19 +1,36 @@
 /**
  * Mobile affordances: a visible virtual joystick (appears where the thumb
- * lands on the left half), an action-button hint on the right, and a
- * fullscreen toggle. Pure presentation — ZoneScene still owns the input
- * logic; these just make it discoverable on a phone.
+ * lands on the left half), an action-button hint on the right, a fullscreen
+ * toggle (top-right), and an inventory button stacked directly beneath it.
+ * Pure presentation — ZoneScene still owns the input logic; these just make
+ * it discoverable on a phone.
  *
  * Note: the fullscreen button only appears where the Fullscreen API is
  * available (Android Chrome, desktop). iPhone Safari doesn't support it
  * for games; there, "Add to Home Screen" gives a standalone fullscreen app.
+ * Where fullscreen is absent, the inventory button takes the top-right slot
+ * itself rather than leaving a gap (see inventoryButtonY).
  */
 import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { addToUiLayer } from "../gfx/sceneUi";
 
+/** Baseline y of the top row of corner buttons, the vertical stride to the
+ *  next stacked button below it, and each button's tappable height (glyph box
+ *  ≈16px tall + a little slop). */
+const TOP_BUTTON_Y = 16;
+const BUTTON_ROW_STEP = 24;
+const BUTTON_HIT_H = 24;
+
 export function isTouchDevice(scene: Phaser.Scene): boolean {
   return scene.sys.game.device.input.touch;
+}
+
+/** The inventory button's y: under the fullscreen button when it's present,
+ *  otherwise the top-right slot itself. Shared by the button and its hit
+ *  zone so the two never drift apart. */
+export function inventoryButtonY(scene: Phaser.Scene): number {
+  return scene.scale.fullscreen.available ? TOP_BUTTON_Y + BUTTON_ROW_STEP : TOP_BUTTON_Y;
 }
 
 /** Top-right corner zone reserved for the fullscreen button. */
@@ -50,21 +67,23 @@ export function addFullscreenButton(scene: Phaser.Scene, y = 16): void {
   });
 }
 
-/** Top-left corner zone reserved for the inventory button. */
+/** Top-right corner zone reserved for the inventory button (stacked directly
+ *  under the fullscreen toggle). */
 export function inInventoryButtonZone(scene: Phaser.Scene, p: Phaser.Input.Pointer): boolean {
-  return p.x < 30 && p.y < 36;
+  const y = inventoryButtonY(scene);
+  return p.x > scene.scale.width - 30 && p.y >= y && p.y < y + BUTTON_HIT_H;
 }
 
-export function addInventoryButton(scene: Phaser.Scene, onTap: () => void, y = 16): void {
+export function addInventoryButton(scene: Phaser.Scene, onTap: () => void, y = inventoryButtonY(scene)): void {
   const btn = scene.add
-    .text(4, y, "🎒", {
+    .text(scene.scale.width - 4, y, "🎒", {
       fontFamily: "monospace",
       fontSize: "12px",
       color: PALETTE.sand,
       backgroundColor: "#24182799",
       padding: { x: 4, y: 2 }
     })
-    .setOrigin(0, 0)
+    .setOrigin(1, 0)
     .setScrollFactor(0)
     .setDepth(7000)
     .setInteractive({ useHandCursor: true });

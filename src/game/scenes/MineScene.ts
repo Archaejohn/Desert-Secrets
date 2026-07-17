@@ -21,6 +21,7 @@ import { DEPTHS_SPAWN } from "../maps/depthsMap";
 import { radioLines } from "../../core/scripts/radio";
 import { getState, setState } from "../state";
 import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
 
@@ -138,37 +139,16 @@ export class MineScene extends ZoneScene {
    * navigable on purpose — the lamp is generous and the darkness partial.
    */
   private setupTorchLighting(): void {
-    const mask = new LightMask(this, {
-      depth: 4000, // above actors/decor, below the HUD
-      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 }
-    });
-    // The player's lamp: a soft hole punched through the dark, following them.
-    mask.addLight({
-      follow: this.player,
-      radius: 116,
-      blend: "reveal",
-      stops: [
-        { offset: 0, color: 0xffffff, alpha: 1 },
-        { offset: 0.62, color: 0xffffff, alpha: 0.85 },
-        { offset: 1, color: 0xffffff, alpha: 0 }
-      ]
-    });
-    // A warm glow on each torch, flickering out of phase.
-    MINE_TORCHES.forEach((t, i) => {
-      mask.addLight({
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 },
+      follow: this.player, // the player's lamp reveals the dark as they move
+      // A warm glow on each torch (sat just above the post's base), flickering
+      // subtly out of phase.
+      amber: MINE_TORCHES.map((t) => ({
         x: t.x * TILE + TILE / 2,
-        y: t.y * TILE + TILE / 2 - 4, // sit the glow at the lamp, just above the post's base
-        radius: 60,
-        blend: "add",
-        pulse: { min: 0.72, max: 1, periodMs: 1500 + i * 130, phaseMs: i * 300 },
-        stops: [
-          { offset: 0, color: hexToInt(PALETTE.amber), alpha: 0.9 },
-          { offset: 0.5, color: hexToInt(PALETTE.clay), alpha: 0.4 },
-          { offset: 1, color: hexToInt(PALETTE.rust), alpha: 0 }
-        ]
-      });
+        y: t.y * TILE + TILE / 2 - 4
+      }))
     });
-    this.lightMask = mask;
   }
 
   protected onUpdate(): void {

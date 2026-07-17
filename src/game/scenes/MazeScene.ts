@@ -28,10 +28,13 @@ import { minerEddaScript } from "../../core/scripts/minerEdda";
 import { slitherMeetScript } from "../../core/scripts/slitherMeet";
 import { getState, setState } from "../state";
 import { awardXp, heroStats } from "../../core/gameState";
-import { PALETTE } from "../../shared/palette";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 export class MazeScene extends ZoneScene {
   private slitherPeek: Phaser.GameObjects.Sprite | null = null;
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("maze");
@@ -59,6 +62,29 @@ export class MazeScene extends ZoneScene {
     this.placeEdda();
     this.placeAmbush();
     this.placeRimeCrack();
+
+    this.setupIceLighting();
+  }
+
+  /**
+   * Ice-maze lighting: a cool ambient dark the party's lamp reveals, warm
+   * flickering amber on the lantern posts at the true junctions, and a cold
+   * blue pulse off the ice crystals.
+   */
+  private setupIceLighting(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.indigo), alpha: 0.42 },
+      follow: this.player,
+      amber: this.tileCentersNamed("lanternPost"),
+      blue: [
+        ...this.tileCentersNamed("crystalBig"),
+        ...this.tileCentersNamed("crystalSmall").map((p) => ({ ...p, radius: 30 }))
+      ]
+    });
+  }
+
+  protected onUpdate(): void {
+    this.lightMask?.update();
   }
 
   /** False lead 1: the shard cache — full heal + a little XP, once. */
