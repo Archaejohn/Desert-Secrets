@@ -1099,10 +1099,14 @@ describe("depths map (The Depths)", () => {
     expect(reachable(map, DEPTHS_SPAWN, rectTile(DEPTHS_SOUTH_EXIT))).toBe(true);
   });
 
-  it("builds the cold gallery: ice wall, spring, and an egg ring", () => {
-    // Solid ice along the whole north edge, plus the crack tiles as ice.
-    for (let x = 0; x < DEPTHS_WIDTH; x++) expect(map.ground[0][x]).toBe("iceWall");
-    for (const c of DEPTHS_CRACK) expect(map.decor[c.y][c.x]).toBe("iceWall");
+  it("builds the cold gallery: rock wall, spring, and an egg ring", () => {
+    // Solid rock along the whole north edge, and the crack tiles start as
+    // rock too — they collapse at the cliffhanger to reveal the ice behind
+    // (DepthsScene.crackWall), so nothing should read as ice in the map.
+    for (let x = 0; x < DEPTHS_WIDTH; x++) expect(map.ground[0][x]).toBe("mineWall");
+    for (const c of DEPTHS_CRACK) expect(map.decor[c.y][c.x]).toBe("mineWall");
+    expect(map.ground.flat()).not.toContain("iceWall");
+    expect(map.decor.flat()).not.toContain("iceWall");
     // Animated spring water.
     const groundFlat = map.ground.flat();
     expect(groundFlat).toContain("water");
