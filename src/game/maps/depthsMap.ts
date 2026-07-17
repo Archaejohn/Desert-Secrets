@@ -1,6 +1,7 @@
 /**
  * Zone 5 — The Depths. A cold gallery below the elevator: frost-rimed
- * mine floor, a glacial ice wall to the north, an underground spring
+ * mine floor, a solid rock gallery wall to the north (which hides a body of
+ * glacial ice until the cliffhanger cracks it open), an underground spring
  * (animated water) ringed by the Dust Queen's egg clusters, and the spot
  * where Act 1 ends. Piggy waits by the spring.
  */
@@ -23,7 +24,7 @@ export const DEPTHS_PIGGY = { x: 12, y: 6 } as const;
 export const DEPTHS_QUEEN = { x: 12, y: 9 } as const;
 /** Full-width approach band that triggers the confrontation. */
 export const DEPTHS_APPROACH = { x1: 1, y1: 10, x2: 24, y2: 10 } as const;
-/** Ice-wall tiles that crack open during the cliffhanger. */
+/** Rock-wall tiles that collapse during the cliffhanger, revealing the ice. */
 export const DEPTHS_CRACK = [
   { x: 17, y: 1 },
   { x: 18, y: 1 }
@@ -39,24 +40,28 @@ export function buildDepthsMap(): ZoneMap {
     ground.push([]);
     decor.push([]);
     for (let x = 0; x < DEPTHS_WIDTH; x++) {
-      // Frost is heaviest near the ice wall and the spring (the top).
+      // Frost is heaviest near the cold north wall and the spring (the top).
       const frosty = cellHash(x, y) % 14 < Math.max(0, 4 - Math.floor(y / 4));
       ground[y].push(frosty ? "frostSand" : "mineFloor");
       decor[y].push(null);
     }
   }
 
-  // Borders: glacial ice along the whole north edge, rock walls elsewhere.
+  // Borders: solid rock gallery wall all around. The north wall reads as
+  // ordinary rock — the glacial ice is behind it, hidden until the
+  // cliffhanger aftershock collapses the wall to reveal it.
   for (let x = 0; x < DEPTHS_WIDTH; x++) {
-    ground[0][x] = "iceWall";
+    ground[0][x] = "mineWall";
     ground[DEPTHS_HEIGHT - 1][x] = "mineWall";
   }
   for (let y = 1; y < DEPTHS_HEIGHT - 1; y++) {
     ground[y][0] = "mineWall";
     ground[y][DEPTHS_WIDTH - 1] = "mineWall";
   }
-  // Second course of ice below the north edge — the cliffhanger cracks it.
-  for (let x = 1; x < DEPTHS_WIDTH - 1; x++) decor[1][x] = "iceWall";
+  // Second course of rock below the north edge — the wall face the party sees.
+  // The cliffhanger collapses the DEPTHS_CRACK tiles here into rubble,
+  // exposing the blue glacial ice behind (see DepthsScene.crackWall).
+  for (let x = 1; x < DEPTHS_WIDTH - 1; x++) decor[1][x] = "mineWall";
 
   // The underground spring.
   for (let y = DEPTHS_POOL.y1; y <= DEPTHS_POOL.y2; y++) {

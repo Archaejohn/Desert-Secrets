@@ -3709,3 +3709,35 @@ it'd be wrong. First two wired:
 Remaining act boundaries (Act 4→5/5→6/6→7 descents = ladders; the Act 1→2 /
 2→3 end-card hand-offs need the beat inserted after the card, not at a walk-
 exit) are wired the same way as they're confirmed.
+
+# v32: the Depths cliffhanger wall is rock that collapses to reveal the ice
+
+2026-07-17. STORY_ACT1's cliffhanger reads "an aftershock splits the gallery
+**wall** — revealing a sheer face of **blue glacial ice**": the wall is solid
+rock and the ice is *behind* it, exposed only by the collapse. The map didn't
+match — it rendered `iceWall` along the whole north edge (plus a second
+`iceWall` course in decor row 1), so the ice was visible the entire fight and
+"Piggy runs through a crack in the wall" read as ice, not rock.
+
+Fix, in two parts:
+- **`depthsMap.ts`** — the north border and the decor row-1 face are now
+  `mineWall` (rock). No `iceWall` appears in the built map at all; the ice is
+  introduced purely at runtime by the collapse. (Both walls stay solid, so
+  enclosure/BFS are unchanged.)
+- **`DepthsScene.crackWall()`** — the collapse now: puts `iceWallCrack` at the
+  two `DEPTHS_CRACK` decor tiles (the exposed ice face; its dark indigo fissure
+  is the "something vast hangs dark inside"), `iceWall` in the ground row above
+  them (a taller ice face), and `scree` on the floor tile below each (the
+  fallen rock as rubble). The revealed ice gids weren't in the layer collision
+  set (never placed at build), so `crackWall` re-asserts collision on them —
+  the exposed ice is solid, the rubble (`scree`) is walkable so Piggy rests on
+  it at the wall's foot.
+
+"…and the ice should glow blue": `DepthsScene.addIceGlow()` hangs a base-less
+`LightMask` (add-blend, so it only *adds* light — no scene darkening) over the
+crack: a tall square-falloff footprint pulsing `skyBlue→slate→clear`, the same
+"ice wall" recipe as LightMaskDemo #3. It's created the moment the wall cracks
+(cliffhanger reveal) and in the epilogue reload state, and pulsed from a new
+`onUpdate()`. `cliffhanger.ts` is unchanged — the dialogue ("The far wall
+splits… and glows blue", "That's ice. A wall of it.") already described this;
+only the visuals were catching up to the words.
