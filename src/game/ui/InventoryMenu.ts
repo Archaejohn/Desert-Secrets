@@ -142,7 +142,7 @@ const TABS: TabDef[] = [
         const filled = items.bucket === "filled";
         out.push({
           label: filled ? "Bucket (full)" : "Bucket (empty)",
-          tag: items.equipped.hat === "bucket" ? "  ✓ worn" : "",
+          tag: items.equipped.hat === "bucket" ? "  ✓" : "",
           icon: { sheet: "bucket", frame: filled ? 1 : 0 },
           detailTitle: filled ? "Bucket (full)" : "Bucket (empty)",
           detailBody: filled
@@ -273,7 +273,7 @@ const TABS: TabDef[] = [
           const filled = item.id === "bucket" && s.items.bucket === "filled";
           out.push({
             label: `${SLOT_LABEL[slot]}: ${item.name}`,
-            tag: worn ? "  ✓ worn" : "",
+            tag: worn ? "  ✓" : "",
             equipId: item.id,
             icon: item.id === "bucket" ? { sheet: "bucket", frame: filled ? 1 : 0 } : undefined,
             detailTitle: worn ? `${item.name} (worn)` : item.name,
@@ -517,16 +517,17 @@ export class InventoryMenu {
     this.detailIcon = null;
 
     const textX = ICON_COL + 10;
-    const textW = (this.touch ? LIST_W - BTN_SIZE - 8 : LIST_W) - (textX - LIST_X);
     const visible = Math.min(MAX_ROWS, this.entries.length);
     for (let r = 0; r < visible; r++) {
       const rowY = CONTENT_TOP + r * ROW_H;
+      // No wordWrap: each row is strictly one line so a slot-prefixed label
+      // plus its "✓" marker can never wrap into (and overlap) the row below.
+      // Labels are kept short enough to fit the list column on one line.
       const t = this.scene.add
         .text(textX, rowY + ROW_H / 2, "", {
           fontFamily: "monospace",
           fontSize: "9px",
-          color: PALETTE.bone,
-          wordWrap: { width: textW }
+          color: PALETTE.bone
         })
         .setOrigin(0, 0.5);
       this.container.add(t);
