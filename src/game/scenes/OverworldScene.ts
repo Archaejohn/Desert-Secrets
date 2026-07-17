@@ -25,6 +25,7 @@ import { ZoneScene, type ZoneConfig } from "../ZoneScene";
 import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
 import { Mode7Tuner } from "../gfx/Mode7Tuner";
 import { FlatZoomTuner } from "../gfx/FlatZoomTuner";
+import { ScaledGroundView } from "../gfx/ScaledGroundView";
 import { MANIFEST } from "../manifest";
 import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
@@ -65,6 +66,7 @@ export class OverworldScene extends ZoneScene {
   private avatarAnimKey = "";
   private tuner: Mode7Tuner | null = null;
   private flatZoomTuner: FlatZoomTuner | null = null;
+  private scaledGround: ScaledGroundView | null = null;
 
   constructor() {
     super("overworld");
@@ -114,8 +116,23 @@ export class OverworldScene extends ZoneScene {
     this.cameras.main.setZoom(OVERWORLD_FLAT_ZOOM);
     if (mode === "mode7") {
       this.setupMode7();
-      if (this.mode7) this.cameras.main.setZoom(1);
-    } else if (mode === "flat") {
+      if (this.mode7) {
+        this.cameras.main.setZoom(1);
+        return; // Mode-7 renders its own ground; the flat bake stays off.
+      }
+      // Mode-7 setup failed (no WebGL / shader error): fall through to the
+      // flat zoomed view, which is exactly the shipped default below.
+    }
+    // Flat view (the shipped default, and the Mode-7 fallback): render the
+    // ground through the shared seam-free scaled-view component rather than
+    // the live tilemap layers, since this is the one zone drawn zoomed out
+    // at a fractional zoom (see ScaledGroundView for the full why).
+    this.scaledGround = new ScaledGroundView(this, [this.groundLayer, this.decorLayer], GROUND_DEPTH);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scaledGround?.destroy();
+      this.scaledGround = null;
+    });
+    if (mode === "flat") {
       this.flatZoomTuner = new FlatZoomTuner(this, OVERWORLD_FLAT_ZOOM, (zoom) =>
         this.cameras.main.setZoom(zoom)
       );

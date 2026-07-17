@@ -3471,3 +3471,46 @@ and a connected play path (from the south/entry spawn you can reach both exits
 and the mine-side spawn). The editor's connectivity overlay mirrors that play-
 path check rather than raw reachability, so an intentional outside reads as
 "ok" and only a genuinely cut-off stop warns.
+
+# v25: the flat overworld bakes its ground to one texture (seam fix)
+
+2026-07-17. The flat overworld showed faint horizontal lines that flashed
+on and off as you moved — a rendering artifact, not map data. Root cause:
+the overworld is the ONLY zone drawn at a *fractional* camera zoom
+(`OVERWORLD_FLAT_ZOOM = 0.7`); every other zone renders at integer zoom 1.
+At zoom 1 each 16px tile quad is NEAREST-sampled 1:1, exact and seam-free.
+At 0.7 each tile minifies to ~11px, so whole source rows/columns get
+dropped by the NEAREST sampler — and *which* ones drop shifts every
+sub-pixel scroll step, flashing dark tile-edge pixels in and out (verified:
+the seam rows are darker adjacent-tile content, NOT the background showing
+through a geometric gap — a magenta-background probe found 0% background
+pixels on the seam rows). `roundPixels` on/off made no difference; only
+integer zoom removed it, confirming minification aliasing as the cause.
+
+**Fix (`ScaledGroundView`, `src/game/gfx/`).** A shared component every
+zone can use: it composites the below-actor tile layers (ground + decor)
+ONCE into a single `RenderTexture` sized to the map and draws that in their
+place, `LINEAR`-filtered; the live layers stay put but invisible, still
+driving collision. Two things had to be true together: (1) baking to one
+contiguous texture removes the packed-tileset atlas boundaries, so LINEAR
+can't bleed one tile into its neighbour the way it does on the shared
+`tiles*`/`owMountains` sheets (plain LINEAR on the atlases produces a full
+GRID of bleed lines — worse); (2) LINEAR then resamples that one image
+smoothly and, crucially, *stably* as the camera scrolls, so no rows flash.
+Same single-texture idea Mode-7 already uses (`Mode7Ground.paintGroundTexture`
+bakes the whole map to one canvas texture). The RT sits at `GROUND_DEPTH`
+(below the y-sorted player, NPCs and shadows). Player sprite, HUD and hint
+text are unaffected — they render as their own quads through the same camera
+and stay crisp.
+
+`OverworldScene` is the only caller today (the only zone drawn zoomed out at
+a *fractional* zoom); integer-zoom zones are seam-free already and a LINEAR
+bake would only soften them, so they keep the plain `ZoneScene` tilemap path
+untouched. The component is the deliberate seam of abstraction for later map
+growth: the whole-map bake is O(map) and caps at the GPU max texture size
+(~4096px on mobile — a 256×256-tile map; up to 16384 on desktop), well above
+the 64×64 (1024px) overworld. When a map outgrows that, a moving-window
+re-bake (bake only the visible window + margin, re-bake as the camera crosses
+a threshold — O(viewport), any size) drops in *inside* `ScaledGroundView`
+with no change to callers. Live chunk streaming (load/unload) is a separate,
+later concern this render path makes possible but Part One does not need.
