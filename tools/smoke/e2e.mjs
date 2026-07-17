@@ -472,16 +472,22 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
 
-// 3) Open the inventory window and equip the bucket — only an equipped
-// item can be used out in the world.
+// 3) Open the inventory window and equip the bucket from the EQUIPMENT tab
+// (the equip toggle moved there) — only an equipped item can be used out in
+// the world. Tabs run Inventory · Party · Skills · Equipment, so three taps
+// right lands on Equipment, where the bucket is the only (selected) row.
 await tap(page, "KeyI");
 await page.waitForTimeout(250);
 let invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
 check("inventory window opens on I", invOpen === true);
-await tap(page, "Space"); // the bucket is the only (selected) row
+await tap(page, "ArrowRight"); // -> Party
+await tap(page, "ArrowRight"); // -> Skills
+await tap(page, "ArrowRight"); // -> Equipment
+await page.waitForTimeout(150);
+await tap(page, "Space"); // equip the bucket
 await page.waitForTimeout(200);
 s = await snapshot(page);
-check("selecting the bucket in the inventory equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
+check("equipping the bucket on the Equipment tab equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
 await tap(page, "KeyI"); // close
 await page.waitForTimeout(250);
 invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -500,8 +506,9 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("filling the equipped bucket at the spigot sets its state to filled", s.state.items.bucket === "filled");
 
-// 5) Deliver it to the coop: completes the chore, awards XP, spends and
-// un-equips the bucket.
+// 5) Deliver it to the coop: completes the chore and awards XP. The bucket is
+// wearable headgear as well as a chore tool, so delivery only EMPTIES the pail
+// (filled -> empty) — Joseph keeps it and it stays equipped, buff and all.
 await standAt(page, "oasis", coopPointBefore.x, coopPointBefore.y);
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
@@ -510,8 +517,8 @@ check(
   "delivering the full bucket completes the chore and awards bonus XP",
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
-    s.state.items.bucket === "none" &&
-    s.state.items.equipped === null,
+    s.state.items.bucket === "empty" &&
+    s.state.items.equipped === "bucket",
   `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${s.state.items.equipped}`
 );
 
@@ -626,6 +633,13 @@ for (const t of mineTrigs) {
 }
 check("lever pulled", s.state.flags.leverPulled === true, JSON.stringify(s.state.flags));
 check("Foreman defeated", s.state.flags.foremanDefeated === true, JSON.stringify(s.state.flags));
+// The foreman room is where Thomas's broken transmission first cuts in (a
+// one-time beat, guarded by heardThomasMine) — confirm it actually fired.
+check(
+  "Thomas's first transmission reached Joseph in the mine",
+  s.state.flags.heardThomasMine === true,
+  JSON.stringify(s.state.flags)
+);
 
 // Elevator down.
 const mineExitsToDepths = await page.evaluate(() => {
@@ -692,12 +706,18 @@ s = await snapshot(page);
 check("act completes (cliffhanger played)", s.state.flags.actComplete === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../end-card.png") }).catch(() => {});
 
-// End card → SPACE descends into Act 2 keeping all progress.
+// No auto-teleport: after the cliffhanger the ice glows as a doorway and the
+// player keeps control — the act must NOT end on its own.
 const xpBeforeAct2 = s.state.hero.xp;
+check("no auto-teleport: still in the depths after the cliffhanger", s.zoneKey === "depths", `zone=${s.zoneKey}`);
+// Follow Piggy INTO the glowing ice (the walk-in that rolls the end card).
+await teleport(page, 17, 2);
+await page.waitForTimeout(500);
+// End card → SPACE descends into Act 2 keeping all progress.
 await tap(page, "Space");
 s = await waitFor(page, (x) => x.zoneKey === "crevasse", 8000);
 check(
-  "act 1 end card hands off to the crevasse with progress kept",
+  "following Piggy into the ice rolls the end card, then hands off to the crevasse with progress kept",
   s.zoneKey === "crevasse" && s.state.flags.act2Started === true && s.state.hero.xp === xpBeforeAct2,
   `zone=${s.zoneKey} xp=${s.state?.hero?.xp}`
 );
@@ -1462,11 +1482,35 @@ check(
 await page.waitForTimeout(700);
 await page.screenshot({ path: path.join(root, "../act7-endofpartone.png") }).catch(() => {});
 
-// The END OF PART ONE card → back to the title (Part Two isn't built yet).
+// The END OF PART ONE card → hands off into the Part Two opening cutscene
+// (Joseph and Thomas finally connecting over the radio).
+await tap(page, "Space");
+const atPartTwo = await waitFor(page, (x) => x.active?.includes("partTwoOpening"), 9000);
+check(
+  "the END OF PART ONE card hands off into the Part Two opening cutscene",
+  atPartTwo.active?.includes("partTwoOpening") === true,
+  JSON.stringify(atPartTwo.active)
+);
+
+// The cutscene plays its four radio lines; advance through them.
+const cutsceneDialogueOpen = () =>
+  page.evaluate(() => window.__game.scene.getScene("partTwoOpening")?.dialogue?.isOpen ?? false);
+let linesSeen = 0;
+for (let i = 0; i < 12; i++) {
+  if (!(await cutsceneDialogueOpen())) break;
+  linesSeen++;
+  await tap(page, "Space");
+  await page.waitForTimeout(200);
+}
+check("the Part Two opening plays its four radio lines", linesSeen >= 4, `saw ${linesSeen}`);
+
+// The "to be continued" beat → SPACE returns to the title (Part Two's rest
+// isn't built yet).
+await page.waitForTimeout(200);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
 check(
-  "the END OF PART ONE card returns to the title (a deliberate cliffhanger)",
+  "the Part Two opening returns to the title (rest of Part Two not built yet)",
   backAtTitle.active?.includes("boot") === true,
   JSON.stringify(backAtTitle.active)
 );

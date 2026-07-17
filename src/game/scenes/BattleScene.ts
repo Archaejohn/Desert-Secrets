@@ -19,11 +19,13 @@ import {
   applyBattleResult,
   awardXp,
   choosePerk,
+  grantShiny,
   partyFor,
   respawn,
   type Act1State,
   type ZoneId
 } from "../../core/gameState";
+import { DROP_LABELS, rollDrop } from "../../core/drops";
 import { getState, setState } from "../state";
 import { addFullscreenButton, inFullscreenButtonZone, isTouchDevice, TouchListButtons } from "../ui/touch";
 import { PALETTE, hexToInt } from "../../shared/palette";
@@ -806,11 +808,19 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(500, () =>
       this.floatText(this.scale.width / 2, 100, `+${xp} XP`, PALETTE.atbGold)
     );
+    // Roll the random drop up front (off the battle's own seeded RNG, never
+    // Math.random) so it folds into the same state write as the XP award,
+    // whichever victory branch is taken. Bosses never drop (scripted rewards).
+    const drop = rollDrop(this.rng, this.sceneData.group, this.sceneData.boss);
     this.time.delayedCall(1500, () => {
       const { state, levelsGained } = awardXp(getState(this), xp);
       let cur = state;
       if (this.sceneData.victoryFlag) {
         cur = { ...cur, flags: { ...cur.flags, [this.sceneData.victoryFlag]: true } };
+      }
+      if (drop === "shiny") {
+        cur = grantShiny(cur);
+        this.floatText(this.scale.width / 2, 128, `Found ${DROP_LABELS[drop]}!`, PALETTE.atbGold);
       }
       if (levelsGained > 0) {
         // Level-up already fully healed in core — keep that heal.

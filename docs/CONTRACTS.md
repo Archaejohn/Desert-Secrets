@@ -3741,3 +3741,166 @@ crack: a tall square-falloff footprint pulsing `skyBlue→slate→clear`, the sa
 `onUpdate()`. `cliffhanger.ts` is unchanged — the dialogue ("The far wall
 splits… and glows blue", "That's ice. A wall of it.") already described this;
 only the visuals were catching up to the words.
+
+# v33: John/Pamela split into two NPCs, the Thomas radio thread, Part Two opening
+
+2026-07-17. Three linked pieces of story plumbing, all additive.
+
+**John and Pamela are now two separate NPCs, two separate voices.** They used
+to share one tangled `homeAct1Script` (a Thomas/chickens/scarabs/goodbye hub
+with both parents interleaved). `scripts/homeAct1.ts` now exports
+`johnAct1Script` and `pamelaAct1Script`, split along the CLAUDE.md dialogue
+lanes:
+- **John** owns the scarabs/mystery-bug thread and outdoor sightings (he spots
+  Piggy heading east at dawn), hands Joseph the hand radio and points him at
+  Thomas, and keeps the frost-on-the-flats hint. His hub: scarabs / Thomas /
+  goodbye. He explains "scarab" is a local nickname — no off-world hint (that's
+  Part 3).
+- **Pamela** owns the chickens/chores thread (the bucket fetch-quest: shed →
+  spigot → trough). Her hub: chickens / goodbye.
+
+`OasisScene` `addNpc`s them with their own scripts (John is `npcs[0]`); both
+still share `onCloseParent`, so closing EITHER the first time sets `metParents`
+and starts the tutorial scarab battle — unchanged progression.
+
+**The Thomas radio thread** (`scripts/thomas.ts`), a Part-One-long one-way
+through-line seeding Part Two. Thomas carries the twin of John's hand radio;
+his voice breaks in, garbled at first and clearing as Joseph closes the
+distance. Joseph always calls back, but nothing gets through.
+- First contact is `thomasMineScript`, a one-time broken transmission in the
+  mine's foreman room. `MineScene` fires it from a dedicated trigger on the
+  elevator chamber's west-edge column (x=23, one tile before the foreman's
+  challenge band at x=24-25, so the two beats never stack), guarded by the new
+  `heardThomasMine` flag.
+- The later sporadic catches are `THOMAS_FRAGMENTS`, an ordered escalating
+  list, each gated by its own flag (`thomasFrag1..3`). `nextThomasFragment(flags)`
+  returns the first unheard one. A reusable `ZoneScene.playNextThomas()` plays
+  it and marks it heard; it's safe to call from inside another script's
+  `onClose` (DialogueBox nulls its runner before firing the callback, so
+  re-opening just starts the next box). Hooked into three existing key beats,
+  after each beat's own dialogue closes: **Act 3** `SeaAscentScene` climb beat,
+  **Act 5** `GroveDescentScene` arrival beat, **Act 7** `PizzaAscentScene`
+  arrival beat (the clearest fragment, right before the finale).
+
+**The Part Two opening cutscene** (`PartTwoOpeningScene`, script
+`scripts/partTwoOpening.ts`). A self-contained non-zone scene mirroring the
+end-card scenes: a dark backdrop, Joseph lying with Piggy/Fluffball/Slither on
+one side and Thomas (drawn with the generic `npc` sheet — no new art) on the
+other, a radio link between them, and a `DialogueBox` playing the four exact
+scripted lines, then a "to be continued" beat back to the title. It's wired as
+the finale hand-off: `PizzaAscentScene`'s END OF PART ONE card now advances
+into it (SPACE), setting `partTwoStarted`, instead of jumping straight to the
+title; the cutscene clears the save at its own end (the rest of Part Two isn't
+built). Registered in `main.ts`.
+
+New flags live in `gameState.ts`'s `PART2_FLAGS` (`heardThomasMine`,
+`thomasFrag1..3`, `partTwoStarted`), all false at `newGame()`. Tests:
+`scriptsAct1.test.ts` covers the two split scripts (voice separation, lane
+content, hubs), the Thomas mine/fragment scripts (one-way, escalating, ordered
+consumption) and the four Part Two lines; `gameState.test.ts` includes the new
+flags. Smoke: `e2e.mjs` drives the finale → Part Two cutscene → four lines →
+title; `touch-e2e.mjs` still talks to John (`npcs[0]`) through his choice hub.
+
+# v34: tabbed inventory/status window, random battle drops, and the shiny economy
+
+Three linked changes: the inventory window becomes a tabbed status screen,
+battle victories can drop items, and shinies finally have a source and a sink
+so Dusty's "Pay a shiny" branch is reachable.
+
+**The tabbed window** (`src/game/ui/InventoryMenu.ts`, a full rewrite). A row
+of tab chips across the top; the active tab's entries scroll in a list down the
+**left**; the highlighted entry's details (icon, title, flavor/stats) show in a
+panel on the **right**. Tabs are **data-driven** — a module-level `TabDef[]`,
+each with `{ id, title, emptyText, build(state) }`. `build` returns the tab's
+`Entry[]`; an `Entry` carries `{ label, tag?, icon?, detailTitle, detailBody,
+activate? }`. The framework (tab switching, list scroll, highlight, detail
+render, keyboard/touch input) is tab-agnostic — **adding a tab is adding one
+`TabDef`**. Crucially `activate` lives on the ENTRY, not the tab, so the
+bucket's equip toggle is just an entry action; the planned **4th "Equipment"
+tab** slots in by adding a `TabDef` and moving the bucket entry's `build()`
+across — no framework change. Three tabs ship: **Inventory** (bucket first — so
+the smoke test's open-and-SPACE still equips it — then coldPack, silverfin,
+stinky socks, oranges, mint kelp, shinies×N, each with a description),
+**Party** (Joseph always with Lv + HP/ATK/DEF/SPD; Piggy once `piggyCaught`;
+Fluffball once `fluffballJoined`; Slither once `slitherJoined` — portraits
+reuse the existing `hero`/`piggy`/`fluffball`/`slither` sheets, no new art),
+and **Skills** (the hero's chosen `PERKS`). Input mirrors PerkMenu: the menu
+owns its keyboard + pointer handlers and tears them down on close. Keyboard —
+↑↓/W,S move, ←→/Q,E switch tabs, SPACE/ENTER use, ESC/I close. Touch — tap a
+chip, the reused `TouchListButtons` ▲/✓/▼ column moves+uses, ✕ closes.
+`ZoneScene.openInventory()` now passes the full `Act1State` plus an
+`InventoryCallbacks` (`onToggleBucket`, `onClose`) instead of just items.
+
+**Random battle drops** (`src/core/drops.ts`, pure + tested). `rollDrop(rng,
+group, boss)` returns a `DropId | null` off the battle's own seeded RNG (never
+`Math.random`). A `DROP_CHANCE` gate (0.3) then a weighted `DROP_TABLE` pick;
+today the table is a single `shiny` entry, shaped so a rarer entry (e.g. a heal
+item) drops in without touching the roll logic. Bosses and empty groups never
+drop (scripted rewards). `BattleScene.handleVictory` rolls once up front and
+folds a `shiny` into the same state write as the XP award (via
+`gameState.grantShiny`), on either the level-up or the no-level branch, and
+floats a "Found a shiny!" toast. This is the main faucet feeding the economy.
+
+**The shiny economy.** `gameState.ts` gains pure `grantShiny`/`spendShiny`
+(clamped at zero) and a new `ACT1_FLAGS` entry `pamelaShiny`. Pamela's greeting
+now hands Joseph his first shiny ("found this out by the coop" — her chores/coop
+lane); `OasisScene` grants it once on her dialogue close, guarded by
+`pamelaShiny`, then runs the shared parent beat. Dusty's "Pay a shiny" branch,
+previously always shown but with nothing to spend, is now gated in
+`TrailScene.placeDusty` with the same copy-and-strip pattern as the jackrabbit:
+with no shiny the hub offers only "Not right now"; the paid `truth-end` branch
+spends one shiny in `onClose`. Dusty still opens the mine on any close (existing
+behavior the smoke relies on). Tests: `drops.test.ts` (boss/empty suppression,
+determinism, rate band, labels); `gameState.test.ts` (grant/spend purity,
+clamp, round-trip, flag count now 18); `scriptsAct1.test.ts` (Pamela's shiny
+line, the Dusty strip → single "Not right now" → later-end).
+
+# v35: equipment + stat buffs, and the 4th "Equipment" inventory tab
+
+The bucket stops being purely a chore prop and becomes the first piece of
+wearable gear. Three parts: a pure equipment/buff model, the buff spliced into
+battle stats, and a new inventory tab that owns the equip toggle.
+
+**The model** (`src/core/equipment.ts`, pure + tested). A catalog `EQUIPMENT`
+of equippables, each `{ id: EquipId, name, description, buffs }` where `buffs`
+is a `Partial<Pick<Stats,"attack"|"defense"|"speed">>` of stat deltas (may be
+negative). The bucket ships first, per spec: worn as headgear it grants **+2
+DEF, -1 SPD**. `applyEquipmentBuffs(stats, equipped)` layers the equipped item's
+deltas onto base build stats, clamping each buffed combat stat to `STAT_FLOOR`
+(=1) so a debuff can never floor a stat below a sane minimum; it's pure and
+returns a fresh `Stats`. `equipmentById(id)` is the id→item lookup (null-safe).
+Buffs deliberately **exclude maxHp** — the hp pool and its heal accounting live
+on the build (`statsForBuild`), so equipment stays out of that math and
+`heroStats` is the single safe splice point.
+
+**Into battle.** `gameState.heroStats(s)` now returns
+`applyEquipmentBuffs(statsForBuild(s.hero), s.items.equipped)` (hp still clamped
+to current hp). Since `partyFor` and the Party status tab both read the hero
+through `heroStats`, battle, the party screen and the equip preview all see one
+consistent buffed block. `statsForBuild` (build-only) is unchanged, so the
+heal/respawn paths that key off maxHp are untouched — the bucket doesn't move
+maxHp anyway.
+
+**The Equipment tab** (`InventoryMenu.ts`, now four `TabDef`s: Inventory ·
+Party · Skills · Equipment). The tab lists held equippables (the bucket once
+picked up), shows a name/flavor/`ATK/DEF/SPD` buff preview in the detail panel,
+marks the worn item with "✓ worn", and its `activate` toggles the equip. The
+old bucket-by-title-prefix (`startsWith("Bucket")`) is gone: entries now carry a
+stable `equipId?: EquipId`, and `buildEntries` wires the equip action off THAT,
+never off display text. The equip toggle **moved out of the Inventory tab** (it
+still lists the bucket as a held item, no action) into Equipment.
+`ZoneScene.openInventory` passes `onToggleEquip(id)` (was `onToggleBucket`).
+
+**Bucket-as-tool vs bucket-as-armor (the reconciliation).** The two axes are
+kept orthogonal: the equip slot (`items.equipped`) is independent of the
+fill-state (`items.bucket`: none/empty/filled). Equipping grants the buff
+regardless of fill-state; the chicken-chore (fill at the spigot, deliver at the
+coop) still requires the bucket equipped and works while it's worn. The chore
+**no longer destroys the bucket**: delivery used to clear `bucket:"none",
+equipped:null`; it now only empties the pail (`filled → empty`) and leaves it
+equipped, so Joseph keeps a wearable, buff-granting bucket after the chore
+(`OasisScene` coop delivery). Tests: `equipment.test.ts` (catalog, the bucket
+profile, buff layering, the floor clamp, purity); `gameState.test.ts` (bare vs
+worn `heroStats`, maxHp untouched, JSON reload round-trip). Smoke updated: the
+keyboard e2e equips via the Equipment tab (three taps right) and asserts
+delivery leaves `bucket:"empty", equipped:"bucket"`.

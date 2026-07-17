@@ -16,6 +16,7 @@ import {
   type HeroBuild,
   type PerkId,
 } from "./progression";
+import { applyEquipmentBuffs, type EquipId } from "./equipment";
 import type { Stats } from "./atb";
 
 export type ZoneId =
@@ -67,6 +68,7 @@ export const ACT1_FLAGS = [
   "gotColdPack",
   "metParents",
   "choresDone",
+  "pamelaShiny",
   "tutorialBattleWon",
   "chip1",
   "chip2",
@@ -202,6 +204,25 @@ export const ACT7_FLAGS = [
   "partOneComplete",
 ] as const;
 
+/**
+ * Part Two seeds, sprinkled through Part One: the Thomas radio thread and the
+ * hand-off into Part Two. Thomas — the friend Joseph keeps just missing —
+ * carries the twin of John's hand radio; his voice breaks in one-way at key
+ * beats, garbled at first and clearing as Joseph closes the distance (see
+ * `scripts/thomas.ts`). `heardThomasMine` is first contact (the mine's foreman
+ * room); `thomasFrag1..3` are the sporadic later catches (Act 3 ascent, Act 5
+ * descent, the final climb up); `partTwoStarted` records the crossing into the
+ * Part Two opening — a persisted breadcrumb, not read yet (Part Two, once
+ * built, will consume it). All false at newGame().
+ */
+export const PART2_FLAGS = [
+  "heardThomasMine",
+  "thomasFrag1",
+  "thomasFrag2",
+  "thomasFrag3",
+  "partTwoStarted",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -214,7 +235,7 @@ export interface Act1State {
     coldPack: boolean;
     shinies: number;
     bucket: BucketState;
-    equipped: "bucket" | null;
+    equipped: EquipId | null;
     /** Act 3: the silverfin caught in the Sunless Sea (Piggy's favorite). */
     silverfin: boolean;
     /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
@@ -236,6 +257,7 @@ export function newGame(): Act1State {
   for (const f of ACT5_FLAGS) flags[f] = false;
   for (const f of ACT6_FLAGS) flags[f] = false;
   for (const f of ACT7_FLAGS) flags[f] = false;
+  for (const f of PART2_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },
@@ -269,9 +291,16 @@ function clone(s: Act1State): Act1State {
   };
 }
 
-/** Full build stats with hp clamped to the state's current hp. */
+/**
+ * Full build stats — with any equipped gear's buffs layered on
+ * (`items.equipped`) — and hp clamped to the state's current hp. This is the
+ * single splice point where equipment reaches battle: `partyFor` and the
+ * status screen both read the hero through here. (Equipment only touches
+ * combat stats, not maxHp, so the hp/heal accounting on `statsForBuild`
+ * stays authoritative — see equipment.ts.)
+ */
 export function heroStats(s: Act1State): Stats {
-  const stats = statsForBuild(s.hero);
+  const stats = applyEquipmentBuffs(statsForBuild(s.hero), s.items.equipped);
   return { ...stats, hp: Math.min(s.hp, stats.maxHp) };
 }
 
@@ -345,6 +374,26 @@ export function choosePerk(s: Act1State, perk: PerkId): Act1State {
   next.hero.perks.push(perk);
   next.pendingPerks = s.pendingPerks - 1;
   next.hp = s.hp + (statsForBuild(next.hero).maxHp - before);
+  return next;
+}
+
+/**
+ * Grant one shiny (the tradeable trinket). Pure. Pamela hands Joseph his
+ * first; battle drops add more; Dusty spends them. See spendShiny.
+ */
+export function grantShiny(s: Act1State): Act1State {
+  const next = clone(s);
+  next.items.shinies = s.items.shinies + 1;
+  return next;
+}
+
+/**
+ * Spend one shiny, clamped at zero (never goes negative). Pure. Dusty's
+ * "Pay a shiny" branch calls this; callers gate the branch on shinies > 0.
+ */
+export function spendShiny(s: Act1State): Act1State {
+  const next = clone(s);
+  next.items.shinies = Math.max(0, s.items.shinies - 1);
   return next;
 }
 

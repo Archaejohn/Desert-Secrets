@@ -14,6 +14,7 @@ import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import { respawn, type ZoneId } from "../core/gameState";
+import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
 import { PALETTE, hexToInt } from "../shared/palette";
@@ -654,6 +655,23 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.dialogue.open(script, onClose);
   }
 
+  /**
+   * The Thomas radio thread's sporadic hook (see `scripts/thomas.ts`): play the
+   * next unheard one-way fragment and mark it heard, or no-op once all have
+   * played. Key story beats call this once their own beat's dialogue closes, so
+   * Thomas's voice escalates across Part One toward the Part Two reunion. Safe
+   * to call from inside another script's onClose — DialogueBox clears its runner
+   * before firing the callback, so re-opening here just starts the next box.
+   */
+  protected playNextThomas(): void {
+    const s = getState(this);
+    const frag = nextThomasFragment(s.flags);
+    if (!frag) return;
+    setState(this, { ...s, flags: { ...s.flags, [frag.flag]: true } });
+    this.hud.update(getState(this));
+    this.openScript(frag.script);
+  }
+
   /** Hand off to the battle scene; we resume at the same position after victory. */
   protected startBattle(group: string[], opts?: { boss?: boolean; victoryFlag?: string; grace?: boolean }): void {
     if (this.transitioning) return;
@@ -807,27 +825,25 @@ export abstract class ZoneScene extends Phaser.Scene {
     return best;
   }
 
-  /** Opens the inventory window; toggling the bucket equips/unequips it. */
+  /** Opens the inventory window; the Equipment tab equips/unequips gear. */
   private openInventory(): void {
     if (this.dialogue.isOpen || this.inputLocked || this.inventoryMenu || this.transitioning) return;
     this.player.setVelocity(0, 0);
     this.player.play(`hero-idle-${this.facing}`, true);
     this.talkPrompt.setVisible(false);
     this.actionHint?.setVisible(false);
-    this.inventoryMenu = new InventoryMenu(
-      this,
-      getState(this).items,
-      () => {
+    this.inventoryMenu = new InventoryMenu(this, getState(this), {
+      onToggleEquip: (id) => {
         const s = getState(this);
-        const equipped: "bucket" | null = s.items.equipped === "bucket" ? null : "bucket";
+        const equipped = s.items.equipped === id ? null : id;
         const items = { ...s.items, equipped };
         setState(this, { ...s, items });
         return items;
       },
-      () => {
+      onClose: () => {
         this.inventoryMenu = null;
       }
-    );
+    });
   }
 
   private talkTo(npc: Npc): void {

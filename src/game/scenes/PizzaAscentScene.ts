@@ -21,7 +21,7 @@ import { partOneFinaleScript } from "../../core/scripts/partOneFinale";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { PiggyFollower } from "../PiggyFollower";
-import { getState, setState, resetGame } from "../state";
+import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
 
 export class PizzaAscentScene extends ZoneScene {
@@ -67,6 +67,10 @@ export class PizzaAscentScene extends ZoneScene {
           const s = getState(this);
           setState(this, { ...s, flags: { ...s.flags, sawPizzaAscent: true } });
           this.hud.update(getState(this));
+          // Thomas radio thread beat (see thomas.ts): the last, clearest
+          // fragment of the climb — he's near, right before the reunion in the
+          // Part Two opening the finale hands off to.
+          this.playNextThomas();
         });
       });
     }
@@ -135,7 +139,7 @@ export class PizzaAscentScene extends ZoneScene {
       .setScrollFactor(0)
       .setDepth(7001);
     const prompt = this.add
-      .text(w / 2, h / 2 + 58, "SPACE — to the title", {
+      .text(w / 2, h / 2 + 58, "SPACE — Part Two", {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone
@@ -149,17 +153,24 @@ export class PizzaAscentScene extends ZoneScene {
     // this "the end" card instead of the other way around.
     this.uiLayer.add([backdrop, title, blurb, tease, prompt]);
 
-    // Part Two isn't built yet — return to the title. The presentation is an
-    // intentional cliffhanger ending, not an unfinished stub.
+    // The natural hand-off into Part Two: the END OF PART ONE card advances
+    // into the Part Two opening cutscene (Joseph and Thomas finally connecting
+    // over the radio — the payoff for the whole one-way Thomas thread). That
+    // cutscene plays its lines and then resets to the title, since the rest of
+    // Part Two isn't built yet. Wiring choice: this replaces the old straight-
+    // to-title jump; it's the only edge into PartTwoOpeningScene, kept minimal
+    // and reachable in normal play. `partTwoStarted` records the crossing (the
+    // save is still cleared for real at the cutscene's end).
     let done = false;
-    const backToTitle = (): void => {
+    const toPartTwo = (): void => {
       if (done) return;
       done = true;
-      resetGame(this);
-      this.scene.start("boot");
+      const s = getState(this);
+      setState(this, { ...s, flags: { ...s.flags, partTwoStarted: true } });
+      this.scene.start("partTwoOpening");
     };
-    this.input.keyboard?.once("keydown-SPACE", backToTitle);
-    this.input.once("pointerdown", backToTitle);
+    this.input.keyboard?.once("keydown-SPACE", toPartTwo);
+    this.input.once("pointerdown", toPartTwo);
   }
 
   protected onUpdate(): void {

@@ -30,8 +30,8 @@ import { CRASH_EAST_SPAWN } from "../maps/crashMap";
 import { TRAIL_SPAWN } from "../maps/trailMap";
 import { SHED_SPAWN } from "../maps/shedMap";
 import { OVERWORLD_SOUTH_SPAWN } from "../maps/overworldMap";
-import { homeAct1Script } from "../../core/scripts/homeAct1";
-import { awardXp } from "../../core/gameState";
+import { johnAct1Script, pamelaAct1Script } from "../../core/scripts/homeAct1";
+import { awardXp, grantShiny } from "../../core/gameState";
 import { getState, setState } from "../state";
 import { PALETTE } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
@@ -44,10 +44,10 @@ function hint(text: string): DialogueScript {
   return { start: "hint", nodes: [{ id: "hint", lines: [{ speaker: "", text }] }] };
 }
 const NEED_BUCKET_HINT = hint("Trough's dry. Bucket's in the shed.");
-const NOT_EQUIPPED_HINT = hint("Equip the bucket first — press I.");
+const NOT_EQUIPPED_HINT = hint("Wear the bucket first — Equipment tab (I).");
 const EMPTY_BUCKET_HINT = hint("Bucket's empty. Try the spigot.");
 const CHORES_DONE_HINT = hint("The chickens are fed. Thanks, Joseph.");
-const SPIGOT_NEED_BUCKET_HINT = hint("Equip the bucket first — press I.");
+const SPIGOT_NEED_BUCKET_HINT = hint("Wear the bucket first — Equipment tab (I).");
 const SPIGOT_ALREADY_FULL_HINT = hint("Already full.");
 
 export class OasisScene extends ZoneScene {
@@ -85,12 +85,32 @@ export class OasisScene extends ZoneScene {
       }
     };
 
+    // Pamela's close does the shared parent beat AND, the first time only,
+    // hands Joseph his first shiny (her chores/coop lane — see homeAct1.ts).
+    // The grant is guarded by the pamelaShiny flag so it happens exactly once,
+    // and runs before onCloseParent so it isn't clobbered by the tutorial
+    // battle's own state writes.
+    const onClosePamela = (): void => {
+      const s = getState(this);
+      if (!s.flags.pamelaShiny) {
+        const granted = grantShiny(s);
+        setState(this, { ...granted, flags: { ...granted.flags, pamelaShiny: true } });
+        this.floatText(OASIS_PAMELA.x * TILE + TILE / 2, OASIS_PAMELA.y * TILE, "Got a shiny!");
+      }
+      onCloseParent();
+    };
+
+    // John and Pamela are two separate NPCs with two separate voices (John:
+    // scarabs/sightings + the radio & Thomas; Pamela: chickens/chores + the
+    // first shiny). Both closes run the shared parent beat, so closing EITHER
+    // the first time starts the tutorial battle. John is npcs[0] (the smoke
+    // tests talk to him first).
     this.addNpc({
       sheet: "john",
       tileX: OASIS_PARENTS.x,
       tileY: OASIS_PARENTS.y,
       wander: true,
-      script: () => homeAct1Script,
+      script: () => johnAct1Script,
       onClose: onCloseParent
     });
     this.addNpc({
@@ -98,8 +118,8 @@ export class OasisScene extends ZoneScene {
       tileX: OASIS_PAMELA.x,
       tileY: OASIS_PAMELA.y,
       wander: true,
-      script: () => homeAct1Script,
-      onClose: onCloseParent
+      script: () => pamelaAct1Script,
+      onClose: onClosePamela
     });
 
     this.placeCoop();
@@ -160,9 +180,13 @@ export class OasisScene extends ZoneScene {
         return;
       }
       const { state } = awardXp(s, CHORE_XP);
+      // The bucket is a tool AND wearable headgear (see core/equipment.ts).
+      // Delivering pours the water into the trough — the pail goes empty —
+      // but Joseph KEEPS it and it stays equipped, so the +2 DEF / -1 SPD
+      // headgear buff persists after the chore. Don't clear bucket/equipped.
       setState(this, {
         ...state,
-        items: { ...state.items, bucket: "none", equipped: null },
+        items: { ...state.items, bucket: "empty" },
         flags: { ...state.flags, choresDone: true }
       });
       this.floatText(OASIS_COOP.x * TILE + TILE / 2, OASIS_COOP.y * TILE, `+${CHORE_XP} XP`);

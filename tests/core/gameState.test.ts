@@ -7,12 +7,15 @@ import {
   ACT5_FLAGS,
   ACT6_FLAGS,
   ACT7_FLAGS,
+  PART2_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
+  grantShiny,
   heroStats,
   newGame,
   respawn,
+  spendShiny,
   type Act1State,
 } from "../../src/core/gameState";
 import { levelForXp, statsForBuild } from "../../src/core/progression";
@@ -42,7 +45,7 @@ describe("newGame", () => {
 
   it("initialises every scene flag to false", () => {
     const s = newGame();
-    expect(ACT1_FLAGS.length).toBe(17);
+    expect(ACT1_FLAGS.length).toBe(18);
     for (const flag of [
       ...ACT1_FLAGS,
       ...ACT2_FLAGS,
@@ -51,6 +54,7 @@ describe("newGame", () => {
       ...ACT5_FLAGS,
       ...ACT6_FLAGS,
       ...ACT7_FLAGS,
+      ...PART2_FLAGS,
     ]) {
       expect(s.flags[flag]).toBe(false);
     }
@@ -63,6 +67,7 @@ describe("newGame", () => {
         ...ACT5_FLAGS,
         ...ACT6_FLAGS,
         ...ACT7_FLAGS,
+        ...PART2_FLAGS,
       ].sort(),
     );
   });
@@ -89,6 +94,32 @@ describe("heroStats", () => {
     const s = newGame();
     s.hero.perks.push("ferocity");
     expect(heroStats(s).attack).toBe(10);
+  });
+
+  it("layers equipped gear buffs on top of the build (bucket = +2 DEF / -1 SPD)", () => {
+    const bare = newGame();
+    const worn: Act1State = {
+      ...bare,
+      items: { ...bare.items, bucket: "empty", equipped: "bucket" },
+    };
+    // Base level-1: defense 3, speed 12. Bucket layers +2 DEF, -1 SPD.
+    expect(heroStats(bare).defense).toBe(3);
+    expect(heroStats(bare).speed).toBe(12);
+    expect(heroStats(worn).defense).toBe(5);
+    expect(heroStats(worn).speed).toBe(11);
+    // Equipment touches only combat stats, never the hp pool.
+    expect(heroStats(worn).maxHp).toBe(heroStats(bare).maxHp);
+  });
+
+  it("survives a clone/reload round-trip: equip persists and still buffs", () => {
+    const s = newGame();
+    s.items.bucket = "empty";
+    s.items.equipped = "bucket";
+    // JSON round-trip mimics the save->load the registry persists through.
+    const reloaded: Act1State = JSON.parse(JSON.stringify(s));
+    expect(reloaded.items.equipped).toBe("bucket");
+    expect(heroStats(reloaded).defense).toBe(heroStats(s).defense);
+    expect(heroStats(reloaded).defense).toBe(5);
   });
 });
 
@@ -175,6 +206,43 @@ describe("choosePerk", () => {
     const before = snapshot(s);
     choosePerk(s, "bulwark");
     expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("shiny economy", () => {
+  it("grantShiny adds one to the count (Pamela's gift, battle drops)", () => {
+    expect(grantShiny(newGame()).items.shinies).toBe(1);
+    expect(grantShiny(grantShiny(newGame())).items.shinies).toBe(2);
+  });
+
+  it("spendShiny removes one (Dusty's fee)", () => {
+    const two = grantShiny(grantShiny(newGame()));
+    expect(spendShiny(two).items.shinies).toBe(1);
+  });
+
+  it("spendShiny never goes negative", () => {
+    expect(spendShiny(newGame()).items.shinies).toBe(0);
+  });
+
+  it("grant then spend round-trips to the same count", () => {
+    const s = newGame();
+    expect(spendShiny(grantShiny(s)).items.shinies).toBe(s.items.shinies);
+  });
+
+  it("both are pure: never mutate the input state", () => {
+    const s = newGame();
+    const before = snapshot(s);
+    grantShiny(s);
+    spendShiny(grantShiny(s));
+    expect(snapshot(s)).toBe(before);
+  });
+
+  it("touches nothing but the shiny count", () => {
+    const s = awardXp(newGame(), 20).state;
+    s.flags.metRosa = true;
+    s.items.coldPack = true;
+    const after = grantShiny(s);
+    expect(after).toEqual({ ...s, items: { ...s.items, shinies: s.items.shinies + 1 } });
   });
 });
 

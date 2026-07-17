@@ -4,8 +4,10 @@
  * rim, and the Dust Queen in the way. Parley (if the cold pack is still
  * held) or fight; after victory an aftershock collapses the solid rock
  * gallery wall into rubble, exposing a sheer face of blue glacial ice that
- * glows (a LightMask blue pulse), Piggy waddles toward it, and the Act 1
- * end card rolls.
+ * glows (a LightMask blue pulse) and streams a doorway of light into the
+ * gallery. Piggy waddles into it — and the player must then follow Joseph
+ * INTO that glowing ice (a walk-in trigger, not an auto-teleport) to roll
+ * the Act 1 end card and descend into Act 2.
  */
 import type Phaser from "phaser";
 import { ZoneScene, TILE, type ZoneConfig } from "../ZoneScene";
@@ -20,7 +22,6 @@ import {
   DEPTHS_SPAWN
 } from "../maps/depthsMap";
 import { MINE_ELEVATOR_SPAWN } from "../maps/mineMap";
-import { CREVASSE_SPAWN } from "../maps/crevasseMap";
 import { queenFightScript } from "../../core/scripts/queenFight";
 import { queenParleyScript } from "../../core/scripts/queenParley";
 import {
@@ -41,6 +42,8 @@ const PIGGY_END_PX = {
 
 export class DepthsScene extends ZoneScene {
   private iceGlow: LightMask | null = null;
+  private portalHint: Phaser.GameObjects.Text | null = null;
+  private endCardShown = false;
 
   constructor() {
     super("depths");
@@ -90,19 +93,50 @@ export class DepthsScene extends ZoneScene {
       // Returning victorious: the Act 1 cliffhanger.
       this.runCliffhanger(piggy);
     } else {
-      // Epilogue state: the wall is collapsed, ice exposed and glowing,
-      // Piggy waits beneath it.
+      // Epilogue state (e.g. a reload at the end card): the wall is collapsed,
+      // the ice exposed and glowing as a doorway, Piggy waiting inside it. The
+      // player follows Joseph into the ice to roll the end card — the same
+      // walk-in as the live cliffhanger, so a reload can't soft-lock Act 2.
       this.crackWall();
-      this.addIceGlow();
       piggy.setPosition(PIGGY_END_PX.x, PIGGY_END_PX.y).setDepth(PIGGY_END_PX.y);
-      // A reload at the end card must not soft-lock Act 2: walking up to
-      // the crack descends into the crevasse.
-      this.addTrigger({ x1: 16, y1: 2, x2: 19, y2: 2 }, () => {
-        const st = getState(this);
-        setState(this, { ...st, flags: { ...st.flags, act2Started: true } });
-        this.goToZone("crevasse", CREVASSE_SPAWN);
-      });
+      this.armIcePortal();
     }
+  }
+
+  /**
+   * Hand control to the player at the glowing ice: light the ice as a doorway
+   * (blue pulse + a shaft of light streaming down into the gallery), nudge
+   * them with a hint, and arm a walk-in trigger on the tiles just below the
+   * crack. Stepping into the ice — following Piggy — is what rolls the end
+   * card. Deliberately an action, never an automatic teleport.
+   */
+  private armIcePortal(): void {
+    this.addIceGlow();
+    this.addPortalShaft();
+    this.inputLocked = false;
+
+    this.portalHint = this.add
+      .text(this.scale.width / 2, this.scale.height - 30, "Follow Piggy into the ice ↑", {
+        fontFamily: "monospace",
+        fontSize: "9px",
+        color: PALETTE.skyBlue,
+        backgroundColor: "#24182799",
+        padding: { x: 4, y: 2 }
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(6800)
+      .setAlpha(0);
+    this.uiLayer.add(this.portalHint);
+    this.tweens.add({ targets: this.portalHint, alpha: 1, duration: 700 });
+
+    // The crack sits at row 1 (solid ice); the tiles just below it are where
+    // Joseph steps "into" the doorway. once:true — fires a single time.
+    this.addTrigger({ x1: 16, y1: 2, x2: 19, y2: 2 }, () => {
+      this.portalHint?.destroy();
+      this.portalHint = null;
+      this.showEndCard();
+    });
   }
 
   /**
@@ -156,6 +190,43 @@ export class DepthsScene extends ZoneScene {
       ]
     });
     this.iceGlow = mask;
+  }
+
+  /**
+   * A short doorway-style shaft of light streaming DOWN out of the ice into
+   * the gallery — a linear gradient clipped to a trapezoid that widens as it
+   * falls, so the exposed ice reads unmistakably as a portal to step through
+   * (the "light coming from the door"). Added onto the same mask as the ice
+   * pulse; pulsed each frame from onUpdate().
+   */
+  private addPortalShaft(): void {
+    if (!this.iceGlow) return;
+    const cx = (DEPTHS_CRACK[0].x + 1) * TILE; // midpoint of the 2-tile crack
+    this.iceGlow.addLight({
+      x: cx,
+      y: TILE * 4, // centre of the shaft as it falls into the gallery
+      width: 84,
+      height: TILE * 7,
+      gradient: "linear",
+      angle: Math.PI / 2, // top → bottom: stream down, out of the ice
+      blend: "add",
+      intensity: 0.75,
+      pulse: { min: 0.65, max: 1, periodMs: 2200 },
+      mask: {
+        type: "poly",
+        points: [
+          { x: 0.42, y: 0 },
+          { x: 0.58, y: 0 },
+          { x: 0.88, y: 1 },
+          { x: 0.12, y: 1 }
+        ]
+      },
+      stops: [
+        { offset: 0, color: hexToInt(PALETTE.skyBlue), alpha: 0.6 },
+        { offset: 0.5, color: hexToInt(PALETTE.bone), alpha: 0.28 },
+        { offset: 1, color: hexToInt(PALETTE.skyBlue), alpha: 0 }
+      ]
+    });
   }
 
   protected onUpdate(): void {
@@ -222,14 +293,17 @@ export class DepthsScene extends ZoneScene {
   private cliffhangerSealed(): void {
     this.inputLocked = false;
     this.openScript(cliffhangerSealedScript, () => {
-      this.inputLocked = true;
       const st = getState(this);
       setState(this, { ...st, flags: { ...st.flags, actComplete: true } });
-      this.showEndCard();
+      // Hand control back and light the doorway. The end card comes only when
+      // the player walks Joseph into the ice (armIcePortal), not on its own.
+      this.armIcePortal();
     });
   }
 
   private showEndCard(): void {
+    if (this.endCardShown) return;
+    this.endCardShown = true;
     const w = this.scale.width;
     const h = this.scale.height;
     const backdrop = this.add

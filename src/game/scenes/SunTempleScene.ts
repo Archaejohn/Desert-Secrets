@@ -16,9 +16,13 @@ import { sunTempleEntryScript } from "../../core/scripts/sunTempleEntry";
 import { templeLoreScript } from "../../core/scripts/templeLore";
 import { SlitherFollower } from "../SlitherFollower";
 import { getState, setState } from "../state";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 export class SunTempleScene extends ZoneScene {
   private slither = new SlitherFollower(this);
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("sunTemple");
@@ -64,9 +68,18 @@ export class SunTempleScene extends ZoneScene {
         }
       });
     });
+
+    // "Pillars, silt, dark." — a drowned ruin lit only by the party's lamp.
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 },
+      follow: this.player,
+      followRadius: 110,
+      followIntensity: 0.82
+    });
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     this.slither.update(this.player.x, this.player.y);
   }
 }

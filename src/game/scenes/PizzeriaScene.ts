@@ -42,7 +42,9 @@ import { CookingMenu } from "../ui/CookingMenu";
 import { getState, setState } from "../state";
 import type { Act1State } from "../../core/gameState";
 import type { DialogueScript } from "../../core/dialogue";
-import { PALETTE } from "../../shared/palette";
+import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 /** Testudo once the whole finale beat is done (a warm send-off). */
 const testudoChatterScript: DialogueScript = {
@@ -68,6 +70,7 @@ export class PizzeriaScene extends ZoneScene {
   private slither = new SlitherFollower(this);
   private fluffball = new FluffballFollower(this);
   private cookingMenu: CookingMenu | null = null;
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("pizzeria");
@@ -88,6 +91,7 @@ export class PizzeriaScene extends ZoneScene {
     this.slither = new SlitherFollower(this);
     this.fluffball = new FluffballFollower(this);
     this.cookingMenu = null;
+    this.lightMask = null;
 
     // Reload guard: if the reveal already played, the party's business here is
     // done — head straight up rather than dropping them into a finished scene.
@@ -101,6 +105,7 @@ export class PizzeriaScene extends ZoneScene {
     if (getState(this).flags.fluffballJoined) this.fluffball.spawn(this.player.x, this.player.y);
 
     this.addExit({ ...PIZZA_P_EXIT_NORTH }, "pizzaApproach", PIZZA_A_RETURN_SPAWN);
+    this.setupVentLighting();
     this.placeTestudo();
 
     // Rest point (a set table, a bowl of Testudo's soup): a free, reusable full
@@ -124,6 +129,27 @@ export class PizzeriaScene extends ZoneScene {
     } else if (getState(this).flags.piggyCaught && !getState(this).flags.heardReveal) {
       this.time.delayedCall(400, () => this.runReveal());
     }
+  }
+
+  /**
+   * The restaurant runs on its lava vents: a gentle ambient dark that the warm
+   * amber glow of the two flanking vents (and the oven-lit floor around the
+   * hearth) cuts through, plus the player's own lamp so the room stays fully
+   * navigable. Deliberately light — the vents "light the whole room" — so the
+   * bake/catch/reveal cutscenes all read clearly.
+   */
+  private setupVentLighting(): void {
+    this.lightMask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.4 },
+      follow: this.player,
+      followRadius: 116,
+      followIntensity: 0.85,
+      amber: [
+        ...this.tileCentersNamed("lavaVent").map((p) => ({ ...p, radius: 74 })),
+        ...this.tileCentersNamed("ovenGlow").map((p) => ({ ...p, radius: 38 }))
+      ],
+      amberIntensity: 0.7
+    });
   }
 
   private placeTestudo(): void {
@@ -219,6 +245,7 @@ export class PizzeriaScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     if (this.cookingMenu) return; // the minigame owns input while open
     this.slither.update(this.player.x, this.player.y);
     this.fluffball.update(this.player.x, this.player.y);
