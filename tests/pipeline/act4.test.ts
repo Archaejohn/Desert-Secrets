@@ -116,10 +116,22 @@ describe("act4 tiles5 legibility (contract §13)", () => {
   const idx = (name: string) => TILE5_NAMES.indexOf(name as (typeof TILE5_NAMES)[number]);
   const tileOf = (name: string) => tiles[idx(name)];
 
-  it("every non-overhead tile is fully opaque (no holes in maps)", () => {
+  // The object-props now carry a transparent background so they composite over
+  // the ground layer (docs/CONTRACTS.md "v27"); OVERHEAD stays transparent too.
+  // Only ground/wall/terrain tiles must be hole-free.
+  const TRANSPARENT_PROPS = [
+    "crate", "crateStack", "barrel", "washtub", "bedroll", "stove", "campPost", "sockBasket", "crateOpen"
+  ];
+  it("every ground tile is fully opaque (no holes in maps)", () => {
     for (const name of TILE5_NAMES) {
-      if ((OVERHEAD as readonly string[]).includes(name)) continue;
+      if ((OVERHEAD as readonly string[]).includes(name) || TRANSPARENT_PROPS.includes(name)) continue;
       expect(tileOf(name).countOpaque(), `${name} has holes`).toBe(16 * 16);
+    }
+  });
+
+  it("props carry a transparent background (composite over the ground layer)", () => {
+    for (const name of TRANSPARENT_PROPS) {
+      expect(tileOf(name).countOpaque(), `${name} not transparent`).toBeLessThan(16 * 16);
     }
   });
 

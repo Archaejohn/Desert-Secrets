@@ -133,8 +133,26 @@ describe("act1 non-emptiness", () => {
     }
   });
 
-  it("every tiles2 tile is fully opaque (no holes in maps)", () => {
-    for (const t of tile2Frames()) expect(t.countOpaque()).toBe(16 * 16);
+  // Object-props now carry a transparent background so they composite over the
+  // map's ground layer (docs/CONTRACTS.md "v27") — only ground/wall/terrain
+  // tiles must be hole-free.
+  const TRANSPARENT_PROPS: string[] = [
+    "truckCab", "truckBox", "crateBroken", "joshuaTrunk", "joshuaTop", "creosote",
+    "gasPump", "cart", "lever", "leverOn", "iceChip", "eggCluster", "townSign", "mineTimber"
+  ];
+  it("every ground tile is fully opaque (no holes in maps)", () => {
+    const tiles = tile2Frames();
+    (TILE2_NAMES as readonly string[]).forEach((name, i) => {
+      if (TRANSPARENT_PROPS.includes(name)) return;
+      expect(tiles[i].countOpaque(), `${name} has holes`).toBe(16 * 16);
+    });
+  });
+
+  it("props carry a transparent background (composite over the ground layer)", () => {
+    const tiles = tile2Frames();
+    for (const name of TRANSPARENT_PROPS) {
+      expect(tiles[(TILE2_NAMES as readonly string[]).indexOf(name)].countOpaque(), `${name} not transparent`).toBeLessThan(16 * 16);
+    }
   });
 });
 

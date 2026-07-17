@@ -10,7 +10,7 @@ import { encodePng } from "../../tools/pipeline/src/png";
 import { heroFrames } from "../../tools/pipeline/src/sprites/hero";
 import { npcFrames } from "../../tools/pipeline/src/sprites/npc";
 import { scarabFrames } from "../../tools/pipeline/src/sprites/scarab";
-import { tileFrames } from "../../tools/pipeline/src/tileset";
+import { tileFrames, TILE_NAMES } from "../../tools/pipeline/src/tileset";
 import type { PixelGrid } from "../../tools/pipeline/src/grid";
 
 const assets = buildAssets();
@@ -103,7 +103,22 @@ describe("non-emptiness", () => {
     }
   });
 
-  it("every tile is fully opaque (no holes in maps)", () => {
-    for (const t of tileFrames()) expect(t.countOpaque()).toBe(16 * 16);
+  // Object-props now carry a transparent background so they composite over the
+  // map's ground layer (docs/CONTRACTS.md "v27") instead of baking an opaque
+  // ground into themselves — only ground/terrain tiles must be hole-free.
+  const TRANSPARENT_PROPS: string[] = ["rock", "cactus", "palmTrunk", "palmTop", "pot", "bones", "ruinPillar"];
+  it("every ground tile is fully opaque (no holes in maps)", () => {
+    const tiles = tileFrames();
+    (TILE_NAMES as readonly string[]).forEach((name, i) => {
+      if (TRANSPARENT_PROPS.includes(name)) return;
+      expect(tiles[i].countOpaque(), `${name} has holes`).toBe(16 * 16);
+    });
+  });
+
+  it("props carry a transparent background (composite over the ground layer)", () => {
+    const tiles = tileFrames();
+    for (const name of TRANSPARENT_PROPS) {
+      expect(tiles[(TILE_NAMES as readonly string[]).indexOf(name)].countOpaque(), `${name} not transparent`).toBeLessThan(16 * 16);
+    }
   });
 });

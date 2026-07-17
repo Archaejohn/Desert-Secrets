@@ -1,5 +1,13 @@
 /** Generating twice must yield byte-for-byte identical output, and the v1
  *  assets (hero, npc, scarab, tiles) must never change at all. */
+// 2026-07-17: ALL EIGHT tile sheets (tiles, tiles2..tiles8) were deliberately
+// re-pinned below in one pass — object-props (cart, truck, crate, barrel,
+// cactus, pot, bones, crystals, coral, kelp, tree trunks, ovens, columns, …)
+// were converted from baking an opaque ground into themselves to a TRANSPARENT
+// background, so a prop composites over the map's ground layer instead of
+// carrying a wrong ground onto mismatched terrain (the minecart-on-sand bug).
+// See docs/CONTRACTS.md "v27". Only prop tiles' pixels changed — no tile index
+// moved, no ground/wall/autotile tile touched.
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
@@ -42,7 +50,7 @@ describe("pre-act2 asset byte-stability", () => {
     // family + water were redrawn in place — dune ridge lanes and the
     // 3-value wave recipe replace the per-pixel speckle. Same 16 tile
     // slots, no reordering; only pixels changed.
-    tiles: "95672846ff4eb27b375abea6d3ea40c0635bfc1b6e0aee8a3d8b000849fc4b66",
+    tiles: "f506d7a4c5c2401aebe324b994c8e6ee773b9d38accc3aef12f3f5ad8efc06f9",
     rosa: "7a34c3022fd0975aee7e72896fa7817ed050e1ff8fa569158b37a06e9058f800",
     piggy: "cc3f766a6eb7be16010a92dee01f32f68fcb74f3fd15004cd2657fb4ca449b14",
     jackrabbit: "673e3c6735518e804cb6889d2fa36dbc40bdc691a884497815adc843d94f24b1",
@@ -71,7 +79,7 @@ describe("pre-act2 asset byte-stability", () => {
     // feature was still unshipped/uncommitted, not an append-only
     // violation of any previously-shipped index. Sheet grew from 88 to 96
     // tiles (128x176 -> 128x192).
-    tiles2: "1ea690b9158e0ab6fd32a11c7d38277939d1f4a5c55578989ddc2a6a1742cb02"
+    tiles2: "2323dbac873c1586ad4089d31c3e24d0c4c8e2901eeb82917479553cd34aa281"
   } as const;
 
   it("all twelve pre-act2 sheets still encode to their committed bytes", () => {
@@ -154,7 +162,7 @@ describe("act3 asset byte-stability", () => {
     // floe/templeFloor speckle replaced by motif clusters, templePillar
     // reads base-lit, and 16 dressing tiles appended (floe coast ring +
     // shades). Additive — no existing tile index moved.
-    tiles4: "4a2790ec1bbe8152783c6e94df54949645e12a9ac9cd064c35e758d5d0636d8e"
+    tiles4: "bb1808e7203d861d1ccd12b46e59f11aa8e0134e5ed33f2f84b7116174ca1e16"
   } as const;
 
   it("anglerfish/reefeel/lurker/tiles4 encode to their committed bytes", () => {
@@ -183,7 +191,7 @@ describe("act4 asset byte-stability", () => {
     // plank floor gains a lit board subgrid, campWall becomes a wall-top
     // texture, crates/barrel get lit tops (G1), and 8 dressing tiles are
     // appended (campWall cap/face + floor shades). Additive only.
-    tiles5: "ddd5285a1664d846e752dada130e0db3c93fc391ba4ee912bb5aed6f786003f3"
+    tiles5: "b25f695bb592aed06d9959fe2e6d39cef451f87988edd9f4b653768a20b2f277"
   } as const;
 
   it("middenmite/tiles5 encode to their committed bytes", () => {
@@ -217,7 +225,7 @@ describe("act5 asset byte-stability", () => {
     // bug reported after ship. orangeTreeCanopy itself is untouched and
     // stays in the sheet, unreferenced (additive-only); sheet grew from
     // 48 to 64 tiles (8x6 -> 8x8).
-    tiles6: "dd44a31ed15d364a29c526854aca4a913efebbf2ba09c2012df23d38166ada84"
+    tiles6: "6e1615a4e7bc3fb5f22a9190115823edfff8e910a7af9ef31e934d6d43fd685a"
   } as const;
 
   it("sunwasp/tiles6 encode to their committed bytes", () => {
@@ -242,7 +250,7 @@ describe("act6 asset byte-stability", () => {
     // floors/water/glow-moss redrawn to motif clusters and rounded lobes,
     // and 16 dressing tiles appended (reefWall cap/face, shades, silt↔floor
     // fingers). Additive only.
-    tiles7: "6b14ed102c35f474a7f03fc637570504c4973b8a7e2666e0ccc2c3ceee8f2e03"
+    tiles7: "2a60e7f02f61386adb03ee42f0ee4e9741ec68bbdca4ec94a392d96fdbac3905"
   } as const;
 
   it("reefstalker/tiles7 encode to their committed bytes", () => {
@@ -267,7 +275,7 @@ describe("act7 asset byte-stability", () => {
     // lavaVent glow ramp (rust→amber→bone heart), ember/ash motif clusters,
     // checker-floor bevel subgrid, and 16 dressing tiles appended
     // (basaltWall cap/face, shades, ash↔ember seams). Additive only.
-    tiles8: "dbacee609aa1d566410a5252192e8dc32aedafa8c984e8795574ae6b78a42e1c"
+    tiles8: "a3a8e8ceb26078b05c306d983cfbfc74ffbbcc63f94a501c601897b10ccf7e24"
   } as const;
 
   it("testudo/tiles8 encode to their committed bytes", () => {
@@ -286,7 +294,7 @@ describe("phase-z zone-dressing asset byte-stability", () => {
   // speckle, and 16 dressing tiles are appended (iceWallDeep cap/face,
   // floor shades, the chasm lip set). Additive — no existing index moved.
   const FROZEN = {
-    tiles3: "52a1cf9ee85c47ddf49c20f07820f5042ae1bfd7e1c44dff89a062e086d1b9f2"
+    tiles3: "ec5e17dafca75111d7e6fc8cbc7019346bf9eecbf6f9488e3d08c0a0fbfb0798"
   } as const;
 
   it("tiles3 encodes to its committed bytes", () => {

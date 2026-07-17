@@ -204,7 +204,7 @@ function reefWall(seed: number): PixelGrid {
 /** Coral head — SOLID walk-around. A knobbly clay/rust coral bloom crowned
  *  with amber polyps, growing off the dark reef floor. */
 function coralHead(): PixelGrid {
-  return stamp(reefBase(711), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 6, 8, 8, "clay");
     l.rect(5, 4, 6, 3, "clay");
     l.rect(3, 10, 10, 4, "rust"); // shaded foot
@@ -228,7 +228,7 @@ function coralHead(): PixelGrid {
  *  crystal that marked the crawlers' territory in Act 2's galleries — the
  *  boundary-stones of their home, glinting cold. */
 function crystalCluster(): PixelGrid {
-  return stamp(reefSilt(712), (l) => {
+  return stamp(tile(), (l) => {
     // three angular shards
     for (const [bx, h] of [
       [4, 8],
@@ -324,7 +324,7 @@ function reefStone(): PixelGrid {
  *  only a dull jade sheen — deliberately dimmer and messier than the tidy,
  *  bright cultivated mintKelp. */
 function wildKelp(): PixelGrid {
-  return stamp(reefBase(715), (l) => {
+  return stamp(tile(), (l) => {
     // a knot of leaning, overlapping stalks
     for (const [bx, lean] of [
       [4, 1],
@@ -348,7 +348,7 @@ function wildKelp(): PixelGrid {
 /** Kelp trellis — SOLID. The crawler-built frame the cultivated mint kelp is
  *  grown up: a lashed clay/rust cross-frame, evidence of deliberate farming. */
 function kelpTrellis(): PixelGrid {
-  return stamp(reefSilt(716), (l) => {
+  return stamp(tile(), (l) => {
     // two uprights and two cross-bars, lashed
     l.rect(4, 2, 1, 13, "clay");
     l.rect(11, 2, 1, 13, "clay");
@@ -405,7 +405,7 @@ function kelpCanopy(): PixelGrid {
 /** Sea anemone — WALKABLE decor: a bright glowing bloom in the garden turf,
  *  hpRed/amber tendrils around a skyBlue core. */
 function seaAnemone(): PixelGrid {
-  const g = glowMoss(717);
+  const g = tile();
   // a squat column
   g.rect(6, 9, 4, 5, "mauve");
   g.px(6, 9, "clay"); // lit side
@@ -430,7 +430,7 @@ function seaAnemone(): PixelGrid {
 /** Shell cluster — WALKABLE decor: a little heap of bone/sand shells and one
  *  skyBlue pearl, strewn on the reef floor. */
 function shellCluster(): PixelGrid {
-  const g = reefBase(718);
+  const g = tile();
   for (const [x, y] of [
     [3, 9],
     [6, 11],

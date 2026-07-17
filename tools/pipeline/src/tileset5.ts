@@ -145,7 +145,7 @@ function campWall(seed: number): PixelGrid {
 
 /** Wooden supply crate — SOLID. Clay/amber box, ink plank lines, an X-brace. */
 function crate(): PixelGrid {
-  return stamp(floorBase(511), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 3, 12, 11, "clay");
     l.rect(2, 3, 12, 2, "sand"); // lit top plane (G1)
     l.rect(2, 5, 12, 1, "amber"); // lip under the lid
@@ -164,7 +164,7 @@ function crate(): PixelGrid {
 /** Tall crate stack — SOLID. Two crates stacked; this is the one Piggy
  *  burrows into and pops out the far side of. Reads taller/heavier. */
 function crateStack(): PixelGrid {
-  return stamp(floorBase(512), (l) => {
+  return stamp(tile(), (l) => {
     // lower crate
     l.rect(2, 8, 12, 6, "clay");
     l.rect(2, 8, 12, 1, "amber");
@@ -184,7 +184,7 @@ function crateStack(): PixelGrid {
 
 /** Barrel — SOLID. Clay staves with rust hoops and a sand-lit belly. */
 function barrel(): PixelGrid {
-  return stamp(floorBase(513), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 2, 8, 12, "clay");
     l.rect(3, 4, 10, 8, "clay"); // bulging belly
     l.rect(4, 2, 8, 2, "sand"); // lit lid plane (G1)
@@ -202,7 +202,7 @@ function barrel(): PixelGrid {
 /** Laundry wash basin — SOLID. Slate tub brimming with sky-blue wash water,
  *  a bar of bone soap and a white glint. The laundry nook's centerpiece. */
 function washtub(): PixelGrid {
-  return stamp(floorBase(514), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 5, 12, 9, "slate"); // tub body
     l.rect(2, 5, 12, 1, "skyBlue"); // rim
     l.rect(3, 6, 10, 5, "skyBlue"); // water
@@ -216,7 +216,7 @@ function washtub(): PixelGrid {
 
 /** Bedroll — walkable decor. A rolled blanket + pillow on the floor. */
 function bedroll(): PixelGrid {
-  return stamp(floorBase(515), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 6, 12, 6, "teal"); // blanket
     l.rect(2, 6, 12, 1, "jade"); // lit fold
     l.rect(2, 11, 12, 1, "tealDeep"); // shaded fold
@@ -229,7 +229,7 @@ function bedroll(): PixelGrid {
 /** Pot-belly stove — SOLID. Slate iron body, a warm amber fire glow in the
  *  grate and a little flue; the camp's heart. */
 function stove(): PixelGrid {
-  return stamp(floorBase(516), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(4, 4, 8, 10, "slate"); // body
     l.rect(3, 6, 10, 6, "slate"); // belly
     l.rect(4, 4, 8, 1, "skyBlue"); // lit top
@@ -247,7 +247,7 @@ function stove(): PixelGrid {
 /** Camp post — SOLID. A salvaged mine timber upright that carries the string
  *  lights and the laundry line; clay wood with an amber bulb hung on it. */
 function campPost(): PixelGrid {
-  return stamp(floorBase(517), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(6, 0, 4, 16, "clay");
     l.rect(6, 0, 1, 16, "sand"); // lit edge
     l.rect(9, 0, 1, 16, "rust"); // shaded edge
@@ -261,7 +261,7 @@ function campPost(): PixelGrid {
 /** Basket of the ripest socks — walkable decor and the sock-line landmark.
  *  A woven hamper spilling knotted bone/sand socks with a green reek waft. */
 function sockBasket(): PixelGrid {
-  return stamp(floorBase(518), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(3, 8, 10, 6, "amber"); // basket weave
     l.rect(3, 8, 10, 1, "sand");
     for (let x = 4; x < 13; x += 2) l.rect(x, 9, 1, 4, "rust"); // weave gaps
@@ -299,7 +299,7 @@ function frostPrint(): PixelGrid {
 /** A cracked-open, emptied crate — SOLID walk-around (the one Piggy tumbled
  *  through). Splintered clay boards, one sprung loose, socks poking out. */
 function crateOpen(): PixelGrid {
-  return stamp(floorBase(520), (l) => {
+  return stamp(tile(), (l) => {
     l.rect(2, 5, 12, 9, "clay");
     l.rect(2, 5, 12, 1, "sand"); // lit broken rim (G1)
     l.rect(2, 6, 12, 1, "amber");

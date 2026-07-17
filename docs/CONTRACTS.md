@@ -3539,3 +3539,42 @@ The `screeShade` **tile stays in the sheet** at its pinned index (34) — the
 pipeline is additive-only, so a now-unused tile is left in place rather than
 removed (removing it would reorder indices and re-pin every downstream hash).
 No sheet/manifest/determinism change; this is a map-generation change only.
+
+# v27: object-props get transparent backgrounds (composite over the ground)
+
+2026-07-17. The owner spotted a minecart rendering with an underground
+mine-floor square baked into it while sitting on desert sand. Root cause: the
+art pipeline built every object-prop by drawing the object onto an OPAQUE
+GROUND BASE (`stamp(sandBase(...), draw)`, `const g = mineFloor(...)`, etc.),
+so the prop's tile carried a specific ground with it and mismatched wherever
+it was placed on different terrain (`cart`/`mineTimber` are placed both in the
+mine AND out in the overworld).
+
+Fix: props now start from a transparent `tile()` instead of an opaque ground
+base, across all eight tile sheets. Nothing else about placement changed —
+props live in the `decor` tilemap layer, which already draws OVER the `ground`
+layer, and the ground layer always holds the correct terrain under each prop
+(verified: `sand` under the overworld cart, `mineFloor`/`rail` under the mine
+cart, ice-cave floor under the galleries cart). So a transparent prop
+composites over whatever ground it's actually on, in every zone.
+
+Scope — the ~52 converted are discrete OBJECTS that sit on ground: rock,
+cactus, palmTrunk/Top, pot, bones, ruinPillar (tiles); truckCab/Box,
+crateBroken, joshuaTrunk/Top, creosote, gasPump, cart, lever/leverOn, iceChip,
+eggCluster, townSign, mineTimber (tiles2); crystalSmall/Big, lanternPost
+(tiles3); kelpStalk, coral, templePillar, anemone, mossRock (tiles4); crate,
+crateStack, barrel, washtub, bedroll, stove, campPost, sockBasket, crateOpen
+(tiles5); collapsedRock, vineRock, fern, orangeTreeTrunk, needleCactus,
+oldOrange (tiles6); coralHead, crystalCluster, wildKelp, kelpTrellis,
+seaAnemone, shellCluster (tiles7); pizzaTable, pizzaOven, stoneColumn
+(tiles8). LEFT opaque: ground/wall/floor/road/autotile tiles, seamless
+ground-dressing that reads as terrain (rail, floor glyphs, sparkles/decals,
+stepping-stones, in-turf vegetation, campRug, lavaCrust), and wall-mounted
+fixtures (stationSign, station/town windows & doors). Already-transparent
+overhead tiles (icicle, bubbles, stringLights, laundryLine) and the
+bucket/spigot prop sheets were untouched.
+
+All eight tile-sheet sha256 hashes were deliberately re-pinned
+(`determinism.test.ts`) — only prop pixels changed, no tile index moved. The
+"every tile fully opaque (no holes)" invariant became "every GROUND tile fully
+opaque", with a companion assertion that each converted prop IS transparent.

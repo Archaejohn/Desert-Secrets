@@ -119,7 +119,7 @@ function iceWallDeep(): PixelGrid {
 
 /** Small crystal spur on the walkable floor (decor). */
 function crystalSmall(): PixelGrid {
-  return stamp(iceFloorBase(103), (l) => {
+  return stamp(tile(), (l) => {
     // jade spur leaning right
     l.px(7, 6, "jade");
     l.rect(6, 7, 3, 2, "jade");
@@ -136,7 +136,7 @@ function crystalSmall(): PixelGrid {
 
 /** Big crystal formation — SOLID (blocks movement), so it nearly fills. */
 function crystalBig(): PixelGrid {
-  return stamp(iceFloorBase(104), (l) => {
+  return stamp(tile(), (l) => {
     // main jade spire
     l.rect(7, 1, 2, 2, "jade");
     l.rect(6, 3, 4, 5, "jade");
@@ -225,7 +225,7 @@ function snowdrift(): PixelGrid {
 
 /** Lantern post — the amber wayfinding landmark at maze junctions. */
 function lanternPost(): PixelGrid {
-  const g = stamp(iceFloorBase(108), (l) => {
+  const g = stamp(tile(), (l) => {
     // post
     l.rect(7, 6, 2, 8, "plum");
     l.px(7, 13, "ink"); // shaded foot
