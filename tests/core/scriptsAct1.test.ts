@@ -317,12 +317,15 @@ describe("cliffhanger", () => {
     expect(all).not.toMatch(/ice/i);
   });
 
-  it("the sealed beat mentions the elevator and ends on the Act 2 title card", () => {
+  it("the sealed beat mentions the elevator and hands control back (no baked-in title card)", () => {
     const { lines, runner } = playThrough(cliffhangerSealedScript);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/elevator/i);
-    expect(lines[lines.length - 1].text).toBe("ACT 2: THE ICE BELOW");
-    expect(lines[lines.length - 2].text).toBe("END OF ACT 1");
+    // The END OF ACT 1 / ACT 2 title is now the VISUAL end card the player
+    // reaches by following Piggy into the glowing ice — deliberately not baked
+    // into this dialogue, so the act can't end without the player's action.
+    expect(all).not.toMatch(/END OF ACT 1/);
+    expect(all).not.toMatch(/ACT 2: THE ICE BELOW/);
     expect(runner.active).toBe(false);
   });
 });

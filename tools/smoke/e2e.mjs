@@ -692,12 +692,18 @@ s = await snapshot(page);
 check("act completes (cliffhanger played)", s.state.flags.actComplete === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../end-card.png") }).catch(() => {});
 
-// End card → SPACE descends into Act 2 keeping all progress.
+// No auto-teleport: after the cliffhanger the ice glows as a doorway and the
+// player keeps control — the act must NOT end on its own.
 const xpBeforeAct2 = s.state.hero.xp;
+check("no auto-teleport: still in the depths after the cliffhanger", s.zoneKey === "depths", `zone=${s.zoneKey}`);
+// Follow Piggy INTO the glowing ice (the walk-in that rolls the end card).
+await teleport(page, 17, 2);
+await page.waitForTimeout(500);
+// End card → SPACE descends into Act 2 keeping all progress.
 await tap(page, "Space");
 s = await waitFor(page, (x) => x.zoneKey === "crevasse", 8000);
 check(
-  "act 1 end card hands off to the crevasse with progress kept",
+  "following Piggy into the ice rolls the end card, then hands off to the crevasse with progress kept",
   s.zoneKey === "crevasse" && s.state.flags.act2Started === true && s.state.hero.xp === xpBeforeAct2,
   `zone=${s.zoneKey} xp=${s.state?.hero?.xp}`
 );

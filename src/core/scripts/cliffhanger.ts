@@ -54,7 +54,13 @@ export const cliffhangerPiggyScript: DialogueScript = {
   ],
 };
 
-/** Beat 4 — the elevator seals the way back, then the end card. */
+/**
+ * Beat 4 — the elevator seals the way back, then hands control to the player.
+ * The Act 2 title card is NOT baked into this dialogue any more: after the
+ * elevator crashes down there's only one way on, and Joseph nudges toward the
+ * glowing ice. Following Piggy INTO it is the player's own action, and THAT is
+ * what rolls the visual end card (DepthsScene.armIcePortal) — no auto-teleport.
+ */
 export const cliffhangerSealedScript: DialogueScript = {
   start: "sealed",
   nodes: [
@@ -63,14 +69,8 @@ export const cliffhangerSealedScript: DialogueScript = {
       lines: [
         { speaker: "", text: "(Behind them, the elevator crashes down.)" },
         { speaker: "Joseph", text: "...Okay. Guess we're going deeper." },
-      ],
-      next: "card",
-    },
-    {
-      id: "card",
-      lines: [
-        { speaker: "", text: "END OF ACT 1" },
-        { speaker: "", text: "ACT 2: THE ICE BELOW" },
+        { speaker: "Joseph", text: "Piggy's already at the ice—glowing like a door." },
+        { speaker: "Joseph", text: "Come on. We follow him in." },
       ],
     },
   ],
