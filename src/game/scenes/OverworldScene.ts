@@ -26,6 +26,7 @@ import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
 import { Mode7Tuner } from "../gfx/Mode7Tuner";
 import { FlatZoomTuner } from "../gfx/FlatZoomTuner";
 import { ScaledGroundView } from "../gfx/ScaledGroundView";
+import { LightMaskDemo } from "../gfx/LightMaskDemo";
 import { MANIFEST } from "../manifest";
 import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
@@ -67,6 +68,8 @@ export class OverworldScene extends ZoneScene {
   private tuner: Mode7Tuner | null = null;
   private flatZoomTuner: FlatZoomTuner | null = null;
   private scaledGround: ScaledGroundView | null = null;
+  /** Dev-only LightMask demo, live only under the `?lighttest` flag. */
+  private lightDemo: LightMaskDemo | null = null;
 
   constructor() {
     super("overworld");
@@ -97,6 +100,39 @@ export class OverworldScene extends ZoneScene {
     this.addExit({ ...OVERWORLD_SOUTH_EXIT }, "oasis", OASIS_NORTH_SPAWN);
     this.addExit({ ...OVERWORLD_NORTH_EXIT }, "mineEntrance", MINE_ENTRANCE_SPAWN);
     this.setupView();
+    if (this.readLightTest()) {
+      this.lightDemo = new LightMaskDemo(this, this.player);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.lightDemo = null;
+      });
+    }
+  }
+
+  /**
+   * Dev-only lighting-demo flag (`?lighttest`), latched to localStorage like
+   * `?mode7tune` so it survives the installed PWA's bare start_url. Any value
+   * other than `0`/`off` turns it on; `0`/`off` clears it. Off by default, so
+   * normal play is untouched.
+   */
+  private readLightTest(): boolean {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("lighttest")) {
+      const raw = params.get("lighttest");
+      const on = raw !== "0" && raw !== "off";
+      try {
+        if (on) window.localStorage.setItem("lighttest", "1");
+        else window.localStorage.removeItem("lighttest");
+      } catch {
+        // Storage unavailable (private mode): the query param still works for
+        // this one page load.
+      }
+      return on;
+    }
+    try {
+      return window.localStorage.getItem("lighttest") === "1";
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -246,6 +282,7 @@ export class OverworldScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightDemo?.update();
     if (!this.mode7) return;
     this.mode7.update(this.player.x, this.player.y);
     if (this.avatar) {
