@@ -13,12 +13,15 @@ import {
   MINE_LEVER,
   MINE_LEVER_PLATE,
   MINE_SOUTH_EXIT,
-  MINE_SPAWN
+  MINE_SPAWN,
+  MINE_TORCHES
 } from "../maps/mineMap";
 import { TRAIL_MINE_SPAWN } from "../maps/trailMap";
 import { DEPTHS_SPAWN } from "../maps/depthsMap";
 import { radioLines } from "../../core/scripts/radio";
 import { getState, setState } from "../state";
+import { LightMask } from "../gfx/LightMask";
+import { PALETTE, hexToInt } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
 
 const leverScript: DialogueScript = {
@@ -51,6 +54,8 @@ const foremanScript: DialogueScript = {
 };
 
 export class MineScene extends ZoneScene {
+  private lightMask: LightMask | null = null;
+
   constructor() {
     super("mine");
   }
@@ -120,6 +125,53 @@ export class MineScene extends ZoneScene {
       },
       false
     );
+
+    this.setupTorchLighting();
+  }
+
+  /**
+   * Torch-lit-cave ambiance (the first shipped use of LightMask): a moderate
+   * ambient darkness the player's own lamp reveals as they move, plus a warm
+   * flickering glow hung on each lantern-post torch (MINE_TORCHES), each
+   * pulsing slightly out of phase so they don't breathe in unison. Kept
+   * navigable on purpose — the lamp is generous and the darkness partial.
+   */
+  private setupTorchLighting(): void {
+    const mask = new LightMask(this, {
+      depth: 4000, // above actors/decor, below the HUD
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.5 }
+    });
+    // The player's lamp: a soft hole punched through the dark, following them.
+    mask.addLight({
+      follow: this.player,
+      radius: 116,
+      blend: "reveal",
+      stops: [
+        { offset: 0, color: 0xffffff, alpha: 1 },
+        { offset: 0.62, color: 0xffffff, alpha: 0.85 },
+        { offset: 1, color: 0xffffff, alpha: 0 }
+      ]
+    });
+    // A warm glow on each torch, flickering out of phase.
+    MINE_TORCHES.forEach((t, i) => {
+      mask.addLight({
+        x: t.x * TILE + TILE / 2,
+        y: t.y * TILE + TILE / 2 - 4, // sit the glow at the lamp, just above the post's base
+        radius: 60,
+        blend: "add",
+        pulse: { min: 0.72, max: 1, periodMs: 1500 + i * 130, phaseMs: i * 300 },
+        stops: [
+          { offset: 0, color: hexToInt(PALETTE.amber), alpha: 0.9 },
+          { offset: 0.5, color: hexToInt(PALETTE.clay), alpha: 0.4 },
+          { offset: 1, color: hexToInt(PALETTE.rust), alpha: 0 }
+        ]
+      });
+    });
+    this.lightMask = mask;
+  }
+
+  protected onUpdate(): void {
+    this.lightMask?.update();
   }
 
   /** Flip the lever tile and lift the three timber gate tiles. */
