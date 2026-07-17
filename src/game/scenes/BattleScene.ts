@@ -271,9 +271,12 @@ export class BattleScene extends Phaser.Scene {
     g.fillTriangle(20, 138, 150, 90, 290, 138);
     g.fillTriangle(220, 138, 370, 100, 480, 138);
     // Scenery props from the tileset keep battles visually unified with zones.
+    // Every prop's FEET (origin 0.5,1) sit on the sand — i.e. y >= the 138
+    // floor line — so nothing floats in the sky band. The back pair sit just
+    // over the horizon (distant), the front pair further down (near).
     for (const [name, x, y, scale] of [
-      ["cactus", 40, 122, 2],
-      ["rock", 430, 126, 2],
+      ["cactus", 40, 143, 2],
+      ["rock", 430, 143, 2],
       ["bones", 250, 200, 2],
       ["rock", 180, 240, 2]
     ] as const) {
