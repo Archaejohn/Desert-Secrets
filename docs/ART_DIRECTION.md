@@ -126,7 +126,10 @@ resolver and maps-test names already/must cover `tiles`+`tiles2`)
   the border.
 - **Mountain foot shadow band** (`screeShade`, new): shadow-LUT scree
   for the row south of mountain masses — masses visibly *sit* on the
-  plain.
+  plain. *(Later removed from the map — see CONTRACTS.md "v26". In the flat
+  top-down view it read as a heavy rock ledge rather than a soft shadow, so
+  the autotile pass no longer places it; the `screeShade` tile itself stays
+  in the sheet, unused.)*
 - **Water + coast**: rewrite `water/water2`: 3-value ramp, 3–5px
   horizontal wave dashes (2/tile, loosely row-aligned). New **coast
   ring** tiles (edge + corners): land dark lip 1–2px → broken `bone`
