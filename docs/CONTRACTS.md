@@ -3904,3 +3904,47 @@ profile, buff layering, the floor clamp, purity); `gameState.test.ts` (bare vs
 worn `heroStats`, maxHp untouched, JSON reload round-trip). Smoke updated: the
 keyboard e2e equips via the Equipment tab (three taps right) and asserts
 delivery leaves `bucket:"empty", equipped:"bucket"`.
+
+# v36: equipment grows to FIVE slots, new gear, and the miner-camp shops
+
+`items.equipped` stops being a single `EquipId | null` and becomes a
+**five-slot record** `EquipSlots = Record<"hat"|"weapon"|"torso"|"legs"|"shoes",
+EquipId | null>`. Each `Equipment` now declares a `slot`. `applyEquipmentBuffs`
+takes the whole record and **SUMS** every worn slot's deltas before clamping
+each combat stat to `STAT_FLOOR`. The bucket is now the `hat` slot (was the lone
+slot); the coop/spigot chore and the Hud readout check `equipped.hat ===
+"bucket"` (was `equipped === "bucket"`). `ZoneScene.onToggleEquip` swaps within
+the item's own slot (equipping replaces that slot; toggling the worn item empties
+it), so hat and weapon are independent.
+
+**New catalog entries** (`equipment.ts`): `stick` (weapon, +1 ATK), `minersHat`
+(hat, +1 DEF), `pickaxe` (weapon, +2 ATK), plus Joseph's default outfit —
+`tshirt` (torso), `jeans` (legs), `flipFlops` (shoes), all zero-buff plain
+clothes. Ownership: the bucket still reads off `items.bucket`; the rest get
+boolean item flags (`items.stick/minersHat/pickaxe/tshirt/jeans/flipFlops`).
+`newGame()` starts Joseph **owning and wearing** the three clothes
+(`defaultEquipSlots()` → hat/weapon null, torso/legs/shoes filled); `clone`
+deep-copies `equipped`. `normalizeEquipSlots(raw)` coerces any persisted shape
+(including the LEGACY single-slot string `"bucket"`) into a full record, defaulting
+missing slots to the starter outfit — `state.ts loadSavedState` runs it so a
+mid-session reload of an old save can't crash.
+
+**Equipment tab** now lists every OWNED equippable grouped by slot (`SLOT_LABEL`
+prefix, e.g. `Hat: Bucket` / `Weapon: Pickaxe`), each with its own "✓ worn"
+marker and a per-item buff preview (plain clothes read "No stat bonus.").
+
+**Stick pickup** (`ShedScene`): a `palmTrunk`-marked interact just east of the
+bucket; grabbing it sets `items.stick` AND auto-equips it to the empty weapon
+slot (instant +1 ATK). `SHED_STICK` added to `shedMap`.
+
+**Miner-camp shops** (`CrevasseScene` + `core/scripts/minerShop.ts`, pure
+scripts). Once rescued, **Mo** sells the miner's hat (`MINERS_HAT_PRICE = 2`) and
+**Gus** sells the pickaxe (`PICKAXE_PRICE = 3`). Same copy-and-strip pattern as
+Dusty: the "Buy" choice appears only when `canBuyEquip(s, price, owned)` (unowned
+AND affordable); on the `buy-end` node the scene runs `spendShinies` +
+`grantEquipment`. Buy logic is pure/tested (`gameState.ts`: `spendShinies`,
+`grantEquipment`, `canBuyEquip`; `OwnedEquipId`). Tests: `equipment.test.ts`
+(slots, buff-summing, normalizer, starter outfit), `gameState.test.ts` (new
+items shape, buy helpers, clone isolation), `minerShop.test.ts` (script validity,
+gating strip, 48-char budget). Smoke: asserts the starter outfit at newGame, the
+stick auto-equip, the bucket filling the hat slot, and buying Mo's hat.

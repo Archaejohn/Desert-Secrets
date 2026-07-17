@@ -237,6 +237,20 @@ let s = await waitFor(page, (x) => x.zoneKey === "crash", 8000);
 // ---------- Beat 1: crash site ----------
 check("New Game starts the crash site", s.zoneKey === "crash", JSON.stringify(s.active));
 
+// Joseph starts dressed: t-shirt/jeans/flip-flops OWNED and WORN in their
+// torso/legs/shoes slots; the hat and weapon slots start empty.
+{
+  const it = s.state.items;
+  const eq = it.equipped;
+  check(
+    "starts owning and wearing the default outfit",
+    it.tshirt === true && it.jeans === true && it.flipFlops === true &&
+      eq.torso === "tshirt" && eq.legs === "jeans" && eq.shoes === "flipFlops" &&
+      eq.hat === null && eq.weapon === null,
+    JSON.stringify(eq)
+  );
+}
+
 // Movement + walk animation still work.
 await page.waitForTimeout(600);
 s = await snapshot(page);
@@ -472,10 +486,29 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
 
+// 2b) The stick sits just east of the bucket: grabbing it AUTO-EQUIPS into
+// the (empty) weapon slot — an instant +1 ATK, no menu step needed. The bucket
+// was a `once` interact and is filtered out after firing, so the stick is now
+// the sole remaining interact point (index 0).
+const stickPoint = await page.evaluate(() => {
+  const w = window.__game.scene.getScene("shed");
+  return w["interactPoints"][0];
+});
+s = await walkUntilNear(page, "ArrowRight", stickPoint.x, stickPoint.y);
+await tap(page, "KeyE");
+await page.waitForTimeout(300);
+s = await snapshot(page);
+check(
+  "the stick auto-equips to the weapon slot on pickup",
+  s.state.items.stick === true && s.state.items.equipped.weapon === "stick",
+  `stick=${s.state.items.stick} weapon=${s.state.items.equipped.weapon}`
+);
+
 // 3) Open the inventory window and equip the bucket from the EQUIPMENT tab
 // (the equip toggle moved there) — only an equipped item can be used out in
 // the world. Tabs run Inventory · Party · Skills · Equipment, so three taps
-// right lands on Equipment, where the bucket is the only (selected) row.
+// right lands on Equipment. Entries are grouped by slot (hat first), so the
+// bucket is row 0 (selected); Space equips it into the HAT slot.
 await tap(page, "KeyI");
 await page.waitForTimeout(250);
 let invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -484,10 +517,10 @@ await tap(page, "ArrowRight"); // -> Party
 await tap(page, "ArrowRight"); // -> Skills
 await tap(page, "ArrowRight"); // -> Equipment
 await page.waitForTimeout(150);
-await tap(page, "Space"); // equip the bucket
+await tap(page, "Space"); // equip the bucket (hat slot)
 await page.waitForTimeout(200);
 s = await snapshot(page);
-check("equipping the bucket on the Equipment tab equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
+check("equipping the bucket on the Equipment tab fills the hat slot", s.state.items.equipped.hat === "bucket", `equipped=${JSON.stringify(s.state.items.equipped)}`);
 await tap(page, "KeyI"); // close
 await page.waitForTimeout(250);
 invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -518,8 +551,8 @@ check(
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
     s.state.items.bucket === "empty" &&
-    s.state.items.equipped === "bucket",
-  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${s.state.items.equipped}`
+    s.state.items.equipped.hat === "bucket",
+  `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${JSON.stringify(s.state.items.equipped)}`
 );
 
 // ---------- Beat 3: the trail ----------
@@ -794,6 +827,26 @@ async function exitTo(zone, target) {
 await talkAllNpcs("crevasse");
 s = await snapshot(page);
 check("Mo rescued in the crevasse", s.state.flags.minerMo === true, JSON.stringify(s.state.flags));
+
+// Mo's shop: once rescued he sells the miner's hat for 2 shinies. Top up the
+// purse, talk to him, take the "Buy" choice (index 0) and confirm the hat is
+// granted and the shinies spent.
+await page.waitForTimeout(2500); // let Mo finish walking to the camp corner
+const shiniesBeforeBuy = 3;
+await page.evaluate((n) => {
+  const st = window.__game.registry.get("act1");
+  window.__game.registry.set("act1", { ...st, items: { ...st.items, shinies: n } });
+}, shiniesBeforeBuy);
+const talkedMo = await talkToNpc(page, "crevasse", 0);
+check("can reopen dialogue with the rescued Mo", talkedMo === true);
+await talkThrough(page, { pickIndex: 0 }); // pick "Buy the miner's hat"
+s = await snapshot(page);
+check(
+  "buying the miner's hat from Mo grants it and spends 2 shinies",
+  s.state.items.minersHat === true && s.state.items.shinies === shiniesBeforeBuy - 2,
+  `minersHat=${s.state.items.minersHat} shinies=${s.state.items.shinies}`
+);
+
 s = await exitTo("crevasse", "maze");
 check("crevasse leads to the ice maze", s.zoneKey === "maze");
 
