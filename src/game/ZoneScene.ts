@@ -382,6 +382,24 @@ export abstract class ZoneScene extends Phaser.Scene {
     throw new Error(`Unknown tile name: ${name}`);
   }
 
+  /**
+   * Pixel centres of every tile named `name` on the ground + decor layers.
+   * Used to hang lights (or other effects) on all matching tiles without a
+   * hand-maintained position array — e.g. a glow on every lantern post or
+   * ice crystal. Layers sit at the origin, so tile pixel coords are world
+   * coords.
+   */
+  protected tileCentersNamed(name: string): Array<{ x: number; y: number }> {
+    const gid = this.tileGid(name);
+    const out: Array<{ x: number; y: number }> = [];
+    for (const layer of [this.groundLayer, this.decorLayer]) {
+      layer.forEachTile((t) => {
+        if (t.index === gid) out.push({ x: t.pixelX + TILE / 2, y: t.pixelY + TILE / 2 });
+      });
+    }
+    return out;
+  }
+
   /** Texture key + frame for drawing a named tile as a plain image prop. */
   protected tileFrame(name: string): { key: string; frame: number } {
     const t1 = MANIFEST.tiles.names[name];

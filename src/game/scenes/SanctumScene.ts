@@ -12,6 +12,7 @@ import {
   SANCTUM_APPROACH,
   SANCTUM_CRACK,
   SANCTUM_EXIT_WEST,
+  SANCTUM_LAKE,
   SANCTUM_PENGUIN_START,
   SANCTUM_SPAWN,
   SANCTUM_TUNNEL,
@@ -23,6 +24,8 @@ import { wardenIntroScript } from "../../core/scripts/wardenIntro";
 import { act2EndingScript } from "../../core/scripts/act2Ending";
 import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
+import { LightMask } from "../gfx/LightMask";
+import { setupZoneLighting } from "../gfx/zoneLighting";
 
 /** How many recent player positions the follower trails behind. */
 const FOLLOW_FRAMES = 14;
@@ -35,6 +38,7 @@ const TUNNEL_PX = {
 export class SanctumScene extends ZoneScene {
   private follower: Phaser.GameObjects.Sprite | null = null;
   private trail: Array<{ x: number; y: number }> = [];
+  private lightMask: LightMask | null = null;
 
   constructor() {
     super("sanctum");
@@ -55,6 +59,7 @@ export class SanctumScene extends ZoneScene {
     this.trail = [];
 
     this.addExit({ ...SANCTUM_EXIT_WEST }, "galleries", GALLERIES_DOOR_SPAWN);
+    this.setupIceLighting();
     if (getState(this).flags.slitherJoined) this.spawnFollower();
 
     const flags = getState(this).flags;
@@ -203,6 +208,39 @@ export class SanctumScene extends ZoneScene {
     this.input.once("pointerdown", descend);
   }
 
+  /**
+   * The frozen lake's blue glow: a gentle, even ambient dark (no follow lamp —
+   * the two-penguin ending must stay evenly lit, not spotlit on Joseph) that
+   * the cold blue ice cuts through. The crystals each breathe, and the whole
+   * lake sheet gets one wide, slow square wash so the ice reads as putting off
+   * its own light.
+   */
+  private setupIceLighting(): void {
+    const mask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.42 },
+      blue: [
+        ...this.tileCentersNamed("crystalBig"),
+        ...this.tileCentersNamed("crystalSmall").map((p) => ({ ...p, radius: 30 }))
+      ],
+      blueIntensity: 0.6
+    });
+    mask.addLight({
+      x: ((SANCTUM_LAKE.x1 + SANCTUM_LAKE.x2 + 1) / 2) * TILE,
+      y: ((SANCTUM_LAKE.y1 + SANCTUM_LAKE.y2 + 1) / 2) * TILE,
+      width: (SANCTUM_LAKE.x2 - SANCTUM_LAKE.x1 + 1) * TILE,
+      height: (SANCTUM_LAKE.y2 - SANCTUM_LAKE.y1 + 1) * TILE,
+      shape: "square",
+      blend: "add",
+      pulse: { min: 0.4, max: 0.85, periodMs: 2600 },
+      stops: [
+        { offset: 0, color: hexToInt(PALETTE.skyBlue), alpha: 0.28 },
+        { offset: 0.6, color: hexToInt(PALETTE.slate), alpha: 0.14 },
+        { offset: 1, color: hexToInt(PALETTE.slate), alpha: 0 }
+      ]
+    });
+    this.lightMask = mask;
+  }
+
   /** Slither trails the player's recent positions (~14 frames back). */
   private spawnFollower(): void {
     if (this.follower) return;
@@ -212,6 +250,7 @@ export class SanctumScene extends ZoneScene {
   }
 
   protected onUpdate(): void {
+    this.lightMask?.update();
     if (!this.follower) return;
     this.trail.push({ x: this.player.x, y: this.player.y + 4 });
     if (this.trail.length > FOLLOW_FRAMES) this.trail.shift();
