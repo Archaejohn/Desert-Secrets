@@ -87,6 +87,16 @@ export function buildSeaAscentMap(): ZoneMap {
   for (const [x, y] of MOSS_ROCKS) decor[y][x] = "mossRock";
   for (const [x, y] of ANEMONES) decor[y][x] = "anemone";
 
+  // A visible service ladder up the top of the shaft — placed OVERHEAD (drawn
+  // in front) so the party climbs up THROUGH the rungs on their way out; the
+  // walkable shaft underneath is untouched (kelpTrellis is solid, so it can't
+  // be a walkable tile). The reef trellis reads as a rung ladder; tileGid
+  // resolves it cross-sheet.
+  for (let y = 0; y <= 5; y++) {
+    overhead[y][9] = "kelpTrellis";
+    overhead[y][10] = "kelpTrellis";
+  }
+
   // Rising bubbles cluster low, near the drowned foot of the shaft.
   for (let y = 1; y < ASCENT_HEIGHT - 1; y++) {
     for (let x = 1; x < ASCENT_WIDTH - 1; x++) {
