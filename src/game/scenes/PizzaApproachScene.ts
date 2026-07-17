@@ -75,16 +75,19 @@ export class PizzaApproachScene extends ZoneScene {
     const cx = ((gate.x1 + gate.x2 + 1) / 2) * TILE; // centre of the two-tile gate
     this.lightMask = setupLightShaft(this, {
       x: cx,
-      y: TILE * 11, // rising up into the kitchens from the south threshold
-      width: 96,
-      height: TILE * 8,
+      y: TILE * 10, // rising up into the kitchens from the south threshold
+      width: 116,
+      height: TILE * 10,
       direction: "up",
-      intensity: 0.8,
-      pulse: { min: 0.72, max: 1, periodMs: 2400 },
+      intensity: 1,
+      pulse: { min: 0.82, max: 1, periodMs: 2400 },
+      // A hot pale-warm mouth at the doorway blooming to amber as it spreads
+      // up into the kitchens — unmistakably light spilling from the restaurant.
       stops: [
-        { offset: 0, color: hexToInt(PALETTE.amber), alpha: 0.6 },
-        { offset: 0.5, color: hexToInt(PALETTE.sand), alpha: 0.28 },
-        { offset: 1, color: hexToInt(PALETTE.sand), alpha: 0 }
+        { offset: 0, color: hexToInt(PALETTE.bone), alpha: 0.7 },
+        { offset: 0.28, color: hexToInt(PALETTE.amber), alpha: 0.52 },
+        { offset: 0.6, color: hexToInt(PALETTE.amber), alpha: 0.26 },
+        { offset: 1, color: hexToInt(PALETTE.amber), alpha: 0 }
       ]
     });
   }
