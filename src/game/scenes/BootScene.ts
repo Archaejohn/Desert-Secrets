@@ -37,6 +37,7 @@ import frostscarabUrl from "../../assets/generated/frostscarab.png";
 import wardenUrl from "../../assets/generated/warden.png";
 import johnUrl from "../../assets/generated/john.png";
 import pamelaUrl from "../../assets/generated/pamela.png";
+import thomasUrl from "../../assets/generated/thomas.png";
 import chickenUrl from "../../assets/generated/chicken.png";
 import bucketUrl from "../../assets/generated/bucket.png";
 import spigotUrl from "../../assets/generated/spigot.png";
@@ -70,6 +71,7 @@ const SHEET_URLS: Record<string, string> = {
   warden: wardenUrl,
   john: johnUrl,
   pamela: pamelaUrl,
+  thomas: thomasUrl,
   chicken: chickenUrl,
   bucket: bucketUrl,
   spigot: spigotUrl,

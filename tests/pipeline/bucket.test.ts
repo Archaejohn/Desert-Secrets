@@ -132,6 +132,7 @@ describe("bucket manifest", () => {
         "rosa",
         "john",
         "pamela",
+        "thomas",
         "chicken",
         "bucket",
         "piggy",

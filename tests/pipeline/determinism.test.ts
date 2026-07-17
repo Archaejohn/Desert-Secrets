@@ -111,6 +111,24 @@ describe("act1-retcon asset byte-stability", () => {
   });
 });
 
+describe("thomas asset byte-stability", () => {
+  // sha256 of the newly-generated thomas.png — Joseph's friend, the muscle-man
+  // body-type introduced for the Part Two opening (see
+  // tools/pipeline/src/sprites/thomas.ts). Pinned once here so future refactors
+  // can't silently move a shipped pixel.
+  const FROZEN = {
+    thomas: "a209526cd6549ee7039ed847fec99b1128bfbc0972c659f995de026e0f121fbb"
+  } as const;
+
+  it("thomas sheet encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});
+
 describe("bucket asset byte-stability", () => {
   // sha256 of the newly-generated bucket.png (docs/CONTRACTS.md "Act 1
   // addition: the bucket fetch-quest + a minimal inventory (v5)"). Pinned

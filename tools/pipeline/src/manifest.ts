@@ -80,6 +80,7 @@ export interface Manifest {
     rosa: SheetDef;
     john: SheetDef;
     pamela: SheetDef;
+    thomas: SheetDef;
     chicken: SheetDef;
     bucket: SheetDef;
     piggy: SheetDef;
@@ -124,7 +125,7 @@ const DIRECTIONS = ["down", "left", "right", "up"] as const;
 /** idle = frames 0–1 of the row, walk = frames 2–5; indices are absolute
  *  (row-major across the sheet), matching Phaser numbering. */
 function characterSheet(
-  prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela" | "sahra"
+  prefix: "hero" | "npc" | "rosa" | "miner" | "john" | "pamela" | "sahra" | "thomas"
 ): SheetDef {
   const animations: Record<string, AnimationDef> = {};
   DIRECTIONS.forEach((dir, row) => {
@@ -206,6 +207,7 @@ export function buildManifest(): Manifest {
       rosa: characterSheet("rosa"),
       john: characterSheet("john"),
       pamela: characterSheet("pamela"),
+      thomas: characterSheet("thomas"),
       chicken: creatureSheet("chicken", CHICKEN_FRAME, "move", 3, 10),
       bucket: propSheet("bucket", BUCKET_FRAME, [
         ["empty", 0],
