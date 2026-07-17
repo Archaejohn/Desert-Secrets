@@ -53,6 +53,9 @@ export class GroveDescentScene extends ZoneScene {
           const s = getState(this);
           setState(this, { ...s, flags: { ...s.flags, sawGroveDescent: true } });
           this.hud.update(getState(this));
+          // Thomas radio thread beat (see thomas.ts): a little more of his
+          // message comes through as Joseph descends into the warm deep.
+          this.playNextThomas();
         });
       });
     }

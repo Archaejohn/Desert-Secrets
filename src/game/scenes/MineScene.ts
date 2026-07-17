@@ -19,6 +19,7 @@ import {
 import { TRAIL_MINE_SPAWN } from "../maps/trailMap";
 import { DEPTHS_SPAWN } from "../maps/depthsMap";
 import { radioLines } from "../../core/scripts/radio";
+import { thomasMineScript } from "../../core/scripts/thomas";
 import { getState, setState } from "../state";
 import { LightMask } from "../gfx/LightMask";
 import { setupZoneLighting } from "../gfx/zoneLighting";
@@ -102,6 +103,24 @@ export class MineScene extends ZoneScene {
       },
       false
     );
+
+    // First contact with Thomas (B.2): stepping into the elevator chamber — the
+    // foreman's room — a broken transmission cuts in on the radio. One-time
+    // (heardThomasMine), fired on the chamber's west-edge column (x=23), one
+    // tile before the foreman's challenge band (x=24-25), so the two beats never
+    // stack. Joseph realizes it's Thomas; his call back gets only static.
+    if (!getState(this).flags.heardThomasMine) {
+      this.addTrigger(
+        { x1: 23, y1: 6, x2: 23, y2: 8 },
+        () => {
+          if (getState(this).flags.heardThomasMine) return;
+          const s = getState(this);
+          setState(this, { ...s, flags: { ...s.flags, heardThomasMine: true } });
+          this.openScript(thomasMineScript);
+        },
+        true // one-shot: play the transmission exactly once
+      );
+    }
 
     // The Foreman Scarab bars the elevator until defeated.
     if (!getState(this).flags.foremanDefeated) {

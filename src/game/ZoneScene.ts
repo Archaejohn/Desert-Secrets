@@ -14,6 +14,7 @@ import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import { respawn, type ZoneId } from "../core/gameState";
+import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
 import { PALETTE, hexToInt } from "../shared/palette";
@@ -652,6 +653,23 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.player.play(`hero-idle-${this.facing}`, true);
     this.dialogue.open(script, onClose);
+  }
+
+  /**
+   * The Thomas radio thread's sporadic hook (see `scripts/thomas.ts`): play the
+   * next unheard one-way fragment and mark it heard, or no-op once all have
+   * played. Key story beats call this once their own beat's dialogue closes, so
+   * Thomas's voice escalates across Part One toward the Part Two reunion. Safe
+   * to call from inside another script's onClose — DialogueBox clears its runner
+   * before firing the callback, so re-opening here just starts the next box.
+   */
+  protected playNextThomas(): void {
+    const s = getState(this);
+    const frag = nextThomasFragment(s.flags);
+    if (!frag) return;
+    setState(this, { ...s, flags: { ...s.flags, [frag.flag]: true } });
+    this.hud.update(getState(this));
+    this.openScript(frag.script);
   }
 
   /** Hand off to the battle scene; we resume at the same position after victory. */

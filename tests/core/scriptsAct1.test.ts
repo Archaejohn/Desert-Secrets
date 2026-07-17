@@ -5,7 +5,13 @@ import {
   type DialogueScript,
 } from "../../src/core/dialogue";
 import { rosaCrashScript } from "../../src/core/scripts/rosaCrash";
-import { homeAct1Script } from "../../src/core/scripts/homeAct1";
+import { johnAct1Script, pamelaAct1Script } from "../../src/core/scripts/homeAct1";
+import {
+  thomasMineScript,
+  THOMAS_FRAGMENTS,
+  nextThomasFragment,
+} from "../../src/core/scripts/thomas";
+import { partTwoOpeningScript } from "../../src/core/scripts/partTwoOpening";
 import { dustyTradeScript } from "../../src/core/scripts/dustyTrade";
 import { rabbitChoiceScript } from "../../src/core/scripts/rabbitChoice";
 import { queenFightScript } from "../../src/core/scripts/queenFight";
@@ -20,7 +26,13 @@ import {
 
 const NAMED_SCRIPTS: Array<[string, DialogueScript]> = [
   ["rosaCrash", rosaCrashScript],
-  ["homeAct1", homeAct1Script],
+  ["johnAct1", johnAct1Script],
+  ["pamelaAct1", pamelaAct1Script],
+  ["thomasMine", thomasMineScript],
+  ["partTwoOpening", partTwoOpeningScript],
+  ...THOMAS_FRAGMENTS.map(
+    (f, i) => [`thomasFragment.${i}`, f.script] as [string, DialogueScript],
+  ),
   ["dustyTrade", dustyTradeScript],
   ["rabbitChoice", rabbitChoiceScript],
   ["queenFight", queenFightScript],
@@ -113,61 +125,151 @@ describe("rosaCrash", () => {
   });
 });
 
-describe("homeAct1", () => {
-  it("offers the Thomas / chickens / scarabs / goodbye hub", () => {
-    const { choiceLists } = playThrough(homeAct1Script, [3]);
+describe("johnAct1", () => {
+  it("is one coherent voice — every named line is John's (or Joseph's)", () => {
+    // No Pamela lines leak into John's script (the two are fully split).
+    for (const node of johnAct1Script.nodes) {
+      for (const l of node.lines) {
+        expect(l.speaker).not.toBe("Pamela");
+      }
+    }
+  });
+
+  it("spots Piggy heading east at dawn (John owns outdoor sightings)", () => {
+    const { lines } = playThrough(johnAct1Script, [2]); // goodbye is last choice
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/dawn/i);
+    expect(all).toMatch(/east/i);
+  });
+
+  it("hands over the radio, points Joseph at Thomas, and garbles a fragment", () => {
+    const { lines } = playThrough(johnAct1Script, [2]);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/radio/i);
+    expect(all).toMatch(/Thomas/);
+    // A garbled, caption-style fragment (empty speaker + onomatopoeia).
+    const garbled = lines.find((l) => l.speaker === "" && /crackle|pop|hiss/i.test(l.text));
+    expect(garbled).toBeTruthy();
+  });
+
+  it("offers a scarabs / Thomas / goodbye hub and loops back", () => {
+    const { choiceLists, runner } = playThrough(johnAct1Script, [0, 1, 2]);
     expect(choiceLists[0]).toEqual([
-      "Ask about Thomas",
-      "Ask about the chickens",
       "Ask about the scarabs",
+      "Ask about Thomas",
       "Say goodbye",
     ]);
-  });
-
-  it("reinforces the Thomas thread on that branch", () => {
-    const { lines } = playThrough(homeAct1Script, [0, 3]);
-    const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/Thomas/);
-  });
-
-  it("hints the chicken side quest and the coop's location, opened by Pamela", () => {
-    const { lines } = playThrough(homeAct1Script, [1, 3]);
-    const chickenNode = lines.find((l) => /chickens/i.test(l.text));
-    expect(chickenNode?.speaker).toBe("Pamela");
-    const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/chickens/i);
-    expect(all).toMatch(/trough/i);
-  });
-
-  it("has John explain the scarabs are a local nickname, not a known species", () => {
-    const { lines } = playThrough(homeAct1Script, [2, 3]);
-    const scarabLines = lines.filter((l) => l.speaker === "John");
-    const johnText = scarabLines.map((l) => l.text).join(" ");
-    expect(johnText).toMatch(/scarabs/i);
-    expect(johnText).toMatch(/call/i);
-    expect(johnText).not.toMatch(/planet|alien|space/i);
-    const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/legs|shell/i);
-  });
-
-  it("Thomas, chickens and scarabs branches loop back to the hub", () => {
-    const { choiceLists, runner } = playThrough(homeAct1Script, [0, 1, 2, 3]);
-    expect(choiceLists.length).toBe(4); // hub seen four times
+    expect(choiceLists.length).toBe(3); // hub seen three times (loops back twice)
     expect(runner.active).toBe(false);
   });
 
+  it("explains the scarabs are a local nickname, not a known species — no off-world hint", () => {
+    const { lines } = playThrough(johnAct1Script, [0, 2]);
+    const johnText = lines
+      .filter((l) => l.speaker === "John")
+      .map((l) => l.text)
+      .join(" ");
+    expect(johnText).toMatch(/scarab/i);
+    expect(johnText).toMatch(/call/i);
+    expect(johnText).toMatch(/legs|shell/i);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).not.toMatch(/planet|alien|space|off-world/i);
+  });
+
   it("preserves the frost-on-the-flats hint that motivates the trail", () => {
-    const { lines } = playThrough(homeAct1Script, [3]);
+    const { lines } = playThrough(johnAct1Script, [2]);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/ice/i);
     expect(all).toMatch(/flats/i);
   });
+});
 
-  it("mentions Piggy headed east and the scarabs stirring", () => {
-    const { lines } = playThrough(homeAct1Script, [3]);
+describe("pamelaAct1", () => {
+  it("is one coherent voice — every named line is Pamela's (or Joseph's)", () => {
+    for (const node of pamelaAct1Script.nodes) {
+      for (const l of node.lines) {
+        expect(l.speaker).not.toBe("John");
+      }
+    }
+  });
+
+  it("owns the chickens/chores thread — hints the coop fetch quest", () => {
+    const { lines } = playThrough(pamelaAct1Script, [0, 1]);
+    const chickenLine = lines.find((l) => /chickens/i.test(l.text));
+    expect(chickenLine?.speaker).toBe("Pamela");
     const all = lines.map((l) => l.text).join(" ");
-    expect(all).toMatch(/east/i);
-    expect(all).toMatch(/scarabs/i);
+    expect(all).toMatch(/bucket/i);
+    expect(all).toMatch(/spigot/i);
+    expect(all).toMatch(/trough/i);
+  });
+
+  it("stays out of John's lane — no scarabs, radio or Thomas talk", () => {
+    const { lines } = playThrough(pamelaAct1Script, [0, 1]);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).not.toMatch(/scarab/i);
+    expect(all).not.toMatch(/Thomas/);
+    expect(all).not.toMatch(/radio/i);
+  });
+
+  it("offers a chickens / goodbye hub and loops back", () => {
+    const { choiceLists, runner } = playThrough(pamelaAct1Script, [0, 1]);
+    expect(choiceLists[0]).toEqual(["Ask about the chickens", "Say goodbye"]);
+    expect(runner.active).toBe(false);
+  });
+});
+
+describe("thomas radio thread", () => {
+  it("mine first-contact: garbled call, Joseph replies, only static answers", () => {
+    const { lines, runner } = playThrough(thomasMineScript);
+    const all = lines.map((l) => l.text).join(" ");
+    expect(all).toMatch(/Thomas/);
+    expect(all).toMatch(/hiss|crackle/i);
+    // Joseph calls back...
+    expect(lines.some((l) => l.speaker === "Joseph" && /come in|Thomas/i.test(l.text))).toBe(true);
+    // ...but there's no answer (one-way).
+    expect(all).toMatch(/static answers|no answer|static/i);
+    expect(runner.active).toBe(false);
+  });
+
+  it("nextThomasFragment hands back fragments in order, then nothing", () => {
+    const flags: Record<string, boolean> = {};
+    const seen: string[] = [];
+    for (let i = 0; i < THOMAS_FRAGMENTS.length; i++) {
+      const frag = nextThomasFragment(flags);
+      expect(frag).not.toBeNull();
+      seen.push(frag!.flag);
+      flags[frag!.flag] = true;
+    }
+    expect(seen).toEqual(["thomasFrag1", "thomasFrag2", "thomasFrag3"]);
+    expect(nextThomasFragment(flags)).toBeNull();
+  });
+
+  it("fragments are one-way (Joseph calls, no reply) and escalate toward coherence", () => {
+    for (const f of THOMAS_FRAGMENTS) {
+      const { lines } = playThrough(f.script);
+      // Each has a garbled Thomas caption and a Joseph call-back.
+      expect(lines.some((l) => l.speaker === "Joseph")).toBe(true);
+      expect(lines.some((l) => l.speaker === "" && /["*]/.test(l.text))).toBe(true);
+    }
+    // The last fragment is the clearest — it names Joseph and says "close".
+    const lastText = THOMAS_FRAGMENTS[THOMAS_FRAGMENTS.length - 1].script.nodes[0].lines
+      .map((l) => l.text)
+      .join(" ");
+    expect(lastText).toMatch(/close/i);
+    expect(lastText).toMatch(/Joseph/);
+  });
+});
+
+describe("partTwoOpening", () => {
+  it("plays exactly the four scripted lines, Thomas ↔ Joseph, in order", () => {
+    const { lines, runner } = playThrough(partTwoOpeningScript);
+    expect(lines).toEqual([
+      { speaker: "Thomas", text: "Joseph can you hear me?" },
+      { speaker: "Joseph", text: "I CAN!! Finally! where are you?" },
+      { speaker: "Thomas", text: "You Won't believe it if I told you!" },
+      { speaker: "Joseph", text: "I'm coming to find you." },
+    ]);
+    expect(runner.active).toBe(false);
   });
 });
 

@@ -3741,3 +3741,62 @@ crack: a tall square-falloff footprint pulsing `skyBlue→slate→clear`, the sa
 `onUpdate()`. `cliffhanger.ts` is unchanged — the dialogue ("The far wall
 splits… and glows blue", "That's ice. A wall of it.") already described this;
 only the visuals were catching up to the words.
+
+# v33: John/Pamela split into two NPCs, the Thomas radio thread, Part Two opening
+
+2026-07-17. Three linked pieces of story plumbing, all additive.
+
+**John and Pamela are now two separate NPCs, two separate voices.** They used
+to share one tangled `homeAct1Script` (a Thomas/chickens/scarabs/goodbye hub
+with both parents interleaved). `scripts/homeAct1.ts` now exports
+`johnAct1Script` and `pamelaAct1Script`, split along the CLAUDE.md dialogue
+lanes:
+- **John** owns the scarabs/mystery-bug thread and outdoor sightings (he spots
+  Piggy heading east at dawn), hands Joseph the hand radio and points him at
+  Thomas, and keeps the frost-on-the-flats hint. His hub: scarabs / Thomas /
+  goodbye. He explains "scarab" is a local nickname — no off-world hint (that's
+  Part 3).
+- **Pamela** owns the chickens/chores thread (the bucket fetch-quest: shed →
+  spigot → trough). Her hub: chickens / goodbye.
+
+`OasisScene` `addNpc`s them with their own scripts (John is `npcs[0]`); both
+still share `onCloseParent`, so closing EITHER the first time sets `metParents`
+and starts the tutorial scarab battle — unchanged progression.
+
+**The Thomas radio thread** (`scripts/thomas.ts`), a Part-One-long one-way
+through-line seeding Part Two. Thomas carries the twin of John's hand radio;
+his voice breaks in, garbled at first and clearing as Joseph closes the
+distance. Joseph always calls back, but nothing gets through.
+- First contact is `thomasMineScript`, a one-time broken transmission in the
+  mine's foreman room. `MineScene` fires it from a dedicated trigger on the
+  elevator chamber's west-edge column (x=23, one tile before the foreman's
+  challenge band at x=24-25, so the two beats never stack), guarded by the new
+  `heardThomasMine` flag.
+- The later sporadic catches are `THOMAS_FRAGMENTS`, an ordered escalating
+  list, each gated by its own flag (`thomasFrag1..3`). `nextThomasFragment(flags)`
+  returns the first unheard one. A reusable `ZoneScene.playNextThomas()` plays
+  it and marks it heard; it's safe to call from inside another script's
+  `onClose` (DialogueBox nulls its runner before firing the callback, so
+  re-opening just starts the next box). Hooked into three existing key beats,
+  after each beat's own dialogue closes: **Act 3** `SeaAscentScene` climb beat,
+  **Act 5** `GroveDescentScene` arrival beat, **Act 7** `PizzaAscentScene`
+  arrival beat (the clearest fragment, right before the finale).
+
+**The Part Two opening cutscene** (`PartTwoOpeningScene`, script
+`scripts/partTwoOpening.ts`). A self-contained non-zone scene mirroring the
+end-card scenes: a dark backdrop, Joseph lying with Piggy/Fluffball/Slither on
+one side and Thomas (drawn with the generic `npc` sheet — no new art) on the
+other, a radio link between them, and a `DialogueBox` playing the four exact
+scripted lines, then a "to be continued" beat back to the title. It's wired as
+the finale hand-off: `PizzaAscentScene`'s END OF PART ONE card now advances
+into it (SPACE), setting `partTwoStarted`, instead of jumping straight to the
+title; the cutscene clears the save at its own end (the rest of Part Two isn't
+built). Registered in `main.ts`.
+
+New flags live in `gameState.ts`'s `PART2_FLAGS` (`heardThomasMine`,
+`thomasFrag1..3`, `partTwoStarted`), all false at `newGame()`. Tests:
+`scriptsAct1.test.ts` covers the two split scripts (voice separation, lane
+content, hubs), the Thomas mine/fragment scripts (one-way, escalating, ordered
+consumption) and the four Part Two lines; `gameState.test.ts` includes the new
+flags. Smoke: `e2e.mjs` drives the finale → Part Two cutscene → four lines →
+title; `touch-e2e.mjs` still talks to John (`npcs[0]`) through his choice hub.

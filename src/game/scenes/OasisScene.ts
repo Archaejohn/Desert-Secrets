@@ -30,7 +30,7 @@ import { CRASH_EAST_SPAWN } from "../maps/crashMap";
 import { TRAIL_SPAWN } from "../maps/trailMap";
 import { SHED_SPAWN } from "../maps/shedMap";
 import { OVERWORLD_SOUTH_SPAWN } from "../maps/overworldMap";
-import { homeAct1Script } from "../../core/scripts/homeAct1";
+import { johnAct1Script, pamelaAct1Script } from "../../core/scripts/homeAct1";
 import { awardXp } from "../../core/gameState";
 import { getState, setState } from "../state";
 import { PALETTE } from "../../shared/palette";
@@ -85,12 +85,16 @@ export class OasisScene extends ZoneScene {
       }
     };
 
+    // John and Pamela are two separate NPCs with two separate voices (John:
+    // scarabs/sightings + the radio & Thomas; Pamela: chickens/chores). Both
+    // share onCloseParent, so closing EITHER the first time starts the tutorial
+    // battle. John is npcs[0] (the smoke tests talk to him first).
     this.addNpc({
       sheet: "john",
       tileX: OASIS_PARENTS.x,
       tileY: OASIS_PARENTS.y,
       wander: true,
-      script: () => homeAct1Script,
+      script: () => johnAct1Script,
       onClose: onCloseParent
     });
     this.addNpc({
@@ -98,7 +102,7 @@ export class OasisScene extends ZoneScene {
       tileX: OASIS_PAMELA.x,
       tileY: OASIS_PAMELA.y,
       wander: true,
-      script: () => homeAct1Script,
+      script: () => pamelaAct1Script,
       onClose: onCloseParent
     });
 

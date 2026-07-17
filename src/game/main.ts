@@ -38,6 +38,7 @@ import { PizzaVentScene } from "./scenes/PizzaVentScene";
 import { PizzaApproachScene } from "./scenes/PizzaApproachScene";
 import { PizzeriaScene } from "./scenes/PizzeriaScene";
 import { PizzaAscentScene } from "./scenes/PizzaAscentScene";
+import { PartTwoOpeningScene } from "./scenes/PartTwoOpeningScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { PALETTE } from "../shared/palette";
 import { initUpdateCheck } from "./updateCheck";
@@ -97,6 +98,7 @@ const game = new Phaser.Game({
     PizzaApproachScene,
     PizzeriaScene,
     PizzaAscentScene,
+    PartTwoOpeningScene,
     BattleScene
   ]
 });

@@ -202,6 +202,25 @@ export const ACT7_FLAGS = [
   "partOneComplete",
 ] as const;
 
+/**
+ * Part Two seeds, sprinkled through Part One: the Thomas radio thread and the
+ * hand-off into Part Two. Thomas — the friend Joseph keeps just missing —
+ * carries the twin of John's hand radio; his voice breaks in one-way at key
+ * beats, garbled at first and clearing as Joseph closes the distance (see
+ * `scripts/thomas.ts`). `heardThomasMine` is first contact (the mine's foreman
+ * room); `thomasFrag1..3` are the sporadic later catches (Act 3 ascent, Act 5
+ * descent, the final climb up); `partTwoStarted` records the crossing into the
+ * Part Two opening — a persisted breadcrumb, not read yet (Part Two, once
+ * built, will consume it). All false at newGame().
+ */
+export const PART2_FLAGS = [
+  "heardThomasMine",
+  "thomasFrag1",
+  "thomasFrag2",
+  "thomasFrag3",
+  "partTwoStarted",
+] as const;
+
 export interface Act1State {
   /** Current zone — also the respawn checkpoint. */
   zone: ZoneId;
@@ -236,6 +255,7 @@ export function newGame(): Act1State {
   for (const f of ACT5_FLAGS) flags[f] = false;
   for (const f of ACT6_FLAGS) flags[f] = false;
   for (const f of ACT7_FLAGS) flags[f] = false;
+  for (const f of PART2_FLAGS) flags[f] = false;
   return {
     zone: "crash",
     hero: { xp: 0, perks: [] },

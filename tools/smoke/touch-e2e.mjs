@@ -91,7 +91,7 @@ await page.waitForTimeout(300);
 // ---------- Dialogue choice list: on-screen ▲ / A / ▼ buttons ----------
 await page.evaluate(() => {
   const w = window.__game.scene.getScene("oasis");
-  const n = w["npcs"][0]; // John — homeAct1Script opens with a choice hub
+  const n = w["npcs"][0]; // John — johnAct1Script opens with a choice hub
   w.player.body.reset(n.sprite.x, n.sprite.y + 14);
 });
 await page.waitForTimeout(200);
@@ -101,10 +101,11 @@ const tapRightSide = async () => {
 };
 await tapRightSide(); // open dialogue
 await page.waitForTimeout(300);
-// homeAct1Script's choice hub ("Ask about Thomas / chickens / goodbye") is
-// a few plain lines in — tap through them (any tap advances a plain line).
+// johnAct1Script's choice hub ("scarabs / Thomas / goodbye") is several
+// plain lines in (greet + the radio hand-off) — tap through them (any tap
+// advances a plain line).
 let dlgState = null;
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 16; i++) {
   dlgState = await page.evaluate(() => {
     const w = window.__game.scene.getScene("oasis");
     return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };
@@ -158,8 +159,10 @@ if (dlgState.choices) {
   );
 
   // Walk the rest of this conversation out via touch alone, ending on
-  // "Say goodbye" (▼▼✓), which triggers the tutorial battle on close.
-  for (let i = 0; i < 12; i++) {
+  // "Say goodbye" (▼▼✓), which triggers the tutorial battle on close. The
+  // first confirm above picked "scarabs" (a long ~9-line branch), so allow
+  // enough steps to traverse it, loop back to the hub, then take goodbye.
+  for (let i = 0; i < 30; i++) {
     const s = await page.evaluate(() => {
       const w = window.__game.scene.getScene("oasis");
       return { open: w.dialogue.isOpen, choices: w.dialogue["runner"]?.choices?.map((c) => c.text) ?? null };

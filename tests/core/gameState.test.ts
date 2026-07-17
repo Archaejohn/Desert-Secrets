@@ -7,6 +7,7 @@ import {
   ACT5_FLAGS,
   ACT6_FLAGS,
   ACT7_FLAGS,
+  PART2_FLAGS,
   applyBattleResult,
   awardXp,
   choosePerk,
@@ -51,6 +52,7 @@ describe("newGame", () => {
       ...ACT5_FLAGS,
       ...ACT6_FLAGS,
       ...ACT7_FLAGS,
+      ...PART2_FLAGS,
     ]) {
       expect(s.flags[flag]).toBe(false);
     }
@@ -63,6 +65,7 @@ describe("newGame", () => {
         ...ACT5_FLAGS,
         ...ACT6_FLAGS,
         ...ACT7_FLAGS,
+        ...PART2_FLAGS,
       ].sort(),
     );
   });

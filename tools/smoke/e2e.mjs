@@ -626,6 +626,13 @@ for (const t of mineTrigs) {
 }
 check("lever pulled", s.state.flags.leverPulled === true, JSON.stringify(s.state.flags));
 check("Foreman defeated", s.state.flags.foremanDefeated === true, JSON.stringify(s.state.flags));
+// The foreman room is where Thomas's broken transmission first cuts in (a
+// one-time beat, guarded by heardThomasMine) — confirm it actually fired.
+check(
+  "Thomas's first transmission reached Joseph in the mine",
+  s.state.flags.heardThomasMine === true,
+  JSON.stringify(s.state.flags)
+);
 
 // Elevator down.
 const mineExitsToDepths = await page.evaluate(() => {
@@ -1468,11 +1475,35 @@ check(
 await page.waitForTimeout(700);
 await page.screenshot({ path: path.join(root, "../act7-endofpartone.png") }).catch(() => {});
 
-// The END OF PART ONE card → back to the title (Part Two isn't built yet).
+// The END OF PART ONE card → hands off into the Part Two opening cutscene
+// (Joseph and Thomas finally connecting over the radio).
+await tap(page, "Space");
+const atPartTwo = await waitFor(page, (x) => x.active?.includes("partTwoOpening"), 9000);
+check(
+  "the END OF PART ONE card hands off into the Part Two opening cutscene",
+  atPartTwo.active?.includes("partTwoOpening") === true,
+  JSON.stringify(atPartTwo.active)
+);
+
+// The cutscene plays its four radio lines; advance through them.
+const cutsceneDialogueOpen = () =>
+  page.evaluate(() => window.__game.scene.getScene("partTwoOpening")?.dialogue?.isOpen ?? false);
+let linesSeen = 0;
+for (let i = 0; i < 12; i++) {
+  if (!(await cutsceneDialogueOpen())) break;
+  linesSeen++;
+  await tap(page, "Space");
+  await page.waitForTimeout(200);
+}
+check("the Part Two opening plays its four radio lines", linesSeen >= 4, `saw ${linesSeen}`);
+
+// The "to be continued" beat → SPACE returns to the title (Part Two's rest
+// isn't built yet).
+await page.waitForTimeout(200);
 await tap(page, "Space");
 const backAtTitle = await waitFor(page, (x) => x.active?.includes("boot"), 9000);
 check(
-  "the END OF PART ONE card returns to the title (a deliberate cliffhanger)",
+  "the Part Two opening returns to the title (rest of Part Two not built yet)",
   backAtTitle.active?.includes("boot") === true,
   JSON.stringify(backAtTitle.active)
 );

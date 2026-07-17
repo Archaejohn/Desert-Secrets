@@ -47,6 +47,9 @@ export class SeaAscentScene extends ZoneScene {
           const s = getState(this);
           setState(this, { ...s, flags: { ...s.flags, sawAscent: true } });
           this.hud.update(getState(this));
+          // Thomas radio thread beat (see thomas.ts): climbing back toward the
+          // surface, the radio catches its first garbled fragment since the mine.
+          this.playNextThomas();
         });
       });
     }
