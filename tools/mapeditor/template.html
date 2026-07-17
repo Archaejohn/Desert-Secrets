@@ -187,10 +187,10 @@
     const isMtn = (x, y) => { if (!inB(x, y)) return false; const d = decor[y][x]; return d !== null && d.startsWith(OW_PREFIX); };
     const isWater = (x, y) => { if (!inB(x, y)) return false; const g = ground[y][x]; return g === "water" || g === "water2" || g.startsWith("lakeShore"); };
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (isMtn(x, y)) ground[y][x] = cellHash(x, y) % 2 === 0 ? "scree" : "scree2";
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!isMtn(x, y) && !isWater(x, y) && isMtn(x, y - 1)) ground[y][x] = "screeShade";
+    // (The mountain foot-shadow "screeShade" band was removed — see overworldMap.ts step 2.)
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       if (!isMtn(x, y)) continue;
-      const open = (dx, dy) => inB(x + dx, y + dy) && !isMtn(x + dx, y + dy) && !isWater(x + dx, y + dy) && ground[y + dy][x + dx] !== "screeShade";
+      const open = (dx, dy) => inB(x + dx, y + dy) && !isMtn(x + dx, y + dy) && !isWater(x + dx, y + dy);
       const n = open(0, -1), e = open(1, 0), s = open(0, 1), we = open(-1, 0);
       let name = null;
       if (n && e && !s && !we) name = "screeSandNE";

@@ -587,18 +587,12 @@ describe("overworld map (procedural generator, terrain-first v23/v24)", () => {
     }
   });
 
-  it("casts the screeShade foot-shadow band on open cells south of mountains", () => {
-    let bands = 0;
-    for (let y = 1; y < OVERWORLD_HEIGHT; y++) {
-      for (let x = 0; x < OVERWORLD_WIDTH; x++) {
-        if (map.ground[y][x] === "screeShade") {
-          bands++;
-          const above = map.decor[y - 1][x];
-          expect(above !== null && isMountainName(above)).toBe(true);
-        }
-      }
-    }
-    expect(bands).toBeGreaterThan(3); // the band actually exists
+  it("no longer casts the screeShade foot-shadow band (removed — read as a rock ledge)", () => {
+    // The mountain foot-shadow band was cut deliberately; mountains now meet
+    // sand directly (via the sand↔scree fingers below). Guard against it
+    // silently coming back. The screeShade TILE still exists in the sheet.
+    const usesScreeShade = map.ground.flat().includes("screeShade");
+    expect(usesScreeShade).toBe(false);
   });
 
   it("uses sand↔scree finger transitions where mountain masses meet open ground", () => {

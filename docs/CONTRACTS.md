@@ -3514,3 +3514,28 @@ re-bake (bake only the visible window + margin, re-bake as the camera crosses
 a threshold — O(viewport), any size) drops in *inside* `ScaledGroundView`
 with no change to callers. Live chunk streaming (load/unload) is a separate,
 later concern this render path makes possible but Part One does not need.
+
+# v26: drop the mountain foot-shadow band from the overworld autotile
+
+2026-07-17. The owner flagged the dark reddish tile that sat directly south
+of every mountain as a quirk. It was the intentional `screeShade`
+foot-shadow band (§4a, added in v20/v22) — a full-tile shadow-LUT recolor of
+the `scree` rock ground meant to make masses "sit" on the plain. In the
+shipped **flat top-down** view (not the standing-billboard 2.5D read it was
+designed alongside) it landed as a heavy rock ledge, not a soft shadow.
+
+Removed step 2 of `applyOverworldAutotile` (`overworldMap.ts`) — the loop
+that set `screeShade` on open cells south of a mountain — and the now-dead
+`!== "screeShade"` guard in the finger-transition step. With no shade row a
+mountain's south edge is "open" like its other sides, so it takes the normal
+sand↔scree finger transition below (a small improvement: the south edge now
+matches the other three instead of being a hard cut). The map editor's JS
+port of the pass (`tools/mapeditor/template.html`, regenerated
+`mapeditor.html`) got the identical edit so the two stay byte-faithful, and
+the derive→finish round-trip test still holds. The map test that asserted
+the band exists now asserts it's gone (guards against reintroduction).
+
+The `screeShade` **tile stays in the sheet** at its pinned index (34) — the
+pipeline is additive-only, so a now-unused tile is left in place rather than
+removed (removing it would reorder indices and re-pin every downstream hash).
+No sheet/manifest/determinism change; this is a map-generation change only.

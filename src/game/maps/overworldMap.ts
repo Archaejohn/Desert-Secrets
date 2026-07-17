@@ -500,22 +500,19 @@ function applyOverworldAutotile(ground: string[][], decor: (string | null)[][]):
     }
   }
 
-  // 2. Mountain foot-shadow band south of every mass.
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!isMtn(x, y) && !isWater(x, y) && isMtn(x, y - 1)) ground[y][x] = "screeShade";
-    }
-  }
+  // 2. (removed) The mountain foot-shadow band — a "screeShade" row south of
+  //    every mass — was cut deliberately: in the flat top-down view it read as
+  //    a heavy rock ledge rather than a soft shadow. The screeShade tile stays
+  //    in the sheet (additive-only contract), just unused by the map now. With
+  //    no shade row, a mountain's south edge is "open" like its other sides and
+  //    takes the same sand↔scree finger transition below (step 3).
 
   // 3. Sand↔scree finger transitions.
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (!isMtn(x, y)) continue;
       const open = (dx: number, dy: number): boolean =>
-        inBounds(x + dx, y + dy) &&
-        !isMtn(x + dx, y + dy) &&
-        !isWater(x + dx, y + dy) &&
-        ground[y + dy][x + dx] !== "screeShade";
+        inBounds(x + dx, y + dy) && !isMtn(x + dx, y + dy) && !isWater(x + dx, y + dy);
       const n = open(0, -1);
       const e = open(1, 0);
       const s = open(0, 1);
