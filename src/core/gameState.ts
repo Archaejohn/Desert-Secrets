@@ -5,12 +5,8 @@
  */
 
 import {
-  SLITHER_COMMANDS,
   baseStatsForLevel,
-  commandsForLevel,
   grantXp,
-  levelForXp,
-  slitherStatsForLevel,
   statsForBuild,
   type CommandId,
   type HeroBuild,
@@ -21,6 +17,7 @@ import {
   defaultEquipSlots,
   type EquipSlots,
 } from "./equipment";
+import { activeParty, type RosterId } from "./roster";
 import type { Stats } from "./atb";
 
 export type ZoneId =
@@ -261,6 +258,14 @@ export interface Act1State {
     seaweed: boolean;
   };
   flags: Record<string, boolean>;
+  /**
+   * Optional explicit combat-party selection (ordered roster ids) — the
+   * Part-Two swap UI's output. Unset through Part One, where the party is
+   * flag-derived (see `roster.ts` `activeParty`). When present it overrides
+   * the flag-derived default: `activeParty` filters it to available members
+   * and caps it at four.
+   */
+  selectedParty?: RosterId[];
 }
 
 export function newGame(): Act1State {
@@ -310,6 +315,7 @@ function clone(s: Act1State): Act1State {
     pendingPerks: s.pendingPerks,
     items: { ...s.items, equipped: { ...s.items.equipped } },
     flags: { ...s.flags },
+    ...(s.selectedParty ? { selectedParty: [...s.selectedParty] } : {}),
   };
 }
 
@@ -326,9 +332,13 @@ export function heroStats(s: Act1State): Stats {
   return { ...stats, hp: Math.min(s.hp, stats.maxHp) };
 }
 
-/** A party-side combatant seed plus its command list, for BattleScene. */
+/**
+ * A party-side combatant seed plus its command list, for BattleScene. `id` is
+ * a roster id (see roster.ts) — the stable key the Phase-2 equipment system
+ * will attach per-character loadouts to.
+ */
 export interface PartyMember {
-  id: "hero" | "slither";
+  id: RosterId;
   name: string;
   stats: Stats;
   commands: CommandId[];
@@ -336,32 +346,15 @@ export interface PartyMember {
 }
 
 /**
- * The battle party for the current state. The hero always leads (stats
- * clamped to current hp, commands by level, cactusGuard from level 3).
- * Slither joins once flags.slitherJoined: level-matched stats at full hp
- * every battle, Bite/Coil/Venom, no cactus guard.
+ * The battle party for the current state — now roster-driven. This delegates to
+ * `activeParty` (roster.ts), which fills up to four slots from the ROSTER by
+ * availability (hero always; Slither on slitherJoined; Fluffball on
+ * fluffballJoined; Piggy on piggyCaught) and honours an explicit
+ * `state.selectedParty` when the Part-Two swap sets one. Kept as a thin alias
+ * so BattleScene and existing call sites are unchanged in shape.
  */
 export function partyFor(s: Act1State): PartyMember[] {
-  const level = levelForXp(s.hero.xp);
-  const party: PartyMember[] = [
-    {
-      id: "hero",
-      name: "Joseph",
-      stats: heroStats(s),
-      commands: commandsForLevel(level),
-      cactusGuard: level >= 3,
-    },
-  ];
-  if (s.flags.slitherJoined) {
-    party.push({
-      id: "slither",
-      name: "Slither",
-      stats: slitherStatsForLevel(level),
-      commands: [...SLITHER_COMMANDS],
-      cactusGuard: false,
-    });
-  }
-  return party;
+  return activeParty(s);
 }
 
 /**

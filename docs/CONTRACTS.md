@@ -3948,3 +3948,32 @@ AND affordable); on the `buy-end` node the scene runs `spendShinies` +
 items shape, buy helpers, clone isolation), `minerShop.test.ts` (script validity,
 gating strip, 48-char budget). Smoke: asserts the starter outfit at newGame, the
 stick auto-equip, the bucket filling the hat slot, and buying Mo's hat.
+
+# v37: the party becomes a data-driven roster, and everyone fights (up to 4)
+
+The party is no longer "hero (+ Slither)". `src/core/roster.ts` is the single
+source of truth: a `ROSTER` of `RosterEntry` records (`hero`, `slither`,
+`fluffball`, `piggy`), each with a level-driven `statsFor`, `commandsFor`, an
+`available(state)` predicate (its unlock flag), equip-eligibility `tags`
+(`human`/`reptile`/`penguin`, for the gear system), and `cactusGuard`. Adding a
+member (Thomas in Part Two) is one appended entry — but note the coupling:
+raising the party size past four also needs `MAX_PARTY` bumped and a matching
+`PARTY_COLS` layout row in `BattleScene`.
+
+`activeParty(state)` derives the combat party (≤ `MAX_PARTY` = 4): it honours an
+explicit `state.selectedParty` ordered id list (which the **Part-Two swap UI**
+will set — the rocket-ship party management), filtered to currently-available
+members and capped at four; absent that, it's every available member in roster
+order (hero always leads). `partyFor` is now a thin alias for `activeParty`.
+`selectedParty?: RosterId[]` is an optional `Act1State` field (omitted by
+newGame, conditionally cloned; old saves default to derivation).
+
+**Fluffball and Piggy are now real combatants** (`fluffballStatsForLevel` /
+`piggyStatsForLevel` + `FLUFFBALL_COMMANDS` / `PIGGY_COMMANDS`), available on
+`fluffballJoined` / `piggyCaught`. This SUPERSEDES every earlier "Fluffball is
+non-combat" statement in this doc (v16–v19) and in scene comments. Companions
+are still stateless per battle — they enter at full HP each time, so only the
+hero tracks persistent HP between fights (that HP rationale still holds). On a
+party victory the hero is now revived to ≥1 HP, since a companion can land the
+winning blow while Joseph is down. `BattleScene` lays out 1–4 party members
+(`PARTY_COLS`). Tests: `roster.test.ts`, `progressionRoster.test.ts`.

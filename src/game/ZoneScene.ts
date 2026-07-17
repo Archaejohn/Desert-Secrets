@@ -639,7 +639,8 @@ export abstract class ZoneScene extends Phaser.Scene {
    * respawn() heal-to-full — the same function defeat/level-up use) and plays
    * a short zone-appropriate flavor line. Wired by Acts 3–7 to close the
    * mid-chain "no way to restore HP between fights" gap (see docs/CONTRACTS.md
-   * "v19"). Slither always fights at full HP and Fluffball is non-combat, so
+   * "v19"). The companions (Slither, Fluffball, Piggy) are stateless in battle —
+   * they enter every fight at full HP — so only the hero tracks persistent HP;
    * healing the hero fully heals the party — no extra plumbing needed. Reusable
    * every time: the caller's addInteractPoint stays `once: false` (the default).
    */

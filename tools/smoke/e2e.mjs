@@ -796,8 +796,10 @@ async function driveTriggersUntil(zone, pred, maxRounds = 3) {
       if (cur.zoneKey !== zone) return cur;
       await healUp(page);
       await teleport(page, r.x1, r.y1);
-      await page.waitForTimeout(500);
-      cur = await snapshot(page);
+      // Wait for the trigger's reaction rather than a fixed delay: some
+      // triggers only open their dialogue after a ~900ms tween (e.g. the reef
+      // warren chase), which races a hardcoded 500ms wait and flakes.
+      cur = await waitFor(page, (x) => x.dialogueOpen || x.battle || x.zoneKey !== zone, 2500);
       if (cur.dialogueOpen) await talkThrough(page, { pickIndex: 0 });
       await fightIfBattle(page, zone);
       cur = await snapshot(page);
@@ -1214,8 +1216,9 @@ check("Fluffball joins the party in the grove chamber", s.state.flags.fluffballJ
 if (s.zoneKey !== "groveChamber") s = await waitFor(page, (x) => x.zoneKey === "groveChamber", 8000);
 await page.screenshot({ path: path.join(root, "../act5-chamber-tree.png") }).catch(() => {});
 
-// Fluffball is a NON-COMBAT companion: joining must NOT change the battle
-// party. Force a grove encounter and confirm the party is hero + Slither only.
+// Fluffball is now a REAL combatant: joining adds him to the battle party.
+// Force a grove encounter and confirm the party is a three-strong
+// hero + Slither + Fluffball (the roster-driven 3-member layout).
 await page.evaluate(() => window.__game.scene.getScene("groveChamber").startBattle(["sunwasp"]));
 s = await waitFor(page, (x) => x.battle, 6000);
 check("a sunwasp guards the grove (Act 5 encounter starts)", s.battle === true);
@@ -1223,8 +1226,11 @@ const partyKeys = await page.evaluate(() =>
   Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
 );
 check(
-  "Fluffball is non-combat: the battle party stays hero + Slither only",
-  partyKeys.includes("hero") && partyKeys.includes("slither") && !partyKeys.includes("fluffball"),
+  "Fluffball fights: the Act 5 party is hero + Slither + Fluffball (3 members)",
+  partyKeys.length === 3 &&
+    partyKeys.includes("hero") &&
+    partyKeys.includes("slither") &&
+    partyKeys.includes("fluffball"),
   JSON.stringify(partyKeys)
 );
 await page.screenshot({ path: path.join(root, "../act5-sunwasp-fight.png") }).catch(() => {});
@@ -1308,8 +1314,9 @@ s = await exitTo("reefDescent", "reefGarden");
 check("the descent leads into the crawlers' garden", s.zoneKey === "reefGarden", `zone=${s.zoneKey}`);
 check("checkpoint updated to the crawlers' garden", s.state.zone === "reefGarden");
 
-// Zone 2 (garden): entry beat + a reef encounter that confirms Fluffball stays
-// NON-COMBAT (the party is hero + Slither, never Fluffball) — same as Act 5.
+// Zone 2 (garden): entry beat + a reef encounter that confirms Fluffball keeps
+// fighting (the party is the three-strong hero + Slither + Fluffball) — same as
+// Act 5, now that Fluffball is a real combatant.
 await healUp(page);
 s = await driveTriggersUntil("reefGarden", (x) => x.state.flags.sawReefGarden);
 check("the crawlers'-garden entry beat plays", s.state.flags.sawReefGarden === true, JSON.stringify(s.state.flags));
@@ -1327,8 +1334,11 @@ const reefParty = await page.evaluate(() =>
   Array.from(window.__game.scene.getScene("battle").partyCommands.keys())
 );
 check(
-  "Fluffball stays non-combat in Act 6: the battle party is hero + Slither only",
-  reefParty.includes("hero") && reefParty.includes("slither") && !reefParty.includes("fluffball"),
+  "Fluffball keeps fighting in Act 6: the party is hero + Slither + Fluffball (3 members)",
+  reefParty.length === 3 &&
+    reefParty.includes("hero") &&
+    reefParty.includes("slither") &&
+    reefParty.includes("fluffball"),
   JSON.stringify(reefParty)
 );
 s = await fightThrough(page, { timeoutMs: 120_000 });

@@ -55,7 +55,22 @@ interface Fighter {
 type MenuMode = "hidden" | "actions" | "targets";
 
 const HERO_ID = "hero";
-const SLITHER_ID = "slither";
+/** Default in-menu label per command id (the hero's wording). */
+const DEFAULT_COMMAND_LABELS: Record<CommandId, string> = {
+  attack: "Attack",
+  guard: "Guard",
+  focus: "Focus",
+  "second-wind": "2nd Wind",
+  sandstep: "Sandstep",
+  venom: "Venom"
+};
+/** Per-member themed overrides for shared commands (falls back to the default
+ *  above). Keyed by roster id; only the entries that differ are listed. */
+const COMMAND_LABELS: Record<string, Partial<Record<CommandId, string>>> = {
+  slither: { attack: "Bite", guard: "Coil" },
+  fluffball: { attack: "Peck", guard: "Fluff Up", focus: "Pounce" },
+  piggy: { attack: "Nip", guard: "Hide", "second-wind": "Nap" }
+};
 /** Vertical space reserved for the actor-name title inside the menu panel. */
 const MENU_TITLE_H = 13;
 const MENU_ROW_H = 14;
@@ -64,37 +79,67 @@ const MENU_W = 130;
 const MENU_W_TOUCH = 160;
 const MENU_BTN_SIZE = 20;
 const MENU_BTN_GAP = 22;
-/** Sprite placement per party member id (party column on the right). */
-const PARTY_SLOTS: Record<
+/**
+ * Per-member SPRITE presentation (sheet, idle anim, scale, facing). Positions
+ * are NOT here — they come from PARTY_COLS below, chosen by party size so 1–4
+ * members stagger cleanly down the right column. The party stands on the RIGHT
+ * facing LEFT toward the enemies: the hero's sheet has a dedicated left-facing
+ * idle; Slither/Fluffball/Piggy sheets face right, so they flipX to face in.
+ * None of the creatures has a dedicated attack pose — the strike is a
+ * positional lunge tween (see animateAction), so their idle frames are all the
+ * animation the hit needs (this is how Slither has always fought).
+ */
+const PARTY_VISUALS: Record<
   string,
-  {
-    sheet: string;
-    x: number;
-    y: number;
-    anim: string;
-    fallback?: string;
-    scale: number;
-    flipX: boolean;
-  }
+  { sheet: string; anim: string; fallback?: string; scale: number; flipX: boolean }
 > = {
-  [HERO_ID]: {
-    sheet: "hero",
-    x: 370,
-    y: 140,
-    anim: "hero-idle-left",
-    scale: 2.5,
-    flipX: false
-  },
-  [SLITHER_ID]: {
+  hero: { sheet: "hero", anim: "hero-idle-left", scale: 2.5, flipX: false },
+  slither: {
     sheet: "slither",
-    x: 385,
-    y: 205,
     anim: "slither-idle",
     fallback: "slither-move",
     scale: 2.5,
-    flipX: true // sheet faces right; enemies stand on the left
+    flipX: true
+  },
+  fluffball: {
+    sheet: "fluffball",
+    anim: "fluffball-idle",
+    fallback: "fluffball-walk",
+    scale: 2.5,
+    flipX: true
+  },
+  piggy: {
+    // Piggy is a baby — drawn a touch smaller than the others.
+    sheet: "piggy",
+    anim: "piggy-idle",
+    fallback: "piggy-walk",
+    scale: 2,
+    flipX: true
   }
 };
+/** Party sprite positions by party size: a staggered column down the RIGHT
+ *  side of the field, mirroring ENEMY_ROWS on the left. The hero always takes
+ *  slot 0. Sized for 1–4 members (Piggy fills the 4th slot in Part Two). */
+const PARTY_COLS: Record<number, Array<{ x: number; y: number }>> = {
+  1: [{ x: 372, y: 150 }],
+  2: [
+    { x: 370, y: 138 },
+    { x: 388, y: 200 }
+  ],
+  3: [
+    { x: 368, y: 120 },
+    { x: 388, y: 166 },
+    { x: 368, y: 212 }
+  ],
+  4: [
+    { x: 366, y: 112 },
+    { x: 388, y: 150 },
+    { x: 366, y: 188 },
+    { x: 388, y: 226 }
+  ]
+};
+/** Largest party size PARTY_COLS lays out without overlap. */
+const MAX_PARTY_COLS = Math.max(...Object.keys(PARTY_COLS).map(Number));
 /** Enemy slots by party size: a staggered column down the left side of the
  *  field, hand-placed per size. Every group size a battle can actually spawn
  *  needs its own row set here — the largest scripted fight is the Act 4
@@ -171,9 +216,9 @@ export class BattleScene extends Phaser.Scene {
     this.drawBackdrop();
 
     const state = getState(this);
-    // Joseph always; Slither once flags.slitherJoined. Stats/commands/hp
-    // rules (hero hp clamp, cactusGuard at level 3, Slither full hp) all
-    // live in the tested core helper.
+    // Roster-driven party (1–4 members): Joseph always leads; Slither,
+    // Fluffball and Piggy join as their flags unlock. All the stats/commands/hp
+    // rules live in the tested core (roster.ts activeParty via partyFor).
     const party = partyFor(state);
     this.partyCommands = new Map(party.map((m) => [m.id, m.commands]));
 
@@ -192,11 +237,14 @@ export class BattleScene extends Phaser.Scene {
       { rng: this.rng }
     );
 
-    for (const m of party) {
-      const slot = PARTY_SLOTS[m.id];
-      const anim = this.anims.exists(slot.anim) ? slot.anim : slot.fallback ?? slot.anim;
-      this.addFighter(m.id, slot.sheet, slot.x, slot.y, anim, slot.scale, slot.flipX, false);
-    }
+    const partyCols =
+      PARTY_COLS[Math.min(MAX_PARTY_COLS, Math.max(1, party.length))];
+    party.forEach((m, i) => {
+      const vis = PARTY_VISUALS[m.id];
+      const anim = this.anims.exists(vis.anim) ? vis.anim : vis.fallback ?? vis.anim;
+      const pos = partyCols[Math.min(i, partyCols.length - 1)];
+      this.addFighter(m.id, vis.sheet, pos.x, pos.y, anim, vis.scale, vis.flipX, false);
+    });
     const rows = ENEMY_ROWS[Math.min(MAX_ENEMY_ROWS, Math.max(1, enemySeeds.length))];
     enemySeeds.forEach((seed, i) => {
       const def = BESTIARY[this.sceneData.group[i]];
@@ -447,37 +495,31 @@ export class BattleScene extends Phaser.Scene {
 
   /**
    * Commands for one party member, in their partyFor order. The hero shows
-   * Attack/Guard plus level-gated extras with their availability rules;
-   * Slither's attack/guard/venom read as Bite/Coil/Venom.
+   * Attack/Guard plus level-gated extras with their availability rules; the
+   * creatures re-theme their shared commands (Slither Bite/Coil/Venom,
+   * Fluffball Peck/Fluff Up/Pounce, Piggy Nip/Hide/Nap) via COMMAND_LABELS.
    */
   private actionMenuItems(actorId: string): { label: string; value: string }[] {
     const actor = this.battle.getCombatant(actorId);
     const commands = this.partyCommands.get(actorId) ?? ["attack", "guard"];
-    const slither = actorId === SLITHER_ID;
+    const label = (cmd: CommandId): string =>
+      COMMAND_LABELS[actorId]?.[cmd] ?? DEFAULT_COMMAND_LABELS[cmd];
     const items: { label: string; value: string }[] = [];
     for (const cmd of commands) {
       switch (cmd) {
         case "attack":
-          items.push({ label: slither ? "Bite" : "Attack", value: "attack" });
-          break;
         case "guard":
-          items.push({ label: slither ? "Coil" : "Guard", value: "guard" });
+        case "venom":
+          items.push({ label: label(cmd), value: cmd });
           break;
         case "focus":
-          if (!actor.focused) items.push({ label: "Focus", value: "focus" });
+          if (!actor.focused) items.push({ label: label(cmd), value: cmd });
           break;
         case "second-wind":
-          if (!actor.secondWindUsed) {
-            items.push({ label: "2nd Wind", value: "second-wind" });
-          }
+          if (!actor.secondWindUsed) items.push({ label: label(cmd), value: cmd });
           break;
         case "sandstep":
-          if (!actor.sandstepUsed) {
-            items.push({ label: "Sandstep", value: "sandstep" });
-          }
-          break;
-        case "venom":
-          items.push({ label: "Venom", value: "venom" });
+          if (!actor.sandstepUsed) items.push({ label: label(cmd), value: cmd });
           break;
       }
     }
@@ -802,7 +844,11 @@ export class BattleScene extends Phaser.Scene {
 
   private handleVictory(): void {
     // Capture before any state math: core's awardXp may full-heal on level-up.
-    const heroHpAfterBattle = this.battle.getCombatant(HERO_ID).stats.hp;
+    // Clamp to >=1: with a 3-4 member party the hero can be KO'd while a
+    // surviving companion lands the winning blow — on a party victory the hero
+    // is revived to at least 1 HP so the run never returns stuck at 0 (unable
+    // to act next battle until a rest point).
+    const heroHpAfterBattle = Math.max(1, this.battle.getCombatant(HERO_ID).stats.hp);
     const xp = xpForParty(this.sceneData.group);
     this.banner("VICTORY!", PALETTE.atbGold);
     this.time.delayedCall(500, () =>

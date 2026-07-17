@@ -1,11 +1,13 @@
 /**
  * The Fluffball world-follower rig — the twin of SlitherFollower, added in
  * Act 5 when the gray chick finally joins the party (`flags.fluffballJoined`).
- * Fluffball is a NON-COMBAT companion: he only ever appears as a world
- * follower (this rig) and in dialogue/camp scenes — he is deliberately absent
- * from `partyFor()` and battle. He trails the player's recent positions like
- * Slither, but sits FURTHER back (FOLLOW_FRAMES 26 vs Slither's 14) so the two
- * line up single-file behind Joseph: Joseph, then Slither, then Fluffball.
+ * This rig is Fluffball's OVERWORLD presence only: he trails the player's
+ * recent positions like Slither, but sits FURTHER back (FOLLOW_FRAMES 26 vs
+ * Slither's 14) so the two line up single-file behind Joseph: Joseph, then
+ * Slither, then Fluffball. Since the roster refactor he is ALSO a real
+ * combatant — `roster.ts` lists him and `activeParty` puts him in battle once
+ * `fluffballJoined` is set; that side is fully data-driven and does not touch
+ * this rig.
  *
  * ── REUSE BY ACTS 6–7 ─────────────────────────────────────────────────────
  * Copy this rig (and SlitherFollower) into every new Act 6/7 zone exactly as
