@@ -216,6 +216,14 @@ describe("pamelaAct1", () => {
     expect(choiceLists[0]).toEqual(["Ask about the chickens", "Say goodbye"]);
     expect(runner.active).toBe(false);
   });
+
+  it("mentions the shiny she hands Joseph (seeds the trade economy)", () => {
+    // Her greeting always plays, so the shiny is always seen before OasisScene
+    // grants it on close (guarded by the pamelaShiny flag).
+    const { lines } = playThrough(pamelaAct1Script, [1]);
+    const shinyLine = lines.find((l) => /shiny/i.test(l.text));
+    expect(shinyLine?.speaker).toBe("Pamela");
+  });
 });
 
 describe("thomas radio thread", () => {
@@ -292,6 +300,18 @@ describe("dustyTrade", () => {
     const { lines } = playThrough(dustyTradeScript, [0]);
     const all = lines.map((l) => l.text).join(" ");
     expect(all).toMatch(/shin(y|e|ies)/i);
+  });
+
+  it("gating: stripping the paid branch (no shiny held) leaves only 'Not right now'", () => {
+    // Mirrors TrailScene.placeDusty when items.shinies === 0: copy the script
+    // and drop the choice into the paid `truth` branch. With no shiny the hub
+    // offers a single walk-away choice and ends at later-end.
+    const stripped = structuredClone(dustyTradeScript);
+    const hub = stripped.nodes.find((n) => n.id === "hub")!;
+    hub.choices = hub.choices!.filter((c) => c.next !== "truth");
+    const { choiceLists, terminalNodeId } = playThrough(stripped, [0]);
+    expect(choiceLists[0]).toEqual(["Not right now"]);
+    expect(terminalNodeId).toBe("later-end");
   });
 });
 

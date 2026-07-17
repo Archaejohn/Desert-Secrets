@@ -832,20 +832,18 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.player.play(`hero-idle-${this.facing}`, true);
     this.talkPrompt.setVisible(false);
     this.actionHint?.setVisible(false);
-    this.inventoryMenu = new InventoryMenu(
-      this,
-      getState(this).items,
-      () => {
+    this.inventoryMenu = new InventoryMenu(this, getState(this), {
+      onToggleBucket: () => {
         const s = getState(this);
         const equipped: "bucket" | null = s.items.equipped === "bucket" ? null : "bucket";
         const items = { ...s.items, equipped };
         setState(this, { ...s, items });
         return items;
       },
-      () => {
+      onClose: () => {
         this.inventoryMenu = null;
       }
-    );
+    });
   }
 
   private talkTo(npc: Npc): void {

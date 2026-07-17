@@ -67,6 +67,7 @@ export const ACT1_FLAGS = [
   "gotColdPack",
   "metParents",
   "choresDone",
+  "pamelaShiny",
   "tutorialBattleWon",
   "chip1",
   "chip2",
@@ -365,6 +366,26 @@ export function choosePerk(s: Act1State, perk: PerkId): Act1State {
   next.hero.perks.push(perk);
   next.pendingPerks = s.pendingPerks - 1;
   next.hp = s.hp + (statsForBuild(next.hero).maxHp - before);
+  return next;
+}
+
+/**
+ * Grant one shiny (the tradeable trinket). Pure. Pamela hands Joseph his
+ * first; battle drops add more; Dusty spends them. See spendShiny.
+ */
+export function grantShiny(s: Act1State): Act1State {
+  const next = clone(s);
+  next.items.shinies = s.items.shinies + 1;
+  return next;
+}
+
+/**
+ * Spend one shiny, clamped at zero (never goes negative). Pure. Dusty's
+ * "Pay a shiny" branch calls this; callers gate the branch on shinies > 0.
+ */
+export function spendShiny(s: Act1State): Act1State {
+  const next = clone(s);
+  next.items.shinies = Math.max(0, s.items.shinies - 1);
   return next;
 }
 

@@ -3800,3 +3800,57 @@ content, hubs), the Thomas mine/fragment scripts (one-way, escalating, ordered
 consumption) and the four Part Two lines; `gameState.test.ts` includes the new
 flags. Smoke: `e2e.mjs` drives the finale → Part Two cutscene → four lines →
 title; `touch-e2e.mjs` still talks to John (`npcs[0]`) through his choice hub.
+
+# v34: tabbed inventory/status window, random battle drops, and the shiny economy
+
+Three linked changes: the inventory window becomes a tabbed status screen,
+battle victories can drop items, and shinies finally have a source and a sink
+so Dusty's "Pay a shiny" branch is reachable.
+
+**The tabbed window** (`src/game/ui/InventoryMenu.ts`, a full rewrite). A row
+of tab chips across the top; the active tab's entries scroll in a list down the
+**left**; the highlighted entry's details (icon, title, flavor/stats) show in a
+panel on the **right**. Tabs are **data-driven** — a module-level `TabDef[]`,
+each with `{ id, title, emptyText, build(state) }`. `build` returns the tab's
+`Entry[]`; an `Entry` carries `{ label, tag?, icon?, detailTitle, detailBody,
+activate? }`. The framework (tab switching, list scroll, highlight, detail
+render, keyboard/touch input) is tab-agnostic — **adding a tab is adding one
+`TabDef`**. Crucially `activate` lives on the ENTRY, not the tab, so the
+bucket's equip toggle is just an entry action; the planned **4th "Equipment"
+tab** slots in by adding a `TabDef` and moving the bucket entry's `build()`
+across — no framework change. Three tabs ship: **Inventory** (bucket first — so
+the smoke test's open-and-SPACE still equips it — then coldPack, silverfin,
+stinky socks, oranges, mint kelp, shinies×N, each with a description),
+**Party** (Joseph always with Lv + HP/ATK/DEF/SPD; Piggy once `piggyCaught`;
+Fluffball once `fluffballJoined`; Slither once `slitherJoined` — portraits
+reuse the existing `hero`/`piggy`/`fluffball`/`slither` sheets, no new art),
+and **Skills** (the hero's chosen `PERKS`). Input mirrors PerkMenu: the menu
+owns its keyboard + pointer handlers and tears them down on close. Keyboard —
+↑↓/W,S move, ←→/Q,E switch tabs, SPACE/ENTER use, ESC/I close. Touch — tap a
+chip, the reused `TouchListButtons` ▲/✓/▼ column moves+uses, ✕ closes.
+`ZoneScene.openInventory()` now passes the full `Act1State` plus an
+`InventoryCallbacks` (`onToggleBucket`, `onClose`) instead of just items.
+
+**Random battle drops** (`src/core/drops.ts`, pure + tested). `rollDrop(rng,
+group, boss)` returns a `DropId | null` off the battle's own seeded RNG (never
+`Math.random`). A `DROP_CHANCE` gate (0.3) then a weighted `DROP_TABLE` pick;
+today the table is a single `shiny` entry, shaped so a rarer entry (e.g. a heal
+item) drops in without touching the roll logic. Bosses and empty groups never
+drop (scripted rewards). `BattleScene.handleVictory` rolls once up front and
+folds a `shiny` into the same state write as the XP award (via
+`gameState.grantShiny`), on either the level-up or the no-level branch, and
+floats a "Found a shiny!" toast. This is the main faucet feeding the economy.
+
+**The shiny economy.** `gameState.ts` gains pure `grantShiny`/`spendShiny`
+(clamped at zero) and a new `ACT1_FLAGS` entry `pamelaShiny`. Pamela's greeting
+now hands Joseph his first shiny ("found this out by the coop" — her chores/coop
+lane); `OasisScene` grants it once on her dialogue close, guarded by
+`pamelaShiny`, then runs the shared parent beat. Dusty's "Pay a shiny" branch,
+previously always shown but with nothing to spend, is now gated in
+`TrailScene.placeDusty` with the same copy-and-strip pattern as the jackrabbit:
+with no shiny the hub offers only "Not right now"; the paid `truth-end` branch
+spends one shiny in `onClose`. Dusty still opens the mine on any close (existing
+behavior the smoke relies on). Tests: `drops.test.ts` (boss/empty suppression,
+determinism, rate band, labels); `gameState.test.ts` (grant/spend purity,
+clamp, round-trip, flag count now 18); `scriptsAct1.test.ts` (Pamela's shiny
+line, the Dusty strip → single "Not right now" → later-end).

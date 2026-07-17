@@ -31,7 +31,7 @@ import { TRAIL_SPAWN } from "../maps/trailMap";
 import { SHED_SPAWN } from "../maps/shedMap";
 import { OVERWORLD_SOUTH_SPAWN } from "../maps/overworldMap";
 import { johnAct1Script, pamelaAct1Script } from "../../core/scripts/homeAct1";
-import { awardXp } from "../../core/gameState";
+import { awardXp, grantShiny } from "../../core/gameState";
 import { getState, setState } from "../state";
 import { PALETTE } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
@@ -85,10 +85,26 @@ export class OasisScene extends ZoneScene {
       }
     };
 
+    // Pamela's close does the shared parent beat AND, the first time only,
+    // hands Joseph his first shiny (her chores/coop lane — see homeAct1.ts).
+    // The grant is guarded by the pamelaShiny flag so it happens exactly once,
+    // and runs before onCloseParent so it isn't clobbered by the tutorial
+    // battle's own state writes.
+    const onClosePamela = (): void => {
+      const s = getState(this);
+      if (!s.flags.pamelaShiny) {
+        const granted = grantShiny(s);
+        setState(this, { ...granted, flags: { ...granted.flags, pamelaShiny: true } });
+        this.floatText(OASIS_PAMELA.x * TILE + TILE / 2, OASIS_PAMELA.y * TILE, "Got a shiny!");
+      }
+      onCloseParent();
+    };
+
     // John and Pamela are two separate NPCs with two separate voices (John:
-    // scarabs/sightings + the radio & Thomas; Pamela: chickens/chores). Both
-    // share onCloseParent, so closing EITHER the first time starts the tutorial
-    // battle. John is npcs[0] (the smoke tests talk to him first).
+    // scarabs/sightings + the radio & Thomas; Pamela: chickens/chores + the
+    // first shiny). Both closes run the shared parent beat, so closing EITHER
+    // the first time starts the tutorial battle. John is npcs[0] (the smoke
+    // tests talk to him first).
     this.addNpc({
       sheet: "john",
       tileX: OASIS_PARENTS.x,
@@ -103,7 +119,7 @@ export class OasisScene extends ZoneScene {
       tileY: OASIS_PAMELA.y,
       wander: true,
       script: () => pamelaAct1Script,
-      onClose: onCloseParent
+      onClose: onClosePamela
     });
 
     this.placeCoop();

@@ -21,7 +21,7 @@ import { rabbitChoiceScript } from "../../core/scripts/rabbitChoice";
 import { dustyTradeScript } from "../../core/scripts/dustyTrade";
 import { radioLines } from "../../core/scripts/radio";
 import { getState, setState } from "../state";
-import { awardXp } from "../../core/gameState";
+import { awardXp, spendShiny } from "../../core/gameState";
 import type { DialogueScript } from "../../core/dialogue";
 import { PALETTE } from "../../shared/palette";
 
@@ -132,9 +132,26 @@ export class TrailScene extends ZoneScene {
       sheet: "dusty", // the giant pack rat of Last Chance Fuel
       tileX: TRAIL_DUSTY.x,
       tileY: TRAIL_DUSTY.y,
-      script: () => dustyTradeScript,
-      onClose: () => {
-        const s = getState(this);
+      // "Pay a shiny" shows only while it still buys something new: you hold a
+      // shiny AND the mine isn't open yet. With no shiny — or once you've
+      // already been (mineOpen) — the hub shows only "Not right now" (Dusty
+      // still points the way on close, as he always has), so a returning
+      // player with fresh drop-shinies can't re-pay for facts he already has.
+      // Same copy-and-strip pattern as the jackrabbit's cold-pack trade.
+      script: () => {
+        const st = getState(this);
+        if (st.items.shinies > 0 && !st.flags.mineOpen) return dustyTradeScript;
+        const stripped = structuredClone(dustyTradeScript);
+        const hub = stripped.nodes.find((n) => n.id === "hub")!;
+        hub.choices = hub.choices!.filter((c) => c.next !== "truth");
+        return stripped;
+      },
+      onClose: (endNodeId) => {
+        let s = getState(this);
+        if (endNodeId === "truth-end" && s.items.shinies > 0) {
+          s = spendShiny(s);
+          this.floatText(TRAIL_DUSTY.x * TILE + TILE / 2, TRAIL_DUSTY.y * TILE, "-1 shiny");
+        }
         setState(this, { ...s, flags: { ...s.flags, metDusty: true, mineOpen: true } });
       }
     });

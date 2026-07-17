@@ -12,7 +12,10 @@ import type { DialogueScript } from "../dialogue";
  *   he hands it over, a garbled fragment cuts in ("Jos... *crackle pop*").
  *   His farewell keeps the frost-on-the-flats hint that motivates the trail.
  * - **Pamela** (`pamelaAct1Script`) owns the chickens/chores thread (the
- *   optional bucket fetch-quest: shed → spigot → trough).
+ *   optional bucket fetch-quest: shed → spigot → trough). She also hands
+ *   Joseph his first shiny — she found it out by the coop (her lane) — which
+ *   seeds the tradeable-currency economy (a trader, Dusty, spends shinies).
+ *   OasisScene grants it once on her dialogue's close (`pamelaShiny` flag).
  *
  * "Scarab" is the family's own name for the bugs, not a real species ID —
  * John says so outright, but the alien angle stays unconfirmed here (that's
@@ -95,6 +98,8 @@ export const pamelaAct1Script: DialogueScript = {
       lines: [
         { speaker: "Pamela", text: "Joseph! Thank goodness you're all right." },
         { speaker: "Pamela", text: "You had us both worried sick." },
+        { speaker: "Pamela", text: "Oh — found this shiny out by the coop." },
+        { speaker: "Pamela", text: "Here, take it. A trader might fancy it." },
       ],
       next: "hub",
     },

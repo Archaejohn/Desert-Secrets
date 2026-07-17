@@ -11,9 +11,11 @@ import {
   applyBattleResult,
   awardXp,
   choosePerk,
+  grantShiny,
   heroStats,
   newGame,
   respawn,
+  spendShiny,
   type Act1State,
 } from "../../src/core/gameState";
 import { levelForXp, statsForBuild } from "../../src/core/progression";
@@ -43,7 +45,7 @@ describe("newGame", () => {
 
   it("initialises every scene flag to false", () => {
     const s = newGame();
-    expect(ACT1_FLAGS.length).toBe(17);
+    expect(ACT1_FLAGS.length).toBe(18);
     for (const flag of [
       ...ACT1_FLAGS,
       ...ACT2_FLAGS,
@@ -178,6 +180,43 @@ describe("choosePerk", () => {
     const before = snapshot(s);
     choosePerk(s, "bulwark");
     expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("shiny economy", () => {
+  it("grantShiny adds one to the count (Pamela's gift, battle drops)", () => {
+    expect(grantShiny(newGame()).items.shinies).toBe(1);
+    expect(grantShiny(grantShiny(newGame())).items.shinies).toBe(2);
+  });
+
+  it("spendShiny removes one (Dusty's fee)", () => {
+    const two = grantShiny(grantShiny(newGame()));
+    expect(spendShiny(two).items.shinies).toBe(1);
+  });
+
+  it("spendShiny never goes negative", () => {
+    expect(spendShiny(newGame()).items.shinies).toBe(0);
+  });
+
+  it("grant then spend round-trips to the same count", () => {
+    const s = newGame();
+    expect(spendShiny(grantShiny(s)).items.shinies).toBe(s.items.shinies);
+  });
+
+  it("both are pure: never mutate the input state", () => {
+    const s = newGame();
+    const before = snapshot(s);
+    grantShiny(s);
+    spendShiny(grantShiny(s));
+    expect(snapshot(s)).toBe(before);
+  });
+
+  it("touches nothing but the shiny count", () => {
+    const s = awardXp(newGame(), 20).state;
+    s.flags.metRosa = true;
+    s.items.coldPack = true;
+    const after = grantShiny(s);
+    expect(after).toEqual({ ...s, items: { ...s.items, shinies: s.items.shinies + 1 } });
   });
 });
 
