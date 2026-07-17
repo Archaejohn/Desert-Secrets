@@ -93,7 +93,13 @@ const PARTY_SLOTS: Record<
     flipX: true // sheet faces right; enemies stand on the left
   }
 };
-/** Enemy slots by party size: y rows on the left side of the field. */
+/** Enemy slots by party size: a staggered column down the left side of the
+ *  field, hand-placed per size. Every group size a battle can actually spawn
+ *  needs its own row set here — the largest scripted fight is the Act 4
+ *  midden-mite nest (4), and random encounters top out at 3. A size with no
+ *  entry falls back to the largest defined one (see MAX_ENEMY_ROWS), which
+ *  would stack the surplus enemies on the last slot, so keep this covering
+ *  the real max. */
 const ENEMY_ROWS: Record<number, Array<{ x: number; y: number }>> = {
   1: [{ x: 105, y: 150 }],
   2: [
@@ -104,8 +110,19 @@ const ENEMY_ROWS: Record<number, Array<{ x: number; y: number }>> = {
     { x: 115, y: 120 },
     { x: 95, y: 165 },
     { x: 115, y: 210 }
+  ],
+  4: [
+    { x: 115, y: 120 },
+    { x: 93, y: 150 },
+    { x: 115, y: 180 },
+    { x: 93, y: 210 }
   ]
 };
+/** Largest group size ENEMY_ROWS lays out without overlap — derived, not
+ *  hardcoded, so adding a bigger row set above is all it takes to support a
+ *  bigger fight (a 4-enemy fight used to clamp to the 3-slot layout and drop
+ *  its 4th enemy exactly on top of its 3rd). */
+const MAX_ENEMY_ROWS = Math.max(...Object.keys(ENEMY_ROWS).map(Number));
 
 export class BattleScene extends Phaser.Scene {
   private battle!: AtbBattle;
@@ -178,7 +195,7 @@ export class BattleScene extends Phaser.Scene {
       const anim = this.anims.exists(slot.anim) ? slot.anim : slot.fallback ?? slot.anim;
       this.addFighter(m.id, slot.sheet, slot.x, slot.y, anim, slot.scale, slot.flipX, false);
     }
-    const rows = ENEMY_ROWS[Math.min(3, Math.max(1, enemySeeds.length))];
+    const rows = ENEMY_ROWS[Math.min(MAX_ENEMY_ROWS, Math.max(1, enemySeeds.length))];
     enemySeeds.forEach((seed, i) => {
       const def = BESTIARY[this.sceneData.group[i]];
       const anim = this.anims.exists(`${def.sheet}-move`)
