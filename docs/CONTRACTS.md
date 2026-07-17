@@ -3471,3 +3471,36 @@ and a connected play path (from the south/entry spawn you can reach both exits
 and the mine-side spawn). The editor's connectivity overlay mirrors that play-
 path check rather than raw reachability, so an intentional outside reads as
 "ok" and only a genuinely cut-off stop warns.
+
+# v25: the flat overworld bakes its ground to one texture (seam fix)
+
+2026-07-17. The flat overworld showed faint horizontal lines that flashed
+on and off as you moved — a rendering artifact, not map data. Root cause:
+the overworld is the ONLY zone drawn at a *fractional* camera zoom
+(`OVERWORLD_FLAT_ZOOM = 0.7`); every other zone renders at integer zoom 1.
+At zoom 1 each 16px tile quad is NEAREST-sampled 1:1, exact and seam-free.
+At 0.7 each tile minifies to ~11px, so whole source rows/columns get
+dropped by the NEAREST sampler — and *which* ones drop shifts every
+sub-pixel scroll step, flashing dark tile-edge pixels in and out (verified:
+the seam rows are darker adjacent-tile content, NOT the background showing
+through a geometric gap — a magenta-background probe found 0% background
+pixels on the seam rows). `roundPixels` on/off made no difference; only
+integer zoom removed it, confirming minification aliasing as the cause.
+
+**Fix (`OverworldScene.bakeFlatGround`).** For the flat view (the shipped
+default, and the Mode-7 fallback), the ground+decor tilemap layers are
+composited ONCE into a single `RenderTexture` sized to the map, which is
+then drawn in their place; the live layers stay put but invisible, still
+driving collision. The single texture is `LINEAR`-filtered. Two things had
+to be true together: (1) baking to one contiguous texture removes the
+packed-tileset atlas boundaries, so LINEAR can't bleed one tile into its
+neighbour the way it does on the shared `tiles*`/`owMountains` sheets
+(plain LINEAR on the atlases produces a full GRID of bleed lines — worse);
+(2) LINEAR then resamples that one image smoothly and, crucially, *stably*
+as the camera scrolls, so no rows flash. Same single-texture idea Mode-7
+already uses (`Mode7Ground.paintGroundTexture` bakes the whole map to one
+canvas texture). The RT sits at `GROUND_DEPTH` (below the y-sorted player,
+NPCs and shadows) and is destroyed on scene shutdown. Player sprite, HUD
+and hint text are unaffected — they render as their own quads through the
+same camera and stay crisp. Only the overworld is touched; the base
+`ZoneScene` tilemap path every integer-zoom zone uses is unchanged.
