@@ -106,7 +106,11 @@ import {
 const KNOWN_NAMES = new Set([
   ...Object.keys(manifest.tiles.names),
   ...Object.keys(manifest.tiles2.names),
-  ...Object.keys(manifest.owMountains.names)
+  ...Object.keys(manifest.owMountains.names),
+  // The Cinnabar Mine borrows the Act 2 lantern-post (tiles3) as a wall
+  // torch — a deliberate cross-sheet reuse (tileGid resolves any sheet), so
+  // it's allowed here rather than treated as a stray Act 2 tile.
+  "lanternPost"
 ]);
 
 interface Pt {

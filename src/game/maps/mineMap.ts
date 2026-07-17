@@ -35,6 +35,17 @@ export const MINE_ELEVATOR_SPAWN = { x: 24, y: 8 } as const;
 /** The ore cart at the end of the rail siding. */
 export const MINE_CART = { x: 12, y: 11 } as const;
 
+/** Lantern-post torches mounted at chamber corners/edges (solid decor, all
+ *  in wide chambers so none narrows a path — BFS-verified). MineScene hangs a
+ *  warm flickering LightMask glow on each. */
+export const MINE_TORCHES = [
+  { x: 13, y: 15 }, // entry chamber, north wall
+  { x: 17, y: 18 }, // entry chamber, east wall
+  { x: 8, y: 13 }, // rail chamber, SW corner
+  { x: 23, y: 5 }, // elevator chamber, NW corner
+  { x: 27, y: 9 } // elevator chamber, SE corner
+] as const;
+
 /** Carved (walkable) rectangles, inclusive tile coords. */
 const CARVES: Array<{ x1: number; y1: number; x2: number; y2: number }> = [
   { x1: 12, y1: 15, x2: 17, y2: 19 }, // entry chamber
@@ -99,6 +110,9 @@ export function buildMineMap(): ZoneMap {
 
   // A few bones for flavor in the entry chamber.
   decor[17][16] = "bones";
+
+  // Lantern-post torches (LightMask glows hung on them in MineScene).
+  for (const t of MINE_TORCHES) decor[t.y][t.x] = "lanternPost";
 
   return dressMap({ ground, decor });
 }

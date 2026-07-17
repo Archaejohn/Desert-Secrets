@@ -3666,3 +3666,21 @@ character glow, a pulsing "ice wall", a blue→white→clear multi-stop light, a
 square-falloff glow, a linear wash, and a hard-edged doorway shaft — plus an
 on-demand white flash (`F`). Off by default; normal play is untouched. No tile
 art changed, no determinism hashes re-pinned.
+
+# v30: the Cinnabar Mine is torch-lit (first real use of LightMask)
+
+2026-07-17. The first shipped use of the v29 LightMask subsystem. The mine
+(`MineScene`) now runs a moderate ambient darkness (ink at 0.5) that the
+player's own lamp — a soft `reveal` light following the player — punches
+through, plus a warm `amber→clay→rust` glow hung on each of five lantern-post
+torches (`MINE_TORCHES` in `mineMap.ts`), pulsing slightly out of phase so
+they flicker rather than breathe in unison. Kept deliberately navigable: the
+lamp is generous (radius 116) and the darkness partial, so corridors, the
+lever/gate, and the Foreman fight all stay legible.
+
+The torch fixture reuses the Act 2 `lanternPost` tile (tiles3) as a mine wall
+torch — a deliberate cross-sheet borrow (tileGid resolves any sheet), so it's
+added to the Act 1 map test's KNOWN_NAMES rather than treated as a stray tile.
+The five posts sit at chamber corners/edges (all in wide chambers, none
+narrowing a path — BFS-verified). LightMask sits at depth 4000: above the
+actors and decor it darkens, below the HUD.
