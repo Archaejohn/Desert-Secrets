@@ -97,7 +97,7 @@ export class Hud {
    * can't go stale showing an item the player is merely carrying.
    */
   private updateInventory(state: Act1State): void {
-    if (state.items.equipped !== "bucket") {
+    if (state.items.equipped.hat !== "bucket") {
       this.invBg.setVisible(false);
       this.bucketIcon.setVisible(false);
       this.invText.setText("");

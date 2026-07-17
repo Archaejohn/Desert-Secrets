@@ -14,6 +14,7 @@ import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import { respawn, type ZoneId } from "../core/gameState";
+import { equipmentById } from "../core/equipment";
 import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
@@ -835,7 +836,13 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.inventoryMenu = new InventoryMenu(this, getState(this), {
       onToggleEquip: (id) => {
         const s = getState(this);
-        const equipped = s.items.equipped === id ? null : id;
+        const item = equipmentById(id);
+        const equipped = { ...s.items.equipped };
+        if (item) {
+          // Swap within the item's own slot: equipping replaces whatever was
+          // worn there; toggling the already-worn item empties that slot.
+          equipped[item.slot] = equipped[item.slot] === id ? null : id;
+        }
         const items = { ...s.items, equipped };
         setState(this, { ...s, items });
         return items;

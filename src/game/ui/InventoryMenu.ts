@@ -31,9 +31,12 @@ import { heroStats, type Act1State } from "../../core/gameState";
 import { PERKS, levelForXp } from "../../core/progression";
 import {
   BUFF_STATS,
-  equipmentById,
+  EQUIPMENT,
+  EQUIP_SLOTS,
+  hasNoBuffs,
   type Equipment,
   type EquipId,
+  type EquipSlot,
 } from "../../core/equipment";
 import { isTouchDevice, TouchListButtons } from "./touch";
 import { addToUiLayer } from "../gfx/sceneUi";
@@ -110,6 +113,21 @@ function buffPreview(item: Equipment): string {
   return BUFF_STATS.map((k) => `${label[k]} ${fmt(item.buffs[k])}`).join("  ");
 }
 
+/** Human labels for the five equip slots (menu grouping). */
+const SLOT_LABEL: Record<EquipSlot, string> = {
+  hat: "Hat",
+  weapon: "Weapon",
+  torso: "Torso",
+  legs: "Legs",
+  shoes: "Shoes",
+};
+
+/** Whether the player owns a given equippable (bucket via its fill-state). */
+function ownsEquip(s: Act1State, id: EquipId): boolean {
+  if (id === "bucket") return s.items.bucket !== "none";
+  return s.items[id] === true;
+}
+
 const TABS: TabDef[] = [
   {
     id: "inventory",
@@ -124,7 +142,7 @@ const TABS: TabDef[] = [
         const filled = items.bucket === "filled";
         out.push({
           label: filled ? "Bucket (full)" : "Bucket (empty)",
-          tag: items.equipped === "bucket" ? "  ✓ worn" : "",
+          tag: items.equipped.hat === "bucket" ? "  ✓ worn" : "",
           icon: { sheet: "bucket", frame: filled ? 1 : 0 },
           detailTitle: filled ? "Bucket (full)" : "Bucket (empty)",
           detailBody: filled
@@ -241,26 +259,31 @@ const TABS: TabDef[] = [
     id: "equipment",
     title: "Equipment",
     emptyText: "No gear to wear yet.",
+    // Every OWNED equippable, grouped by slot (hat · weapon · torso · legs ·
+    // shoes) so the five independent slots read clearly, each with its own
+    // "✓ worn" marker. Joseph's starter clothes fill torso/legs/shoes from the
+    // start. Each entry's equip toggle is auto-wired off `equipId` in
+    // buildEntries (keyed off the stable id, never display text).
     build: (s) => {
       const out: Entry[] = [];
-      // The bucket is the first (and today only) equippable. Held once picked
-      // up from the shed; wearing it grants its combat buff regardless of its
-      // fill-state. Its `activate` (equip toggle) is auto-wired in buildEntries.
-      if (s.items.bucket !== "none") {
-        const item = equipmentById("bucket")!;
-        const worn = s.items.equipped === "bucket";
-        const filled = s.items.bucket === "filled";
-        out.push({
-          label: item.name,
-          tag: worn ? "  ✓ worn" : "",
-          equipId: "bucket",
-          icon: { sheet: "bucket", frame: filled ? 1 : 0 },
-          detailTitle: worn ? `${item.name} (worn)` : item.name,
-          detailBody:
-            `${item.description}\n` +
-            `${buffPreview(item)}\n` +
-            (worn ? "Worn as headgear. SPACE to take it off." : "SPACE to wear it as headgear.")
-        });
+      for (const slot of EQUIP_SLOTS) {
+        for (const item of EQUIPMENT) {
+          if (item.slot !== slot || !ownsEquip(s, item.id)) continue;
+          const worn = s.items.equipped[slot] === item.id;
+          const filled = item.id === "bucket" && s.items.bucket === "filled";
+          out.push({
+            label: `${SLOT_LABEL[slot]}: ${item.name}`,
+            tag: worn ? "  ✓ worn" : "",
+            equipId: item.id,
+            icon: item.id === "bucket" ? { sheet: "bucket", frame: filled ? 1 : 0 } : undefined,
+            detailTitle: worn ? `${item.name} (worn)` : item.name,
+            detailBody:
+              `${item.description}\n` +
+              `Slot: ${SLOT_LABEL[slot]}\n` +
+              `${hasNoBuffs(item) ? "No stat bonus." : buffPreview(item)}\n` +
+              (worn ? "Worn. SPACE to take it off." : "SPACE to wear it.")
+          });
+        }
       }
       return out;
     }

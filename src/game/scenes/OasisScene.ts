@@ -171,7 +171,7 @@ export class OasisScene extends ZoneScene {
         this.openScript(CHORES_DONE_HINT);
         return;
       }
-      if (s.items.equipped !== "bucket") {
+      if (s.items.equipped.hat !== "bucket") {
         this.openScript(s.items.bucket === "none" ? NEED_BUCKET_HINT : NOT_EQUIPPED_HINT);
         return;
       }
@@ -205,7 +205,7 @@ export class OasisScene extends ZoneScene {
 
     this.addInteractPoint(OASIS_SPRING_FILL.x, OASIS_SPRING_FILL.y, () => {
       const s = getState(this);
-      if (s.items.equipped !== "bucket") {
+      if (s.items.equipped.hat !== "bucket") {
         this.openScript(SPIGOT_NEED_BUCKET_HINT);
         return;
       }
