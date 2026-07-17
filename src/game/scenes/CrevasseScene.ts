@@ -90,13 +90,17 @@ export class CrevasseScene extends ZoneScene {
    */
   private setupIceLighting(): void {
     this.lightMask = setupZoneLighting(this, {
-      base: { color: hexToInt(PALETTE.indigo), alpha: 0.42 },
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.58 },
       follow: this.player,
+      followRadius: 100,
+      followIntensity: 0.8,
       amber: this.tileCentersNamed("lanternPost"),
+      amberIntensity: 0.6,
       blue: [
         ...this.tileCentersNamed("crystalBig"),
         ...this.tileCentersNamed("crystalSmall").map((p) => ({ ...p, radius: 30 }))
-      ]
+      ],
+      blueIntensity: 0.6
     });
   }
 

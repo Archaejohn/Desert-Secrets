@@ -209,17 +209,20 @@ export class SanctumScene extends ZoneScene {
   }
 
   /**
-   * The frozen lake's blue glow: no ambient darkening here (the two-penguin
-   * ending must stay bright) — just a cold blue pulse off the ice. The
-   * crystals each breathe, and the whole lake sheet gets one wide, slow
-   * square wash so the ice reads as putting off its own light.
+   * The frozen lake's blue glow: a gentle, even ambient dark (no follow lamp —
+   * the two-penguin ending must stay evenly lit, not spotlit on Joseph) that
+   * the cold blue ice cuts through. The crystals each breathe, and the whole
+   * lake sheet gets one wide, slow square wash so the ice reads as putting off
+   * its own light.
    */
   private setupIceLighting(): void {
     const mask = setupZoneLighting(this, {
+      base: { color: hexToInt(PALETTE.ink), alpha: 0.42 },
       blue: [
         ...this.tileCentersNamed("crystalBig"),
         ...this.tileCentersNamed("crystalSmall").map((p) => ({ ...p, radius: 30 }))
-      ]
+      ],
+      blueIntensity: 0.6
     });
     mask.addLight({
       x: ((SANCTUM_LAKE.x1 + SANCTUM_LAKE.x2 + 1) / 2) * TILE,
@@ -230,8 +233,8 @@ export class SanctumScene extends ZoneScene {
       blend: "add",
       pulse: { min: 0.4, max: 0.85, periodMs: 2600 },
       stops: [
-        { offset: 0, color: hexToInt(PALETTE.skyBlue), alpha: 0.4 },
-        { offset: 0.6, color: hexToInt(PALETTE.slate), alpha: 0.2 },
+        { offset: 0, color: hexToInt(PALETTE.skyBlue), alpha: 0.28 },
+        { offset: 0.6, color: hexToInt(PALETTE.slate), alpha: 0.14 },
         { offset: 1, color: hexToInt(PALETTE.slate), alpha: 0 }
       ]
     });

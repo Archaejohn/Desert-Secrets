@@ -28,10 +28,16 @@ export interface ZoneLightingOptions {
   /** A reveal lamp that follows this target (usually the player). */
   follow?: Phaser.GameObjects.Components.Transform;
   followRadius?: number;
+  /** How fully the lamp clears the dark (0–1); <1 keeps the lit pool dim. */
+  followIntensity?: number;
   /** Warm, flickering lantern/torch glows. */
   amber?: GlowPoint[];
+  /** Brightness multiplier for the amber glows (default 1). */
+  amberIntensity?: number;
   /** Cold, slow-pulsing ice glows (crystals, frozen lake). */
   blue?: GlowPoint[];
+  /** Brightness multiplier for the blue glows (default 1). */
+  blueIntensity?: number;
   /** Display depth of the overlay (default above actors, below the HUD). */
   depth?: number;
 }
@@ -61,6 +67,7 @@ export function setupZoneLighting(scene: Phaser.Scene, opts: ZoneLightingOptions
       follow: opts.follow,
       radius: opts.followRadius ?? 116,
       blend: "reveal",
+      intensity: opts.followIntensity ?? 1,
       stops: [
         { offset: 0, color: 0xffffff, alpha: 1 },
         { offset: 0.62, color: 0xffffff, alpha: 0.85 },
@@ -75,6 +82,7 @@ export function setupZoneLighting(scene: Phaser.Scene, opts: ZoneLightingOptions
       y: p.y,
       radius: p.radius ?? 60,
       blend: "add",
+      intensity: opts.amberIntensity ?? 1,
       pulse: { min: 0.72, max: 1, periodMs: 1500 + i * 130, phaseMs: i * 300 },
       stops: AMBER_STOPS
     });
@@ -86,6 +94,7 @@ export function setupZoneLighting(scene: Phaser.Scene, opts: ZoneLightingOptions
       y: p.y,
       radius: p.radius ?? 50,
       blend: "add",
+      intensity: opts.blueIntensity ?? 1,
       pulse: { min: 0.35, max: 1, periodMs: 1900 + i * 170, phaseMs: i * 240 },
       stops: BLUE_STOPS
     });
