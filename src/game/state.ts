@@ -34,11 +34,16 @@ export function loadSavedState(): Act1State | null {
     // (boolean ownership + one `equipped` record) or the current per-character
     // pool model resolves to the pool shape, so a mid-refactor reload can't
     // crash. `normalizeItemEquipment` sees the raw (possibly legacy) items.
-    const { owned, equipped } = normalizeItemEquipment(s.items as unknown);
-    const items = { ...fresh.items, ...s.items, owned, equipped };
-    // Drop any stale legacy boolean-ownership keys so they aren't re-persisted.
-    for (const k of ["stick", "minersHat", "pickaxe", "tshirt", "jeans", "flipFlops"]) {
-      delete (items as Record<string, unknown>)[k];
+    // If a malformed save is missing `items` entirely, keep fresh.items (its
+    // default starter outfit) rather than blanking Joseph's gear.
+    let items = { ...fresh.items };
+    if (s.items && typeof s.items === "object") {
+      const { owned, equipped } = normalizeItemEquipment(s.items as unknown);
+      items = { ...fresh.items, ...s.items, owned, equipped };
+      // Drop any stale legacy boolean-ownership keys so they aren't re-persisted.
+      for (const k of ["stick", "minersHat", "pickaxe", "tshirt", "jeans", "flipFlops"]) {
+        delete (items as Record<string, unknown>)[k];
+      }
     }
     const merged: Act1State = {
       ...fresh,
