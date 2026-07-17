@@ -16,7 +16,11 @@ import {
   type HeroBuild,
   type PerkId,
 } from "./progression";
-import { applyEquipmentBuffs, type EquipId } from "./equipment";
+import {
+  applyEquipmentBuffs,
+  defaultEquipSlots,
+  type EquipSlots,
+} from "./equipment";
 import type { Stats } from "./atb";
 
 export type ZoneId =
@@ -235,7 +239,18 @@ export interface Act1State {
     coldPack: boolean;
     shinies: number;
     bucket: BucketState;
-    equipped: EquipId | null;
+    /** Weapon found free in the shed (auto-equipped on pickup). */
+    stick: boolean;
+    /** Hat bought from Mo at the crevasse camp. */
+    minersHat: boolean;
+    /** Weapon bought from Gus at the crevasse camp. */
+    pickaxe: boolean;
+    /** Joseph's default outfit — owned and worn from newGame. */
+    tshirt: boolean;
+    jeans: boolean;
+    flipFlops: boolean;
+    /** Worn gear, one item per slot (hat/weapon/torso/legs/shoes). */
+    equipped: EquipSlots;
     /** Act 3: the silverfin caught in the Sunless Sea (Piggy's favorite). */
     silverfin: boolean;
     /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
@@ -270,7 +285,14 @@ export function newGame(): Act1State {
       coldPack: false,
       shinies: 0,
       bucket: "none",
-      equipped: null,
+      stick: false,
+      minersHat: false,
+      pickaxe: false,
+      // Joseph sets out already dressed in these three.
+      tshirt: true,
+      jeans: true,
+      flipFlops: true,
+      equipped: defaultEquipSlots(),
       silverfin: false,
       stinkySocks: false,
       oranges: false,
@@ -286,7 +308,7 @@ function clone(s: Act1State): Act1State {
     hero: { xp: s.hero.xp, perks: [...s.hero.perks] },
     hp: s.hp,
     pendingPerks: s.pendingPerks,
-    items: { ...s.items },
+    items: { ...s.items, equipped: { ...s.items.equipped } },
     flags: { ...s.flags },
   };
 }
@@ -395,6 +417,38 @@ export function spendShiny(s: Act1State): Act1State {
   const next = clone(s);
   next.items.shinies = Math.max(0, s.items.shinies - 1);
   return next;
+}
+
+/** Spend `n` shinies at once, clamped at zero (never goes negative). Pure. */
+export function spendShinies(s: Act1State, n: number): Act1State {
+  const next = clone(s);
+  next.items.shinies = Math.max(0, s.items.shinies - Math.max(0, n));
+  return next;
+}
+
+/** Boolean-owned equippables — the ones a flag flips on grant (not the bucket). */
+export type OwnedEquipId =
+  | "stick"
+  | "minersHat"
+  | "pickaxe"
+  | "tshirt"
+  | "jeans"
+  | "flipFlops";
+
+/** Grant ownership of a boolean-owned equippable (sets its item flag). Pure. */
+export function grantEquipment(s: Act1State, id: OwnedEquipId): Act1State {
+  const next = clone(s);
+  next.items[id] = true;
+  return next;
+}
+
+/**
+ * Whether a shop purchase is offerable: the player doesn't already own the
+ * item AND holds enough shinies. Shops gate the "Buy" choice on this and, on
+ * confirm, `spendShinies` + `grantEquipment` (or `grantShiny`'s inverse).
+ */
+export function canBuyEquip(s: Act1State, price: number, owned: boolean): boolean {
+  return !owned && s.items.shinies >= price;
 }
 
 /** Record the hero's hp after a battle, clamped to 0..maxHp. */

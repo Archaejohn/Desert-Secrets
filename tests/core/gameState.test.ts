@@ -10,11 +10,14 @@ import {
   PART2_FLAGS,
   applyBattleResult,
   awardXp,
+  canBuyEquip,
   choosePerk,
+  grantEquipment,
   grantShiny,
   heroStats,
   newGame,
   respawn,
+  spendShinies,
   spendShiny,
   type Act1State,
 } from "../../src/core/gameState";
@@ -35,7 +38,14 @@ describe("newGame", () => {
       coldPack: false,
       shinies: 0,
       bucket: "none",
-      equipped: null,
+      stick: false,
+      minersHat: false,
+      pickaxe: false,
+      // Joseph starts dressed in his default outfit.
+      tshirt: true,
+      jeans: true,
+      flipFlops: true,
+      equipped: { hat: null, weapon: null, torso: "tshirt", legs: "jeans", shoes: "flipFlops" },
       silverfin: false,
       stinkySocks: false,
       oranges: false,
@@ -100,7 +110,11 @@ describe("heroStats", () => {
     const bare = newGame();
     const worn: Act1State = {
       ...bare,
-      items: { ...bare.items, bucket: "empty", equipped: "bucket" },
+      items: {
+        ...bare.items,
+        bucket: "empty",
+        equipped: { ...bare.items.equipped, hat: "bucket" },
+      },
     };
     // Base level-1: defense 3, speed 12. Bucket layers +2 DEF, -1 SPD.
     expect(heroStats(bare).defense).toBe(3);
@@ -114,10 +128,10 @@ describe("heroStats", () => {
   it("survives a clone/reload round-trip: equip persists and still buffs", () => {
     const s = newGame();
     s.items.bucket = "empty";
-    s.items.equipped = "bucket";
+    s.items.equipped = { ...s.items.equipped, hat: "bucket" };
     // JSON round-trip mimics the save->load the registry persists through.
     const reloaded: Act1State = JSON.parse(JSON.stringify(s));
-    expect(reloaded.items.equipped).toBe("bucket");
+    expect(reloaded.items.equipped.hat).toBe("bucket");
     expect(heroStats(reloaded).defense).toBe(heroStats(s).defense);
     expect(heroStats(reloaded).defense).toBe(5);
   });
@@ -246,6 +260,62 @@ describe("shiny economy", () => {
   });
 });
 
+describe("miner-shop buy helpers", () => {
+  const withShinies = (n: number): Act1State => {
+    const s = newGame();
+    s.items.shinies = n;
+    return s;
+  };
+
+  it("spendShinies removes N at once, clamped at zero", () => {
+    expect(spendShinies(withShinies(3), 2).items.shinies).toBe(1);
+    expect(spendShinies(withShinies(1), 2).items.shinies).toBe(0);
+    expect(spendShinies(withShinies(2), 0).items.shinies).toBe(2);
+  });
+
+  it("grantEquipment flips the ownership flag and nothing else", () => {
+    const s = withShinies(5);
+    const after = grantEquipment(s, "minersHat");
+    expect(after.items.minersHat).toBe(true);
+    expect(after).toEqual({ ...s, items: { ...s.items, minersHat: true } });
+  });
+
+  it("canBuyEquip gates on affordability AND not already owning it", () => {
+    expect(canBuyEquip(withShinies(2), 2, false)).toBe(true); // exact price
+    expect(canBuyEquip(withShinies(1), 2, false)).toBe(false); // too poor
+    expect(canBuyEquip(withShinies(9), 2, true)).toBe(false); // already owned
+  });
+
+  it("a full purchase: spend the price and gain the item", () => {
+    let s = withShinies(3);
+    const price = 2;
+    expect(canBuyEquip(s, price, s.items.minersHat)).toBe(true);
+    s = grantEquipment(spendShinies(s, price), "minersHat");
+    expect(s.items.minersHat).toBe(true);
+    expect(s.items.shinies).toBe(1);
+    // Second purchase is now gated off (already owned).
+    expect(canBuyEquip(s, price, s.items.minersHat)).toBe(false);
+  });
+
+  it("both are pure: never mutate the input state", () => {
+    const s = withShinies(4);
+    const before = snapshot(s);
+    spendShinies(s, 2);
+    grantEquipment(s, "pickaxe");
+    expect(snapshot(s)).toBe(before);
+  });
+});
+
+describe("clone / equipped isolation", () => {
+  it("mutating a cloned state's equipped slots never leaks back", () => {
+    const s = newGame();
+    // awardXp clones internally; mutate the result and check the original.
+    const cloned = awardXp(s, 0).state;
+    cloned.items.equipped.hat = "bucket";
+    expect(s.items.equipped.hat).toBeNull();
+  });
+});
+
 describe("applyBattleResult", () => {
   it("records the hero's post-battle hp", () => {
     expect(applyBattleResult(newGame(), 7).hp).toBe(7);
@@ -274,7 +344,7 @@ describe("respawn", () => {
     s.items.coldPack = true;
     s.items.shinies = 2;
     s.items.bucket = "filled";
-    s.items.equipped = "bucket";
+    s.items.equipped = { ...s.items.equipped, hat: "bucket" };
     s.flags.foremanDefeated = true;
     const after = respawn(s);
     expect(after.hp).toBe(statsForBuild(s.hero).maxHp);
@@ -284,7 +354,13 @@ describe("respawn", () => {
       coldPack: true,
       shinies: 2,
       bucket: "filled",
-      equipped: "bucket",
+      stick: false,
+      minersHat: false,
+      pickaxe: false,
+      tshirt: true,
+      jeans: true,
+      flipFlops: true,
+      equipped: { hat: "bucket", weapon: null, torso: "tshirt", legs: "jeans", shoes: "flipFlops" },
       silverfin: false,
       stinkySocks: false,
       oranges: false,

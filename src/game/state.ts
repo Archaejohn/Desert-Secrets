@@ -6,6 +6,7 @@
  */
 import type Phaser from "phaser";
 import { type Act1State, newGame } from "../core/gameState";
+import { normalizeEquipSlots } from "../core/equipment";
 
 const KEY = "act1";
 const SAVE_KEY = "desert-secrets-save-v1";
@@ -33,7 +34,14 @@ export function loadSavedState(): Act1State | null {
     return {
       ...fresh,
       ...s,
-      items: { ...fresh.items, ...s.items },
+      items: {
+        ...fresh.items,
+        ...s.items,
+        // Normalize the worn-gear record: a pre-two-slot save may hold the old
+        // single-slot string shape (or a partial record) — coerce it to a full
+        // five-slot `EquipSlots` so a mid-session reload can't crash.
+        equipped: normalizeEquipSlots(s.items?.equipped)
+      },
       flags: { ...fresh.flags, ...s.flags },
       hero: { ...fresh.hero, ...s.hero }
     };
