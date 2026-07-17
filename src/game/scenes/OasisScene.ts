@@ -44,10 +44,10 @@ function hint(text: string): DialogueScript {
   return { start: "hint", nodes: [{ id: "hint", lines: [{ speaker: "", text }] }] };
 }
 const NEED_BUCKET_HINT = hint("Trough's dry. Bucket's in the shed.");
-const NOT_EQUIPPED_HINT = hint("Equip the bucket first — press I.");
+const NOT_EQUIPPED_HINT = hint("Wear the bucket first — Equipment tab (I).");
 const EMPTY_BUCKET_HINT = hint("Bucket's empty. Try the spigot.");
 const CHORES_DONE_HINT = hint("The chickens are fed. Thanks, Joseph.");
-const SPIGOT_NEED_BUCKET_HINT = hint("Equip the bucket first — press I.");
+const SPIGOT_NEED_BUCKET_HINT = hint("Wear the bucket first — Equipment tab (I).");
 const SPIGOT_ALREADY_FULL_HINT = hint("Already full.");
 
 export class OasisScene extends ZoneScene {
@@ -180,9 +180,13 @@ export class OasisScene extends ZoneScene {
         return;
       }
       const { state } = awardXp(s, CHORE_XP);
+      // The bucket is a tool AND wearable headgear (see core/equipment.ts).
+      // Delivering pours the water into the trough — the pail goes empty —
+      // but Joseph KEEPS it and it stays equipped, so the +2 DEF / -1 SPD
+      // headgear buff persists after the chore. Don't clear bucket/equipped.
       setState(this, {
         ...state,
-        items: { ...state.items, bucket: "none", equipped: null },
+        items: { ...state.items, bucket: "empty" },
         flags: { ...state.flags, choresDone: true }
       });
       this.floatText(OASIS_COOP.x * TILE + TILE / 2, OASIS_COOP.y * TILE, `+${CHORE_XP} XP`);

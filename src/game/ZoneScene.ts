@@ -825,7 +825,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     return best;
   }
 
-  /** Opens the inventory window; toggling the bucket equips/unequips it. */
+  /** Opens the inventory window; the Equipment tab equips/unequips gear. */
   private openInventory(): void {
     if (this.dialogue.isOpen || this.inputLocked || this.inventoryMenu || this.transitioning) return;
     this.player.setVelocity(0, 0);
@@ -833,9 +833,9 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.talkPrompt.setVisible(false);
     this.actionHint?.setVisible(false);
     this.inventoryMenu = new InventoryMenu(this, getState(this), {
-      onToggleBucket: () => {
+      onToggleEquip: (id) => {
         const s = getState(this);
-        const equipped: "bucket" | null = s.items.equipped === "bucket" ? null : "bucket";
+        const equipped = s.items.equipped === id ? null : id;
         const items = { ...s.items, equipped };
         setState(this, { ...s, items });
         return items;

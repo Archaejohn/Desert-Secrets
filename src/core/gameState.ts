@@ -16,6 +16,7 @@ import {
   type HeroBuild,
   type PerkId,
 } from "./progression";
+import { applyEquipmentBuffs, type EquipId } from "./equipment";
 import type { Stats } from "./atb";
 
 export type ZoneId =
@@ -234,7 +235,7 @@ export interface Act1State {
     coldPack: boolean;
     shinies: number;
     bucket: BucketState;
-    equipped: "bucket" | null;
+    equipped: EquipId | null;
     /** Act 3: the silverfin caught in the Sunless Sea (Piggy's favorite). */
     silverfin: boolean;
     /** Act 4: the miners' ripest stinky socks (Piggy's favorite; "reeks"). */
@@ -290,9 +291,16 @@ function clone(s: Act1State): Act1State {
   };
 }
 
-/** Full build stats with hp clamped to the state's current hp. */
+/**
+ * Full build stats — with any equipped gear's buffs layered on
+ * (`items.equipped`) — and hp clamped to the state's current hp. This is the
+ * single splice point where equipment reaches battle: `partyFor` and the
+ * status screen both read the hero through here. (Equipment only touches
+ * combat stats, not maxHp, so the hp/heal accounting on `statsForBuild`
+ * stays authoritative — see equipment.ts.)
+ */
 export function heroStats(s: Act1State): Stats {
-  const stats = statsForBuild(s.hero);
+  const stats = applyEquipmentBuffs(statsForBuild(s.hero), s.items.equipped);
   return { ...stats, hp: Math.min(s.hp, stats.maxHp) };
 }
 

@@ -95,6 +95,32 @@ describe("heroStats", () => {
     s.hero.perks.push("ferocity");
     expect(heroStats(s).attack).toBe(10);
   });
+
+  it("layers equipped gear buffs on top of the build (bucket = +2 DEF / -1 SPD)", () => {
+    const bare = newGame();
+    const worn: Act1State = {
+      ...bare,
+      items: { ...bare.items, bucket: "empty", equipped: "bucket" },
+    };
+    // Base level-1: defense 3, speed 12. Bucket layers +2 DEF, -1 SPD.
+    expect(heroStats(bare).defense).toBe(3);
+    expect(heroStats(bare).speed).toBe(12);
+    expect(heroStats(worn).defense).toBe(5);
+    expect(heroStats(worn).speed).toBe(11);
+    // Equipment touches only combat stats, never the hp pool.
+    expect(heroStats(worn).maxHp).toBe(heroStats(bare).maxHp);
+  });
+
+  it("survives a clone/reload round-trip: equip persists and still buffs", () => {
+    const s = newGame();
+    s.items.bucket = "empty";
+    s.items.equipped = "bucket";
+    // JSON round-trip mimics the save->load the registry persists through.
+    const reloaded: Act1State = JSON.parse(JSON.stringify(s));
+    expect(reloaded.items.equipped).toBe("bucket");
+    expect(heroStats(reloaded).defense).toBe(heroStats(s).defense);
+    expect(heroStats(reloaded).defense).toBe(5);
+  });
 });
 
 describe("awardXp", () => {

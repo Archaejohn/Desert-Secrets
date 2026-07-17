@@ -3854,3 +3854,53 @@ behavior the smoke relies on). Tests: `drops.test.ts` (boss/empty suppression,
 determinism, rate band, labels); `gameState.test.ts` (grant/spend purity,
 clamp, round-trip, flag count now 18); `scriptsAct1.test.ts` (Pamela's shiny
 line, the Dusty strip → single "Not right now" → later-end).
+
+# v35: equipment + stat buffs, and the 4th "Equipment" inventory tab
+
+The bucket stops being purely a chore prop and becomes the first piece of
+wearable gear. Three parts: a pure equipment/buff model, the buff spliced into
+battle stats, and a new inventory tab that owns the equip toggle.
+
+**The model** (`src/core/equipment.ts`, pure + tested). A catalog `EQUIPMENT`
+of equippables, each `{ id: EquipId, name, description, buffs }` where `buffs`
+is a `Partial<Pick<Stats,"attack"|"defense"|"speed">>` of stat deltas (may be
+negative). The bucket ships first, per spec: worn as headgear it grants **+2
+DEF, -1 SPD**. `applyEquipmentBuffs(stats, equipped)` layers the equipped item's
+deltas onto base build stats, clamping each buffed combat stat to `STAT_FLOOR`
+(=1) so a debuff can never floor a stat below a sane minimum; it's pure and
+returns a fresh `Stats`. `equipmentById(id)` is the id→item lookup (null-safe).
+Buffs deliberately **exclude maxHp** — the hp pool and its heal accounting live
+on the build (`statsForBuild`), so equipment stays out of that math and
+`heroStats` is the single safe splice point.
+
+**Into battle.** `gameState.heroStats(s)` now returns
+`applyEquipmentBuffs(statsForBuild(s.hero), s.items.equipped)` (hp still clamped
+to current hp). Since `partyFor` and the Party status tab both read the hero
+through `heroStats`, battle, the party screen and the equip preview all see one
+consistent buffed block. `statsForBuild` (build-only) is unchanged, so the
+heal/respawn paths that key off maxHp are untouched — the bucket doesn't move
+maxHp anyway.
+
+**The Equipment tab** (`InventoryMenu.ts`, now four `TabDef`s: Inventory ·
+Party · Skills · Equipment). The tab lists held equippables (the bucket once
+picked up), shows a name/flavor/`ATK/DEF/SPD` buff preview in the detail panel,
+marks the worn item with "✓ worn", and its `activate` toggles the equip. The
+old bucket-by-title-prefix (`startsWith("Bucket")`) is gone: entries now carry a
+stable `equipId?: EquipId`, and `buildEntries` wires the equip action off THAT,
+never off display text. The equip toggle **moved out of the Inventory tab** (it
+still lists the bucket as a held item, no action) into Equipment.
+`ZoneScene.openInventory` passes `onToggleEquip(id)` (was `onToggleBucket`).
+
+**Bucket-as-tool vs bucket-as-armor (the reconciliation).** The two axes are
+kept orthogonal: the equip slot (`items.equipped`) is independent of the
+fill-state (`items.bucket`: none/empty/filled). Equipping grants the buff
+regardless of fill-state; the chicken-chore (fill at the spigot, deliver at the
+coop) still requires the bucket equipped and works while it's worn. The chore
+**no longer destroys the bucket**: delivery used to clear `bucket:"none",
+equipped:null`; it now only empties the pail (`filled → empty`) and leaves it
+equipped, so Joseph keeps a wearable, buff-granting bucket after the chore
+(`OasisScene` coop delivery). Tests: `equipment.test.ts` (catalog, the bucket
+profile, buff layering, the floor clamp, purity); `gameState.test.ts` (bare vs
+worn `heroStats`, maxHp untouched, JSON reload round-trip). Smoke updated: the
+keyboard e2e equips via the Equipment tab (three taps right) and asserts
+delivery leaves `bucket:"empty", equipped:"bucket"`.

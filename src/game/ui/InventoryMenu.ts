@@ -7,11 +7,11 @@
  * Tabs are DATA-DRIVEN (`TabDef[]`): each names a chip title, an
  * empty-state line, and a `build(state)` that returns the tab's entries.
  * Adding a tab is adding one `TabDef` — the render/input framework is
- * tab-agnostic. Three ship today (Inventory, Party, Skills); a 4th
- * "Equipment" tab (the bucket's equip toggle will move there) slots in the
- * same way, which is why `activate` lives on an ENTRY, not on the tab: the
- * bucket row already carries its equip action, so moving it is moving the
- * entry between two `build()`s, nothing more.
+ * tab-agnostic. Four ship today (Inventory, Party, Skills, Equipment).
+ * `activate` lives on an ENTRY, not on the tab: the Equipment tab's bucket
+ * row carries its equip action, wired off the entry's stable `equipId`
+ * (never off display text) in `buildEntries`. The Inventory tab still LISTS
+ * the bucket as a held item, but the equip toggle belongs to Equipment.
  *
  * Input mirrors PerkMenu/BattleScene: the menu owns its own keyboard and
  * pointer handlers while open and tears them down on close.
@@ -29,6 +29,12 @@ import Phaser from "phaser";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { heroStats, type Act1State } from "../../core/gameState";
 import { PERKS, levelForXp } from "../../core/progression";
+import {
+  BUFF_STATS,
+  equipmentById,
+  type Equipment,
+  type EquipId,
+} from "../../core/equipment";
 import { isTouchDevice, TouchListButtons } from "./touch";
 import { addToUiLayer } from "../gfx/sceneUi";
 
@@ -58,7 +64,13 @@ interface Entry {
   detailTitle: string;
   /** Wrapped body text; "\n" hard-breaks (used for stat lines). */
   detailBody: string;
-  /** Optional action on SPACE/✓ (e.g. equip the bucket). */
+  /**
+   * Stable equip discriminator. Equipment entries carry the item's `EquipId`;
+   * the menu wires the equip/unequip action off THIS, never off display text
+   * (which is presentation and may change). Set => the entry is equippable.
+   */
+  equipId?: EquipId;
+  /** Optional action on SPACE/✓. Auto-wired for `equipId` entries. */
   activate?: () => void;
 }
 
@@ -70,8 +82,11 @@ interface TabDef {
 }
 
 export interface InventoryCallbacks {
-  /** Toggle the bucket equip; returns the updated items for a live re-render. */
-  onToggleBucket: () => Act1State["items"];
+  /**
+   * Toggle an equippable item's equip slot (equip if not worn, unequip if it
+   * is); returns the updated items for a live re-render.
+   */
+  onToggleEquip: (id: EquipId) => Act1State["items"];
   onClose: () => void;
 }
 
@@ -79,6 +94,20 @@ export interface InventoryCallbacks {
 function fitHeight(sprite: Phaser.GameObjects.Sprite, px: number): void {
   const h = sprite.height || px;
   sprite.setScale(px / h);
+}
+
+/** "ATK +0  DEF +2  SPD -1" — the equipment detail-panel buff preview. */
+function buffPreview(item: Equipment): string {
+  const fmt = (n: number | undefined): string => {
+    const v = n ?? 0;
+    return v > 0 ? `+${v}` : `${v}`;
+  };
+  const label: Record<(typeof BUFF_STATS)[number], string> = {
+    attack: "ATK",
+    defense: "DEF",
+    speed: "SPD",
+  };
+  return BUFF_STATS.map((k) => `${label[k]} ${fmt(item.buffs[k])}`).join("  ");
 }
 
 const TABS: TabDef[] = [
@@ -89,19 +118,18 @@ const TABS: TabDef[] = [
     build: (s) => {
       const items = s.items;
       const out: Entry[] = [];
-      // Bucket FIRST so it's the default selection (the smoke test equips it
-      // by opening the bag and pressing SPACE with no prior navigation).
+      // The bucket is LISTED here as a held item (with its fill-state), but its
+      // equip toggle lives on the Equipment tab now — no equipId/activate here.
       if (items.bucket !== "none") {
         const filled = items.bucket === "filled";
         out.push({
           label: filled ? "Bucket (full)" : "Bucket (empty)",
-          tag: items.equipped === "bucket" ? "  ✓" : "",
+          tag: items.equipped === "bucket" ? "  ✓ worn" : "",
           icon: { sheet: "bucket", frame: filled ? 1 : 0 },
           detailTitle: filled ? "Bucket (full)" : "Bucket (empty)",
           detailBody: filled
-            ? "Filled at the spigot. Equip it, then bring it to the coop to water the chickens."
-            : "An empty pail from the shed. Equip it, then fill it at the spigot by the spring."
-          // activate is wired in build-time below (needs the callbacks).
+            ? "Filled at the spigot. Bring it to the coop to water the chickens. Wear it from the Equipment tab."
+            : "An empty pail from the shed. Wear it from the Equipment tab, then fill it at the spigot by the spring."
         });
       }
       if (items.coldPack) {
@@ -208,6 +236,34 @@ const TABS: TabDef[] = [
           detailBody: def ? `${def.description}. Chosen on level-up; stacks.` : id
         };
       })
+  },
+  {
+    id: "equipment",
+    title: "Equipment",
+    emptyText: "No gear to wear yet.",
+    build: (s) => {
+      const out: Entry[] = [];
+      // The bucket is the first (and today only) equippable. Held once picked
+      // up from the shed; wearing it grants its combat buff regardless of its
+      // fill-state. Its `activate` (equip toggle) is auto-wired in buildEntries.
+      if (s.items.bucket !== "none") {
+        const item = equipmentById("bucket")!;
+        const worn = s.items.equipped === "bucket";
+        const filled = s.items.bucket === "filled";
+        out.push({
+          label: item.name,
+          tag: worn ? "  ✓ worn" : "",
+          equipId: "bucket",
+          icon: { sheet: "bucket", frame: filled ? 1 : 0 },
+          detailTitle: worn ? `${item.name} (worn)` : item.name,
+          detailBody:
+            `${item.description}\n` +
+            `${buffPreview(item)}\n` +
+            (worn ? "Worn as headgear. SPACE to take it off." : "SPACE to wear it as headgear.")
+        });
+      }
+      return out;
+    }
   }
 ];
 
@@ -404,18 +460,20 @@ export class InventoryMenu {
 
   private buildEntries(): Entry[] {
     const entries = TABS[this.tab].build(this.state);
-    // Wire the bucket's equip action here (the tab data can't hold a closure
-    // over the live callbacks). Any entry whose title is a bucket gets it.
-    if (TABS[this.tab].id === "inventory") {
-      for (const e of entries) {
-        if (e.detailTitle.startsWith("Bucket")) e.activate = () => this.toggleBucket();
+    // Wire equip actions here (tab data can't close over the live callbacks).
+    // Keyed off the stable `equipId`, never off display text — so the toggle
+    // is tab-agnostic and survives any relabelling of the entry.
+    for (const e of entries) {
+      if (e.equipId) {
+        const id = e.equipId;
+        e.activate = () => this.toggleEquip(id);
       }
     }
     return entries;
   }
 
-  private toggleBucket(): void {
-    const items = this.cb.onToggleBucket();
+  private toggleEquip(id: EquipId): void {
+    const items = this.cb.onToggleEquip(id);
     this.state = { ...this.state, items };
     this.entries = this.buildEntries();
     this.rebuildRows();

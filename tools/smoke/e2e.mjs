@@ -472,16 +472,22 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("picking up the bucket sets its state to empty", s.state.items.bucket === "empty");
 
-// 3) Open the inventory window and equip the bucket — only an equipped
-// item can be used out in the world.
+// 3) Open the inventory window and equip the bucket from the EQUIPMENT tab
+// (the equip toggle moved there) — only an equipped item can be used out in
+// the world. Tabs run Inventory · Party · Skills · Equipment, so three taps
+// right lands on Equipment, where the bucket is the only (selected) row.
 await tap(page, "KeyI");
 await page.waitForTimeout(250);
 let invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
 check("inventory window opens on I", invOpen === true);
-await tap(page, "Space"); // the bucket is the only (selected) row
+await tap(page, "ArrowRight"); // -> Party
+await tap(page, "ArrowRight"); // -> Skills
+await tap(page, "ArrowRight"); // -> Equipment
+await page.waitForTimeout(150);
+await tap(page, "Space"); // equip the bucket
 await page.waitForTimeout(200);
 s = await snapshot(page);
-check("selecting the bucket in the inventory equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
+check("equipping the bucket on the Equipment tab equips it", s.state.items.equipped === "bucket", `equipped=${s.state.items.equipped}`);
 await tap(page, "KeyI"); // close
 await page.waitForTimeout(250);
 invOpen = await page.evaluate(() => !!window.__game.scene.getScene("shed")["inventoryMenu"]);
@@ -500,8 +506,9 @@ await page.waitForTimeout(300);
 s = await snapshot(page);
 check("filling the equipped bucket at the spigot sets its state to filled", s.state.items.bucket === "filled");
 
-// 5) Deliver it to the coop: completes the chore, awards XP, spends and
-// un-equips the bucket.
+// 5) Deliver it to the coop: completes the chore and awards XP. The bucket is
+// wearable headgear as well as a chore tool, so delivery only EMPTIES the pail
+// (filled -> empty) — Joseph keeps it and it stays equipped, buff and all.
 await standAt(page, "oasis", coopPointBefore.x, coopPointBefore.y);
 await tap(page, "KeyE");
 await page.waitForTimeout(300);
@@ -510,8 +517,8 @@ check(
   "delivering the full bucket completes the chore and awards bonus XP",
   s.state.flags.choresDone === true &&
     s.state.hero.xp > xpBeforeChores &&
-    s.state.items.bucket === "none" &&
-    s.state.items.equipped === null,
+    s.state.items.bucket === "empty" &&
+    s.state.items.equipped === "bucket",
   `choresDone=${s.state.flags.choresDone} xp=${xpBeforeChores}->${s.state.hero.xp} bucket=${s.state.items.bucket} equipped=${s.state.items.equipped}`
 );
 
