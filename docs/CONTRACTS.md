@@ -3487,20 +3487,30 @@ through a geometric gap — a magenta-background probe found 0% background
 pixels on the seam rows). `roundPixels` on/off made no difference; only
 integer zoom removed it, confirming minification aliasing as the cause.
 
-**Fix (`OverworldScene.bakeFlatGround`).** For the flat view (the shipped
-default, and the Mode-7 fallback), the ground+decor tilemap layers are
-composited ONCE into a single `RenderTexture` sized to the map, which is
-then drawn in their place; the live layers stay put but invisible, still
-driving collision. The single texture is `LINEAR`-filtered. Two things had
-to be true together: (1) baking to one contiguous texture removes the
-packed-tileset atlas boundaries, so LINEAR can't bleed one tile into its
-neighbour the way it does on the shared `tiles*`/`owMountains` sheets
-(plain LINEAR on the atlases produces a full GRID of bleed lines — worse);
-(2) LINEAR then resamples that one image smoothly and, crucially, *stably*
-as the camera scrolls, so no rows flash. Same single-texture idea Mode-7
-already uses (`Mode7Ground.paintGroundTexture` bakes the whole map to one
-canvas texture). The RT sits at `GROUND_DEPTH` (below the y-sorted player,
-NPCs and shadows) and is destroyed on scene shutdown. Player sprite, HUD
-and hint text are unaffected — they render as their own quads through the
-same camera and stay crisp. Only the overworld is touched; the base
-`ZoneScene` tilemap path every integer-zoom zone uses is unchanged.
+**Fix (`ScaledGroundView`, `src/game/gfx/`).** A shared component every
+zone can use: it composites the below-actor tile layers (ground + decor)
+ONCE into a single `RenderTexture` sized to the map and draws that in their
+place, `LINEAR`-filtered; the live layers stay put but invisible, still
+driving collision. Two things had to be true together: (1) baking to one
+contiguous texture removes the packed-tileset atlas boundaries, so LINEAR
+can't bleed one tile into its neighbour the way it does on the shared
+`tiles*`/`owMountains` sheets (plain LINEAR on the atlases produces a full
+GRID of bleed lines — worse); (2) LINEAR then resamples that one image
+smoothly and, crucially, *stably* as the camera scrolls, so no rows flash.
+Same single-texture idea Mode-7 already uses (`Mode7Ground.paintGroundTexture`
+bakes the whole map to one canvas texture). The RT sits at `GROUND_DEPTH`
+(below the y-sorted player, NPCs and shadows). Player sprite, HUD and hint
+text are unaffected — they render as their own quads through the same camera
+and stay crisp.
+
+`OverworldScene` is the only caller today (the only zone drawn zoomed out at
+a *fractional* zoom); integer-zoom zones are seam-free already and a LINEAR
+bake would only soften them, so they keep the plain `ZoneScene` tilemap path
+untouched. The component is the deliberate seam of abstraction for later map
+growth: the whole-map bake is O(map) and caps at the GPU max texture size
+(~4096px on mobile — a 256×256-tile map; up to 16384 on desktop), well above
+the 64×64 (1024px) overworld. When a map outgrows that, a moving-window
+re-bake (bake only the visible window + margin, re-bake as the camera crosses
+a threshold — O(viewport), any size) drops in *inside* `ScaledGroundView`
+with no change to callers. Live chunk streaming (load/unload) is a separate,
+later concern this render path makes possible but Part One does not need.

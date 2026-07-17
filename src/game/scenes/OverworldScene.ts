@@ -25,6 +25,7 @@ import { ZoneScene, type ZoneConfig } from "../ZoneScene";
 import { BILLBOARD_TEXTURE_KEY, Mode7Ground } from "../gfx/Mode7Ground";
 import { Mode7Tuner } from "../gfx/Mode7Tuner";
 import { FlatZoomTuner } from "../gfx/FlatZoomTuner";
+import { ScaledGroundView } from "../gfx/ScaledGroundView";
 import { MANIFEST } from "../manifest";
 import owBillboardsUrl from "../../assets/generated/owBillboards.png";
 import {
@@ -65,7 +66,7 @@ export class OverworldScene extends ZoneScene {
   private avatarAnimKey = "";
   private tuner: Mode7Tuner | null = null;
   private flatZoomTuner: FlatZoomTuner | null = null;
-  private flatGround: Phaser.GameObjects.RenderTexture | null = null;
+  private scaledGround: ScaledGroundView | null = null;
 
   constructor() {
     super("overworld");
@@ -123,8 +124,14 @@ export class OverworldScene extends ZoneScene {
       // flat zoomed view, which is exactly the shipped default below.
     }
     // Flat view (the shipped default, and the Mode-7 fallback): render the
-    // baked single-texture ground rather than the live tilemap layers.
-    this.bakeFlatGround();
+    // ground through the shared seam-free scaled-view component rather than
+    // the live tilemap layers, since this is the one zone drawn zoomed out
+    // at a fractional zoom (see ScaledGroundView for the full why).
+    this.scaledGround = new ScaledGroundView(this, [this.groundLayer, this.decorLayer], GROUND_DEPTH);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scaledGround?.destroy();
+      this.scaledGround = null;
+    });
     if (mode === "flat") {
       this.flatZoomTuner = new FlatZoomTuner(this, OVERWORLD_FLAT_ZOOM, (zoom) =>
         this.cameras.main.setZoom(zoom)
@@ -134,39 +141,6 @@ export class OverworldScene extends ZoneScene {
         this.flatZoomTuner = null;
       });
     }
-  }
-
-  /**
-   * Bake the flat ground+decor tilemap into ONE LINEAR-filtered texture and
-   * draw that in place of the live tilemap layers (which stay put, invisible,
-   * to keep driving collision). Fixes the "horizontal lines flash on and off
-   * as you move" seams: the overworld is the only zone shown at a *fractional*
-   * camera zoom (OVERWORLD_FLAT_ZOOM = 0.7), and at that zoom each 16px tile
-   * is a separate NEAREST-sampled quad minified to ~11px — so whole source
-   * rows/columns get dropped, and *which* ones drop shifts every sub-pixel
-   * scroll step, flashing dark tile-edge pixels in and out. Compositing the
-   * whole map into a single texture removes the packed-atlas tile boundaries
-   * (so LINEAR can't bleed one tile into its neighbour the way it does on the
-   * shared tileset sheets), and LINEAR minification then resamples that one
-   * contiguous image smoothly and, crucially, *stably* as the camera scrolls.
-   * Every other zone renders at integer zoom, where per-tile NEAREST is exact
-   * and seam-free, so none of them need (or get) this.
-   */
-  private bakeFlatGround(): void {
-    const rt = this.add
-      .renderTexture(0, 0, this.groundLayer.width, this.groundLayer.height)
-      .setOrigin(0, 0)
-      .setDepth(GROUND_DEPTH);
-    rt.draw(this.groundLayer, 0, 0);
-    rt.draw(this.decorLayer, 0, 0);
-    rt.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-    this.groundLayer.setVisible(false);
-    this.decorLayer.setVisible(false);
-    this.flatGround = rt;
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.flatGround?.destroy();
-      this.flatGround = null;
-    });
   }
 
   /**
