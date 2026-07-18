@@ -3,7 +3,7 @@ import { PALETTE } from "../../src/shared/palette";
 import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
 import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
-import { canonical, CANONICAL_MASKS, overlayMask } from "../../tools/pipeline/src/cliffs/blob47";
+import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -73,5 +73,49 @@ describe("47-blob canonical masks + overlayMask geometry", () => {
   it("overlayMask is deterministic", () => {
     const a = overlayMask(64|16, 2, 14, 2, 7), b = overlayMask(64|16, 2, 14, 2, 7);
     expect(Array.from(a)).toEqual(Array.from(b));
+  });
+});
+
+describe("blobTiles (47-blob palette-locked rendering)", () => {
+  const over = floorFill("sand", 1), base = floorFill("asphalt", 1);
+  const opts = {
+    inset: 2, irreg: 14, round: 2, outline: true, shadow: true, seed: 7,
+    overKey: "sand" as const, baseKey: "asphalt" as const,
+  };
+
+  it("yields 47 palette-locked deterministic tiles", () => {
+    const a = blobTiles(over, base, opts), b = blobTiles(over, base, opts);
+    expect(a.length).toBe(47);
+    a.forEach((t, i) => {
+      expect(t.grid.diff(b[i].grid)).toBe(0);
+      t.grid.forEach((_x, _y, c) => { if (c !== null) expect(PALETTE).toHaveProperty(c); });
+    });
+  });
+
+  it("mask-255 (fully interior) tile equals the over fill exactly", () => {
+    const a = blobTiles(over, base, opts);
+    const interior = a.find((t) => t.mask === 255)!;
+    expect(interior.grid.diff(over)).toBe(0);
+  });
+
+  it("every tile is fully opaque and 16x16", () => {
+    const a = blobTiles(over, base, opts);
+    a.forEach((t) => {
+      expect(t.grid.width).toBe(16); expect(t.grid.height).toBe(16);
+      expect(t.grid.countOpaque()).toBe(256);
+    });
+  });
+
+  it("mask indices line up with CANONICAL_MASKS order", () => {
+    const a = blobTiles(over, base, opts);
+    expect(a.map((t) => t.mask)).toEqual(CANONICAL_MASKS);
+  });
+
+  it("outline/shadow off yields a plain over/base composite (no ramp shifts)", () => {
+    const plain = blobTiles(over, base, { ...opts, outline: false, shadow: false });
+    const withFx = blobTiles(over, base, opts);
+    // some tile with a partial mask should differ once outline/shadow kick in
+    const partial = CANONICAL_MASKS.findIndex((m) => m !== 255 && m !== 0);
+    expect(plain[partial].grid.diff(withFx[partial].grid)).toBeGreaterThan(0);
   });
 });

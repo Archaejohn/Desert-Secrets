@@ -29,6 +29,10 @@
  * 256 raw masks down to the 47 that are visually distinct.
  */
 import { n1 } from "./noise";
+import { PixelGrid } from "../grid";
+import { TERRAIN_RAMPS, shade, type TerrainKey } from "./palette";
+import { nameToRampIndex } from "./terrains";
+import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
@@ -115,4 +119,87 @@ export function overlayMask(
     m[y * T + x] = on ? 1 : 0;
   }
   return m;
+}
+
+/** Options for {@link blobTiles}, mirroring the prototype's `o` param plus
+ *  the terrain keys needed to darken/lighten in palette (ramp-index) space. */
+export interface BlobTileOptions {
+  inset: number;
+  irreg: number;
+  round: number;
+  outline: boolean;
+  shadow: boolean;
+  seed: number;
+  /** Terrain key backing `over` (the overlay/interior fill). */
+  overKey: TerrainKey;
+  /** Terrain key backing `base` (the retreated/exterior fill). */
+  baseKey: TerrainKey;
+}
+
+/**
+ * Renders all 47 canonical blob tiles, porting `buildBlobTile`
+ * (docs/prototypes/cliff-suite-v6.html:685-711) into palette space.
+ *
+ * Per pixel: pick the `over` or `base` fill cell per the overlay mask, then
+ * apply the prototype's outline/shadow RGB multipliers as ramp-index shifts
+ * via `shade()`:
+ *  - outline edge darken (`r*=0.72`) -> `shade(overRamp, idx, +1)`
+ *  - outline inner lit edge (`r*=1.16`) -> `shade(overRamp, idx, -1)`
+ *  - drop shadow (`r*=0.62`) -> `shade(baseRamp, idx, +2)` (a two-step
+ *    shift reads closer to the prototype's ~0.62 darken than the
+ *    one-step shift used for the milder 0.72 outline edge; see task-4
+ *    report for the comparison)
+ *
+ * The `on(x,y)` neighbor lookup (including its 8-neighbor bit fallback for
+ * out-of-tile queries, which keeps adjacent tiles' outlines/shadows in
+ * seam agreement) is kept exactly as in the prototype.
+ */
+export function blobTiles(
+  over: PixelGrid,
+  base: PixelGrid,
+  opts: BlobTileOptions
+): { mask: number; grid: PixelGrid }[] {
+  const overRamp = TERRAIN_RAMPS[opts.overKey];
+  const baseRamp = TERRAIN_RAMPS[opts.baseKey];
+
+  return CANONICAL_MASKS.map((mask) => {
+    const m = overlayMask(mask, opts.inset, opts.irreg, opts.round, opts.seed);
+    const N = !!(mask & 1), NE = !!(mask & 2), E = !!(mask & 4), SE = !!(mask & 8),
+          S = !!(mask & 16), SW = !!(mask & 32), W = !!(mask & 64), NW = !!(mask & 128);
+
+    function on(x: number, y: number): number {
+      const ox2 = x < 0 ? -1 : x >= T ? 1 : 0, oy2 = y < 0 ? -1 : y >= T ? 1 : 0;
+      if (ox2 === 0 && oy2 === 0) return m[y * T + x];
+      let bit: boolean;
+      if (ox2 === 0) bit = oy2 < 0 ? N : S;
+      else if (oy2 === 0) bit = ox2 < 0 ? W : E;
+      else bit = ox2 < 0 ? (oy2 < 0 ? NW : SW) : (oy2 < 0 ? NE : SE);
+      if (!bit) return 0;
+      const cx = Math.max(0, Math.min(T - 1, x)), cy = Math.max(0, Math.min(T - 1, y));
+      return m[cy * T + cx];
+    }
+
+    const grid = new PixelGrid(T, T);
+    for (let y = 0; y < T; y++) {
+      for (let x = 0; x < T; x++) {
+        const isOver = m[y * T + x] === 1;
+        const src = isOver ? over : base;
+        let name = src.get(x, y) as PaletteName;
+
+        if (isOver && opts.outline) {
+          if (!on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1)) {
+            name = shade(overRamp, nameToRampIndex(opts.overKey, name), 1);
+          } else if (on(x, y - 1) && !on(x, y - 2)) {
+            name = shade(overRamp, nameToRampIndex(opts.overKey, name), -1);
+          }
+        }
+        if (!isOver && opts.shadow && (on(x, y - 1) || on(x - 1, y - 1))) {
+          name = shade(baseRamp, nameToRampIndex(opts.baseKey, name), 2);
+        }
+
+        grid.px(x, y, name);
+      }
+    }
+    return { mask, grid };
+  });
 }
