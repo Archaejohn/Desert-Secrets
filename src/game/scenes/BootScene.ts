@@ -7,6 +7,7 @@ import Phaser from "phaser";
 import { MANIFEST, registerAnimations } from "../manifest";
 import { PALETTE } from "../../shared/palette";
 import { loadSavedState, resetGame, setState } from "../state";
+import { getMusic } from "../audio/music";
 import { TouchListButtons, isTouchDevice } from "../ui/touch";
 import type { ZoneId } from "../../core/gameState";
 import heroUrl from "../../assets/generated/hero.png";
@@ -167,6 +168,10 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     registerAnimations(this);
+    // Piggy's theme under the title menu (starts on the player's first tap/key
+    // once the browser unlocks audio); it cross-fades into each zone's theme
+    // when a game begins.
+    getMusic(this).play(this, "piggy");
     const { width, height } = this.scale;
     this.menuTexts = [];
     this.selected = 0;
