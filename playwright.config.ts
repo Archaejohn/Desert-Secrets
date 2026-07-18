@@ -29,7 +29,16 @@ export default defineConfig({
     // more than a single act's budget.
     { name: "spine",   testMatch: /spine\.spec\.ts$/, timeout: 1_800_000 },
     { name: "acts",    testMatch: /acts[\\/].*\.spec\.ts$/ },
-    { name: "touch",   testMatch: /touch[\\/]touch\.spec\.ts$/ },
+    // Touch-only regressions need a real touch-emulated context — the game
+    // branches on `isTouchDevice()` (device.input.touch), which Phaser only
+    // reports true when the page was created with hasTouch (+ isMobile to
+    // match a real touch handset's input mode). Matches touch-e2e.mjs's own
+    // newPage({ viewport: { width: 960, height: 540 }, hasTouch: true, isMobile: true }).
+    {
+      name: "touch",
+      testMatch: /touch[\\/]touch\.spec\.ts$/,
+      use: { hasTouch: true, isMobile: true, viewport: { width: 960, height: 540 } },
+    },
     { name: "walkout", testMatch: /walkout\.spec\.ts$/ },
     { name: "shots",   testMatch: /shots[\\/].*\.spec\.ts$/ },
   ],
