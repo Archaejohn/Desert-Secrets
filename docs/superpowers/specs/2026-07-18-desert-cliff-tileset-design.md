@@ -30,6 +30,12 @@ face · `sand` base**, with organic `sand` floor edges (and `frostSand` /
 `asphalt` transition partners). This replaces flat `rock` boulders with
 auto-tiling vertical bluffs and supersedes `duneEdge`.
 
+**Design priority: flexibility and variation over a fixed set.** The blob and
+cliff machinery is data-driven over a `(over, base, material)` table so terrain
+pairings and materials extend by data, not code — including a terrain over
+itself for subtle ground variation. The three zones set the *initial* table, not
+the system's ceiling.
+
 Phase 1 ends at a **generated, pinned, visually-reviewed sheet**. Runtime
 placement (an autotile assignment pass + `ZoneScene`/solidity wiring), the map
 editor, and the other materials (ice / mossy / lava, ice floor, lava vents) are
@@ -116,12 +122,23 @@ Per-tile geometry (`overlayMask` + `buildBlobTile`):
   `over` onto `base` on the north/northwest, quantized to palette (darken =
   step down the ramp, not multiply).
 
-Two blob sets are generated per terrain pairing:
-1. **Floor blob** — `over` terrain over `base` terrain (organic sand patches;
-   supersedes `duneEdge`).
-2. **Plateau-edge set** — same terrains, but corner radius tracks the **cliff**
-   rounding (`linkCorners`), and the south side is forced "matching" (the cliff
-   rim owns that edge; no terrain bleed over the drop).
+The blob machinery is a **general, data-driven `(over, base)` terrain-pair
+generator** — flexibility over a fixed transition list is a deliberate design
+goal. Any over-terrain can blob over any base-terrain (including a terrain over
+**itself**), and adding a pairing is a one-line data entry, not new code. Two
+edge *treatments* exist:
+
+1. **Floor blob** (flat) — `over` terrain over `base` terrain with an outlined,
+   lit-lip edge. **`sand` over `sand` is a first-class, wanted pairing**: it
+   gives the subtle *walk-over elevation ledges and ground variation* seen on
+   the left of the reference screenshot (a low step you can walk onto, not a
+   cliff drop) — and it supersedes the single flat `duneEdge`. `sand`↔`asphalt`
+   and `sand`↔`frostSand` are the same treatment across different terrains.
+2. **Plateau-edge set** (cliff-topped) — same blob geometry, but the corner
+   radius tracks the **cliff** rounding (`linkCorners`) and the south side is
+   forced "matching" (the cliff rim owns that edge; no terrain bleed over the
+   drop). This is the top surface of a full vertical cliff (right of the
+   screenshot), as opposed to the flat floor ledge.
 
 ## The cliff set (`cliffFace.ts`)
 
@@ -163,13 +180,14 @@ prototype `scale(color,k)` calls become ramp-index math.
   documented, append-only order):
   1. cliff set — 15 tiles (`5 variants × 3 bands`);
   2. plateau-edge set — the raised `sand` top, corners matched to the cliff — 47 tiles;
-  3. sand↔asphalt transition blob (sand encroaching on the US-95 road) — 47 tiles;
-  4. sand↔frostSand transition blob (frost bleeding over sand) — 47 tiles;
-  5. plain fills — `sand`, `frostSand`, `asphalt` (3).
-  (A generic sand-over-sand floor blob is intentionally omitted — it transitions
-  nothing; the plateau-edge and the two terrain transitions are the meaningful
-  applications of the blob machinery here.) `columns` chosen to divide the total
-  (exact count settled in the plan).
+  3. `sand`-over-`sand` floor blob — the walk-over elevation ledges / ground
+     variation — 47 tiles;
+  4. `sand`↔`asphalt` floor blob (sand encroaching on the US-95 road) — 47 tiles;
+  5. `sand`↔`frostSand` floor blob (frost bleeding over sand) — 47 tiles;
+  6. plain fills — `sand`, `frostSand`, `asphalt` (3).
+  The `(over, base)` pairing list driving items 3–5 is a data table; new
+  pairings are added there without touching the blob code. `columns` chosen to
+  divide the total (exact count settled in the plan).
 - **Naming** (fixed now; runtime solidity wiring is a later phase but the names
   must anticipate it):
   - cliff pieces: `cliffRock_<variant>_<band>` (e.g. `cliffRock_innerW_face`).
