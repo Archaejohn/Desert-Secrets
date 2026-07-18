@@ -3,6 +3,7 @@ import { PALETTE } from "../../src/shared/palette";
 import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
 import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
+import { canonical, CANONICAL_MASKS, overlayMask } from "../../tools/pipeline/src/cliffs/blob47";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -51,5 +52,26 @@ describe("terrain floor fills", () => {
   it("nameToRampIndex finds a ramp name's position for its terrain", () => {
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[0])).toBe(0);
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[TERRAIN_RAMPS.sand.length-1])).toBe(TERRAIN_RAMPS.sand.length-1);
+  });
+});
+
+describe("47-blob canonical masks + overlayMask geometry", () => {
+  it("canonical reduction yields exactly 47 masks", () => {
+    expect(CANONICAL_MASKS.length).toBe(47);
+    const set = new Set(CANONICAL_MASKS.map(canonical));
+    expect(set.size).toBe(47); // already canonical, idempotent
+  });
+  it("fully-interior mask is all over-terrain", () => {
+    const m = overlayMask(255, 2, 14, 2, 7);
+    expect(Array.from(m).every(v => v === 1)).toBe(true);
+  });
+  it("island mask (no neighbours) retreats on every edge", () => {
+    const m = overlayMask(0, 2, 14, 2, 7);
+    // corners are base terrain (0) when inset>0
+    expect(m[0]).toBe(0); expect(m[15]).toBe(0);
+  });
+  it("overlayMask is deterministic", () => {
+    const a = overlayMask(64|16, 2, 14, 2, 7), b = overlayMask(64|16, 2, 14, 2, 7);
+    expect(Array.from(a)).toEqual(Array.from(b));
   });
 });
