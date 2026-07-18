@@ -1,11 +1,16 @@
 /**
  * Act 3 flow — the Sunless Sea (a six-zone chain: entry overlook → kelp
  * forest → sun temple → Fluffball's bed → deep bed → ascent), ported from
- * tools/smoke/e2e.mjs:935-1055. The Act2→Act3 tunnel-walk transition
- * (:922-932) and the Act3→Act4 ascent/hand-off (:1057-1074, zone 6) are the
- * spine's job, not this act's — mirroring the Act1→Act2 boundary decision
- * in the Task 4 report: an act's own driveActN starts at the "checkpoint
- * updated" check for its seeded zone and ends at its own actNComplete flag.
+ * tools/smoke/e2e.mjs:935-1066. The Act2→Act3 tunnel-walk transition
+ * (:922-932) is the spine's job, not this act's. Zone 6 (seaAscent) IS this
+ * act's job — it's Act-3-internal content (the noAutoAdvance check, the
+ * ice-path walk, and the sawAscent climb beat), ending just before the
+ * genuine Act3→Act4 spine handoff (:1068-1072, the top gate into
+ * minersCamp with act4Started) which this flow does not touch — mirroring
+ * the Act1→Act2 boundary decision in the Task 4 report: an act's own
+ * driveActN starts at the "checkpoint updated" check for its seeded zone
+ * and ends at its own actNComplete flag (here, extended through the
+ * in-act zone-6 beats that were mislabeled as spine handoff).
  * Every check() is removed and a snapshot(page) is captured into `beats` at
  * each point the source asserts. The matching assertions live in
  * tools/smoke/acts/act3.spec.ts.
@@ -147,6 +152,19 @@ export async function driveAct3(page: Page): Promise<Record<string, Snap>> {
   if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
   s = await waitFor(page, (x) => x.state.flags.act3Complete === true, 8000);
   beats.act3Complete = s;
+
+  // The catch freezes an ice path out of the bed; the party must WALK it
+  // (no auto-teleport on the ending dialogue closing) to reach zone 6.
+  await page.waitForTimeout(400);
+  s = await snapshot(page);
+  beats.deepBedNoAutoAdvance = s;
+  s = await exitTo(page, "deepBed", "seaAscent");
+  beats.seaAscent = s;
+
+  // Zone 6 (ascent): the climb beat plays.
+  await healUp(page);
+  s = await driveTriggersUntil(page, "seaAscent", (x) => x.state.flags.sawAscent === true);
+  beats.sawAscent = s;
 
   return beats;
 }

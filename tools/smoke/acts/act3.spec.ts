@@ -66,6 +66,17 @@ test("Act 3 — the Sunless Sea", async ({ page }) => {
     "Act 3 completes (silverfin caught, ice path frozen)"
   ).toBe(true);
 
+  // ---- zone 6: the ascent ----
+  expect(
+    b.deepBedNoAutoAdvance.zoneKey,
+    "the catch does NOT auto-advance — still in the deep bed"
+  ).toBe("deepBed");
+  expect(
+    b.seaAscent.zoneKey,
+    "walking the frozen ice path climbs out to the ascent zone"
+  ).toBe("seaAscent");
+  expect(b.sawAscent.state.flags.sawAscent, "the ascent climb beat plays").toBe(true);
+
   // ---- no uncaught page errors across the whole run ----
   expect((page as any).__pageErrors, "no page errors").toEqual([]);
 });
