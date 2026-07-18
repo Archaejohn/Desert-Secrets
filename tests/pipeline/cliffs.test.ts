@@ -5,6 +5,7 @@ import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/c
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
+import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -156,5 +157,28 @@ describe("wallFace rock material", () => {
     const low = wallFace("rock", { ...sparse, mortar: 0 }, 7);
     const high = wallFace("rock", { ...sparse, mortar: 1 }, 7);
     expect(low.diff(high)).toBeGreaterThan(0);
+  });
+});
+
+describe("cliff set (15 tiles)", () => {
+  const mk = (over = 0) => cliffTiles({
+    face: wallFace("rock", { courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: .5, tone: .2, mortar: .35, orderVsRandom: .45 }, 7),
+    top: floorFill("sand", 1), gnd: floorFill("sand", 2),
+    cap: 4, foot: 6, cliffHeight: 2, baseRounding: 3, topRounding: over, outerShade: .4,
+    innerDepth: .6, castShadow: .5, scree: true, litLip: true, capMaterial: "plateau", capRoll: .45,
+  });
+
+  it("cliffTiles returns 15 palette-locked deterministic tiles", () => {
+    const a = mk(), b = mk();
+    expect(a.length).toBe(15);
+    a.forEach((g, i) => {
+      expect(g.diff(b[i])).toBe(0);
+      g.forEach((_x, _y, c) => { if (c !== null) expect(PALETTE).toHaveProperty(c); });
+    });
+  });
+
+  it("topRounding=0 (hard corners) differs from rounded", () => {
+    // rim tile of an outer-W variant: index 0 (variant0,band0)
+    expect(mk(0)[0].diff(mk(3)[0])).toBeGreaterThan(0);
   });
 });
