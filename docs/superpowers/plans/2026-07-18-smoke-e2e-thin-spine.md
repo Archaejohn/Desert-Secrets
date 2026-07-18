@@ -15,6 +15,11 @@
 - **Seeds are captured, never hand-authored.** Every `fixtures/actN-start.json` is produced by `CAPTURE=1 npm run smoke:spine`, never edited by hand.
 - **Custom Chromium:** when `PLAYWRIGHT_EXECUTABLE_PATH` is set (CI), use it; when unset (local dev), let Playwright use its managed browser. Never hardcode `/opt/pw-browsers/chromium` as an unconditional path.
 - **Serving:** built `dist/` served by `vite preview` on `http://localhost:4173`; specs use `baseURL` + `page.goto("/")`. `npm run smoke` assumes `dist/` already built (`npm run build` runs first, per the verification bar).
+- **Software WebGL is mandatory.** The game renders via Phaser WebGL; headless Chromium has no GPU, so without software-GL flags it fails with "Framebuffer Unsupported" and no scenes ever start. Launch flags (verified on this repo):
+  - CI (older pinned chromium at `PLAYWRIGHT_EXECUTABLE_PATH`): `["--no-sandbox", "--use-gl=swiftshader"]`
+  - Local dev (Playwright's managed Chrome-for-Testing ≥149, where `--use-gl=swiftshader` is a no-op): `["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader"]`
+  Select by whether `PLAYWRIGHT_EXECUTABLE_PATH` is set.
+- **Boot is not instant.** `window.__game` appears *before* scenes register; tests must wait for the `boot` scene to be **active** (`g.scene.getScene("boot")?.scene.isActive()`), not merely for `__game` to be defined.
 - **The zone key list** (`ZONE_KEYS`) and `SAVE_KEY` live in exactly one module (`kit/zones.ts`); no other file re-declares them.
 - Git: work on branch `claude/smoke-e2e-thin-spine`, commit per task, never commit to `main`.
 
@@ -76,6 +81,12 @@ Expected: `@playwright/test` added to `devDependencies`; chromium downloaded loc
 import { defineConfig } from "@playwright/test";
 
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
+// Software WebGL: headless Chromium has no GPU. The legacy `--use-gl=swiftshader`
+// only works on the older pinned CI chromium; local managed Chrome needs the
+// ANGLE form. See Global Constraints.
+const glArgs = executablePath
+  ? ["--no-sandbox", "--use-gl=swiftshader"]
+  : ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader"];
 
 export default defineConfig({
   testDir: "./tools/smoke",
@@ -89,7 +100,7 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",
-    launchOptions: executablePath ? { executablePath } : {},
+    launchOptions: { ...(executablePath ? { executablePath } : {}), args: glArgs },
   },
   projects: [
     { name: "spine",   testMatch: /spine\.spec\.ts$/ },
@@ -115,15 +126,12 @@ import { test, expect } from "@playwright/test";
 
 test("built bundle boots and exposes __game", async ({ page }) => {
   await page.goto("/");
-  await expect
-    .poll(() => page.evaluate(() => typeof (window as any).__game !== "undefined"), {
-      timeout: 20_000,
-    })
-    .toBe(true);
-  const bootActive = await page.evaluate(() =>
-    (window as any).__game.scene.getScene("boot").scene.isActive()
-  );
-  expect(bootActive).toBe(true);
+  // __game appears before scenes register — wait for the boot scene to be ACTIVE.
+  await page.waitForFunction(() => {
+    const g = (window as any).__game;
+    return !!(g && g.scene && g.scene.getScene("boot") && g.scene.getScene("boot").scene.isActive());
+  }, null, { timeout: 25_000 });
+  expect(true).toBe(true); // reaching here means WebGL + boot succeeded
 });
 ```
 
@@ -200,9 +208,12 @@ import { ZONE_KEYS } from "./zones";
 export type Snap = Awaited<ReturnType<typeof snapshot>>;
 
 export async function waitForBoot(page: Page): Promise<void> {
-  await page.waitForFunction(() => typeof (window as any).__game !== "undefined", null, {
-    timeout: 20_000,
-  });
+  // __game is set before scenes register — wait for the boot scene to be active,
+  // else the first snapshot() reads an empty scene manager.
+  await page.waitForFunction(() => {
+    const g = (window as any).__game;
+    return !!(g && g.scene && g.scene.getScene("boot") && g.scene.getScene("boot").scene.isActive());
+  }, null, { timeout: 25_000 });
 }
 
 export function snapshot(page: Page) {
