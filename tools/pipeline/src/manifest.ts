@@ -39,6 +39,7 @@ import { TILE7_NAMES } from "./tileset7";
 import { TILE8_NAMES } from "./tileset8";
 import { OW_BILLBOARD_H, OW_BILLBOARD_NAMES, OW_BILLBOARD_W } from "./sprites/owBillboards";
 import { owMountainNames } from "./owMountains";
+import { cliffTileNames } from "./cliffs/frames";
 
 export interface AnimationDef {
   frames: number[];
@@ -120,6 +121,7 @@ export interface Manifest {
   tiles8: TileSetDef;
   owBillboards: BillboardSheetDef;
   owMountains: TileSetDef;
+  cliff: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -275,6 +277,9 @@ export function buildManifest(): Manifest {
       tileSize: TILE_SIZE,
       columns: 8,
       names: tileNames(owMountainNames)
-    }
+    },
+    // cliff.png: 208 frames (206 real + 2 blank padding, see cliffs/frames.ts)
+    // laid out 8 columns x 26 rows; only the 206 real names are exposed here.
+    cliff: { file: "cliff.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffTileNames()) }
   };
 }

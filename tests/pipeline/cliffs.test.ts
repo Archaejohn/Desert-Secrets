@@ -8,6 +8,9 @@ import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/mater
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
 import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
+import { buildManifest } from "../../tools/pipeline/src/manifest";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -217,5 +220,55 @@ describe("generateTerrain + desert presets", () => {
     const fill = out.find((o) => o.name === "sandFill")!;
     const interior = out.find((o) => o.name === "sandPlateau_255")!;
     expect(interior.grid.diff(fill.grid)).toBe(0);
+  });
+
+  // Folded-in review Minor from Task 7: strengthen swap-detection coverage.
+  // sandPlateau_255 (sand-over-sand) can't catch an over/base argument swap
+  // since both sides are the same fill — this asserts against a pairing
+  // with genuinely distinct over/base (sand over asphalt) instead, so a
+  // regression that swaps the blobTiles(over, base) arguments is caught.
+  it("mask-255 pairing tile with distinct over/base matches the over fill and differs from the base fill", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]);
+    const sandFill = out.find((o) => o.name === "sandFill")!;
+    const asphaltFill = out.find((o) => o.name === "asphaltFill")!;
+    const pairing = out.find((o) => o.name === "sandAsphalt_255")!;
+    expect(pairing.grid.diff(sandFill.grid)).toBe(0);
+    expect(pairing.grid.diff(asphaltFill.grid)).toBe(256);
+  });
+});
+
+describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
+  it("cliffSheetFrames/cliffTileNames are parallel and names cover the 206 real (non-padding) frames", () => {
+    const names = cliffTileNames();
+    const frames = cliffSheetFrames();
+    expect(names.length).toBe(206);
+    expect(frames.length).toBe(208); // 206 real + 2 blank padding frames
+    expect(new Set(names).size).toBe(names.length); // unique
+    frames.forEach((f) => {
+      expect(f.width).toBe(16);
+      expect(f.height).toBe(16);
+    });
+    // The 2 padding frames (last 2) are fully transparent.
+    for (const f of frames.slice(206)) {
+      expect(f.countOpaque()).toBe(0);
+    }
+  });
+
+  it("cliff wired into assets + manifest, names align to frames", () => {
+    expect(SHEET_KEYS).toContain("cliff");
+    const a = buildAssets();
+    expect(a.cliff).toBeDefined();
+    const names = cliffTileNames();
+    const frames = cliffSheetFrames();
+    const m = buildManifest();
+    expect(Object.keys(m.cliff.names).length).toBe(names.length);
+    // every name maps to a valid frame index
+    for (const n of names) {
+      expect(m.cliff.names[n]).toBeGreaterThanOrEqual(0);
+      expect(m.cliff.names[n]).toBeLessThan(frames.length);
+    }
+    // composed sheet dims: 8 columns x 26 rows of 16x16 tiles.
+    expect(a.cliff.width).toBe(8 * 16);
+    expect(a.cliff.height).toBe(26 * 16);
   });
 });
