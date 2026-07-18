@@ -9,7 +9,7 @@
  *     "desert-secrets-v1"), so the browser — which only re-installs a service
  *     worker when its bytes differ — never picked up a new SW, never ran a
  *     newer fetch strategy, and never purged the old cache. Fixed by stamping
- *     the build version in below (`2026-07-18T00:10:07.873Z`, replaced at build time):
+ *     the build version in below (`2026-07-18T06:14:35.176Z`, replaced at build time):
  *     every deploy is now a genuinely new SW that installs, activates,
  *     `skipWaiting()`s, claims clients, and deletes every prior cache.
  *  2. Plain `fetch(request)` still honours the browser's HTTP cache, so on
@@ -23,7 +23,7 @@
  * The cache is now purely an offline fallback, refreshed opportunistically on
  * every successful fetch and re-seeded fresh on each new SW's install.
  */
-const VERSION = "2026-07-18T00:10:07.873Z"; // replaced with the build's APP_VERSION at build time
+const VERSION = "2026-07-18T06:14:35.176Z"; // replaced with the build's APP_VERSION at build time
 const CACHE = `desert-secrets-${VERSION}`;
 const ASSETS = ["./", "./index.html", "./version.json", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
