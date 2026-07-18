@@ -915,13 +915,18 @@ s = await waitFor(page, (x) => x.dialogueOpen === true, 30_000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act2Complete === true, 10_000);
 check("Act 2 completes (two penguins seen)", s.state.flags.act2Complete === true, JSON.stringify(s.state.flags));
-await page.waitForTimeout(800);
-// The Act 2 end card now DIVES into Act 3 (the crack Piggy vanished
-// through), keeping all progress — it no longer returns to the title.
+// No forced advance: the party must FOLLOW the penguins into the far tunnel.
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("Act 2 does NOT auto-advance on the ending dialogue closing", s.zoneKey === "sanctum", `zone=${s.zoneKey}`);
+// Walk into the tunnel the penguins dove through — that rolls the END OF ACT 2
+// card, which then dives into Act 3, keeping all progress.
+await standAt(page, "sanctum", 23 * 16 + 8, 4 * 16 + 8);
+await page.waitForTimeout(700);
 await tap(page, "Space");
 s = await waitFor(page, (x) => x.zoneKey === "sunlessSea", 9000);
 check(
-  "act 2 end card dives into the Sunless Sea with progress kept",
+  "walking into the tunnel rolls the card and dives into the Sunless Sea",
   s.zoneKey === "sunlessSea" && s.state.flags.act3Started === true,
   `zone=${s.zoneKey} act3Started=${s.state?.flags?.act3Started}`
 );
@@ -1042,13 +1047,17 @@ check("the fishing minigame lands the silverfin", caught === true);
 s = await snapshot(page);
 check("silverfin recorded in the inventory", s.state.items.silverfin === true && s.state.flags.silverfinCaught === true, JSON.stringify(s.state.items));
 
-// The catch beat → act3Complete → the party climbs out via the ascent zone.
+// The catch freezes an ice path out of the bed; the party must WALK it to
+// leave (no auto-teleport on the ending dialogue closing).
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act3Complete === true, 8000);
-check("Act 3 completes (silverfin caught)", s.state.flags.act3Complete === true, JSON.stringify(s.state.flags));
-s = await waitFor(page, (x) => x.zoneKey === "seaAscent", 9000);
-check("the catch hands off to the ascent zone (a real zone, not an end card)", s.zoneKey === "seaAscent", `zone=${s.zoneKey}`);
+check("Act 3 completes (silverfin caught, ice path frozen)", s.state.flags.act3Complete === true, JSON.stringify(s.state.flags));
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("the catch does NOT auto-advance — still in the deep bed", s.zoneKey === "deepBed", `zone=${s.zoneKey}`);
+s = await exitTo("deepBed", "seaAscent");
+check("walking the frozen ice path climbs out to the ascent zone", s.zoneKey === "seaAscent", `zone=${s.zoneKey}`);
 await page.screenshot({ path: path.join(root, "../act3-ascent.png") }).catch(() => {});
 
 // Zone 6 (ascent): the climb beat plays, then the top gate hands off to Act 4.
@@ -1165,15 +1174,18 @@ check(
   JSON.stringify(reekEffect)
 );
 
-// The Act 4 ending now HANDS OFF into Act 5 (a real zone, not an end card) —
-// dialogue → act4Complete + act5Started → the grove's warm descent.
+// The Act 4 ending opens a stairwell DOWN; the party must WALK to it (no auto-
+// teleport on the ending dialogue closing) — down into Act 5's warm descent.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act4Complete === true, 8000);
-check("Act 4 completes (stinky socks earned)", s.state.flags.act4Complete === true, JSON.stringify(s.state.flags));
-s = await waitFor(page, (x) => x.zoneKey === "groveDescent", 12_000);
+check("Act 4 completes (stinky socks earned, stairwell opened)", s.state.flags.act4Complete === true, JSON.stringify(s.state.flags));
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("Act 4 does NOT auto-advance — still in the camp", s.zoneKey === "campProper", `zone=${s.zoneKey}`);
+s = await exitTo("campProper", "groveDescent");
 check(
-  "the camp hands off into Act 5 (a real zone, not an end card), progress kept",
+  "walking down the opened stairwell descends into Act 5, progress kept",
   s.zoneKey === "groveDescent" && s.state.flags.act5Started === true,
   `zone=${s.zoneKey} act5Started=${s.state?.flags?.act5Started}`
 );
@@ -1294,15 +1306,18 @@ check(
   JSON.stringify(s.state.items)
 );
 
-// The Act 5 ending now HANDS OFF into Act 6 (a real zone, not an end card) —
-// dialogue → act5Complete + act6Started → the reef's drowned stair.
+// The Act 5 ending opens Sahra's hidden door DOWN; the party must WALK to it
+// (no auto-teleport on the ending dialogue closing) — down into Act 6's reef.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act5Complete === true, 9000);
-check("Act 5 completes (grove oranges earned)", s.state.flags.act5Complete === true, JSON.stringify(s.state.flags));
-s = await waitFor(page, (x) => x.zoneKey === "reefDescent", 12_000);
+check("Act 5 completes (grove oranges earned, hidden door opened)", s.state.flags.act5Complete === true, JSON.stringify(s.state.flags));
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("Act 5 does NOT auto-advance — still in the grove", s.zoneKey === "sahraGrove", `zone=${s.zoneKey}`);
+s = await exitTo("sahraGrove", "reefDescent");
 check(
-  "the grove hands off into Act 6 (a real zone, not an end card), progress kept",
+  "walking through Sahra's hidden door descends into Act 6, progress kept",
   s.zoneKey === "reefDescent" && s.state.flags.act6Started === true,
   `zone=${s.zoneKey} act6Started=${s.state?.flags?.act6Started}`
 );
@@ -1430,15 +1445,18 @@ check(
   JSON.stringify(s.state.items)
 );
 
-// The Act 6 ending: dialogue → act6Complete + act7Started → a REAL hand-off
-// into Act 7's entry zone (not an end card, like every prior retrofit).
+// The Act 6 ending scrapes open a tunnel DOWN; the party must WALK to it (no
+// auto-teleport on the ending dialogue closing) — down into Act 7's descent.
 s = await waitFor(page, (x) => x.dialogueOpen === true, 8000);
 if (s.dialogueOpen) await talkThrough(page, { maxSteps: 40 });
 s = await waitFor(page, (x) => x.state.flags.act6Complete === true, 9000);
-check("Act 6 completes (reef mint kelp earned)", s.state.flags.act6Complete === true, JSON.stringify(s.state.flags));
-s = await waitFor(page, (x) => x.zoneKey === "pizzaDescent", 9000);
+check("Act 6 completes (reef mint kelp earned, tunnel opened)", s.state.flags.act6Complete === true, JSON.stringify(s.state.flags));
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("Act 6 does NOT auto-advance — still in the court", s.zoneKey === "reefCourt", `zone=${s.zoneKey}`);
+s = await exitTo("reefCourt", "pizzaDescent");
 check(
-  "Act 6 hands off into Act 7 (a real zone, not a title-card placeholder)",
+  "walking the crawlers' opened tunnel descends into Act 7, progress kept",
   s.zoneKey === "pizzaDescent" && s.state.flags.act7Started === true,
   `zone=${s.zoneKey}`
 );
@@ -1517,9 +1535,13 @@ s = await waitFor(page, (x) => x.state.flags.heardReveal === true, 9000);
 check("Testudo reveals the ice/ocean secret", s.state.flags.heardReveal === true, JSON.stringify(s.state.flags));
 await page.screenshot({ path: path.join(root, "../act7-reveal.png") }).catch(() => {});
 
-// Hand-off to the finale ascent (a real zone), Piggy now caught and following.
-s = await waitFor(page, (x) => x.zoneKey === "pizzaAscent", 12_000);
-check("the reveal hands off to the long climb up (a real zone)", s.zoneKey === "pizzaAscent", `zone=${s.zoneKey}`);
+// The reveal opens the stairs UP; the party must WALK to them (no auto-teleport
+// on the reveal dialogue closing) — up into the finale climb, Piggy following.
+await page.waitForTimeout(400);
+s = await snapshot(page);
+check("the reveal does NOT auto-advance — still in the pizzeria", s.zoneKey === "pizzeria", `zone=${s.zoneKey}`);
+s = await exitTo("pizzeria", "pizzaAscent");
+check("walking the opened stairs up climbs to the finale (a real zone)", s.zoneKey === "pizzaAscent", `zone=${s.zoneKey}`);
 
 // Zone 5 (the ascent): the arrival beat (auto-fires on spawn), then the finale.
 if ((await snapshot(page)).dialogueOpen) await talkThrough(page, { maxSteps: 40 });

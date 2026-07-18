@@ -137,6 +137,8 @@ export abstract class ZoneScene extends Phaser.Scene {
   private exits: Exit[] = [];
   private triggers: TriggerZone[] = [];
   private interactPoints: InteractPoint[] = [];
+  /** The pinned "find the exit" nudge shown by armWalkoutExit/showExitHint. */
+  private exitHint: Phaser.GameObjects.Text | null = null;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key>;
   private keyInteract!: Phaser.Input.Keyboard.Key;
@@ -623,6 +625,63 @@ export abstract class ZoneScene extends Phaser.Scene {
 
   protected addTrigger(rect: TriggerZone["rect"], cb: () => void, once = true): void {
     this.triggers.push({ rect, once, fired: false, cb });
+  }
+
+  /**
+   * A pinned "find the exit" nudge along the bottom edge (skyBlue on a dim
+   * plate), tweened in. Screen-fixed, so it joins uiLayer (the two-camera
+   * world/UI split — see the uiLayer doc comment). Modelled on the Act 1 ice
+   * portal hint. Replacing an existing hint clears it first.
+   */
+  protected showExitHint(text: string): void {
+    this.clearExitHint();
+    this.exitHint = this.add
+      .text(this.scale.width / 2, this.scale.height - 30, text, {
+        fontFamily: "monospace",
+        fontSize: "9px",
+        color: PALETTE.skyBlue,
+        backgroundColor: "#24182799",
+        padding: { x: 4, y: 2 }
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(6800)
+      .setAlpha(0);
+    this.uiLayer.add(this.exitHint);
+    this.tweens.add({ targets: this.exitHint, alpha: 1, duration: 700 });
+  }
+
+  protected clearExitHint(): void {
+    this.exitHint?.destroy();
+    this.exitHint = null;
+  }
+
+  /**
+   * A movement-gated act exit — the fix for "no forced advancement". Replaces
+   * the old `openScript(ending, () => goToZone(...))` hand-offs that fired the
+   * moment a dialogue box was dismissed. Here the ending only NARRATES the way
+   * out; this reveals it (a frozen path, an opened door, a stairwell), pins a
+   * hint, and hands control back — the act advances only when the player WALKS
+   * into `rect` (a real `addExit`, the same walk-over the back-track gates use).
+   * This generalizes DepthsScene.armIcePortal, the Act 1 pattern the owner
+   * called "how to do it right".
+   *
+   * `reveal` flips the scene's own tiles/props to open the way, and should set
+   * the act's completion flags (the exit is open and the objective is done, so
+   * a reload re-opens the exit rather than soft-locking). The transition itself
+   * is a plain fade via `addExit`.
+   */
+  protected armWalkoutExit(opts: {
+    reveal: () => void;
+    hint: string;
+    rect: Exit["rect"];
+    target: ZoneId;
+    spawn: { x: number; y: number };
+  }): void {
+    opts.reveal();
+    this.showExitHint(opts.hint);
+    this.addExit(opts.rect, opts.target, opts.spawn);
+    this.inputLocked = false;
   }
 
   /**

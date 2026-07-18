@@ -114,20 +114,19 @@ export class CampProperScene extends ZoneScene {
   protected populate(): void {
     this.slither = new SlitherFollower(this);
 
-    // Epilogue: once Act 4 is done the camp hands off into Act 5 (a real zone
-    // exit, not an end card — the Act 3 → 4 pattern). A reload that somehow
-    // lands back here after the hand-off re-arms it rather than soft-locking.
-    if (getState(this).flags.act4Complete) {
-      this.inputLocked = true;
-      this.enterAct5();
-      return;
-    }
-
     if (getState(this).flags.slitherJoined) this.slither.spawn(this.player.x, this.player.y);
 
     this.addExit({ ...CAMPP_EXIT_NORTH }, "minersCamp", CAMP_RETURN_SPAWN);
     this.addExit({ ...CAMPP_EXIT_WEST }, "laundryNook", NOOK_SPAWN);
     this.addExit({ ...CAMPP_EXIT_EAST }, "campGallery", GALLERY_SPAWN);
+
+    // Epilogue reload after Act 4: the stairwell down is already open. Re-reveal
+    // it and require walking down to Act 5 (no auto-teleport). The back-track
+    // gates above stay available; the rest of the Act 4 beats are skipped.
+    if (getState(this).flags.act4Complete) {
+      this.armStairwellExit();
+      return;
+    }
 
     // Rest point (the camp stove): a free, reusable full heal by the hearth.
     this.addInteractPoint(CAMPP_HEARTH.x, CAMPP_HEARTH.y, () => this.restHere(campRestScript));
@@ -240,25 +239,39 @@ export class CampProperScene extends ZoneScene {
 
   private runEnding(): void {
     // Unlock so the ending box can be advanced (movement stays blocked while
-    // the dialogue is open); relock before the hand-off. Same pattern as the
-    // Act 1/2/3 endings — a locked scene never forwards confirm to the box.
+    // the dialogue is open). The ending only NARRATES the way down ("warm air
+    // from below — down we go"); a stairwell opens and the player must walk to
+    // it. No auto-teleport on the box being dismissed.
     this.inputLocked = false;
-    this.openScript(act4EndingScript, () => {
-      this.inputLocked = true;
-      this.enterAct5();
+    this.openScript(act4EndingScript, () => this.armStairwellExit());
+  }
+
+  /**
+   * Open the stairwell down and arm the walk-out exit into Act 5 (The Sunlit
+   * Cave-In). Shared by the live ending and a reload landing.
+   */
+  private armStairwellExit(): void {
+    this.armWalkoutExit({
+      reveal: () => this.openStairwell(),
+      hint: "A stairwell down has opened — descend ↓",
+      rect: { x1: 15, y1: 18, x2: 17, y2: 18 },
+      target: "groveDescent",
+      spawn: DESCENT_SPAWN
     });
   }
 
   /**
-   * Descend into Act 5 (The Sunlit Cave-In), keeping progress — the real
-   * hand-off that replaces the old "coming soon" title card, mirroring the
-   * Act 2 → 3 and Act 3 → 4 hand-offs. Sets `act4Complete` (record) and
-   * `act5Started`, then drops the party into the grove's entry zone.
+   * Warm air rises from below: a stairwell opens in the camp's south wall
+   * (carve the wall tile to a walkable opening + a ladder down). Sets
+   * act4Complete + act5Started — the objective's done and the way down is open,
+   * so a reload re-opens it rather than soft-locking.
    */
-  private enterAct5(): void {
+  private openStairwell(): void {
+    this.decorLayer.removeTileAt(16, 19);
+    this.addProp("ladder", 16, 19);
     const s = getState(this);
     setState(this, { ...s, flags: { ...s.flags, act4Complete: true, act5Started: true } });
-    this.goToZone("groveDescent", DESCENT_SPAWN);
+    this.hud.update(getState(this));
   }
 
   protected onUpdate(): void {
