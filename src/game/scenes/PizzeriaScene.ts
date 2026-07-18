@@ -19,6 +19,7 @@
  * reload-safe guards resume mid-sequence. Both follower rigs pumped.
  */
 import { ZoneScene, TILE, type ZoneConfig } from "../ZoneScene";
+import { getMusic, type TrackId } from "../audio/music";
 import {
   buildPizzeriaMap,
   PIZZA_P_ENTRY_TRIGGER,
@@ -84,6 +85,11 @@ export class PizzeriaScene extends ZoneScene {
       defaultSpawn: PIZZA_P_SPAWN,
       battleBg: "ice"
     };
+  }
+
+  /** Testudo's theme fills the parlor — until Piggy is caught, then it's hers. */
+  protected musicTrack(): TrackId {
+    return getState(this).flags.piggyCaught ? "piggy" : "testudo";
   }
 
   protected populate(): void {
@@ -221,6 +227,7 @@ export class PizzeriaScene extends ZoneScene {
           const s = getState(this);
           setState(this, { ...s, flags: { ...s.flags, piggyCaught: true } });
           this.hud.update(getState(this));
+          getMusic(this).play(this, "piggy"); // Piggy's theme swells the moment she's caught
           this.runReveal();
         });
       }
