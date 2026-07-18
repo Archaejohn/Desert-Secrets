@@ -62,8 +62,10 @@ named Piggy. Full design docs live in `docs/`:
   or "restore" the overworld as Mode-7; if you're unsure which view is live,
   it's the flat one.
 - Verification bar before calling anything done: `tsc --noEmit`,
-  `vitest run`, `npm run build`, `npm run smoke` (keyboard e2e),
-  `npm run smoke:touch` (touch-emulated e2e).
+  `vitest run`, `npm run build`, `npm run smoke` (spine + all 7 acts,
+  keyboard e2e — parallel/seeded), `npm run smoke:touch` (touch-emulated
+  e2e). Regenerate fixtures with `npm run smoke:fixtures` (then commit)
+  whenever act boundaries or the save `state` shape change.
 - Git flow: develop on the session's own designated branch (each session is
   given one — never commit straight to `main`), push it, then open a pull
   request into `main` and land it with a **regular merge commit** (NOT a
