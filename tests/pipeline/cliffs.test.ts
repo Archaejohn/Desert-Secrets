@@ -254,6 +254,30 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     }
   });
 
+  it("cliffTileNames structure: no duplicates, count 206, valid tile-name strings", () => {
+    const names = cliffTileNames();
+    expect(names.length).toBe(206);
+    expect(new Set(names).size).toBe(names.length); // no duplicates
+    // every name is a valid tile-name string: non-empty, no whitespace,
+    // only [A-Za-z0-9_] characters.
+    for (const n of names) {
+      expect(n.length).toBeGreaterThan(0);
+      expect(n).not.toMatch(/\s/);
+      expect(n).toMatch(/^[A-Za-z0-9_]+$/);
+    }
+  });
+
+  it("the 15 cliff names cover all 5 variants x 3 bands", () => {
+    const cliff = cliffTileNames().filter((n) => n.startsWith("cliffRock_"));
+    expect(cliff.length).toBe(15);
+    for (const v of ["outerW", "mid", "outerE", "innerW", "innerE"]) {
+      for (const b of ["rim", "face", "footer"]) {
+        expect(cliff).toContain(`cliffRock_${v}_${b}`);
+      }
+    }
+    expect(new Set(cliff).size).toBe(15); // 5 x 3, all distinct
+  });
+
   it("cliff wired into assets + manifest, names align to frames", () => {
     expect(SHEET_KEYS).toContain("cliff");
     const a = buildAssets();
