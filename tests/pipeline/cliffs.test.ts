@@ -6,6 +6,8 @@ import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terr
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
+import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
+import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -180,5 +182,40 @@ describe("cliff set (15 tiles)", () => {
   it("topRounding=0 (hard corners) differs from rounded", () => {
     // rim tile of an outer-W variant: index 0 (variant0,band0)
     expect(mk(0)[0].diff(mk(3)[0])).toBeGreaterThan(0);
+  });
+});
+
+describe("generateTerrain + desert presets", () => {
+  it("desert preset generates the full named set, palette-locked, unique names", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]);
+    const names = out.map((o) => o.name);
+    expect(new Set(names).size).toBe(names.length); // unique
+    expect(names.filter((n) => n.startsWith("cliffRock_")).length).toBe(15);
+    expect(names.filter((n) => /Plateau_/.test(n)).length).toBe(47);
+    out.forEach((o) => o.grid.forEach((_x, _y, c) => { if (c !== null) expect(PALETTE).toHaveProperty(c); }));
+  });
+
+  it("generateTerrain is deterministic", () => {
+    const a = generateTerrain(DESERT_PRESETS[0]), b = generateTerrain(DESERT_PRESETS[0]);
+    a.forEach((o, i) => expect(o.grid.diff(b[i].grid)).toBe(0));
+  });
+
+  it("emits 47 named tiles per pairing and one Fill per unique terrain key", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]);
+    const names = out.map((o) => o.name);
+    expect(names.filter((n) => n.startsWith("sandSand_")).length).toBe(47);
+    expect(names.filter((n) => n.startsWith("sandAsphalt_")).length).toBe(47);
+    expect(names.filter((n) => n.startsWith("sandFrostSand_")).length).toBe(47);
+    expect(names.filter((n) => n.endsWith("Fill")).length).toBe(3); // sand, asphalt, frostSand — deduped
+    expect(names).toContain("sandFill");
+    expect(names).toContain("asphaltFill");
+    expect(names).toContain("frostSandFill");
+  });
+
+  it("mask-255 plateau tile equals the plateau-top fill exactly (over = plateauTop)", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]);
+    const fill = out.find((o) => o.name === "sandFill")!;
+    const interior = out.find((o) => o.name === "sandPlateau_255")!;
+    expect(interior.grid.diff(fill.grid)).toBe(0);
   });
 });
