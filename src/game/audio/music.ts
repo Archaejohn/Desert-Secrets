@@ -45,13 +45,14 @@ const TRACK_FILES: Record<TrackId, string> = {
  * pizzaAscent is the post-catch finale walk, so it carries Piggy's theme.
  */
 export const ZONE_MUSIC: Partial<Record<ZoneId, TrackId>> = {
-  // Act 1 — the crash flats & open desert / the homestead.
-  crash: "desert",
-  trail: "desert",
-  overworld: "desert",
-  mineEntrance: "desert",
+  // Act 1 — the homestead theme covers the US-95 crash site and the Piggy
+  // Trail as well as the farm; the open desert / mine approach get the desert cue.
+  crash: "homestead",
+  trail: "homestead",
   oasis: "homestead",
   shed: "homestead",
+  overworld: "desert",
+  mineEntrance: "desert",
   // Act 1 — Cinnabar Mine.
   mine: "mine",
   depths: "mine",
