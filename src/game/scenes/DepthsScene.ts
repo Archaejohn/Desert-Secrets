@@ -93,12 +93,13 @@ export class DepthsScene extends ZoneScene {
       // Returning victorious: the Act 1 cliffhanger.
       this.runCliffhanger(piggy);
     } else {
-      // Epilogue state (e.g. a reload at the end card): the wall is collapsed,
-      // the ice exposed and glowing as a doorway, Piggy waiting inside it. The
-      // player follows Joseph into the ice to roll the end card — the same
-      // walk-in as the live cliffhanger, so a reload can't soft-lock Act 2.
+      // Epilogue state (e.g. a reload at the end card): the wall is collapsed
+      // and the ice glows as a doorway. Piggy has already gone through it in the
+      // live cliffhanger, so he's not standing here — hide him. The player still
+      // follows Joseph into the ice to roll the end card (the same walk-in as
+      // the live cliffhanger), so a reload can't soft-lock Act 2.
       this.crackWall();
-      piggy.setPosition(PIGGY_END_PX.x, PIGGY_END_PX.y).setDepth(PIGGY_END_PX.y);
+      piggy.setVisible(false);
       this.armIcePortal();
     }
   }
@@ -283,10 +284,34 @@ export class DepthsScene extends ZoneScene {
         duration: 2500,
         onUpdate: () => piggy.setDepth(piggy.y),
         onComplete: () => {
+          // He reaches the glowing ice and holds there a beat...
           piggy.play("piggy-idle");
-          this.cliffhangerSealed();
+          this.time.delayedCall(900, () => this.cliffhangerPiggyIntoIce(piggy));
         }
       });
+    });
+  }
+
+  /**
+   * ...then Piggy steps up INTO the ice-door and fades through it — so the
+   * sealed beat's "Piggy's already at the ice... we follow him in" lands on a
+   * doorway he's genuinely gone through, not one he's still standing in front
+   * of. The rock/ice crack is the row above his feet, so he moves up (−y) as he
+   * dissolves. Hidden (not destroyed) on complete so the epilogue path can rely
+   * on the same sprite reference.
+   */
+  private cliffhangerPiggyIntoIce(piggy: Phaser.GameObjects.Sprite): void {
+    piggy.play("piggy-walk");
+    this.tweens.add({
+      targets: piggy,
+      y: PIGGY_END_PX.y - 20,
+      alpha: 0,
+      duration: 1100,
+      onUpdate: () => piggy.setDepth(piggy.y),
+      onComplete: () => {
+        piggy.setVisible(false);
+        this.cliffhangerSealed();
+      }
     });
   }
 
