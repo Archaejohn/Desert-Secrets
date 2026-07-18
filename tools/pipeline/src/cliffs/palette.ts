@@ -18,7 +18,7 @@ export type TerrainKey = "sand" | "frostSand" | "asphalt";
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   sand: ["sandLight", "sand", "amber", "sandShade"],
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
-  asphalt: ["slate", "plum", "indigo", "ink"],
+  asphalt: ["slate", "indigo", "plum", "ink"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));
