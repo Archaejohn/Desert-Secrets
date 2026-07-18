@@ -72,20 +72,18 @@ export class SahraGroveScene extends ZoneScene {
     this.slither = new SlitherFollower(this);
     this.fluffball = new FluffballFollower(this);
 
-    // Epilogue: once Act 5 is done the grove hands off into Act 6 (a real zone
-    // exit, not an end card — the Act 2→3 / 3→4 / 4→5 pattern). A reload that
-    // somehow lands back here after the hand-off re-arms it rather than
-    // soft-locking on a dead grove.
-    if (getState(this).flags.act5Complete) {
-      this.inputLocked = true;
-      this.enterAct6();
-      return;
-    }
-
     if (getState(this).flags.slitherJoined) this.slither.spawn(this.player.x, this.player.y);
     if (getState(this).flags.fluffballJoined) this.fluffball.spawn(this.player.x, this.player.y);
 
     this.addExit({ ...SAHRA_EXIT_WEST }, "groveChamber", CHAMBER_RETURN_SPAWN);
+
+    // Epilogue reload after Act 5: Sahra's hidden door is already open. Re-reveal
+    // it and require walking down to Act 6 (no auto-teleport); the west gate back
+    // to the chamber stays available, the rest of the grove beats are skipped.
+    if (getState(this).flags.act5Complete) {
+      this.armHiddenDoorExit();
+      return;
+    }
 
     if (!getState(this).flags.sawSahraGrove) {
       this.addTrigger({ ...SAHRA_ENTRY_TRIGGER }, () => {
@@ -142,24 +140,39 @@ export class SahraGroveScene extends ZoneScene {
 
   private runEnding(): void {
     // Unlock so the ending box advances (movement stays blocked while the box
-    // is open); relock before the hand-off — same pattern as Acts 1–4.
+    // is open). The ending only NARRATES the way down ("the way down leads back
+    // to cold water"); Sahra grinds open a hidden door and the player must walk
+    // to it. No auto-teleport on the box being dismissed.
     this.inputLocked = false;
-    this.openScript(act5EndingScript, () => {
-      this.inputLocked = true;
-      this.enterAct6();
+    this.openScript(act5EndingScript, () => this.armHiddenDoorExit());
+  }
+
+  /**
+   * Open Sahra's hidden door and arm the walk-out exit down into Act 6 (The
+   * Reef). Shared by the live ending and a reload landing.
+   */
+  private armHiddenDoorExit(): void {
+    this.armWalkoutExit({
+      reveal: () => this.openHiddenDoor(),
+      hint: "Sahra opens a hidden door — head down ↓",
+      rect: { x1: 10, y1: 14, x2: 12, y2: 14 },
+      target: "reefDescent",
+      spawn: REEF_D_SPAWN
     });
   }
 
   /**
-   * Descend into Act 6 (The Reef), keeping progress — the real hand-off that
-   * replaces the old "ACT 6 — coming soon" title card, mirroring the Act 2→3,
-   * 3→4 and 4→5 hand-offs. Sets `act5Complete` (record) and `act6Started`,
-   * then drops the party into the reef's entry zone.
+   * Sahra presses the rock and a hidden door grinds open in the grove's south
+   * wall (carve the wall tile to a walkable opening + a door). Sets act5Complete
+   * + act6Started — the objective's done and the way down is open, so a reload
+   * re-opens it rather than soft-locking.
    */
-  private enterAct6(): void {
+  private openHiddenDoor(): void {
+    this.decorLayer.removeTileAt(11, 15);
+    this.addProp("door", 11, 15);
     const s = getState(this);
     setState(this, { ...s, flags: { ...s.flags, act5Complete: true, act6Started: true } });
-    this.goToZone("reefDescent", REEF_D_SPAWN);
+    this.hud.update(getState(this));
   }
 
   protected onUpdate(): void {

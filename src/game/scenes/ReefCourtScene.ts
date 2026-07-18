@@ -67,19 +67,18 @@ export class ReefCourtScene extends ZoneScene {
     this.slither = new SlitherFollower(this);
     this.fluffball = new FluffballFollower(this);
 
-    // Epilogue: a reload that lands on the finished act mustn't soft-lock — the
-    // trade is done, so re-arm the Act 7 hand-off rather than dropping the
-    // player into a dead court.
-    if (getState(this).flags.act6Complete) {
-      this.inputLocked = true;
-      this.time.delayedCall(300, () => this.enterAct7());
-      return;
-    }
-
     if (getState(this).flags.slitherJoined) this.slither.spawn(this.player.x, this.player.y);
     if (getState(this).flags.fluffballJoined) this.fluffball.spawn(this.player.x, this.player.y);
 
     this.addExit({ ...REEF_C_EXIT_NORTH }, "reefHollow", REEF_H_RETURN_SPAWN);
+
+    // Epilogue reload after Act 6: the crawlers' tunnel down is already open.
+    // Re-reveal it and require walking down to Act 7 (no auto-teleport); the
+    // north gate back to the hollow stays available.
+    if (getState(this).flags.act6Complete) {
+      this.armPassageExit();
+      return;
+    }
 
     if (!getState(this).flags.sawReefCourt) {
       this.addTrigger({ ...REEF_C_ENTRY_TRIGGER }, () => {
@@ -155,20 +154,38 @@ export class ReefCourtScene extends ZoneScene {
 
   private runEnding(): void {
     // Unlock so the ending box advances (movement stays blocked while the box
-    // is open); relock before the hand-off — same pattern as Acts 1–5.
+    // is open). The ending only NARRATES the way down ("one tunnel left —
+    // follow the smell down"); the crawlers scrape open a passage and the
+    // player must walk to it. No auto-teleport on the box being dismissed.
     this.inputLocked = false;
-    this.openScript(act6EndingScript, () => {
-      this.inputLocked = true;
-      this.enterAct7();
+    this.openScript(act6EndingScript, () => this.armPassageExit());
+  }
+
+  /**
+   * Open the crawlers' passage down and arm the walk-out exit into Act 7 (down
+   * toward the pizzeria). Shared by the live ending and a reload landing.
+   */
+  private armPassageExit(): void {
+    this.armWalkoutExit({
+      reveal: () => this.openPassage(),
+      hint: "The crawlers scrape open a tunnel down ↓",
+      rect: { x1: 10, y1: 14, x2: 12, y2: 14 },
+      target: "pizzaDescent",
+      spawn: PIZZA_D_SPAWN
     });
   }
 
-  /** The Act 6 → Act 7 hand-off: down toward the pizzeria, keeping progress
-   *  (the same real-zone hand-off as Acts 2→3 … 5→6, replacing the old card). */
-  private enterAct7(): void {
+  /**
+   * The crawlers scrape open a tunnel down through the reef's south wall (carve
+   * the wall tile to a walkable opening). Sets act6Complete + act7Started — the
+   * objective's done and the way down is open, so a reload re-opens it rather
+   * than soft-locking.
+   */
+  private openPassage(): void {
+    this.decorLayer.removeTileAt(11, 15);
     const s = getState(this);
     setState(this, { ...s, flags: { ...s.flags, act6Complete: true, act7Started: true } });
-    this.goToZone("pizzaDescent", PIZZA_D_SPAWN);
+    this.hud.update(getState(this));
   }
 
   protected onUpdate(): void {

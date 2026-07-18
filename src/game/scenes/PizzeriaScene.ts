@@ -99,19 +99,20 @@ export class PizzeriaScene extends ZoneScene {
     this.cookingMenu = null;
     this.lightMask = null;
 
-    // Reload guard: if the reveal already played, the party's business here is
-    // done — head straight up rather than dropping them into a finished scene.
-    if (getState(this).flags.heardReveal) {
-      this.inputLocked = true;
-      this.time.delayedCall(300, () => this.enterAscent());
-      return;
-    }
-
     if (getState(this).flags.slitherJoined) this.slither.spawn(this.player.x, this.player.y);
     if (getState(this).flags.fluffballJoined) this.fluffball.spawn(this.player.x, this.player.y);
 
     this.addExit({ ...PIZZA_P_EXIT_NORTH }, "pizzaApproach", PIZZA_A_RETURN_SPAWN);
     this.setupVentLighting();
+
+    // Reload landing after the reveal: the stairs up are already open. Re-reveal
+    // them and require walking up (no auto-teleport); the north gate back to the
+    // old kitchens stays available, the finale beats are skipped.
+    if (getState(this).flags.heardReveal) {
+      this.armStairsExit();
+      return;
+    }
+
     this.placeTestudo();
 
     // Rest point (a set table, a bowl of Testudo's soup): a free, reusable full
@@ -238,17 +239,39 @@ export class PizzeriaScene extends ZoneScene {
   private runReveal(): void {
     this.inputLocked = false;
     this.openScript(testudoRevealScript, () => {
-      this.inputLocked = true;
       const s = getState(this);
       setState(this, { ...s, flags: { ...s.flags, heardReveal: true } });
       this.hud.update(getState(this));
-      this.time.delayedCall(900, () => this.enterAscent());
+      // No auto hand-off: Testudo shows the party the stairs up, and they have
+      // to walk to them. Following the way up rolls into the finale (a real
+      // zone), not the dialogue box being dismissed.
+      this.armStairsExit();
     });
   }
 
-  /** The hand-off to the finale: the walk back up (a real zone, not a card). */
-  private enterAscent(): void {
-    this.goToZone("pizzaAscent", PIZZA_ASCENT_SPAWN);
+  /**
+   * Open the stairs up and arm the walk-out exit to the finale climb
+   * (pizzaAscent). Shared by the live reveal and a reload landing.
+   */
+  private armStairsExit(): void {
+    this.armWalkoutExit({
+      reveal: () => this.openStairsUp(),
+      hint: "Testudo shows the stairs up — climb out ↑",
+      rect: { x1: 2, y1: 16, x2: 3, y2: 16 },
+      target: "pizzaAscent",
+      spawn: PIZZA_ASCENT_SPAWN
+    });
+  }
+
+  /**
+   * Testudo swings open the old service stair in the parlor's SW wall (carve
+   * the wall tile to a walkable opening + a ladder up). No new flags — the
+   * reveal (heardReveal) is already recorded; a reload just re-opens the stair.
+   */
+  private openStairsUp(): void {
+    this.decorLayer.removeTileAt(2, 17);
+    this.addProp("ladder", 2, 17);
+    this.hud.update(getState(this));
   }
 
   protected onUpdate(): void {

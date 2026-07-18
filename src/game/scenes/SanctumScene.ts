@@ -19,7 +19,6 @@ import {
   SANCTUM_WARDEN
 } from "../maps/sanctumMap";
 import { GALLERIES_DOOR_SPAWN } from "../maps/galleriesMap";
-import { SEA_SPAWN } from "../maps/sunlessSeaMap";
 import { wardenIntroScript } from "../../core/scripts/wardenIntro";
 import { act2EndingScript } from "../../core/scripts/act2Ending";
 import { getState, setState } from "../state";
@@ -68,18 +67,11 @@ export class SanctumScene extends ZoneScene {
     } else if (!flags.act2Complete) {
       this.runEnding();
     } else {
-      // Epilogue: the quiet lake, already cracked, penguins long gone. A
-      // reload at the Act 2 end card must not soft-lock Act 3 — walking to
-      // the tunnel the penguins dove through follows them into the sea.
+      // Epilogue reload: the lake's already cracked and the penguins gone, but
+      // the tunnel stays open. Walking into it rolls the end card — the same
+      // walk-in as the live ending, never an auto-teleport.
       this.crackLake();
-      this.addTrigger(
-        { x1: SANCTUM_TUNNEL.x - 1, y1: SANCTUM_TUNNEL.y, x2: SANCTUM_TUNNEL.x + 1, y2: SANCTUM_TUNNEL.y + 1 },
-        () => {
-          const s = getState(this);
-          setState(this, { ...s, flags: { ...s.flags, act3Started: true } });
-          this.goToZone("sunlessSea", SEA_SPAWN);
-        }
-      );
+      this.armTunnelExit();
     }
   }
 
@@ -126,15 +118,36 @@ export class SanctumScene extends ZoneScene {
 
     this.time.delayedCall(crackDone + 3600, () => {
       // Unlock so the dialogue can be advanced (movement stays blocked
-      // while the box is open); relock before the end card.
+      // while the box is open).
       this.inputLocked = false;
       this.openScript(act2EndingScript, () => {
-        this.inputLocked = true;
         const s = getState(this);
         setState(this, { ...s, flags: { ...s.flags, act2Complete: true } });
-        this.showEndCard();
+        this.hud.update(getState(this));
+        // No auto end card: the penguins dove into the far tunnel, and the
+        // player has to FOLLOW them in. Walking into the tunnel is what rolls
+        // the END OF ACT 2 card (the Act 1 ice-portal pattern), not the box
+        // being dismissed.
+        this.armTunnelExit();
       });
     });
+  }
+
+  /**
+   * Hand control back at the tunnel the penguins dove through: pin a hint and
+   * arm a walk-in trigger there. Stepping into it rolls the end card. Shared by
+   * the live ending and the epilogue reload.
+   */
+  private armTunnelExit(): void {
+    this.showExitHint("Follow them into the tunnel →");
+    this.inputLocked = false;
+    this.addTrigger(
+      { x1: SANCTUM_TUNNEL.x - 1, y1: SANCTUM_TUNNEL.y, x2: SANCTUM_TUNNEL.x + 1, y2: SANCTUM_TUNNEL.y + 1 },
+      () => {
+        this.clearExitHint();
+        this.showEndCard();
+      }
+    );
   }
 
   private sendPenguin(sheet: "piggy" | "fluffball", start: { x: number; y: number }, delay: number): void {

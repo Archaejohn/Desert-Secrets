@@ -69,15 +69,7 @@ export class DeepBedScene extends ZoneScene {
     this.fishingMenu = null;
     this.animateTilePair("seaWater", "seaWater2");
 
-    // Reload safety: if the silverfin is already caught but the party hasn't
-    // climbed out yet, send them straight up the ascent (mirrors the Act 2
-    // sanctum epilogue) so a reload here can't soft-lock Act 4.
     const s0 = getState(this);
-    if (s0.flags.silverfinCaught && !s0.flags.act4Started) {
-      this.goToZone("seaAscent", ASCENT_SPAWN);
-      return;
-    }
-
     if (s0.flags.slitherJoined) this.slither.spawn(this.player.x, this.player.y);
     this.addExit({ ...DEEP_EXIT_WEST }, "kelpForest", KELP_DEEP_RETURN_SPAWN);
 
@@ -95,6 +87,10 @@ export class DeepBedScene extends ZoneScene {
 
     this.placeFishingSpot();
     this.setupDeepDarkness();
+
+    // Reload landing after the catch but before Act 4: the ice path is already
+    // frozen and open — re-reveal it and require walking out (no auto-teleport).
+    if (s0.flags.silverfinCaught && !s0.flags.act4Started) this.armIcePathExit();
   }
 
   /**
@@ -172,18 +168,49 @@ export class DeepBedScene extends ZoneScene {
     this.time.delayedCall(900, () => this.runEnding());
   }
 
-  /** The catch beat, then climb out of the sea (hand-off to the ascent zone). */
+  /**
+   * The catch beat, then the way out OPENS — the deep water skins over into a
+   * bright ice path climbing north out of the bed. No auto-teleport: the ending
+   * only narrates it ("up, out of the sssea — find the way"); the player has to
+   * walk the frozen path to actually leave (armIcePathExit → a real addExit).
+   */
   private runEnding(): void {
     // Unlock so the ending box can be advanced (movement stays blocked while
-    // the dialogue is open); relock before the hand-off. Same pattern as the
-    // Act 1/2 endings — a locked scene never forwards confirm to the box.
+    // the dialogue is open). Same pattern as the Act 1/2 endings — a locked
+    // scene never forwards confirm to the box.
     this.inputLocked = false;
-    this.openScript(act3EndingScript, () => {
-      this.inputLocked = true;
-      const s = getState(this);
-      setState(this, { ...s, flags: { ...s.flags, act3Complete: true } });
-      this.goToZone("seaAscent", ASCENT_SPAWN);
+    this.openScript(act3EndingScript, () => this.armIcePathExit());
+  }
+
+  /**
+   * Freeze the ice path and arm the walk-out exit north to the ascent zone.
+   * Shared by the live catch and a reload landing (the path reads open either
+   * way, and the player must cross it to advance).
+   */
+  private armIcePathExit(): void {
+    this.armWalkoutExit({
+      reveal: () => this.freezeIcePath(),
+      hint: "The water froze into a path — climb out ↑",
+      rect: { x1: 15, y1: 1, x2: 15, y2: 2 },
+      target: "seaAscent",
+      spawn: ASCENT_SPAWN
     });
+  }
+
+  /**
+   * The deep bed skins over: a bright floe path up column x=15, the two solid-
+   * water tiles at the top carved to walkable floe so it reads as a real
+   * opening (not a dead end). Sets act3Complete — the objective's done and the
+   * way out is open, so a reload re-opens it rather than soft-locking.
+   */
+  private freezeIcePath(): void {
+    const floe = this.tileGid("floe");
+    const edge = this.tileGid("floeEdge");
+    for (let y = 3; y <= 8; y++) this.groundLayer.putTileAt(edge, 15, y); // bright path
+    for (let y = 1; y <= 2; y++) this.groundLayer.putTileAt(floe, 15, y); // carved opening
+    const s = getState(this);
+    setState(this, { ...s, flags: { ...s.flags, act3Complete: true } });
+    this.hud.update(getState(this));
   }
 
   protected onUpdate(): void {
