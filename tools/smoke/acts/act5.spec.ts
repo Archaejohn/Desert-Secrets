@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { driveAct5 } from "../flows/act5";
+import { installPageErrors, getPageErrors } from "../kit/errors";
 
 // Capture uncaught page errors for the final "no page errors" assertion.
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 test("Act 5 — the Sunlit Cave-In (Sahra's underground orange grove)", async ({ page }) => {
@@ -90,5 +89,5 @@ test("Act 5 — the Sunlit Cave-In (Sahra's underground orange grove)", async ({
   expect(b.noAutoAdvance.zoneKey, "Act 5 does NOT auto-advance — still in the grove").toBe("sahraGrove");
 
   // ---- no uncaught page errors across the whole run ----
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });

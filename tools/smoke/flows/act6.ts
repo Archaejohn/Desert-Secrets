@@ -26,10 +26,15 @@ import {
   fightThrough,
   talkToNpc,
   restPointCheck,
+  type RestPointResult,
 } from "../kit/actions";
 
-/** Walk all of Act 6, capturing a beat snapshot wherever the source asserts. */
-export async function driveAct6(page: Page): Promise<Record<string, Snap>> {
+/** Walk all of Act 6, capturing a beat snapshot wherever the source asserts.
+ *  `reefGardenRest` is restPointCheck's own {ok,label,detail} result, not a
+ *  Snap — called out in the return type so specs can read it typed. */
+export async function driveAct6(
+  page: Page
+): Promise<Record<string, Snap> & { reefGardenRest: RestPointResult }> {
   const beats: Record<string, Snap> = {};
 
   // ---------- Act 6: The Reef (the crawlers' garden, a five-zone chain) ----------
@@ -55,7 +60,8 @@ export async function driveAct6(page: Page): Promise<Record<string, Snap>> {
 
   // The mint-kelp rows rest point (Act 6): a free, repeatable full heal, right
   // before the reefstalker fight below.
-  beats.reefGardenRest = await restPointCheck(page, "reefGarden", 21, 9, "Act 6 crawlers' garden");
+  // Not a Snap shape — see the function's return type.
+  (beats as any).reefGardenRest = await restPointCheck(page, "reefGarden", 21, 9, "Act 6 crawlers' garden");
 
   await page.evaluate(() => (window as any).__game.scene.getScene("reefGarden").startBattle(["reefstalker"]));
   s = await waitFor(page, (x) => x.battle, 6000);
@@ -139,5 +145,5 @@ export async function driveAct6(page: Page): Promise<Record<string, Snap>> {
   s = await snapshot(page);
   beats.noAutoAdvance = s;
 
-  return beats;
+  return beats as Record<string, Snap> & { reefGardenRest: RestPointResult };
 }

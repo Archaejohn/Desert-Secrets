@@ -11,22 +11,21 @@
  * at act N's entry zone, with that act's entry beat NOT yet consumed.
  */
 import { test, expect } from "@playwright/test";
-import { newGameStart, driveAct1 } from "./flows/act1.js";
-import { driveAct2 } from "./flows/act2.js";
-import { driveAct3 } from "./flows/act3.js";
-import { driveAct4 } from "./flows/act4.js";
-import { driveAct5 } from "./flows/act5.js";
-import { driveAct6 } from "./flows/act6.js";
-import { driveAct7 } from "./flows/act7.js";
-import { captureCheckpoint } from "./kit/seed.js";
-import { snapshot, waitFor, waitForBoot } from "./kit/snapshot.js";
-import { tap, teleport, standAt, exitTo } from "./kit/actions.js";
-import { SAVE_KEY } from "./kit/zones.js";
+import { newGameStart, driveAct1 } from "./flows/act1";
+import { driveAct2 } from "./flows/act2";
+import { driveAct3 } from "./flows/act3";
+import { driveAct4 } from "./flows/act4";
+import { driveAct5 } from "./flows/act5";
+import { driveAct6 } from "./flows/act6";
+import { driveAct7 } from "./flows/act7";
+import { captureCheckpoint } from "./kit/seed";
+import { snapshot, waitFor, waitForBoot } from "./kit/snapshot";
+import { tap, teleport, standAt, exitTo } from "./kit/actions";
+import { SAVE_KEY } from "./kit/zones";
+import { installPageErrors, getPageErrors } from "./kit/errors";
 
 test.beforeEach(async ({ page }) => {
-  const errs: string[] = [];
-  page.on("pageerror", (e) => errs.push(e.message));
-  (page as any)._smokePageErrors = errs;
+  installPageErrors(page);
 });
 
 test("spine — full playthrough wires every act boundary", async ({ page }) => {
@@ -139,7 +138,6 @@ test("spine — full playthrough wires every act boundary", async ({ page }) => 
 
   // ---- the thin gate's own tail: a real, error-free playthrough ----
   const end = await snapshot(page);
-  const pageErrors = (page as any)._smokePageErrors ?? [];
-  expect(pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
   expect(end).toBeTruthy();
 });

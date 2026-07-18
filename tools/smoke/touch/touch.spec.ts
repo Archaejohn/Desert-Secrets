@@ -25,11 +25,11 @@ import { test, expect, type Page } from "@playwright/test";
 import { snapshot, waitFor, waitForBoot } from "../kit/snapshot";
 import { tap } from "../kit/actions";
 import { canvasRect, tapRightSide, tapCampRest } from "../kit/touch";
+import { jumpTo as debugJumpTo } from "../kit/debug";
+import { installPageErrors, getPageErrors } from "../kit/errors";
 
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 // ---------- spec-local helpers: on-screen ▲/✓/▼ button geometry ----------
@@ -99,18 +99,7 @@ async function jumpTo(
   page: Page,
   patch: { zone: string; hp?: number; flags: Record<string, boolean>; items?: Record<string, boolean> }
 ): Promise<void> {
-  await page.evaluate((patch) => {
-    const g = (window as any).__game;
-    const st = g.registry.get("act1");
-    const flags = { ...st.flags, ...patch.flags };
-    const items = patch.items ? { ...st.items, ...patch.items } : st.items;
-    const next: any = { ...st, zone: patch.zone, items, flags };
-    if (patch.hp !== undefined) next.hp = patch.hp;
-    g.registry.set("act1", next);
-    for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-    g.scene.start(patch.zone, {});
-  }, patch);
-  await page.waitForTimeout(1300);
+  await debugJumpTo(page, { zone: patch.zone, flags: patch.flags, items: patch.items, hp: patch.hp, settleMs: 1300 });
 }
 
 test.setTimeout(600_000);
@@ -670,5 +659,5 @@ test("touch — tap-to-interact, dialogue/battle touch buttons, and title-menu b
   ).toBeTruthy();
 
   // ---------- no uncaught page errors across the whole run ----------
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });

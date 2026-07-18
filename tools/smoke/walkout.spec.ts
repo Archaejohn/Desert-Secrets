@@ -15,11 +15,11 @@ import { test, expect, type Page } from "@playwright/test";
 import { snapshot, waitFor, type Snap } from "./kit/snapshot";
 import { tap, standAt } from "./kit/actions";
 import { newGameStart } from "./flows/act1";
+import { jumpTo } from "./kit/debug";
+import { installPageErrors, getPageErrors } from "./kit/errors";
 
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 // Common ancestor flags so followers/objectives are consistent.
@@ -37,23 +37,7 @@ async function enter(
   flags: Record<string, boolean>,
   items: Record<string, unknown> = {}
 ): Promise<void> {
-  await page.evaluate(
-    ([zone, flags, items]) => {
-      const g = (window as any).__game;
-      const st = g.registry.get("act1");
-      for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-      g.registry.set("act1", {
-        ...st,
-        zone,
-        hp: 999,
-        items: { ...st.items, ...(items as object) },
-        flags: { ...st.flags, ...(flags as object) },
-      });
-      g.scene.start(zone, {});
-    },
-    [zone, flags, items] as const
-  );
-  await page.waitForTimeout(1300);
+  await jumpTo(page, { zone, flags, items, hp: 999, settleMs: 1300 });
 }
 
 /** The zone's declared walk-in exit targets. */
@@ -200,5 +184,5 @@ test("walk-out act boundaries — no forced advancement", async ({ page }) => {
   }
 
   // ---- no uncaught page errors across the whole run ----
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });

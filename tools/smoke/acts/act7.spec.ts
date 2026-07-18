@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { driveAct7 } from "../flows/act7";
+import { installPageErrors, getPageErrors } from "../kit/errors";
 
 // Capture uncaught page errors for the final "no page errors" assertion.
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 test("Act 7 — La Pizzeria Sotterranea, End of Part One", async ({ page }) => {
@@ -85,5 +84,5 @@ test("Act 7 — La Pizzeria Sotterranea, End of Part One", async ({ page }) => {
   ).toBe(true);
 
   // ---- no uncaught page errors across the whole run ----
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });

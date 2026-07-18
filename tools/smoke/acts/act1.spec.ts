@@ -1,16 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { newGameStart, driveAct1 } from "../flows/act1";
+import { installPageErrors, getPageErrors } from "../kit/errors";
 
 // A full Act-1 walkthrough (deliberate tutorial defeat, a paced random
 // encounter, several fights, the Queen boss + cliffhanger) runs well past
-// the 180s default; give it room.
-test.setTimeout(600_000);
+// the 180s default — the config's `timeout: 600_000` default (playwright.config.ts)
+// already covers it, same as every other act spec.
 
 // Capture uncaught page errors for the final "no page errors" assertion.
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
@@ -24,14 +23,14 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
     b.crashStart.state.items.owned.tshirt === 1 &&
       b.crashStart.state.items.owned.jeans === 1 &&
       b.crashStart.state.items.owned.flipFlops === 1 &&
-      b.crashStart.state.items.equipped.hero.torso === "tshirt" &&
-      b.crashStart.state.items.equipped.hero.legs === "jeans" &&
-      b.crashStart.state.items.equipped.hero.shoes === "flipFlops" &&
-      b.crashStart.state.items.equipped.hero.hat === null &&
-      b.crashStart.state.items.equipped.hero.weapon === null,
+      b.crashStart.state.items.equipped.hero!.torso === "tshirt" &&
+      b.crashStart.state.items.equipped.hero!.legs === "jeans" &&
+      b.crashStart.state.items.equipped.hero!.shoes === "flipFlops" &&
+      b.crashStart.state.items.equipped.hero!.hat === null &&
+      b.crashStart.state.items.equipped.hero!.weapon === null,
     "starts owning and wearing the default outfit"
   ).toBeTruthy();
-  expect(b.playerMoves.px, "player moves").toBeGreaterThan(b.crashStart.px + 10);
+  expect(b.playerMoves.px, "player moves").toBeGreaterThan(b.crashStart.px! + 10);
 
   // ---- Rosa, cold pack, frost feather ----
   expect(b.rosa.rosaOpened, "Rosa dialogue opens").toBeTruthy();
@@ -79,8 +78,8 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
   expect(b.tutorialStart.battle, "tutorial battle starts after meeting the parents").toBe(true);
   expect(
     b.respawn.zoneKey === "oasis" &&
-      Math.abs(b.respawn.px - b.respawn.spawn.x) < 2 &&
-      Math.abs(b.respawn.py - b.respawn.spawn.y) < 2,
+      Math.abs(b.respawn.px! - b.respawn.spawn.x) < 2 &&
+      Math.abs(b.respawn.py! - b.respawn.spawn.y) < 2,
     "defeat returns to the START of the scene"
   ).toBeTruthy();
   expect(
@@ -114,7 +113,7 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
   ).toBeTruthy();
   expect(b.inventoryEquip.invOpened, "inventory window opens on I").toBe(true);
   expect(
-    b.inventoryEquip.state.items.equipped.hero.hat,
+    b.inventoryEquip.state.items.equipped.hero!.hat,
     "equipping the bucket on the Equipment tab fills the hero's hat slot"
   ).toBe("bucket");
   expect(b.inventoryEquip.invClosed, "inventory window closes on I").toBe(false);
@@ -127,7 +126,7 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
     b.choreComplete.state.flags.choresDone === true &&
       b.choreComplete.state.hero.xp > b.choreComplete.xpBeforeChores &&
       b.choreComplete.state.items.bucket === "empty" &&
-      b.choreComplete.state.items.equipped.hero.hat === "bucket",
+      b.choreComplete.state.items.equipped.hero!.hat === "bucket",
     "delivering the full bucket completes the chore and awards bonus XP"
   ).toBeTruthy();
 
@@ -138,8 +137,8 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
   expect(
     b.randomEncounter.zoneKey === "trail" &&
       Math.hypot(
-        b.randomEncounter.px - b.randomEncounter.trailSpawn.x,
-        b.randomEncounter.py - b.randomEncounter.trailSpawn.y
+        b.randomEncounter.px! - b.randomEncounter.trailSpawn.x,
+        b.randomEncounter.py! - b.randomEncounter.trailSpawn.y
       ) > 40,
     "victory returns to where the encounter happened (not scene start)"
   ).toBeTruthy();
@@ -175,5 +174,5 @@ test("Act 1 — crash to Dust Queen cliffhanger", async ({ page }) => {
   ).toBe("depths");
 
   // ---- no uncaught page errors across the whole run ----
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });

@@ -22,10 +22,15 @@ import {
   fightThrough,
   talkToNpc,
   restPointCheck,
+  type RestPointResult,
 } from "../kit/actions";
 
-/** Walk all of Act 4, capturing a beat snapshot wherever the source asserts. */
-export async function driveAct4(page: Page): Promise<Record<string, Snap>> {
+/** Walk all of Act 4, capturing a beat snapshot wherever the source asserts.
+ *  `campRest` is restPointCheck's own {ok,label,detail} result, not a Snap —
+ *  called out in the return type so specs can read it typed. */
+export async function driveAct4(
+  page: Page
+): Promise<Record<string, Snap> & { campRest: RestPointResult }> {
   const beats: Record<string, Snap> = {};
 
   // ---------- Act 4: Dirty Laundry (the Miners' Camp, a five-zone chain) ----------
@@ -53,7 +58,8 @@ export async function driveAct4(page: Page): Promise<Record<string, Snap>> {
   beats.campEntry = s;
 
   // The camp-stove rest point (Act 4): a free, repeatable full heal.
-  beats.campRest = await restPointCheck(page, "campProper", 16, 11, "Act 4 miners' camp");
+  // Not a Snap shape — see the function's return type.
+  (beats as any).campRest = await restPointCheck(page, "campProper", 16, 11, "Act 4 miners' camp");
 
   // Talk to a miner: the favor-quest hook (clear the mites for the socks).
   const favorOpened = await talkToNpc(page, "campProper", 0);
@@ -135,5 +141,5 @@ export async function driveAct4(page: Page): Promise<Record<string, Snap>> {
   s = await snapshot(page);
   beats.noAutoAdvance = s;
 
-  return beats;
+  return beats as Record<string, Snap> & { campRest: RestPointResult };
 }

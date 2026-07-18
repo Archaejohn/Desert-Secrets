@@ -204,7 +204,7 @@ export async function driveAct1(page: Page): Promise<Record<string, Snap>> {
     return w["interactPoints"][0];
   });
   const walkSnap = await walkUntilNear(page, "ArrowDown", bucketPoint.x, bucketPoint.y);
-  const reachedBucketDist = Math.hypot(walkSnap.px - bucketPoint.x, walkSnap.py - bucketPoint.y);
+  const reachedBucketDist = Math.hypot(walkSnap.px! - bucketPoint.x, walkSnap.py! - bucketPoint.y);
   await tap(page, "KeyE");
   await page.waitForTimeout(300);
   const pickupSnap = await snapshot(page);
@@ -277,7 +277,7 @@ export async function driveAct1(page: Page): Promise<Record<string, Snap>> {
   while (!enc.battle && Date.now() < encDeadline) {
     const dir = Math.floor(Date.now() / 3000) % 2 ? "ArrowUp" : "ArrowDown";
     await page.keyboard.down(dir);
-    enc = await waitFor(page, (x) => x.battle || x.dialogueOpen, 3200);
+    enc = await waitFor(page, (x) => x.battle || !!x.dialogueOpen, 3200);
     await page.keyboard.up(dir);
     if (enc.dialogueOpen) await talkThrough(page);
   }

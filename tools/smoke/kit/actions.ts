@@ -128,13 +128,19 @@ async function setHp(page: Page, hp: number): Promise<void> {
  * is a repeatable, no-cost full heal (not a one-shot). The zone scene must be
  * active when called.
  */
+export interface RestPointResult {
+  ok: boolean;
+  label: string;
+  detail?: string;
+}
+
 export async function restPointCheck(
   page: Page,
   zone: string,
   tx: number,
   ty: number,
   label: string
-): Promise<{ ok: boolean; label: string; detail?: string }> {
+): Promise<RestPointResult> {
   const usePoint = async () => {
     await standAt(page, zone, tx * 16 + 8, ty * 16 + 8);
     await tap(page, "KeyE");
@@ -171,7 +177,9 @@ export async function walkUntilNear(
 ) {
   for (let i = 0; i < maxSteps; i++) {
     const cur = await snapshot(page);
-    if (Math.hypot(cur.px - targetX, cur.py - targetY) < range) return cur;
+    // px/py are only unset when no zone is active, which cannot be true here
+    // (this walks a live zone) — non-null since Snap types them optional.
+    if (Math.hypot(cur.px! - targetX, cur.py! - targetY) < range) return cur;
     await page.keyboard.down(dir);
     await page.waitForTimeout(120);
     await page.keyboard.up(dir);

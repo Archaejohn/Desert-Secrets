@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { driveAct6 } from "../flows/act6";
+import { installPageErrors, getPageErrors } from "../kit/errors";
 
 // Capture uncaught page errors for the final "no page errors" assertion.
 test.beforeEach(async ({ page }) => {
-  const arr: string[] = [];
-  (page as any).__pageErrors = arr;
-  page.on("pageerror", (e) => arr.push(e.message));
+  installPageErrors(page);
 });
 
 test("Act 6 — the drowned reef (the crawlers' garden)", async ({ page }) => {
@@ -83,5 +82,5 @@ test("Act 6 — the drowned reef (the crawlers' garden)", async ({ page }) => {
   expect(b.noAutoAdvance.zoneKey, "Act 6 does NOT auto-advance — still in the court").toBe("reefCourt");
 
   // ---- no uncaught page errors across the whole run ----
-  expect((page as any).__pageErrors, "no page errors").toEqual([]);
+  expect(getPageErrors(page), "no page errors").toEqual([]);
 });
