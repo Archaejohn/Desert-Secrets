@@ -12,7 +12,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { snapshot } from "../kit/snapshot";
-import { tap, standAt } from "../kit/actions";
+import { tap } from "../kit/actions";
+import { jumpTo } from "../kit/debug";
 
 const BASE_FLAGS = {
   actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
@@ -25,20 +26,9 @@ const BASE_FLAGS = {
 
 /** Jump into `zone` with BASE_FLAGS merged onto the seeded state, then stand at (tx,ty). */
 async function jump(page: Page, zone: string, tx: number, ty: number) {
-  await page.evaluate(
-    ([zone, flags]) => {
-      const g = (window as any).__game;
-      const st = g.registry.get("act1");
-      // xp high enough for a meaningful HP bar; flags so scenes populate fully.
-      g.registry.set("act1", { ...st, zone, xp: 4000, flags: { ...st.flags, ...(flags as object) } });
-      for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-      g.scene.start(zone, {});
-    },
-    [zone, BASE_FLAGS] as const
-  );
-  await page.waitForTimeout(1400);
-  await standAt(page, zone, tx * 16 + 8, ty * 16 + 8);
-  await page.waitForTimeout(250);
+  // xp high enough for a meaningful HP bar; flags so scenes populate fully.
+  // standSettleMs 400 = standAt's own 150ms + the source's separate 250ms wait.
+  await jumpTo(page, { zone, flags: BASE_FLAGS, xp: 4000, settleMs: 1400, stand: { x: tx, y: ty }, standSettleMs: 400 });
   return snapshot(page);
 }
 

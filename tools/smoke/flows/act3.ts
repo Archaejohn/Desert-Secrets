@@ -26,10 +26,15 @@ import {
   talkThrough,
   fightThrough,
   restPointCheck,
+  type RestPointResult,
 } from "../kit/actions";
 
-/** Walk all of Act 3, capturing a beat snapshot wherever the source asserts. */
-export async function driveAct3(page: Page): Promise<Record<string, Snap>> {
+/** Walk all of Act 3, capturing a beat snapshot wherever the source asserts.
+ *  `kelpRest` is restPointCheck's own {ok,label,detail} result, not a Snap —
+ *  called out in the return type so specs can read it typed. */
+export async function driveAct3(
+  page: Page
+): Promise<Record<string, Snap> & { kelpRest: RestPointResult }> {
   const beats: Record<string, Snap> = {};
 
   // ---------- Act 3: The Sunless Sea (a six-zone chain) ----------
@@ -53,7 +58,8 @@ export async function driveAct3(page: Page): Promise<Record<string, Snap>> {
   beats.sawKelpForest = s;
 
   // The kelp-forest hub rest point (Act 3): a free, repeatable full heal.
-  beats.kelpRest = await restPointCheck(page, "kelpForest", 16, 13, "Act 3 kelp forest");
+  // Not a Snap shape — see the function's return type.
+  (beats as any).kelpRest = await restPointCheck(page, "kelpForest", 16, 13, "Act 3 kelp forest");
 
   // Zone 2 → Zone 3 (dead-end pocket): the west spur drops into the sun-temple ruin.
   s = await exitTo(page, "kelpForest", "sunTemple");
@@ -166,5 +172,5 @@ export async function driveAct3(page: Page): Promise<Record<string, Snap>> {
   s = await driveTriggersUntil(page, "seaAscent", (x) => x.state.flags.sawAscent === true);
   beats.sawAscent = s;
 
-  return beats;
+  return beats as Record<string, Snap> & { kelpRest: RestPointResult };
 }

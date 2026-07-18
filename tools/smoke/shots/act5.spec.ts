@@ -10,6 +10,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { snapshot } from "../kit/snapshot";
+import { jumpTo } from "../kit/debug";
 
 const BASE_FLAGS = {
   actComplete: true, act2Started: true, wardenDefeated: true, act2Complete: true,
@@ -19,28 +20,14 @@ const BASE_FLAGS = {
 
 /** Jump into `zone` with `flags` merged onto the seeded state; optionally stand at (px,py). */
 async function jump(page: Page, zone: string, flags: Record<string, boolean>, px?: number, py?: number) {
-  await page.evaluate(
-    ([zone, flags]) => {
-      const g = (window as any).__game;
-      const st = g.registry.get("act1");
-      g.registry.set("act1", { ...st, zone, hp: 999, flags: { ...st.flags, ...(flags as object) } });
-      for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-      g.scene.start(zone, {});
-    },
-    [zone, flags] as const
-  );
-  await page.waitForTimeout(1300);
-  if (px !== undefined && py !== undefined) {
-    await page.evaluate(
-      ([z, x, y]) =>
-        (window as any).__game.scene.getScene(z as string).player.body.reset(
-          (x as number) * 16 + 8,
-          (y as number) * 16 + 8
-        ),
-      [zone, px, py] as const
-    );
-  }
-  await page.waitForTimeout(500);
+  await jumpTo(page, {
+    zone,
+    flags,
+    hp: 999,
+    settleMs: 1300,
+    stand: px !== undefined && py !== undefined ? { x: px, y: py } : undefined,
+    standSettleMs: 500,
+  });
   return snapshot(page);
 }
 

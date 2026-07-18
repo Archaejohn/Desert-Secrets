@@ -11,6 +11,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { seed, fixture } from "../kit/seed";
 import { snapshot } from "../kit/snapshot";
+import { jumpTo } from "../kit/debug";
 
 const FLAGS = {
   actComplete: true,
@@ -25,26 +26,8 @@ const FLAGS = {
 
 /** Jump into `zone` with FLAGS merged onto the seeded state, then stand at (tx,ty). */
 async function jump(page: Page, zone: string, tx: number, ty: number) {
-  await page.evaluate(
-    ([zone, flags]) => {
-      const g = (window as any).__game;
-      const st = g.registry.get("act1");
-      g.registry.set("act1", { ...st, zone, flags: { ...st.flags, ...(flags as object) } });
-      for (const s of g.scene.getScenes(true)) if (s.scene.key !== "boot") g.scene.stop(s.scene.key);
-      g.scene.start(zone, {});
-    },
-    [zone, FLAGS] as const
-  );
-  await page.waitForTimeout(1400);
-  await page.evaluate(
-    ([z, x, y]) => (window as any).__game.scene.getScene(z as string).player.body.reset(
-      (x as number) * 16 + 8,
-      (y as number) * 16 + 8
-    ),
-    [zone, tx, ty] as const
-  );
-  // let the camera settle and the pulses reach a lit phase
-  await page.waitForTimeout(900);
+  // let the camera settle and the pulses reach a lit phase (900ms after standing)
+  await jumpTo(page, { zone, flags: FLAGS, settleMs: 1400, stand: { x: tx, y: ty }, standSettleMs: 900 });
   return snapshot(page);
 }
 

@@ -53,7 +53,7 @@ export async function driveAct2(page: Page): Promise<Record<string, Snap>> {
   beats.slither = s;
   if (s.zoneKey !== "maze") {
     // A trigger bounced us to a neighbouring zone; walk back in.
-    s = await exitTo(page, s.zoneKey, "maze");
+    s = await exitTo(page, s.zoneKey!, "maze");
   }
   s = await exitTo(page, "maze", "galleries");
   beats.galleries = s;
@@ -66,7 +66,7 @@ export async function driveAct2(page: Page): Promise<Record<string, Snap>> {
   s = await driveTriggersUntil(page, "galleries", (x) => x.state.flags.slitherJoined);
   s = await snapshot(page);
   beats.slitherJoined = s;
-  if (s.zoneKey !== "galleries") s = await exitTo(page, s.zoneKey, "galleries");
+  if (s.zoneKey !== "galleries") s = await exitTo(page, s.zoneKey!, "galleries");
   s = await exitTo(page, "galleries", "sanctum");
   beats.sanctum = s;
 
