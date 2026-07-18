@@ -258,7 +258,7 @@ prototype `scale(color,k)` calls become ramp-index math.
   must anticipate it):
   - cliff pieces: `cliffRock_<variant>_<band>` (e.g. `cliffRock_innerW_face`).
     A new `"cliffRock"` entry in `SOLID_PREFIXES` (later phase) makes them solid.
-  - blob/plateau: `sandBlob_<mask>`, `sandPlateau_<mask>`,
+  - blob/plateau: `sandSand_<mask>`, `sandPlateau_<mask>`,
     `sandFrostSand_<mask>`, `sandAsphalt_<mask>` (mask = canonical value).
   - fills: `sandFill`, `frostSandFill`, `asphaltFill` (names avoid colliding
     with the existing `sand`/`frostSand` tiles in `tiles.png`).
