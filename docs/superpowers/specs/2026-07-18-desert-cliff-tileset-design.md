@@ -64,6 +64,63 @@ fixed seed so builds are byte-identical.
 
 ## Architecture
 
+### The core abstraction: one parametric generator
+
+The deliverable is **not** a hand-authored desert sheet — it is a single
+**parametric terrain generator** that emits a complete auto-tiling terrain set
+(cliff faces + cap + footer + blob edges + fills) from a **params object**
+describing what a scene needs. The desert `cliff.png` is just the first
+**preset** fed into it. "Castle block with rounded corners in some areas and
+hard corners in others" is not new art — it is one preset with
+`material: "castleBlock"` and another (or a per-region variant) with
+`cornerRadius: 0`; the generator produces both from the same code.
+
+```ts
+// The whole system in one signature (build-time; see below):
+type TerrainParams = {
+  // material — the wall/cliff face texture (the pluggable seam)
+  material: MaterialKey;              // "rock" (phase 1); later: castleBlock, ice, mossy, lava…
+  // structure (from the prototype's wall controls)
+  courses: number; blockSize: number; blocksPerCourse: number;
+  stagger: number; tone: number; mortar: number; orderVsRandom: number;
+  // cliff assembly
+  capBand: number; capRoll: number; capMaterial: "plateau"|"wall"|"blend";
+  footer: number; cliffHeight: number;
+  baseRounding: number; topRounding: number;   // ← rounded vs HARD corners = these to 0
+  outerCornerShade: number; innerCornerDepth: number; castShadow: number;
+  scree: boolean; litLip: boolean;
+  // floor blob edges
+  edgeInset: number; edgeIrregularity: number; cornerRounding: number;
+  edgeOutline: boolean; dropShadow: boolean; linkPlateauCorners: boolean;
+  // terrains this preset pairs (over → base), incl. a terrain over itself
+  pairings: { over: TerrainKey; base: TerrainKey }[];
+  plateauTop: TerrainKey; ground: TerrainKey;
+  seed: number;
+};
+
+function generateTerrain(p: TerrainParams): { name: string; grid: PixelGrid }[];
+```
+
+A **presets table** (`presets.ts`) names parameter configs — one per terrain a
+scene calls for. Phase 1 authors the desert presets (US-95 / homestead / trail);
+authoring a new scene's terrain later is *"write a preset, rebuild"*, never new
+generator code. Every knob above maps 1:1 to a prototype control, so the whole
+slider space is available per preset.
+
+### Build-time, not runtime (for now)
+
+The generator runs **at build time** (`npm run art`), baking each preset to a
+palette-locked, sha256-pinned PNG the same way every existing sheet is produced.
+This keeps the determinism/palette/pinning guarantees and adds zero runtime
+cost. Running the generator live in-game (a scene generating its own tiles on
+load) is *possible* — the code is pure and portable — but it would trade away
+the pinning/palette-test safety net and is an explicit non-goal here; presets
+give the same "tell it what the scene needs → it generates it" workflow at
+build time. If we ever want true on-the-fly generation, this same
+`generateTerrain` is the function that would move to the client.
+
+### Modules
+
 New sheet-builder family under `tools/pipeline/src/cliffs/`:
 
 ```
@@ -76,14 +133,23 @@ cliffs/
                  blobTiles(baseFill, overFill, opts): { mask:number, grid:PixelGrid }[]
                  (ports canonical()/overlayMask()/buildBlobTile()). Self-contained —
                  does NOT modify the shared roundedMask.ts.
-  cliffFace.ts   wallFace(seed): PixelGrid (rock stacked-stone course texture, ports
-                 faceTile() rock mode) + cliffTiles(A): the 5×3 directional cliff set
-                 (ports buildCliffTile()): variants outerW/mid/outerE/innerW/innerE ×
-                 bands rim(cap)/face/footer, with vertical shading, cap roll-off,
-                 convex-cut / concave-fillet rounded corners, footer contact + cast
-                 shadow + scree.
-  frames.ts      Assembles all of the above into ordered, named PixelGrid[] with an
-                 append-only frame contract; exports cliffSheetFrames() and cliffTileNames().
+  materials.ts   MaterialKey → wall-face renderer. wallFace(material, params, seed):
+                 PixelGrid. Phase 1 implements "rock" (stacked-stone courses, ports
+                 faceTile() rock mode); the registry is the pluggable seam for
+                 castleBlock / ice / mossy / lava later.
+  cliffFace.ts   cliffTiles(params): the 5×3 directional cliff set (ports
+                 buildCliffTile()): variants outerW/mid/outerE/innerW/innerE × bands
+                 rim(cap)/face/footer, with vertical shading, cap roll-off,
+                 convex-cut / concave-fillet rounded corners (radius = params, 0 = hard),
+                 footer contact + cast shadow + scree.
+  generate.ts    generateTerrain(params): the core entry — calls materials/terrains/
+                 blob47/cliffFace and returns the full named terrain set for one preset.
+  presets.ts     Named TerrainParams configs. Phase 1: the desert presets for
+                 US-95 / homestead / trail. THIS is where a new scene's terrain is
+                 authored — data, not code.
+  frames.ts      Runs every preset through generateTerrain, concatenates into ordered,
+                 named PixelGrid[] with an append-only frame contract; exports
+                 cliffSheetFrames() and cliffTileNames().
 ```
 
 Wired exactly like `owMountains`: `assets.ts` imports `cliffSheetFrames()`,
@@ -142,10 +208,10 @@ edge *treatments* exist:
 
 ## The cliff set (`cliffFace.ts`)
 
-`wallFace()` renders the rock course texture (stacked-stone cubes across
-`courses` rows, palette-locked; ports `faceTile()` rock mode with
-`ROCK.top/right/left/gap` → ramp steps). `cliffTiles(A)` then composes the
-directional set (ports `buildCliffTile()`):
+`materials.wallFace("rock", params, seed)` renders the rock course texture
+(stacked-stone cubes across `courses` rows, palette-locked; ports `faceTile()`
+rock mode with `ROCK.top/right/left/gap` → ramp steps). `cliffTiles(params)`
+then composes the directional set (ports `buildCliffTile()`):
 
 - **Columns / variants (5):** `outerW`, `mid`, `outerE`, `innerW`, `innerE` —
   the corner treatments. Outer (convex) corners cut the rim back and shade the
