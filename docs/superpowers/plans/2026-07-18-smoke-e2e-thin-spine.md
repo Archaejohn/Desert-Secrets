@@ -503,6 +503,16 @@ test("spine — full playthrough wires every act boundary", async ({ page }) => 
 
   const a1 = await driveAct1(page);
   expect(a1.actComplete.state.flags.actComplete, "Act 1 boundary").toBe(true);
+  // OWED BY driveAct1 (deferred from Act 1 spec as cross-act plumbing — port
+  // these two from e2e.mjs:760-775, they are the spine's responsibility):
+  //  1. Following Piggy into the ice rolls the end card and hands off to the
+  //     crevasse with progress kept: after the walk-out,
+  //     expect zoneKey === "crevasse", flags.act2Started === true, and hero.xp
+  //     unchanged across the handoff (=== the xp captured just before it).
+  //  2. Reload + Continue restores the checkpoint save (reload the page, pick
+  //     CONTINUE, expect the same zone/flags come back).
+  // Do #1 here right before capturing the act2-start fixture; do #2 as a short
+  // reload check at this boundary.
   await captureCheckpoint(page, "act2-start");
 
   const a2 = await driveAct2(page);
