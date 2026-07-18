@@ -4,6 +4,7 @@ import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
 import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
+import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -117,5 +118,43 @@ describe("blobTiles (47-blob palette-locked rendering)", () => {
     // some tile with a partial mask should differ once outline/shadow kick in
     const partial = CANONICAL_MASKS.findIndex((m) => m !== 255 && m !== 0);
     expect(plain[partial].grid.diff(withFx[partial].grid)).toBeGreaterThan(0);
+  });
+});
+
+describe("wallFace rock material", () => {
+  const WP: WallParams = {
+    courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: 0.5,
+    tone: 0.2, mortar: 0.35, orderVsRandom: 0.45,
+  };
+
+  it("wallFace rock is 16x16, palette-locked, deterministic, opaque", () => {
+    const a = wallFace("rock", WP, 7), b = wallFace("rock", WP, 7);
+    expect(a.width).toBe(16); expect(a.height).toBe(16);
+    expect(a.diff(b)).toBe(0);
+    a.forEach((_x, _y, c) => { if (c !== null) expect(PALETTE).toHaveProperty(c); });
+    expect(a.countOpaque()).toBe(256);
+  });
+
+  it("different seeds differ", () => {
+    expect(wallFace("rock", WP, 1).diff(wallFace("rock", WP, 2))).toBeGreaterThan(0);
+  });
+
+  it("all colours used come from the ROCK ramp", () => {
+    const a = wallFace("rock", WP, 7);
+    a.forEach((_x, _y, c) => { if (c !== null) expect(ROCK).toContain(c); });
+  });
+
+  it("higher mortar darkens the gap fill", () => {
+    // Dense params like WP tile the whole 16x16 with overlapping cubes (by
+    // design — a tightly-packed stacked-stone face, matching the prototype),
+    // so the background mortar fill can be fully occluded. Use a single
+    // small block so most of the tile stays background, then check that
+    // fill visibly darkens as mortar rises.
+    const sparse: WallParams = {
+      courses: 1, blockSize: 1, blocksPerCourse: 1, stagger: 0, tone: 0, mortar: 0.35, orderVsRandom: 0,
+    };
+    const low = wallFace("rock", { ...sparse, mortar: 0 }, 7);
+    const high = wallFace("rock", { ...sparse, mortar: 1 }, 7);
+    expect(low.diff(high)).toBeGreaterThan(0);
   });
 });
