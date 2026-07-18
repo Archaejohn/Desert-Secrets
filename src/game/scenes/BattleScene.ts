@@ -27,6 +27,7 @@ import {
 } from "../../core/gameState";
 import { DROP_LABELS, rollDrop } from "../../core/drops";
 import { getState, setState } from "../state";
+import { getMusic } from "../audio/music";
 import { addFullscreenButton, inFullscreenButtonZone, isTouchDevice, TouchListButtons } from "../ui/touch";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { MANIFEST, tileIndex } from "../manifest";
@@ -218,6 +219,7 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     this.drawBackdrop();
+    getMusic(this).play(this, this.sceneData.boss ? "boss" : "battle");
 
     const state = getState(this);
     // Roster-driven party (1–4 members): Joseph always leads; Slither,

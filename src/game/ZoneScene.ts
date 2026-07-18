@@ -18,6 +18,7 @@ import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
 import { makeRng } from "../core/rng";
 import { PALETTE, hexToInt } from "../shared/palette";
+import { ZONE_MUSIC, getMusic, type TrackId } from "./audio/music";
 import {
   JoystickVisual,
   addActionButtonHint,
@@ -171,6 +172,16 @@ export abstract class ZoneScene extends Phaser.Scene {
     return this.cfg.encounterZone ? ENCOUNTERS[this.cfg.encounterZone] : null;
   }
 
+  /**
+   * The soundtrack for this zone — fades in on entry and loops (see
+   * audio/music.ts). Defaults to the zone's static ZONE_MUSIC entry (null = no
+   * track = silent). Override for zones whose theme depends on run state (e.g.
+   * the pizzeria plays Testudo's theme, then Piggy's once she's caught).
+   */
+  protected musicTrack(): TrackId | null {
+    return ZONE_MUSIC[this.cfg.zoneId] ?? null;
+  }
+
   init(data: ZoneEntryData): void {
     this.entry = data ?? {};
     this.npcs = [];
@@ -293,6 +304,7 @@ export abstract class ZoneScene extends Phaser.Scene {
 
     this.populate();
     this.hud.update(getState(this));
+    getMusic(this).play(this, this.musicTrack());
     // Initial sweep so the very first rendered frame is already correct —
     // update() (which repeats this every frame) doesn't run until after
     // this first frame renders.
