@@ -11,6 +11,7 @@ import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
+import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -294,5 +295,31 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     // composed sheet dims: 8 columns x 26 rows of 16x16 tiles.
     expect(a.cliff.width).toBe(8 * 16);
     expect(a.cliff.height).toBe(26 * 16);
+  });
+});
+
+describe("ramps", () => {
+  const RP = { material: "sandSlope" as const, terrain: "sand" as const, wall: "rock" as const, height: 2, slope: 0.5, steps: 3, seed: 7 };
+
+  it("sandSlope returns 16 tiles: 4 cols x 4 rows, palette-locked, opaque, deterministic", () => {
+    const a = rampTiles(RP), b = rampTiles(RP);
+    expect(a.length).toBe(16);
+    const cols = new Set(a.map(t => t.col)), rows = new Set(a.map(t => t.row));
+    expect([...cols].sort()).toEqual(["leftEdge","middle","narrow","rightEdge"]);
+    expect([...rows].sort()).toEqual(["bottom","landing","run","top"]);
+    a.forEach((t,i) => {
+      expect(t.grid.width).toBe(16); expect(t.grid.countOpaque()).toBe(256);
+      expect(t.grid.diff(b[i].grid)).toBe(0);
+      t.grid.forEach((_x,_y,c) => { if (c!==null) expect(PALETTE).toHaveProperty(c); });
+    });
+  });
+
+  it("rightEdge is the mirror of leftEdge (both-directions)", () => {
+    const byKey = (t:{col:string;row:string}) => `${t.col}_${t.row}`;
+    const m = new Map(rampTiles(RP).map(t => [byKey(t), t.grid]));
+    for (const row of ["top","run","landing","bottom"]) {
+      const l = m.get(`leftEdge_${row}`)!, r = m.get(`rightEdge_${row}`)!;
+      expect(l.mirrorX().diff(r)).toBe(0);
+    }
   });
 });
