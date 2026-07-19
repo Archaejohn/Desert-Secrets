@@ -8,14 +8,17 @@
  *
  * The prototype's `ROCK` colours (`:281`, `{top,right,left,gap}`) are raw
  * hex — this port maps each *role* onto a fixed step of the palette-locked
- * `ROCK` ramp (`palette.ts`, light->dark: sandLight, sand, amber, clay,
- * rust, umber, plum, ink) instead of trying to colour-match the prototype's
- * grey/blue rock hex values, per the task brief:
+ * `ROCK` ramp (`palette.ts`, cool navy stone, light->dark: stoneLit, stone,
+ * stoneDark, stoneDark, stoneDeep, stoneDeep, stoneDeep, ink) via the numeric
+ * index constants below — so retinting the cliff is a ramp edit, not a code
+ * edit. (Slots 4-6 intentionally alias `stoneDeep`; the index arithmetic is
+ * preserved from the prototype even though the dark end has fewer distinct
+ * steps.)
  *
- * - `ROCK.top`   -> ramp idx 1 (`sand`)
- * - `ROCK.right` -> ramp idx 3 (`clay`)
- * - `ROCK.left`  -> ramp idx 5 (`umber`)
- * - `ROCK.gap`   -> ramp idx 6 (`plum`), the background/mortar fill
+ * - `ROCK.top`   -> ramp idx 1 (`stone`)
+ * - `ROCK.right` -> ramp idx 3 (`stoneDark`)
+ * - `ROCK.left`  -> ramp idx 5 (`stoneDeep`)
+ * - `ROCK.gap`   -> ramp idx 6 (`stoneDeep`), the background/mortar fill
  *
  * `toneK` (the prototype's `1+(h2(...)-0.5)*2*tone` RGB multiplier, applied
  * via `scale(hex, k)`) becomes a ramp-index shift: `shade(ROCK, baseIdx,

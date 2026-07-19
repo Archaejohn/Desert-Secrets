@@ -12,7 +12,10 @@ export type Ramp = readonly PaletteName[];
 
 /** Rock face ramp: lightest (lit block top) to darkest (deep gap/shadow).
  *  Cool blue-grey navy stone (matches the reference cliff): light course
- *  streaks over a dark navy body. Index roles (materials.ts): 1=block top,
+ *  streaks over a dark navy body. NOTE: 8 slots, 5 distinct colours — slots
+ *  4-6 intentionally alias `stoneDeep` (the index arithmetic is carried over
+ *  from the prototype; the dark end just has fewer distinct steps).
+ *  Index roles (materials.ts): 1=block top,
  *  3=right plane, 5=left plane, 6=gap/mortar. */
 export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stoneDeep", "stoneDeep", "stoneDeep", "ink"];
 

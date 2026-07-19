@@ -47,8 +47,9 @@
  *   - `"wall"`    -> `base` is the ROCK top step (`WALL_TOP_IDX`).
  *   - `"blend"`   -> `mixc(plate, wallTop, 0.5)` becomes
  *     `round(mix(idxPlate, WALL_TOP_IDX, 0.5))` emitted on the ROCK ramp.
- *     (The `ROCK` and `sand` ramps share their light end — sandLight/sand/
- *     amber — so a sand plateau blends cleanly toward the rock rim here.)
+ *     (Since the cool `ROCK` and warm `sand` ramps no longer overlap, this
+ *     path would hue-shift toward the stone ramp; the desert preset uses
+ *     `capMaterial: "plateau"`, so it isn't exercised.)
  *
  * ## Geometry kept exactly
  *
@@ -98,6 +99,9 @@ export interface CliffParams {
   gndKey?: TerrainKey;
   cap: number;
   foot: number;
+  /** Consumed by scene ASSEMBLY (how many face rows to stack), not by tile
+   *  rendering — `buildCliffTile` never reads it (the face is one repeatable
+   *  tile). Kept here as a forward-looking hint for eventual placement. */
   cliffHeight: number;
   baseRounding: number;
   topRounding: number;
