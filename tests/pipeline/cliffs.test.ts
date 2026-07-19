@@ -11,6 +11,7 @@ import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
+import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
 
 describe("cliffs palette + noise", () => {
   it("h2 is deterministic and in [0,1)", () => {
@@ -238,25 +239,25 @@ describe("generateTerrain + desert presets", () => {
 });
 
 describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
-  it("cliffSheetFrames/cliffTileNames are parallel and names cover the 206 real (non-padding) frames", () => {
+  it("cliffSheetFrames/cliffTileNames are parallel and names cover the 270 real (non-padding) frames", () => {
     const names = cliffTileNames();
     const frames = cliffSheetFrames();
-    expect(names.length).toBe(206);
-    expect(frames.length).toBe(208); // 206 real + 2 blank padding frames
+    expect(names.length).toBe(270);
+    expect(frames.length).toBe(272); // 270 real + 2 blank padding frames
     expect(new Set(names).size).toBe(names.length); // unique
     frames.forEach((f) => {
       expect(f.width).toBe(16);
       expect(f.height).toBe(16);
     });
     // The 2 padding frames (last 2) are fully transparent.
-    for (const f of frames.slice(206)) {
+    for (const f of frames.slice(270)) {
       expect(f.countOpaque()).toBe(0);
     }
   });
 
-  it("cliffTileNames structure: no duplicates, count 206, valid tile-name strings", () => {
+  it("cliffTileNames structure: no duplicates, count 270, valid tile-name strings", () => {
     const names = cliffTileNames();
-    expect(names.length).toBe(206);
+    expect(names.length).toBe(270);
     expect(new Set(names).size).toBe(names.length); // no duplicates
     // every name is a valid tile-name string: non-empty, no whitespace,
     // only [A-Za-z0-9_] characters.
@@ -291,8 +292,74 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
       expect(m.cliff.names[n]).toBeGreaterThanOrEqual(0);
       expect(m.cliff.names[n]).toBeLessThan(frames.length);
     }
-    // composed sheet dims: 8 columns x 26 rows of 16x16 tiles.
+    // composed sheet dims: 8 columns x 34 rows of 16x16 tiles.
     expect(a.cliff.width).toBe(8 * 16);
-    expect(a.cliff.height).toBe(26 * 16);
+    expect(a.cliff.height).toBe(34 * 16);
+  });
+});
+
+describe("ramps", () => {
+  const RP = { material: "sandSlope" as const, terrain: "sand" as const, wall: "rock" as const, height: 2, slope: 0.5, steps: 3, seed: 7 };
+
+  it("sandSlope returns 16 tiles: 4 cols x 4 rows, palette-locked, opaque, deterministic", () => {
+    const a = rampTiles(RP), b = rampTiles(RP);
+    expect(a.length).toBe(16);
+    const cols = new Set(a.map(t => t.col)), rows = new Set(a.map(t => t.row));
+    expect([...cols].sort()).toEqual(["leftEdge","middle","narrow","rightEdge"]);
+    expect([...rows].sort()).toEqual(["bottom","landing","run","top"]);
+    a.forEach((t,i) => {
+      expect(t.grid.width).toBe(16); expect(t.grid.countOpaque()).toBe(256);
+      expect(t.grid.diff(b[i].grid)).toBe(0);
+      t.grid.forEach((_x,_y,c) => { if (c!==null) expect(PALETTE).toHaveProperty(c); });
+    });
+  });
+
+  it("rightEdge is the mirror of leftEdge (both-directions)", () => {
+    const byKey = (t:{col:string;row:string}) => `${t.col}_${t.row}`;
+    const m = new Map(rampTiles(RP).map(t => [byKey(t), t.grid]));
+    for (const row of ["top","run","landing","bottom"]) {
+      const l = m.get(`leftEdge_${row}`)!, r = m.get(`rightEdge_${row}`)!;
+      expect(l.mirrorX().diff(r)).toBe(0);
+    }
+  });
+
+  it("stoneSteps returns 16 palette-locked deterministic tiles and differs from sandSlope", () => {
+    const s = rampTiles({ ...RP, material: "stoneSteps" });
+    expect(s.length).toBe(16);
+    s.forEach(t => { expect(t.grid.countOpaque()).toBe(256);
+      t.grid.forEach((_x,_y,c)=>{ if(c!==null) expect(PALETTE).toHaveProperty(c); }); });
+    // the run surface must differ between materials
+    const runSand = rampTiles(RP).find(t=>t.col==="middle"&&t.row==="run")!.grid;
+    const runSteps = s.find(t=>t.col==="middle"&&t.row==="run")!.grid;
+    expect(runSand.diff(runSteps)).toBeGreaterThan(0);
+  });
+
+  it("desert preset emits the ramp tiles; total sheet is 270 named tiles", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]).map(o=>o.name);
+    expect(out.filter(n=>n.startsWith("rampSand_")).length).toBe(16);
+    expect(out.filter(n=>n.startsWith("rampSteps_")).length).toBe(16);
+    expect(out.filter(n=>n.startsWith("drampSand45_")).length).toBe(16);
+    expect(out.filter(n=>n.startsWith("drampSteps45_")).length).toBe(16);
+    expect(new Set(out).size).toBe(out.length);   // unique
+    expect(out.length).toBe(270);                 // 206 + 32 + 32
+  });
+
+  // Task 4 (visual-review render prep): structure asserts — the 16
+  // rampSand_*/rampSteps_* names must cover all 4 cols x 4 rows exactly,
+  // so the demo scene can rely on every (col,row) name existing.
+  it("rampSand_*/rampSteps_* names cover all 4 cols x 4 rows", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]).map(o => o.name);
+    const cols = ["narrow", "leftEdge", "middle", "rightEdge"] as const;
+    const rows = ["top", "run", "landing", "bottom"] as const;
+    for (const prefix of ["rampSand", "rampSteps"]) {
+      const names = out.filter(n => n.startsWith(`${prefix}_`));
+      expect(names.length).toBe(16);
+      const set = new Set(names);
+      for (const c of cols) {
+        for (const r of rows) {
+          expect(set.has(`${prefix}_${c}_${r}`)).toBe(true);
+        }
+      }
+    }
   });
 });
