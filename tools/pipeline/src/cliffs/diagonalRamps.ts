@@ -145,18 +145,14 @@ export function diagonalStaircase(
 ): PixelGrid {
   const angle = ANGLES[angleKey];
   const sample = _sampler(material, angle, seed);
-  const runW = steps * angle.stepW;
-  const W = runW + angle.stepW; // a little lead-out at the top
+  const W = steps * angle.stepW; // run ends exactly on the top tread (no rock lead-out)
   const climb = steps * angle.drop;
   const H = climb + TREAD + ROCKB;
   const g = new PixelGrid(W, H);
   // anchor so the top tread sits near the top and the run descends to the base
   const anchorY = climb + OFF;
   for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const gx = Math.min(x, runW - 1); // clamp the lead-out to the top step
-      g.px(x, y, sample(gx, y - anchorY));
-    }
+    for (let x = 0; x < W; x++) g.px(x, y, sample(x, y - anchorY));
   }
   return g;
 }
