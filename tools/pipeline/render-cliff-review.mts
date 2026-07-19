@@ -32,7 +32,7 @@ import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
 import { DESERT_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
-import { diagonalRunTiles } from "./src/cliffs/diagonalRamps";
+import { diagonalStaircase } from "./src/cliffs/diagonalRamps";
 
 const T = 16; // tile size
 
@@ -246,18 +246,12 @@ function buildScene(params: typeof base): PixelGrid {
     }
   }
 
-  // 6) DIAGONAL ramp demo (phase 1c, WIP) — stamp the 45° run tiles on the
-  // (1-right, 1-up) lattice so they form a continuous diagonal stair over the
-  // real ground field, ascending up-right. This is the real sheet's tiles
-  // placed through this assembly (not a freehand mock). stoneSteps + sandSlope.
+  // 6) DIAGONAL ramp demo (phase 1c, WIP) — a complete self-contained
+  // staircase (vertical riser at the foot, treads ascending up-right, rock
+  // body to the base) overlaid on the real ground field. stoneSteps + sand.
   {
-    const stampDiagonal = (material: "stoneSteps" | "sandSlope", col0: number, row0: number, n: number): void => {
-      const run = new Map(diagonalRunTiles(material, "45", { seed: params.seed }).map((t) => [t.piece, t.grid]));
-      const g45 = run.get("run")!;
-      for (let k = 0; k < n; k++) scene.blit(g45, (col0 + k) * T, (row0 - k) * T);
-    };
-    stampDiagonal("stoneSteps", 2, 20, 7); // rows 20..14
-    stampDiagonal("sandSlope", 11, 20, 7);
+    scene.blit(diagonalStaircase("stoneSteps", "45", params.seed, 6), 2 * T, 12 * T);
+    scene.blit(diagonalStaircase("sandSlope", "45", params.seed, 6), 12 * T, 12 * T);
   }
 
   return scene;

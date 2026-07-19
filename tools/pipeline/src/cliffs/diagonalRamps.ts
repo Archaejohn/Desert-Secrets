@@ -129,6 +129,38 @@ export function _sampler(
   return (gx, gy) => bandCell(material, angle, rock, gx, gy);
 }
 
+/**
+ * A complete, self-contained `se` diagonal staircase as one opaque PixelGrid:
+ * a vertical RISER at the foot (starts vertical, not flat), `steps` treads
+ * ascending up-right, and the rock body carried down to the block's base so
+ * it seats against the cliff footer. Sky (above each tread) is transparent so
+ * it overlays the map's terrain. This is the run + caps assembled; the tile
+ * slices are derived from it. Foot at bottom-left, top tread at top-right.
+ */
+export function diagonalStaircase(
+  material: DiagonalMaterial,
+  angleKey: "2651" | "45",
+  seed: number,
+  steps: number
+): PixelGrid {
+  const angle = ANGLES[angleKey];
+  const sample = _sampler(material, angle, seed);
+  const runW = steps * angle.stepW;
+  const W = runW + angle.stepW; // a little lead-out at the top
+  const climb = steps * angle.drop;
+  const H = climb + TREAD + ROCKB;
+  const g = new PixelGrid(W, H);
+  // anchor so the top tread sits near the top and the run descends to the base
+  const anchorY = climb + OFF;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const gx = Math.min(x, runW - 1); // clamp the lead-out to the top step
+      g.px(x, y, sample(gx, y - anchorY));
+    }
+  }
+  return g;
+}
+
 /** Cut a 16×16 tile out of a global sampler at (gx0, gy0). */
 function sliceTile(sample: (gx: number, gy: number) => Cell, gx0: number, gy0: number): PixelGrid {
   const g = new PixelGrid(T, T);
