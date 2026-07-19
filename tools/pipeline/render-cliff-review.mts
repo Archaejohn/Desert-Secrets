@@ -53,8 +53,11 @@ const base = DESERT_PRESETS[0];
 const VARIANTS: { label: string; params: typeof base }[] = [{ label: "scene", params: base }];
 
 // ---- demo scene ----------------------------------------------------------
-const MW = 24;
-const MH = 16;
+// Widened (Task 4) to fit three ramp demonstrations cut into standalone
+// plateau blocks east of the original gateway arch — see the ramp block
+// comments below for exact column/row layout.
+const MW = 48;
+const MH = 22;
 
 // Plateau bitmap (deterministic, hand-authored). A "gateway" mass: a crossbar
 // across the top joined to two legs, leaving a 2-tile-wide OPENING (cols 10,11)
@@ -69,6 +72,34 @@ const fill = (x0: number, y0: number, x1: number, y1: number): void => {
 fill(4, 3, 17, 5); // crossbar (spans the full width, over the opening)
 fill(4, 6, 9, 10); // left leg
 fill(12, 6, 17, 10); // right leg
+
+// Task 4 — ramp demonstrations. Each is a standalone plateau block whose
+// ramp column(s) are EXCLUDED from P (same trick as the gateway opening
+// above), so the existing south-edge loop below skips them and gives the
+// flanking columns ordinary outer-corner cliff tiles for free; the ramp
+// tiles themselves are stamped into the resulting gap afterward, in
+// `buildScene`, once the tile-name map exists.
+//
+// (a) sandSlope, 2-wide (`leftEdge` col 28 / `rightEdge` col 29), cut
+//     through a 10-wide x 2-deep cap (rows 4-5, rim row 5).
+fill(24, 4, 33, 5);
+P[4][28] = P[4][29] = false;
+P[5][28] = P[5][29] = false;
+
+// (b) stoneSteps, 1-wide (`narrow` col 40), same shape, cap rows 4-5.
+fill(36, 4, 45, 5);
+P[4][40] = false;
+P[5][40] = false;
+
+// (c) switchback cap — flight 1 (`leftEdge`, col 28) and flight 2
+//     (`rightEdge`, col 29, one tile east) again, but at rows 11-12
+//     (below block (a), no collision since the rows don't overlap). The
+//     south-edge loop gives this a standard cliffHeight-deep flank wall;
+//     `buildScene` extends it to match the switchback's taller drop.
+fill(24, 11, 33, 12);
+P[11][28] = P[11][29] = false;
+P[12][28] = P[12][29] = false;
+
 const p = (x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < MW && y < MH && P[y][x];
 
@@ -146,6 +177,74 @@ function buildScene(params: typeof base): PixelGrid {
       if (y + H + 1 < MH) blit(`cliffRock_${variant}_footer`, x, y + H + 1);
     }
   }
+
+  // 5) ramp demonstrations (Task 4) — stamp ramp tiles into the gaps cut
+  // into P above; the flanking cliff on either side was already drawn by
+  // the south-edge loop above (step 4), since those columns are still in P.
+
+  /** Straight ramp: `top` at the rim row `y0`, `run` x `H` below it, `bottom`
+   *  at the footer row `y0+H+1`. Used for demos (a) and (b). */
+  const stampStraightRamp = (name: string, col: number, y0: number): void => {
+    blit(`${name}_top`, col, y0);
+    for (let k = 1; k <= H; k++) blit(`${name}_run`, col, y0 + k);
+    blit(`${name}_bottom`, col, y0 + H + 1);
+  };
+
+  // (a) sandSlope, 2-wide: leftEdge (col 28) + rightEdge (col 29), rim row 5.
+  stampStraightRamp("rampSand_leftEdge", 28, 5);
+  stampStraightRamp("rampSand_rightEdge", 29, 5);
+
+  // (b) stoneSteps, 1-wide: narrow (col 40), rim row 5.
+  stampStraightRamp("rampSteps_narrow", 40, 5);
+
+  // (c) switchback (sandSlope): flight 1 descends col 28 (leftEdge) from the
+  // rim (row 12) through `run` x H into the `landing`; flight 2 picks up the
+  // (same-row) landing one tile east at col 29 (rightEdge), runs x H, then
+  // reaches `bottom` — the offset column read as the turn, the shared
+  // landing row as the flat platform bridging it.
+  {
+    const y0 = 12; // rim row (matches the cap's south edge, row 12)
+    const colA = 28, colB = 29;
+    blit("rampSand_leftEdge_top", colA, y0);
+    for (let k = 1; k <= H; k++) blit("rampSand_leftEdge_run", colA, y0 + k);
+    const landingY = y0 + H + 1;
+    blit("rampSand_leftEdge_landing", colA, landingY);
+    blit("rampSand_rightEdge_landing", colB, landingY);
+    for (let k = 1; k <= H; k++) blit("rampSand_rightEdge_run", colB, landingY + k);
+    blit("rampSand_rightEdge_bottom", colB, landingY + H + 1);
+
+    // Cavity fill: at flight 1's height (y0..y0+H), col B is the *inactive*
+    // lane (flight 2 hasn't started yet) — without solid rock there it reads
+    // as one open 2-wide slot for the whole drop instead of a staggered
+    // zigzag. Wall it off with ordinary cliff tiles (rim at the same height
+    // as the flank rim, face below), mirrored below the landing at col A
+    // for flight 2's height (landingY+1..landingY+H+1, footer at the foot).
+    blit("cliffRock_mid_rim", colB, y0);
+    for (let k = 1; k <= H; k++) blit("cliffRock_mid_face", colB, y0 + k);
+    for (let k = 1; k <= H; k++) blit("cliffRock_mid_face", colA, landingY + k);
+    blit("cliffRock_mid_footer", colA, landingY + H + 1);
+
+    // The south-edge loop (step 4) already drew a standard cliffHeight-deep
+    // flank wall for the cap's non-gap columns (rim @ y0, face x H, footer
+    // @ y0+H+1) — the same depth as demos (a)/(b). The switchback drops
+    // twice as far (2H + 3 rows total), so extend that flank wall to match:
+    // replace its now-too-shallow footer with more face rows, then add a
+    // new footer at the switchback's actual foot. Variants match what the
+    // step-4 loop already chose for each column (recomputable from P, but
+    // pinned here since this block's shape is fixed/hand-authored).
+    const FLANK_VARIANT: Record<number, "outerW" | "mid" | "outerE"> = {
+      24: "outerW", 25: "mid", 26: "mid", 27: "outerE",
+      30: "outerW", 31: "mid", 32: "mid", 33: "outerE",
+    };
+    const staleFooterY = y0 + H + 1; // where step 4 put the flank footer
+    for (const [xs, variant] of Object.entries(FLANK_VARIANT)) {
+      const x = Number(xs);
+      blit(`cliffRock_${variant}_face`, x, staleFooterY);
+      for (let k = 1; k <= H; k++) blit(`cliffRock_${variant}_face`, x, landingY + k);
+      blit(`cliffRock_${variant}_footer`, x, landingY + H + 1);
+    }
+  }
+
   return scene;
 }
 

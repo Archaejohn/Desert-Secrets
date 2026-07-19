@@ -341,4 +341,23 @@ describe("ramps", () => {
     expect(new Set(out).size).toBe(out.length);   // unique
     expect(out.length).toBe(238);                 // 206 + 32
   });
+
+  // Task 4 (visual-review render prep): structure asserts — the 16
+  // rampSand_*/rampSteps_* names must cover all 4 cols x 4 rows exactly,
+  // so the demo scene can rely on every (col,row) name existing.
+  it("rampSand_*/rampSteps_* names cover all 4 cols x 4 rows", () => {
+    const out = generateTerrain(DESERT_PRESETS[0]).map(o => o.name);
+    const cols = ["narrow", "leftEdge", "middle", "rightEdge"] as const;
+    const rows = ["top", "run", "landing", "bottom"] as const;
+    for (const prefix of ["rampSand", "rampSteps"]) {
+      const names = out.filter(n => n.startsWith(`${prefix}_`));
+      expect(names.length).toBe(16);
+      const set = new Set(names);
+      for (const c of cols) {
+        for (const r of rows) {
+          expect(set.has(`${prefix}_${c}_${r}`)).toBe(true);
+        }
+      }
+    }
+  });
 });
