@@ -293,5 +293,13 @@ prototype `scale(color,k)` calls become ramp-index math.
 - Map-editor authoring of plateaus/cliffs.
 - Other materials (ice wall, mossy rock wall, lava vents) and floors (ice floor);
   the material seam (`wallFace`) and terrain-fill data are built to accept them.
+  **Cost to know:** each of these will likely add palette colours, and adding a
+  colour to `src/shared/palette.ts` is not free — three exhaustive
+  `Record<PaletteName, PaletteName>` shade LUTs must gain an entry
+  (`shadowOf` in `tools/pipeline/src/fx.ts`, `contourOf` + `highlightOf` in
+  `tools/pipeline/src/sprites/polish.ts`), and the append-order test in
+  `tests/pipeline/fx.test.ts` must be updated. `tsc` + the LUT-completeness /
+  luminance / no-cycle tests enforce this, so it can't be forgotten — but budget
+  for it. (Phase 1 appended a 4-colour cool `stone` ramp this way.)
 - Decorated entrances (door / mine / cave). Phase-1 openings are plain gaps
   framed by the inner-corner cliff variants.

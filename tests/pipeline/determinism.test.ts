@@ -405,7 +405,7 @@ describe("cliff tileset byte-stability", () => {
   // "boulder" stone face under a warm sand cap; 206 named tiles + 2 blank pad
   // (8 columns x 26 rows). Visual look approved before pinning.
   const FROZEN = {
-    cliff: "24ade88ef45bac623fa58e6b9eb2911cb3393a96d7d3fcb63eab68fed62a7e9d"
+    cliff: "62df5684322ac7474426c94496d9c741b191b560a7aaebfd142a222f236aa0f4"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
