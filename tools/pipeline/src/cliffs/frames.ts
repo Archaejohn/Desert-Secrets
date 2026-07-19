@@ -13,23 +13,27 @@
  *
  * ## Padding for composeSheet
  *
- * `DESERT_PRESETS` (phase 1: one preset) yields 206 named tiles — 3 fills +
- * 15 cliff + 47 plateau-edge + 3 * 47 pairings = 206. 206 has no divisor that
- * matches the other generated tilesets' column count (8, matching
- * `tiles*.png`): 206 = 2 * 103, and 103 is prime, so `composeSheet`'s
- * `frames.length % columns === 0` requirement can't be met by 206 frames at
- * 8 columns. Rather than pick an unrelated column count, we pad the frame
- * array with 2 blank (fully-transparent, all-`null`) 16x16 frames, appended
- * AFTER the 206 real frames, bringing the total to 208 = 8 * 26 (26 rows).
- * `cliffTileNames()` returns ONLY the 206 real names (indices 0..205); the 2
- * padding frames at indices 206..207 are never named and never referenced by
- * the manifest.
+ * `DESERT_PRESETS` (phase 1b: one preset) yields 238 named tiles — 3 fills +
+ * 15 cliff + 47 plateau-edge + 3 * 47 pairings + 2 * 16 ramps = 238. The real
+ * count has no guarantee of being a multiple of the other generated
+ * tilesets' column count (8, matching `tiles*.png`), so rather than pick an
+ * unrelated column count we pad the frame array with blank (fully
+ * transparent, all-`null`) 16x16 frames, appended AFTER the real frames,
+ * bringing the total up to the next multiple of 8. The pad count is
+ * *derived* from the real count (`COLUMNS - realCount % COLUMNS`, mod
+ * `COLUMNS` so an already-aligned count needs no padding) rather than
+ * hardcoded, so this stays correct as new tile groups (ramps, later
+ * additions) change the real count. At 238 real tiles that's 2 padding
+ * frames, for a total of 240 = 8 * 30 (30 rows).
+ * `cliffTileNames()` returns ONLY the real names (indices `0..realCount-1`);
+ * the padding frames after them are never named and never referenced by the
+ * manifest.
  */
 import { PixelGrid } from "../grid";
 import { generateTerrain } from "./generate";
 import { DESERT_PRESETS } from "./presets";
 
-const PADDING_FRAME_COUNT = 2;
+const COLUMNS = 8;
 
 function realEntries(): { name: string; grid: PixelGrid }[] {
   const seen = new Set<string>();
@@ -44,16 +48,17 @@ function realEntries(): { name: string; grid: PixelGrid }[] {
   return out;
 }
 
-/** The 206 real (non-padding) tile names, in the same order as the first
- *  206 entries of `cliffSheetFrames()`. */
+/** The real (non-padding) tile names, in the same order as the leading
+ *  entries of `cliffSheetFrames()`. */
 export function cliffTileNames(): string[] {
   return realEntries().map((e) => e.name);
 }
 
-/** The 206 real tiles followed by 2 blank/transparent padding frames (see
- *  module doc), for a total of 208 = 8 columns * 26 rows. */
+/** The real tiles followed by blank/transparent padding frames (see module
+ *  doc), bringing the total up to the next multiple of `COLUMNS`. */
 export function cliffSheetFrames(): PixelGrid[] {
   const frames = realEntries().map((e) => e.grid);
-  for (let i = 0; i < PADDING_FRAME_COUNT; i++) frames.push(new PixelGrid(16, 16));
+  const padCount = (COLUMNS - (frames.length % COLUMNS)) % COLUMNS;
+  for (let i = 0; i < padCount; i++) frames.push(new PixelGrid(16, 16));
   return frames;
 }

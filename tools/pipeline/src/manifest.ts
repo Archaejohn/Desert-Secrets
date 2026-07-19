@@ -278,8 +278,8 @@ export function buildManifest(): Manifest {
       columns: 8,
       names: tileNames(owMountainNames)
     },
-    // cliff.png: 208 frames (206 real + 2 blank padding, see cliffs/frames.ts)
-    // laid out 8 columns x 26 rows; only the 206 real names are exposed here.
+    // cliff.png: 240 frames (238 real + 2 blank padding, see cliffs/frames.ts)
+    // laid out 8 columns x 30 rows; only the 238 real names are exposed here.
     cliff: { file: "cliff.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffTileNames()) }
   };
 }

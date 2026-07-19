@@ -46,6 +46,7 @@ import { floorFill } from "./terrains";
 import { blobTiles } from "./blob47";
 import { wallFace, type MaterialKey } from "./materials";
 import { cliffTiles } from "./cliffFace";
+import { rampTiles, type RampMaterial } from "./ramps";
 
 export type TerrainParams = {
   // material — the wall/cliff face texture (the pluggable seam)
@@ -83,6 +84,9 @@ export type TerrainParams = {
   plateauTop: TerrainKey;
   ground: TerrainKey;
   seed: number;
+  // ramp materials to emit for this preset (phase 1b) — each yields 16
+  // named ramp tiles (see ramps.ts).
+  ramps: RampMaterial[];
 };
 
 const VARIANT_NAMES = ["outerW", "mid", "outerE", "innerW", "innerE"] as const;
@@ -177,6 +181,22 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     });
     const name = `${pr.over}${capitalize(pr.base)}`;
     for (const t of tiles) out.push({ name: `${name}_${t.mask}`, grid: t.grid });
+  }
+
+  // Ramp tiles (16 each) — one set per requested ramp material, appended
+  // after every other group so existing indices never shift.
+  for (const m of p.ramps) {
+    const tiles = rampTiles({
+      material: m,
+      terrain: p.plateauTop,
+      wall: p.material,
+      height: p.cliffHeight,
+      slope: 0.5,
+      steps: 3,
+      seed: p.seed,
+    });
+    const prefix = m === "sandSlope" ? "rampSand" : "rampSteps";
+    for (const t of tiles) out.push({ name: `${prefix}_${t.col}_${t.row}`, grid: t.grid });
   }
 
   return out;
