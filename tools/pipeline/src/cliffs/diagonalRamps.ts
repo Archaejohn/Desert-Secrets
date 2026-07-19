@@ -80,6 +80,37 @@ function stoneCell(angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): C
   return null;
 }
 
+/** Global band sampler for the `se` sand RAMP at `angle` — the smooth version
+ *  of the same wedge: one continuous sand incline (the walking surface) over
+ *  the same continuous rock body. This is the constant-slope RUN; the eased
+ *  foot/top belong to the caps. */
+function sandCell(angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): Cell {
+  const slope = angle.drop / angle.stepW;
+  // Walking width held constant perpendicular to travel (do NOT let it narrow
+  // as the slope steepens): vertical band thickness = width * sqrt(1+slope²),
+  // where TREAD is the 6-ft width at flat.
+  const thick = TREAD * Math.sqrt(1 + slope * slope);
+  const ty = OFF - slope * gx; // continuous incline top = uphill/back edge
+  const rel = gy - ty;
+  if (rel < 0) return null; // sky above the incline
+  if (rel < thick) {
+    if (rel < 1) return "umber"; // outline on the far/uphill edge
+    const f = rel / thick; // 0 = back/uphill .. 1 = downhill cliff-top lip
+    // Shade at the uphill/back edge, LIT at the downhill cliff-top lip (light
+    // from above; the cliff below must never appear to shade the surface).
+    if (f < 0.28) return h2(gx, gy, 5) < 0.1 ? "umber" : "sandShade"; // shade + sparse umber flecks
+    if (f < 0.7) return h2(gx, gy, 9) < 0.06 ? "sandLight" : "sand"; // mid sand + sparse light flecks
+    return "sandLight"; // lit downhill leading edge
+  }
+  if (rel < thick + ROCKB) return rockAt(rock, gx, gy); // same rock body as the stairs
+  return null;
+}
+
+/** Dispatch the run's band sampler by material. */
+function bandCell(material: DiagonalMaterial, angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): Cell {
+  return material === "sandSlope" ? sandCell(angle, rock, gx, gy) : stoneCell(angle, rock, gx, gy);
+}
+
 /** Cut a 16×16 tile out of a global sampler at (gx0, gy0). */
 function sliceTile(sample: (gx: number, gy: number) => Cell, gx0: number, gy0: number): PixelGrid {
   const g = new PixelGrid(T, T);
@@ -91,18 +122,19 @@ export interface DiagonalRampParams {
   seed: number;
 }
 
-/** The `se` run tiles for one material+angle (prototype: stoneSteps 26.57°). */
+/** The `se` run tiles for one material+angle. (Tile-slice seams for the full
+ *  matrix are still WIP; 26.57° two-tile period shown here.) */
 export function diagonalRunTiles(
   material: DiagonalMaterial,
   angleKey: "2651" | "45" | "6343",
   p: DiagonalRampParams
 ): { piece: string; grid: PixelGrid }[] {
-  if (material !== "stoneSteps" || angleKey !== "2651") {
-    throw new Error("diagonalRunTiles: only stoneSteps 26.57° prototyped so far");
+  if (angleKey !== "2651") {
+    throw new Error("diagonalRunTiles: only 26.57° period sliced so far");
   }
   const angle = ANGLES[angleKey];
   const rock = makeRock(p.seed);
-  const sample = (gx: number, gy: number) => stoneCell(angle, rock, gx, gy);
+  const sample = (gx: number, gy: number) => bandCell(material, angle, rock, gx, gy);
   // 26.57° period = 2 tiles wide (runA, runB), placed on the (32,-16) lattice.
   return [
     { piece: "runA", grid: sliceTile(sample, 0, 0) },
@@ -112,23 +144,25 @@ export function diagonalRunTiles(
 
 /** Exposed for the visual-review scratch: paint the continuous `se` band and
  *  the lattice-reconstruction into one grid to eyeball seam continuity. */
-export function _debugStoneRun(seed: number, periods: number): { continuous: PixelGrid; tiled: PixelGrid } {
-  const angle: AngleSpec = { stepW: 8, drop: 8 }; // confirmed proportions: 8px run + 8px riser
+export function _debugRun(
+  seed: number,
+  periods: number,
+  angle: AngleSpec = { stepW: 8, drop: 8 },
+  material: DiagonalMaterial = "stoneSteps"
+): { continuous: PixelGrid; tiled: PixelGrid } {
   const rock = makeRock(seed);
-  const sample = (gx: number, gy: number) => stoneCell(angle, rock, gx, gy);
+  const sample = (gx: number, gy: number) => bandCell(material, angle, rock, gx, gy);
   const cols = periods * 2 + 2;
   const rows = periods + 3;
   const W = cols * T, H = rows * T;
   // continuous: paint the sampler directly, anchored so the run climbs across the frame
   const continuous = new PixelGrid(W, H);
-  const baseGy = (n: number, m: number) => ({ gx: n, gy: m });
-  void baseGy;
   const anchorY = (periods + 1) * T; // lower-left start
   for (let Y = 0; Y < H; Y++) for (let X = 0; X < W; X++) {
     continuous.px(X, Y, sample(X, Y - anchorY));
   }
   // tiled: place runA/runB on the (2 right, 1 up) lattice from the same tiles
-  const tiles = diagonalRunTiles("stoneSteps", "2651", { seed });
+  const tiles = diagonalRunTiles(material, "2651", { seed });
   const runA = tiles[0].grid, runB = tiles[1].grid;
   const tiled = new PixelGrid(W, H);
   for (let p = 0; p < cols; p++) {
