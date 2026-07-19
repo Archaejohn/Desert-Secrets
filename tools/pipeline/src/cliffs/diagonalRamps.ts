@@ -51,7 +51,11 @@ const ANGLES: Record<"2651" | "45" | "6343", AngleSpec> = {
 
 const TREAD = 12; // walking-surface depth = bd(6) * rise(0.5) * unit(4) — the 6-ft stair width
 const ROCKB = 20; // rock front band depth carried under the surface (px)
-const OFF = 4; // vertical anchor so the tread sits near a tile's top edge
+// Phase anchor. OFF=8 (half a riser lower than the naive 4) aligns the run to
+// the real cliff tiles: the top tread's lip lands on the rim's rock-face start
+// (row 12) and the foot riser stands on the footer's ground line (row 10), so
+// the foot reads vertical and the top reads flat. See the alignment eval.
+const OFF = 8;
 
 /** One baked rock face, sampled by absolute position so the front is a single
  *  continuous wall across every tile seam. */

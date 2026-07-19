@@ -32,7 +32,7 @@ import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
 import { DESERT_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
-import { diagonalStaircase } from "./src/cliffs/diagonalRamps";
+import { diagonalRunTiles } from "./src/cliffs/diagonalRamps";
 
 const T = 16; // tile size
 
@@ -100,6 +100,12 @@ P[5][40] = false;
 fill(24, 11, 33, 12);
 P[11][28] = P[11][29] = false;
 P[12][28] = P[12][29] = false;
+
+// (d) diagonal ramp demo (A' checkpoint) — a plateau block whose south face a
+// diagonal stair descends. NO gap cut in P: the south-edge loop draws the full
+// rim/face/footer, and the diagonal ribbon overwrites it (rock ≡ face, treads
+// cut in) in `buildScene` step 6.
+fill(2, 11, 9, 13);
 
 const p = (x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < MW && y < MH && P[y][x];
@@ -246,12 +252,16 @@ function buildScene(params: typeof base): PixelGrid {
     }
   }
 
-  // 6) DIAGONAL ramp demo (phase 1c, WIP) — a complete self-contained
-  // staircase (vertical riser at the foot, treads ascending up-right, rock
-  // body to the base) overlaid on the real ground field. stoneSteps + sand.
+  // 6) DIAGONAL ramp demo (A' checkpoint) — stamp the 45° run tile diagonally
+  // down the south face of the plateau block (rows 11-13, south edge row 13).
+  // The run tile is transparent above its tread, so compositing it over the
+  // already-drawn rim/face/footer lets the plateau show above the top tread
+  // and the face show above each lower tread; its rock ≡ the face. `se`: top at
+  // the east end of the rim (col 7), descending down-left through face→footer.
   {
-    scene.blit(diagonalStaircase("stoneSteps", "45", params.seed, 6), 2 * T, 12 * T);
-    scene.blit(diagonalStaircase("sandSlope", "45", params.seed, 6), 12 * T, 12 * T);
+    const runTile = diagonalRunTiles("stoneSteps", "45", { seed: params.seed }).find((t) => t.piece === "run")!.grid;
+    const col0 = 7, y0 = 13; // rim cell = plateau south edge
+    for (let k = 0; k <= H + 1; k++) scene.blit(runTile, (col0 - k) * T, (y0 + k) * T);
   }
 
   return scene;
@@ -272,6 +282,11 @@ console.log(`cliff-sheet.png -> ${sheetPath} (${sheet.width}x${sheet.height})`);
 
 for (const { label, params } of VARIANTS) {
   const sceneUp = upscale(buildScene(params), SCENE_SCALE);
+  // TEMP tile-grid overlay (atbGold at every 16px tile boundary) so placement
+  // offsets can be counted by eye.
+  const step = T * SCENE_SCALE;
+  for (let gy = 0; gy <= MH; gy++) for (let x = 0; x < sceneUp.width; x++) sceneUp.px(x, Math.min(gy * step, sceneUp.height - 1), "atbGold");
+  for (let gx = 0; gx <= MW; gx++) for (let y = 0; y < sceneUp.height; y++) sceneUp.px(Math.min(gx * step, sceneUp.width - 1), y, "atbGold");
   const buf = encodePng(sceneUp);
   const path = join(outDir, `cliff-scene-${label}.png`);
   writeFileSync(path, buf);
