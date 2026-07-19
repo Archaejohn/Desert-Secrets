@@ -259,9 +259,25 @@ function buildScene(params: typeof base): PixelGrid {
   // and the face show above each lower tread; its rock ≡ the face. `se`: top at
   // the east end of the rim (col 7), descending down-left through face→footer.
   {
-    const runTile = diagonalRunTiles("stoneSteps", "45", { seed: params.seed }).find((t) => t.piece === "run")!.grid;
+    const parts = diagonalRunTiles("stoneSteps", "45", { seed: params.seed });
+    const runTile = parts.find((t) => t.piece === "run")!.grid;
+    const runLower = parts.find((t) => t.piece === "runLower")!.grid;
     const col0 = 7, y0 = 13; // rim cell = plateau south edge
-    for (let k = 0; k <= H + 1; k++) scene.blit(runTile, (col0 - k) * T, (y0 + k) * T);
+    // Clip the ramp to the footer's ground line (within-tile row 10 of the
+    // footer row) so the existing footer/scree autotile shows STRAIGHT across
+    // the base underneath — no rock hanging below the cliff into the sand.
+    const baseY = (y0 + H + 1) * T + 10;
+    const clipBlit = (tile: PixelGrid, cX: number, cY: number): void =>
+      tile.forEach((tx, ty, c) => {
+        const gy = cY * T + ty;
+        if (c !== null && gy < baseY) scene.px(cX * T + tx, gy, c);
+      });
+    // drop the one-too-high top tile (k=0); keep the rest where they are and add
+    // the runLower row one tile below each (the 2-tile-thick ribbon).
+    for (let k = 1; k <= H + 1; k++) {
+      clipBlit(runTile, col0 - k, y0 + k);
+      clipBlit(runLower, col0 - k, y0 + k + 1);
+    }
   }
 
   return scene;

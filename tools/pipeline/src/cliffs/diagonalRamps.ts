@@ -183,8 +183,13 @@ export function diagonalRunTiles(
   const rock = makeRock(p.seed);
   const sample = (gx: number, gy: number) => bandCell(material, angle, rock, gx, gy);
   if (angleKey === "45") {
-    // 45° period = 1 tile, placed on the (16,-16) lattice.
-    return [{ piece: "run", grid: sliceTile(sample, 0, 0) }];
+    // 45° period = 1 tile wide, but the band is 2 tiles THICK (TREAD 12 > drop 8),
+    // so the run is a pair: `run` (upper: tread + rock) over `runLower` (lower:
+    // rock body + the tread-lip that spills from the run above).
+    return [
+      { piece: "run", grid: sliceTile(sample, 0, 0) },
+      { piece: "runLower", grid: sliceTile(sample, 0, T) },
+    ];
   }
   if (angleKey === "2651") {
     // 26.57° period = 2 tiles wide (runA, runB), placed on the (32,-16) lattice.
