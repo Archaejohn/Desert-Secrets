@@ -278,6 +278,11 @@ function buildScene(params: typeof base): PixelGrid {
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
     put("capTop", c0, y0 + 1);
+    for (let y = y0 + 2; y <= y0 + H + 1; y++) {
+      scene.blit(tile("cliffRock_mid_face"), c0 * T, y * T);
+    }
+    scene.blit(tile("cliffRock_mid_footer"), c0 * T, (y0 + H + 2) * T);
+
     for (let k = 1; k <= H; k++) {
       const runPiece = k === 1 ? "runTop" : "run";
       const runLowerPiece = k === H ? "foot" : "runLower";
