@@ -15,8 +15,9 @@
  * serves both a 1-wide stair (`narrow`) and a wide grand ramp
  * (`leftEdge` + `middle`x N + `rightEdge`).
  *
- * Task 1 (this file) implements `material === "sandSlope"` only —
- * `stoneSteps` is a Task 2 stub the tests here don't exercise.
+ * Task 1 implemented `material === "sandSlope"`; Task 2 adds
+ * `material === "stoneSteps"` (see "stoneSteps surface" below) — both
+ * share the same wall-strip/column/mirror composition below unchanged.
  *
  * ## Wall strip
  *
@@ -45,10 +46,17 @@
  *     step up onto a flat platform), no incline shading.
  *   - `bottom` — bottom ~5px shaded down toward `ramp[2]`/`ramp[3]`
  *     (in-shadow at the foot of the slope).
+ *
+ * ## stoneSteps surface (per row)
+ *
+ * Unlike sandSlope's incline, this material carves discrete horizontal
+ * steps into the `ROCK` stone ramp (cool navy stone, same ramp
+ * `cliffFace.ts`/`materials.ts` use). See `stepHeight`/`stepBandPixel`/
+ * `stoneStepsPixel` below for the exact recipe and tiling proof.
  */
 import { PixelGrid } from "../grid";
 import { h2 } from "./noise";
-import { TERRAIN_RAMPS, type TerrainKey, type Ramp } from "./palette";
+import { ROCK, TERRAIN_RAMPS, shade, type TerrainKey, type Ramp } from "./palette";
 import { wallFace, type WallParams, type MaterialKey } from "./materials";
 import type { PaletteName } from "../../../../src/shared/palette";
 
@@ -117,15 +125,87 @@ function sandSlopeSurface(row: RampRow, p: RampParams): PixelGrid {
   return grid;
 }
 
+/**
+ * Step height (px) for `steps` — a divisor of `T` (16) nearest to
+ * `T / max(2, steps)`. Snapping to a divisor (rather than using the
+ * requested count directly) is what makes stacked `run` tiles form a
+ * continuous flight: since `stepH` divides 16 exactly, `y % stepH` at the
+ * top of the next tile (global y = 16, 17, …) reduces to the same phase
+ * sequence as this tile's `y = 0, 1, …` — no seam, no discontinuity, for
+ * any number of stacked tiles. A non-divisor height would drift out of
+ * phase tile-to-tile and show a visible seam.
+ */
+function stepHeight(steps: number): number {
+  const target = Math.max(2, steps);
+  const ideal = T / target;
+  const divisors = [1, 2, 4, 8, 16];
+  return divisors.reduce((best, d) => (Math.abs(d - ideal) < Math.abs(best - ideal) ? d : best));
+}
+
+/** One step band's colour at in-tile-row `y` (see file header for the
+ *  tread/body/riser recipe). Colour depends only on `y` — steps are
+ *  horizontal bands, uniform across `x` — so callers fill a whole row at
+ *  a time. */
+function stepBandPixel(y: number, stepH: number): PaletteName {
+  const lit = shade(ROCK, 1, -1); // stoneLit — lit tread (top 1px of a step)
+  const body = ROCK[3]; // stoneDark — step body
+  const riser = shade(ROCK, 6, 1); // deepest — 1px riser shadow (bottom of a step)
+  const phase = y % stepH;
+  if (phase === 0) return lit;
+  if (phase === stepH - 1) return riser;
+  return body;
+}
+
+/** stoneSteps surface colour at in-tile row `y` for a given row (see file
+ *  header). Carved horizontal steps in the cool navy `ROCK` stone ramp:
+ *    - `top`     — a flush lit tread meeting the plateau (a full `stepH`-1
+ *      px lit band + riser), then the ordinary step cycle continues below.
+ *    - `run`     — the repeating step cycle (`stepBandPixel`), phased from
+ *      the in-tile `y` alone so stacked `run` tiles tile seamlessly.
+ *    - `landing` — a flat wide tread/platform: uniform stone body, a 1px
+ *      lit line at the top edge and a 1px shadow line below it, no risers
+ *      (mirrors sandSlope's landing, in stone).
+ *    - `bottom`  — the ordinary step cycle down to a flush final tread
+ *      (lit line + solid dark body) meeting the ground.
+ */
+function stoneStepsPixel(row: RampRow, y: number, p: RampParams): PaletteName {
+  const stepH = stepHeight(p.steps);
+  const lit = shade(ROCK, 1, -1);
+  const body = ROCK[3];
+  const riser = shade(ROCK, 6, 1);
+  switch (row) {
+    case "top":
+      if (y < stepH - 1) return lit;
+      if (y === stepH - 1) return riser;
+      return stepBandPixel(y, stepH);
+    case "run":
+      return stepBandPixel(y, stepH);
+    case "landing":
+      return y === 0 ? lit : y === 1 ? riser : body;
+    case "bottom": {
+      const groundStart = T - stepH;
+      if (y < groundStart) return stepBandPixel(y, stepH);
+      return y === groundStart ? lit : body;
+    }
+  }
+}
+
+function stoneStepsSurface(row: RampRow, p: RampParams): PixelGrid {
+  const grid = new PixelGrid(T, T);
+  for (let y = 0; y < T; y++) {
+    const c = stoneStepsPixel(row, y, p);
+    for (let x = 0; x < T; x++) grid.px(x, y, c);
+  }
+  return grid;
+}
+
 /** The walkable surface for `row`, before any wall strips are stamped. */
 function rampSurface(row: RampRow, p: RampParams): PixelGrid {
   switch (p.material) {
     case "sandSlope":
       return sandSlopeSurface(row, p);
     case "stoneSteps":
-      // Task 2 fills this in (carved-step surface); not exercised by the
-      // sandSlope-only tests this task lands.
-      throw new Error("ramps: stoneSteps not implemented yet (Task 2)");
+      return stoneStepsSurface(row, p);
   }
 }
 

@@ -322,4 +322,15 @@ describe("ramps", () => {
       expect(l.mirrorX().diff(r)).toBe(0);
     }
   });
+
+  it("stoneSteps returns 16 palette-locked deterministic tiles and differs from sandSlope", () => {
+    const s = rampTiles({ ...RP, material: "stoneSteps" });
+    expect(s.length).toBe(16);
+    s.forEach(t => { expect(t.grid.countOpaque()).toBe(256);
+      t.grid.forEach((_x,_y,c)=>{ if(c!==null) expect(PALETTE).toHaveProperty(c); }); });
+    // the run surface must differ between materials
+    const runSand = rampTiles(RP).find(t=>t.col==="middle"&&t.row==="run")!.grid;
+    const runSteps = s.find(t=>t.col==="middle"&&t.row==="run")!.grid;
+    expect(runSand.diff(runSteps)).toBeGreaterThan(0);
+  });
 });
