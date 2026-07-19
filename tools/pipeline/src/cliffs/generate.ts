@@ -47,6 +47,7 @@ import { blobTiles } from "./blob47";
 import { wallFace, type MaterialKey } from "./materials";
 import { cliffTiles } from "./cliffFace";
 import { rampTiles, type RampMaterial } from "./ramps";
+import { diagonalFlightTiles } from "./diagonalRamps";
 
 export type TerrainParams = {
   // material — the wall/cliff face texture (the pluggable seam)
@@ -87,6 +88,8 @@ export type TerrainParams = {
   // ramp materials to emit for this preset (phase 1b) — each yields 16
   // named ramp tiles (see ramps.ts).
   ramps: RampMaterial[];
+  // diagonal flight tiles (phase 1c)
+  diagonalRamps?: boolean;
 };
 
 const VARIANT_NAMES = ["outerW", "mid", "outerE", "innerW", "innerE"] as const;
@@ -197,6 +200,23 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     });
     const prefix = m === "sandSlope" ? "rampSand" : "rampSteps";
     for (const t of tiles) out.push({ name: `${prefix}_${t.col}_${t.row}`, grid: t.grid });
+  }
+
+  // Diagonal flight tiles (24 total) — Phase 1c, appended after straight ramps
+  if (p.diagonalRamps) {
+    const dirs = ["se", "sw"] as const;
+    for (const m of p.ramps) {
+      const matName = m === "sandSlope" ? "Sand" : "Steps";
+      for (const dir of dirs) {
+        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed });
+        for (const t of tiles) {
+          out.push({
+            name: `dramp${matName}45_${dir}_${t.piece}`,
+            grid: t.grid,
+          });
+        }
+      }
+    }
   }
 
   return out;

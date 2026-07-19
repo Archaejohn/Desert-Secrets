@@ -32,7 +32,7 @@ import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
 import { DESERT_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
-import { diagonalRunTiles } from "./src/cliffs/diagonalRamps";
+import { diagonalFlightTiles, type DiagonalMaterial, type DiagonalPiece } from "./src/cliffs/diagonalRamps";
 
 const T = 16; // tile size
 
@@ -101,11 +101,19 @@ fill(24, 11, 33, 12);
 P[11][28] = P[11][29] = false;
 P[12][28] = P[12][29] = false;
 
-// (d) diagonal ramp demo (A' checkpoint) — a plateau block whose south face a
-// diagonal stair descends. NO gap cut in P: the south-edge loop draws the full
-// rim/face/footer, and the diagonal ribbon overwrites it (rock ≡ face, treads
-// cut in) in `buildScene` step 6.
-fill(2, 11, 9, 13);
+// (d) diagonal flight demo — a plateau block whose south face TWO diagonal
+// flights descend (stoneSteps east, sandSlope west). NO gap cut in P: the
+// south-edge loop draws the full rim/face/footer and the flight pieces are
+// composited over that real autotiling in `buildScene` step 6 (their solid
+// rock body ≡ face by construction over the cliff, and a full support
+// wedge past the cliff base). Each flight's TOP LANDING is a real plateau
+// cell: P extends one cell south at the flight's head column, so the
+// ordinary plateau + rim loops draw the landing (plateau fill, cap roll,
+// corner rounding, its own wall/footer) with the standard treatment —
+// "the top landing is just an extension of the plateau".
+fill(1, 11, 10, 13);
+P[14][9] = true; // stone flight's landing (head col 9)
+P[14][4] = true; // sand flight's landing (head col 4)
 
 const p = (x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < MW && y < MH && P[y][x];
@@ -252,33 +260,42 @@ function buildScene(params: typeof base): PixelGrid {
     }
   }
 
-  // 6) DIAGONAL ramp demo (A' checkpoint) — stamp the 45° run tile diagonally
-  // down the south face of the plateau block (rows 11-13, south edge row 13).
-  // The run tile is transparent above its tread, so compositing it over the
-  // already-drawn rim/face/footer lets the plateau show above the top tread
-  // and the face show above each lower tread; its rock ≡ the face. `se`: top at
-  // the east end of the rim (col 7), descending down-left through face→footer.
-  {
-    const parts = diagonalRunTiles("stoneSteps", "45", { seed: params.seed });
-    const runTile = parts.find((t) => t.piece === "run")!.grid;
-    const runLower = parts.find((t) => t.piece === "runLower")!.grid;
-    const col0 = 7, y0 = 13; // rim cell = plateau south edge
-    // Clip the ramp to the footer's ground line (within-tile row 10 of the
-    // footer row) so the existing footer/scree autotile shows STRAIGHT across
-    // the base underneath — no rock hanging below the cliff into the sand.
-    const baseY = (y0 + H + 1) * T + 10;
-    const clipBlit = (tile: PixelGrid, cX: number, cY: number): void =>
-      tile.forEach((tx, ty, c) => {
-        const gy = cY * T + ty;
-        if (c !== null && gy < baseY) scene.px(cX * T + tx, gy, c);
-      });
-    // drop the one-too-high top tile (k=0); keep the rest where they are and add
-    // the runLower row one tile below each (the 2-tile-thick ribbon).
-    for (let k = 1; k <= H + 1; k++) {
-      clipBlit(runTile, col0 - k, y0 + k);
-      clipBlit(runLower, col0 - k, y0 + k + 1);
+  // 6) DIAGONAL flight demos — 45° flights descending the south face of the
+  // block at rows 11-13 (rim row 13, faces 14-15, footer 16). The top
+  // landing is the protruding plateau cell added to P above (drawn by the
+  // ordinary plateau/rim loops — steps 3 and 4); the flight pieces stamp on
+  // the lattice west of it, each carrying the walking band plus the
+  // flight's solid rock body (pixel-identical to the face autotile over the
+  // cliff). At the base the flight PROJECTS past the footer onto the
+  // ground: `foot`/`footLower` walk the band over the footer's contact
+  // line, and `ground`/`groundLower` (one more lattice cell down-left) land
+  // the final steps on a full support wedge standing on the sand. See
+  // diagonalRamps.ts for the piece/lattice model.
+  const stampDiagonalFlight = (material: DiagonalMaterial, c0: number, y0: number): void => {
+    const pieces = new Map(
+      diagonalFlightTiles(material, "se", { seed: params.seed }).map((t) => [t.piece, t.grid])
+    );
+    const put = (piece: DiagonalPiece, x: number, y: number): void =>
+      scene.blit(pieces.get(piece)!, x * T, y * T);
+    put("capTop", c0, y0 + 1);
+    for (let k = 1; k <= H; k++) {
+      const runPiece = k === 1 ? "runTop" : "run";
+      const runLowerPiece = k === H ? "foot" : "runLower";
+      put(runPiece, c0 - k, y0 + k);
+      put(runLowerPiece, c0 - k, y0 + k + 1);
+      if (k < H) {
+        for (let y = y0 + k + 2; y <= y0 + H + 1; y++) {
+          scene.blit(tile("cliffRock_mid_face"), (c0 - k) * T, y * T);
+        }
+        scene.blit(tile("cliffRock_mid_footer"), (c0 - k) * T, (y0 + H + 2) * T);
+      }
     }
-  }
+    put("footLower", c0 - H, y0 + H + 2);
+    put("ground", c0 - H - 1, y0 + H + 1);
+    put("groundLower", c0 - H - 1, y0 + H + 2);
+  };
+  stampDiagonalFlight("stoneSteps", 9, 13); // stone flight: top col 9 → foot col 7
+  stampDiagonalFlight("sandSlope", 4, 13); // sand flight: top col 4 → foot col 2
 
   return scene;
 }
@@ -297,7 +314,21 @@ writeFileSync(sheetPath, sheetBuf);
 console.log(`cliff-sheet.png -> ${sheetPath} (${sheet.width}x${sheet.height})`);
 
 for (const { label, params } of VARIANTS) {
-  const sceneUp = upscale(buildScene(params), SCENE_SCALE);
+  const sceneRaw = buildScene(params);
+  // Zoomed crop of the diagonal-flight demo block (cols 0-11, rows 10-18) at
+  // x10 so the tread/step pixels are individually inspectable.
+  {
+    const cx0 = 0, cy0 = 10, cw = 12, ch = 9;
+    const crop = new PixelGrid(cw * T, ch * T);
+    for (let y = 0; y < ch * T; y++) {
+      for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
+    }
+    const cropUp = upscale(crop, 10);
+    const cropPath = join(outDir, "diag-crop.png");
+    writeFileSync(cropPath, encodePng(cropUp));
+    console.log(`diag-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+  }
+  const sceneUp = upscale(sceneRaw, SCENE_SCALE);
   // TEMP tile-grid overlay (atbGold at every 16px tile boundary) so placement
   // offsets can be counted by eye.
   const step = T * SCENE_SCALE;

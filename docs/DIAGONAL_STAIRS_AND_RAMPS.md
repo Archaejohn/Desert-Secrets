@@ -134,6 +134,16 @@ treads were hard to parse.
 - **No per-tread outline.** In a multi-step run, outlining each tread makes a
   mess of stacked lines; the up-slope cast-shadow crease alone separates steps.
 
+> **45° tuning (render-verified, 2026-07).** At the 45° cadence (4px treads)
+> the full recipe above over-fragments — against the busy boulder face the
+> treads read as separate slivers. The shipped 45° surface is deliberately
+> calmer: solid `stoneLit` body (no grain), a single soft `stone` crease at
+> the up-slope edge (same edge rule as above), a 1px `stone` shade at the
+> uphill back edge + `stoneDeep` contact line vs the rock, a continuous 2px
+> `stoneLit` lip at the downhill edge, and each tread's 4px riser FRONT face
+> drawn as `slate` between `stoneDeep` contact lines (see §5). The 26.57°
+> tiles should start from the original recipe (8px treads have room for it).
+
 ## 4. Ramps (sandSlope material) — the LOCKED recipe
 
 A ramp is the **smooth version of the exact same wedge**: instead of stepped
@@ -168,32 +178,55 @@ Four locked properties:
 4. **Variable rise.** Same 1/3, 1/2, 1/1-tile-per-tile slopes as the stairs;
    total height = slope × length; length sets steepness.
 
-## 5. Tiling — how a run becomes placeable 16×16 tiles
+## 5. Tiling — surface-only overlay pieces over the real cliff autotile
 
 Tiles are 16×16 and placed on a 16px grid. A run is defined by ONE **global
 band sampler** `cell(gx, gy)` for the infinite run; tiles are sliced from it,
 so seam continuity is **structural**, not hand-fixed.
 
-The band has a **translational symmetry**: for 26.57°,
-`cell(gx+32, gy−16) === cell(gx, gy)` — i.e. shifting **2 tiles right and 1
-tile up** reproduces the band. Therefore the run repeats on that lattice with
-exactly **two distinct tiles** (`runA` at even columns, `runB` at odd), placed
-stepping 2-right / 1-up. 45° → symmetry `(16,−16)`, one `run` tile on a
-1-right/1-up lattice. 63.43° → `(16,−32)`, two stacked tiles `runU`/`runL`.
+**The flight tiles carry ONLY the walking surface** (transparent everywhere
+else) and are composited over the map's ordinary autotiled cliff
+(rim / face / footer). This resolved the old "build snag" (a rock body baked
+into the run tiles fought the cliff autotile and had to be clipped at the
+base, chopping treads): the rock around/above/below the band now **IS** the
+`cliffRock_*_face` texture — identical by construction — the plateau cap
+shows over the flight's top tread, and the footer's contact-shadow + scree
+line runs STRAIGHT across beneath the foot. No special rock alignment, no
+clipping.
 
-Pieces per material per direction: **45°** `run`+`capTop`+`capBottom` (3);
-**26.57°** `runA`+`runB`+caps (4); **63.43°** `runU`+`runL`+caps (4);
-plus one angle-independent `landing` (the switchback pivot). Both directions
-via `mirrorX`. Total **48 diagonal tiles** (2 materials × 2 dirs × 12).
-Naming: `dramp{Mat}{Angle}_{dir}_{piece}` (e.g. `drampSteps2651_se_runA`),
-landing drops the angle: `dramp{Mat}_{dir}_landing`.
+The band has a **translational symmetry**: for 45°,
+`cell(gx+16, gy−16) === cell(gx, gy)` — shifting 1 tile right and 1 tile up
+reproduces the band — so the run repeats on the **1-right / 1-up lattice**.
+The band is thicker than one tile's 16px drop (12px tread + riser / ≈17px
+sand width), so each lattice cell is a vertical PAIR: `run` (upper) +
+`runLower` (its spill into the tile below).
 
-**Known build snag (in progress):** the rock front carried under the surface
-is thicker than one tile step, so a naïve single-row slice leaves gaps between
-periods. The run must either carry the rock only to the tile bottom (letting
-the map's cliff fill below) or be sliced as a thicker diagonal. This is the
-one genuinely fiddly part and needs render-eyeball iteration (see the plan's
-Task 1) — the *look* is locked; only the slice geometry is being tuned.
+**The five pieces (45°, per material, `se`)** — for a flight with top column
+`c0` on rim row `y0` over `H` face rows (footer at `y0+H+1`):
+
+| piece | where | what |
+|---|---|---|
+| `top` | `(c0, y0)` | flat top tread in the rim tile's rock rows (12–15); plateau + cap show above — *"the top landing is just an extension of the plateau"*. Stone: a TREAD-wide (12px) landing with a 4px rock shoulder east; sand: eased from flat into the incline (doc §4). |
+| `topLower` | `(c0, y0+1)` | the top tread's spill into the face row |
+| `run` | `(c0−k, y0+k)`, k=1..H | the repeating diagonal band |
+| `runLower` | `(c0−k, y0+k+1)`, k<H | its spill |
+| `foot` | `(c0−H, y0+H+1)` | the last spill, in the FOOTER row: `runLower` cut at the footer's contact row (in-tile row 9) so the final tread sits on the straight contact line and ground + scree continue unbroken |
+
+The phase is exact: the top tread's lip is the rim's rock-face start (row
+12), each following tread drops 4px (the first riser is 6px, absorbing the
+rim-row-12 vs footer-ground-row-10 2px offset), and the final tread bottoms
+out on the footer contact line. Within the band, stone steps follow the
+locked cube cadence (§2: 4px run / 4px riser at 45°), each tread showing its
+lit top face over a `slate` riser front face (the retaining-cut inside-wall
+role, §6) — the slate keeps step fronts legible against the boulder face.
+The stone surface is deliberately **calm** (solid `stoneLit`, no grain): the
+busy boulder texture around it is what makes the cut read as a cut.
+
+`sw` is the structural mirror: every piece `mirrorX()`, stamped ascending
+left. 26.57° (`(32,−16)` symmetry, two-column period) and 63.43° will reuse
+the same overlay model when built; only 45° exists today
+(`diagonalFlightTiles` in `diagonalRamps.ts`, demoed in
+`render-cliff-review.mts` step 6).
 
 ## 6. Non-negotiable pipeline rules
 

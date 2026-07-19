@@ -62,6 +62,8 @@ const DESERT_ROCK_CLIFF: TerrainParams = {
   // Ramp materials (phase 1b) — a sand-slope incline and a carved-stone
   // stair set, both cut through this preset's rock cliff (generate.ts).
   ramps: ["sandSlope", "stoneSteps"],
+  // Enable diagonal ramps (phase 1c)
+  diagonalRamps: true,
 };
 
 export const DESERT_PRESETS: TerrainParams[] = [DESERT_ROCK_CLIFF];

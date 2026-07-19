@@ -82,8 +82,9 @@ const ROWS: readonly RampRow[] = ["top", "run", "landing", "bottom"];
 
 /** Wall tuning for a ramp's retaining-cut side walls — mirrors the desert
  *  preset's rock wall params (presets.ts `DESERT_ROCK_CLIFF`) so the cut
- *  reads as the same stone as the cliff it's set into. */
-const RAMP_WALL_PARAMS: WallParams = {
+ *  reads as the same stone as the cliff it's set into. (Exported for the
+ *  diagonal flights, whose projected foot uses the same rock as its body.) */
+export const RAMP_WALL_PARAMS: WallParams = {
   courses: 3, blockSize: 3, blocksPerCourse: 3, stagger: 0.5,
   tone: 0.16, mortar: 0.28, orderVsRandom: 0.45,
 };

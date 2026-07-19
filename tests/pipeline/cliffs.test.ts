@@ -239,25 +239,25 @@ describe("generateTerrain + desert presets", () => {
 });
 
 describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
-  it("cliffSheetFrames/cliffTileNames are parallel and names cover the 238 real (non-padding) frames", () => {
+  it("cliffSheetFrames/cliffTileNames are parallel and names cover the 270 real (non-padding) frames", () => {
     const names = cliffTileNames();
     const frames = cliffSheetFrames();
-    expect(names.length).toBe(238);
-    expect(frames.length).toBe(240); // 238 real + 2 blank padding frames
+    expect(names.length).toBe(270);
+    expect(frames.length).toBe(272); // 270 real + 2 blank padding frames
     expect(new Set(names).size).toBe(names.length); // unique
     frames.forEach((f) => {
       expect(f.width).toBe(16);
       expect(f.height).toBe(16);
     });
     // The 2 padding frames (last 2) are fully transparent.
-    for (const f of frames.slice(238)) {
+    for (const f of frames.slice(270)) {
       expect(f.countOpaque()).toBe(0);
     }
   });
 
-  it("cliffTileNames structure: no duplicates, count 238, valid tile-name strings", () => {
+  it("cliffTileNames structure: no duplicates, count 270, valid tile-name strings", () => {
     const names = cliffTileNames();
-    expect(names.length).toBe(238);
+    expect(names.length).toBe(270);
     expect(new Set(names).size).toBe(names.length); // no duplicates
     // every name is a valid tile-name string: non-empty, no whitespace,
     // only [A-Za-z0-9_] characters.
@@ -292,9 +292,9 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
       expect(m.cliff.names[n]).toBeGreaterThanOrEqual(0);
       expect(m.cliff.names[n]).toBeLessThan(frames.length);
     }
-    // composed sheet dims: 8 columns x 30 rows of 16x16 tiles.
+    // composed sheet dims: 8 columns x 34 rows of 16x16 tiles.
     expect(a.cliff.width).toBe(8 * 16);
-    expect(a.cliff.height).toBe(30 * 16);
+    expect(a.cliff.height).toBe(34 * 16);
   });
 });
 
@@ -334,12 +334,14 @@ describe("ramps", () => {
     expect(runSand.diff(runSteps)).toBeGreaterThan(0);
   });
 
-  it("desert preset emits the ramp tiles; total sheet is 238 named tiles", () => {
+  it("desert preset emits the ramp tiles; total sheet is 270 named tiles", () => {
     const out = generateTerrain(DESERT_PRESETS[0]).map(o=>o.name);
     expect(out.filter(n=>n.startsWith("rampSand_")).length).toBe(16);
     expect(out.filter(n=>n.startsWith("rampSteps_")).length).toBe(16);
+    expect(out.filter(n=>n.startsWith("drampSand45_")).length).toBe(16);
+    expect(out.filter(n=>n.startsWith("drampSteps45_")).length).toBe(16);
     expect(new Set(out).size).toBe(out.length);   // unique
-    expect(out.length).toBe(238);                 // 206 + 32
+    expect(out.length).toBe(270);                 // 206 + 32 + 32
   });
 
   // Task 4 (visual-review render prep): structure asserts — the 16
