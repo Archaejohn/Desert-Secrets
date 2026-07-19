@@ -59,6 +59,13 @@ export const shadowOf: Record<PaletteName, PaletteName> = {
   slate: "indigo",
   indigo: "plum",
 
+  // Cool stone ramp (desert-cliff face): steps darker down its own ramp,
+  // converging into ink.
+  stoneLit: "stone",
+  stone: "stoneDark",
+  stoneDark: "stoneDeep",
+  stoneDeep: "ink",
+
   // UI gauge colours (rare on tiles, but the LUT must be total): keep hue
   // identity while stepping darker.
   hpRed: "rust",

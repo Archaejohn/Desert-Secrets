@@ -14,13 +14,15 @@ import type { TerrainParams } from "./generate";
 const DESERT_ROCK_CLIFF: TerrainParams = {
   material: "rock",
 
-  // Wall structure (order ↔ randomness) — prototype defaults.
+  // Wall structure (order ↔ randomness). "Boulder" treatment: chunky rounded
+  // stones with lit tops on a cool navy body — reads as natural desert
+  // sandstone/boulders (the upgrade from the flat `rock` boulders it replaces).
   courses: 3,
-  blockSize: 4,
-  blocksPerCourse: 4,
+  blockSize: 3,
+  blocksPerCourse: 3,
   stagger: 0.5,
-  tone: 0.2,
-  mortar: 0.35,
+  tone: 0.16,
+  mortar: 0.28,
   orderVsRandom: 0.45,
 
   // Cliff assembly — prototype defaults.

@@ -10,13 +10,18 @@ import type { PaletteName } from "../../../../src/shared/palette";
 /** An ordered light→dark palette ramp. */
 export type Ramp = readonly PaletteName[];
 
-/** Rock face ramp: lightest (lit top) to darkest (deep shadow/outline). */
-export const ROCK: Ramp = ["sandLight", "sand", "amber", "clay", "rust", "umber", "plum", "ink"];
+/** Rock face ramp: lightest (lit block top) to darkest (deep gap/shadow).
+ *  Cool blue-grey navy stone (matches the reference cliff): light course
+ *  streaks over a dark navy body. Index roles (materials.ts): 1=block top,
+ *  3=right plane, 5=left plane, 6=gap/mortar. */
+export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stoneDeep", "stoneDeep", "stoneDeep", "ink"];
 
 export type TerrainKey = "sand" | "frostSand" | "asphalt";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
-  sand: ["sandLight", "sand", "amber", "sandShade"],
+  // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
+  // Distinct entries (idx3 `umber` is the darker outline/edge step).
+  sand: ["sandLight", "sand", "sandShade", "umber"],
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
   asphalt: ["slate", "indigo", "plum", "ink"],
 };

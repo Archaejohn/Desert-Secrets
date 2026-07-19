@@ -74,7 +74,7 @@ const T = 16;
  * The one tuning knob (brief/Task 9): how many ramp steps a prototype
  * `scale(color, k)` maps to. `deltaSteps = round((1 - k) * SHADE_SENSITIVITY)`.
  */
-const SHADE_SENSITIVITY = 4;
+const SHADE_SENSITIVITY = 3;
 
 /** `wallTop()` in rock mode is `ROCK.top` — ramp index 1. */
 const WALL_TOP_IDX = 1;

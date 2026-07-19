@@ -48,17 +48,9 @@ function upscale(src: PixelGrid, s: number): PixelGrid {
   return out;
 }
 
-// ---- named tile map for this preset -------------------------------------
-const preset = DESERT_PRESETS[0];
-const H = preset.cliffHeight; // face rows below each rim
-const tiles = new Map<string, PixelGrid>();
-for (const { name, grid } of generateTerrain(preset)) tiles.set(name, grid);
-
-function tile(name: string): PixelGrid {
-  const g = tiles.get(name);
-  if (!g) throw new Error(`missing tile: ${name}`);
-  return g;
-}
+// Render the shipped desert preset.
+const base = DESERT_PRESETS[0];
+const VARIANTS: { label: string; params: typeof base }[] = [{ label: "scene", params: base }];
 
 // ---- demo scene ----------------------------------------------------------
 const MW = 24;
@@ -87,66 +79,74 @@ for (let y = 12; y <= 14; y++) for (let x = 18; x <= 21; x++) L[y][x] = true;
 const g = (x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < MW && y < MH && L[y][x];
 
-// Build the scene at native tile resolution, then upscale.
-const scene = new PixelGrid(MW * T, MH * T);
-const blit = (name: string, x: number, y: number): void =>
-  scene.blit(tile(name), x * T, y * T);
-
-// 1) ground field everywhere.
-for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) blit("sandFill", x, y);
-
-// 2) sand-over-sand ledge (subtle low elevation) — 8-neighbor blob mask.
-for (let y = 0; y < MH; y++) {
-  for (let x = 0; x < MW; x++) {
-    if (!g(x, y)) continue;
-    let m = 0;
-    if (g(x, y - 1)) m |= 1;
-    if (g(x + 1, y - 1)) m |= 2;
-    if (g(x + 1, y)) m |= 4;
-    if (g(x + 1, y + 1)) m |= 8;
-    if (g(x, y + 1)) m |= 16;
-    if (g(x - 1, y + 1)) m |= 32;
-    if (g(x - 1, y)) m |= 64;
-    if (g(x - 1, y - 1)) m |= 128;
-    blit(`sandSand_${canonical(m)}`, x, y);
-  }
-}
-
-// 3) plateau top surface — the prototype forces the south side to "matching"
-// (the cliff rim owns that edge) and derives SE/SW from E/W, so no dirt bleeds
-// under the wall. Ported from drawScene :782-789.
-for (let y = 0; y < MH; y++) {
-  for (let x = 0; x < MW; x++) {
-    if (!p(x, y)) continue;
-    let m = 0;
-    if (p(x, y - 1)) m |= 1;
-    if (p(x + 1, y - 1)) m |= 2;
-    if (p(x + 1, y)) m |= 4;
-    if (p(x - 1, y)) m |= 64;
-    if (p(x - 1, y - 1)) m |= 128;
-    m |= 16; // force S
-    if (m & 4) m |= 8; // E -> SE
-    if (m & 64) m |= 32; // W -> SW
-    blit(`sandPlateau_${canonical(m)}`, x, y);
-  }
-}
-
-// 4) south-edge cliff set — rim on the plateau cell, `cliffHeight` face rows
-// below, then a footer. Variant per cell exactly as drawScene :791-800.
 const VARIANT = ["outerW", "mid", "outerE", "innerW", "innerE"] as const;
-for (let y = 0; y < MH; y++) {
-  for (let x = 0; x < MW; x++) {
-    if (!p(x, y) || p(x, y + 1)) continue; // only cells with open ground to the south
-    const wOpen = !p(x - 1, y);
-    const eOpen = !p(x + 1, y);
-    const wIn = p(x - 1, y) && p(x - 1, y + 1);
-    const eIn = p(x + 1, y) && p(x + 1, y + 1);
-    const v = wOpen ? 0 : eOpen ? 2 : wIn ? 3 : eIn ? 4 : 1;
-    const variant = VARIANT[v];
-    blit(`cliffRock_${variant}_rim`, x, y);
-    for (let k = 1; k <= H; k++) if (y + k < MH) blit(`cliffRock_${variant}_face`, x, y + k);
-    if (y + H + 1 < MH) blit(`cliffRock_${variant}_footer`, x, y + H + 1);
+
+/** Assemble the demo scene from one variant's generated tile set. */
+function buildScene(params: typeof base): PixelGrid {
+  const tiles = new Map<string, PixelGrid>();
+  for (const { name, grid } of generateTerrain(params)) tiles.set(name, grid);
+  const tile = (name: string): PixelGrid => {
+    const t = tiles.get(name);
+    if (!t) throw new Error(`missing tile: ${name}`);
+    return t;
+  };
+  const H = params.cliffHeight;
+  const scene = new PixelGrid(MW * T, MH * T);
+  const blit = (name: string, x: number, y: number): void => scene.blit(tile(name), x * T, y * T);
+
+  // 1) ground field everywhere.
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) blit("sandFill", x, y);
+
+  // 2) sand-over-sand ledge (subtle low elevation) — 8-neighbor blob mask.
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      if (!g(x, y)) continue;
+      let m = 0;
+      if (g(x, y - 1)) m |= 1;
+      if (g(x + 1, y - 1)) m |= 2;
+      if (g(x + 1, y)) m |= 4;
+      if (g(x + 1, y + 1)) m |= 8;
+      if (g(x, y + 1)) m |= 16;
+      if (g(x - 1, y + 1)) m |= 32;
+      if (g(x - 1, y)) m |= 64;
+      if (g(x - 1, y - 1)) m |= 128;
+      blit(`sandSand_${canonical(m)}`, x, y);
+    }
   }
+
+  // 3) plateau top surface — south side forced "matching" (cliff rim owns it).
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      if (!p(x, y)) continue;
+      let m = 0;
+      if (p(x, y - 1)) m |= 1;
+      if (p(x + 1, y - 1)) m |= 2;
+      if (p(x + 1, y)) m |= 4;
+      if (p(x - 1, y)) m |= 64;
+      if (p(x - 1, y - 1)) m |= 128;
+      m |= 16;
+      if (m & 4) m |= 8;
+      if (m & 64) m |= 32;
+      blit(`sandPlateau_${canonical(m)}`, x, y);
+    }
+  }
+
+  // 4) south-edge cliff set — rim / face x cliffHeight / footer, per variant.
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      if (!p(x, y) || p(x, y + 1)) continue;
+      const wOpen = !p(x - 1, y);
+      const eOpen = !p(x + 1, y);
+      const wIn = p(x - 1, y) && p(x - 1, y + 1);
+      const eIn = p(x + 1, y) && p(x + 1, y + 1);
+      const v = wOpen ? 0 : eOpen ? 2 : wIn ? 3 : eIn ? 4 : 1;
+      const variant = VARIANT[v];
+      blit(`cliffRock_${variant}_rim`, x, y);
+      for (let k = 1; k <= H; k++) if (y + k < MH) blit(`cliffRock_${variant}_face`, x, y + k);
+      if (y + H + 1 < MH) blit(`cliffRock_${variant}_footer`, x, y + H + 1);
+    }
+  }
+  return scene;
 }
 
 // ---- write outputs -------------------------------------------------------
@@ -160,13 +160,12 @@ const sheet = upscale(buildAssets().cliff, SHEET_SCALE);
 const sheetBuf = encodePng(sheet);
 const sheetPath = join(outDir, "cliff-sheet.png");
 writeFileSync(sheetPath, sheetBuf);
+console.log(`cliff-sheet.png -> ${sheetPath} (${sheet.width}x${sheet.height})`);
 
-const sceneUp = upscale(scene, SCENE_SCALE);
-const sceneBuf = encodePng(sceneUp);
-const scenePath = join(outDir, "cliff-scene.png");
-writeFileSync(scenePath, sceneBuf);
-
-console.log(`cliff-sheet.png -> ${sheetPath}`);
-console.log(`  ${sheet.width}x${sheet.height} px (source ${sheet.width / SHEET_SCALE}x${sheet.height / SHEET_SCALE}, x${SHEET_SCALE}), ${sheetBuf.length} bytes`);
-console.log(`cliff-scene.png -> ${scenePath}`);
-console.log(`  ${sceneUp.width}x${sceneUp.height} px (source ${MW * T}x${MH * T}, x${SCENE_SCALE}), ${sceneBuf.length} bytes`);
+for (const { label, params } of VARIANTS) {
+  const sceneUp = upscale(buildScene(params), SCENE_SCALE);
+  const buf = encodePng(sceneUp);
+  const path = join(outDir, `cliff-scene-${label}.png`);
+  writeFileSync(path, buf);
+  console.log(`cliff-scene-${label}.png -> ${path} (${sceneUp.width}x${sceneUp.height})`);
+}

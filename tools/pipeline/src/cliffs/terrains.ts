@@ -46,9 +46,13 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
       let idx: number;
 
       if (key === "sand" || key === "frostSand") {
-        // Prototype: v=v*0.7+0.3*sine wobble; col=P[v<0.42?1:v<0.62?0:v<0.85?2:4]
-        v = v * 0.7 + 0.3 * (0.5 + 0.5 * Math.sin((y / T) * Math.PI * 4 + v * 3));
-        idx = v < 0.42 ? 3 : v < 0.62 ? 2 : v < 0.85 ? 1 : 0;
+        // Calmer than the prototype: mostly the base step with sparse darker
+        // specks + occasional light sparkle, so the ground reads near-uniform,
+        // not busy. Thresholds sit INSIDE fbm's actual range (~0.26–0.74) and
+        // the sine wobble is weak (fbm/seed dominates) so tiles still vary by
+        // seed while staying calm.
+        v = v * 0.92 + 0.08 * (0.5 + 0.5 * Math.sin((y / T) * Math.PI * 4 + v * 3));
+        idx = v < 0.33 ? 2 : v < 0.7 ? 1 : 0;
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]

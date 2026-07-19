@@ -46,7 +46,15 @@ export const PALETTE = {
   // existing entries must never be reordered (the manifest embeds this
   // object verbatim and sprite code indexes by name).
   umber: "#6e4036", // dark warm brown: wall feet, wood shade, dune shadow lines, canopy crevices on warm plants
-  sandShade: "#c69b7c" // cooler sand one step down: large cast-shadow areas on sand/camp floors where amber reads too orange
+  sandShade: "#c69b7c", // cooler sand one step down: large cast-shadow areas on sand/camp floors where amber reads too orange
+
+  // Cool desert-stone ramp (docs/superpowers/specs/2026-07-18-desert-cliff-tileset)
+  // — dark blue-grey sedimentary cliff face under a warm sand cap; the warm
+  // ramp read too orange/busy for a rock wall. Appended only, never reordered.
+  stoneLit: "#a8b4c0", // lit block-top streak (the light course lines on the face)
+  stone: "#6b7889", // mid blue-grey stone
+  stoneDark: "#414d5e", // dark navy face plane
+  stoneDeep: "#2a3240" // deep navy — gaps/left planes/deepest shadow
 } as const;
 
 export type PaletteName = keyof typeof PALETTE;

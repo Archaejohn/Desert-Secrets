@@ -44,6 +44,11 @@ export const contourOf: Record<PaletteName, PaletteName> = {
   skyBlue: "indigo",
   slate: "indigo",
   indigo: "ink",
+  // cool stone ramp — contour in the deep navy of the same ramp
+  stoneLit: "stoneDeep",
+  stone: "stoneDeep",
+  stoneDark: "stoneDeep",
+  stoneDeep: "ink",
   // UI accents (rare on sprites, but the LUT must be total)
   hpRed: "umber",
   atbGold: "umber",
@@ -75,6 +80,11 @@ export const highlightOf: Record<PaletteName, PaletteName> = {
   skyBlue: "bone",
   slate: "skyBlue",
   indigo: "slate",
+  // cool stone ramp — one step brighter up its own ramp
+  stoneLit: "stoneLit",
+  stone: "stoneLit",
+  stoneDark: "stone",
+  stoneDeep: "stoneDark",
   hpRed: "clay",
   atbGold: "sand",
   plum: "mauve",

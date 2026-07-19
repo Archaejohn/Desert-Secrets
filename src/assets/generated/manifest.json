@@ -20,7 +20,11 @@
     "atbGold": "#f0c439",
     "white": "#ffffff",
     "umber": "#6e4036",
-    "sandShade": "#c69b7c"
+    "sandShade": "#c69b7c",
+    "stoneLit": "#a8b4c0",
+    "stone": "#6b7889",
+    "stoneDark": "#414d5e",
+    "stoneDeep": "#2a3240"
   },
   "sheets": {
     "hero": {
