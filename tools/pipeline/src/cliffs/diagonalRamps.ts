@@ -119,6 +119,16 @@ function bandCell(material: DiagonalMaterial, angle: AngleSpec, rock: PixelGrid,
   return material === "sandSlope" ? sandCell(angle, rock, gx, gy) : stoneCell(angle, rock, gx, gy);
 }
 
+/** Bound a reusable `se` band sampler (for cap-design scratches + reviews). */
+export function _sampler(
+  material: DiagonalMaterial,
+  angle: AngleSpec,
+  seed: number
+): (gx: number, gy: number) => Cell {
+  const rock = makeRock(seed);
+  return (gx, gy) => bandCell(material, angle, rock, gx, gy);
+}
+
 /** Cut a 16×16 tile out of a global sampler at (gx0, gy0). */
 function sliceTile(sample: (gx: number, gy: number) => Cell, gx0: number, gy0: number): PixelGrid {
   const g = new PixelGrid(T, T);
@@ -137,17 +147,21 @@ export function diagonalRunTiles(
   angleKey: "2651" | "45" | "6343",
   p: DiagonalRampParams
 ): { piece: string; grid: PixelGrid }[] {
-  if (angleKey !== "2651") {
-    throw new Error("diagonalRunTiles: only 26.57° period sliced so far");
-  }
   const angle = ANGLES[angleKey];
   const rock = makeRock(p.seed);
   const sample = (gx: number, gy: number) => bandCell(material, angle, rock, gx, gy);
-  // 26.57° period = 2 tiles wide (runA, runB), placed on the (32,-16) lattice.
-  return [
-    { piece: "runA", grid: sliceTile(sample, 0, 0) },
-    { piece: "runB", grid: sliceTile(sample, T, 0) },
-  ];
+  if (angleKey === "45") {
+    // 45° period = 1 tile, placed on the (16,-16) lattice.
+    return [{ piece: "run", grid: sliceTile(sample, 0, 0) }];
+  }
+  if (angleKey === "2651") {
+    // 26.57° period = 2 tiles wide (runA, runB), placed on the (32,-16) lattice.
+    return [
+      { piece: "runA", grid: sliceTile(sample, 0, 0) },
+      { piece: "runB", grid: sliceTile(sample, T, 0) },
+    ];
+  }
+  throw new Error("diagonalRunTiles: 63.43° period slice still WIP");
 }
 
 /** Exposed for the visual-review scratch: paint the continuous `se` band and
