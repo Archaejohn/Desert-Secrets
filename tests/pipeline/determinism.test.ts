@@ -397,3 +397,22 @@ describe("owMountains blob-autotile byte-stability", () => {
     }
   });
 });
+
+describe("cliff tileset byte-stability", () => {
+  // sha256 of the desert cliff+floor+cap sheet — the palette-locked port of
+  // the cliff/floor/cap + 47-blob prototype (docs/prototypes/cliff-suite-v6.html,
+  // docs/superpowers/specs/2026-07-18-desert-cliff-tileset-design.md). Cool-navy
+  // "boulder" stone face under a warm sand cap; 206 named tiles + 2 blank pad
+  // (8 columns x 26 rows). Visual look approved before pinning.
+  const FROZEN = {
+    cliff: "62df5684322ac7474426c94496d9c741b191b560a7aaebfd142a222f236aa0f4"
+  } as const;
+
+  it("cliff.png encodes to its committed bytes", () => {
+    const assets = buildAssets();
+    for (const key of Object.keys(FROZEN) as Array<keyof typeof FROZEN>) {
+      const hash = createHash("sha256").update(encodePng(assets[key])).digest("hex");
+      expect(hash, `${key}.png changed`).toBe(FROZEN[key]);
+    }
+  });
+});

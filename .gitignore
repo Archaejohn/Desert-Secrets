@@ -7,3 +7,6 @@ playwright-report/
 
 # Claude Code agent worktrees (transient, per-agent isolated checkouts)
 .claude/worktrees/
+
+# Visual-review render output (Task 9) — regenerated on demand, not committed
+tools/pipeline/.review/

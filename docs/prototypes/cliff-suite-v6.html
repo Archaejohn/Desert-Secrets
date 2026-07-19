@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cliff + Floor + Entrance Suite v3</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#161616;color:#e5e7eb;font-family:monospace;}
+  canvas{image-rendering:pixelated;}
+  .surface{background:#242424;border:1px solid #4b5563;}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;background:#4b5563;width:100%;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;}
+  select{background:#2a2a2a;border:1px solid #4b5563;color:#e5e7eb;padding:6px;border-radius:4px;width:100%;font-family:monospace;font-size:12px;}
+  .val{color:#60a5fa;font-weight:bold;}
+  label.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:#9ca3af;}
+  .modeBtn{border:1px solid #555;background:#2a2a2a;}
+  .modeBtn.active{background:#2563eb;border-color:#60a5fa;}
+  .hide{display:none;}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;font-weight:bold;}
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-6xl mx-auto flex flex-col gap-6">
+
+  <h1 class="text-2xl font-bold">Cliff + Floor + Entrance Suite <span class="text-sm text-gray-500">v3</span></h1>
+
+  <div class="flex gap-2">
+    <button data-mode="rock" class="modeBtn active px-4 py-2 text-xs font-bold rounded">🪨 Stacked Stone</button>
+    <button data-mode="logs" class="modeBtn px-4 py-2 text-xs font-bold rounded">🪵 Logs</button>
+    <button data-mode="palisade" class="modeBtn px-4 py-2 text-xs font-bold rounded">🏯 Palisade</button>
+  </div>
+
+  <div class="surface p-4 rounded-lg flex flex-col gap-3">
+    <h2>Terrains</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+      <div><label class="block text-xs mb-1 text-gray-400">Plateau floor (top)</label><select id="topSel"></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Ground floor (below)</label><select id="gndSel"></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cap band material</label>
+        <select id="capMat">
+          <option value="plateau">Plateau floor (rolls over)</option>
+          <option value="wall">Wall top surface</option>
+          <option value="blend">Blend of both</option>
+        </select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cap roll-off · <span id="crov" class="val"></span>%</label>
+        <input type="range" id="caproll" min="0" max="80" step="5" value="45"></div>
+    </div>
+  </div>
+
+  <div class="surface p-4 rounded-lg flex flex-col gap-3">
+    <h2>Wall structure — order ↔ randomness</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+      <div><label class="block text-xs mb-1 text-gray-400">Order ↔ Random · <span id="wrv" class="val"></span>%</label>
+        <input type="range" id="wrand" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Courses / rows · <span id="wcv" class="val"></span></label>
+        <input type="range" id="courses" min="2" max="4" step="1" value="3"></div>
+      <div data-for="rock"><label class="block text-xs mb-1 text-gray-400">Block size · <span id="bsv" class="val"></span></label>
+        <input type="range" id="bsize" min="2" max="6" step="1" value="4"></div>
+      <div data-for="rock"><label class="block text-xs mb-1 text-gray-400">Blocks per course · <span id="bpv" class="val"></span></label>
+        <input type="range" id="bpc" min="2" max="5" step="1" value="4"></div>
+      <div data-for="logs"><label class="block text-xs mb-1 text-gray-400">Log seam period · <span id="lpv" class="val"></span>px</label>
+        <input type="range" id="lper" min="0" max="2" step="1" value="1"></div>
+      <div data-for="palisade"><label class="block text-xs mb-1 text-gray-400">Avg post width · <span id="pwv" class="val"></span>px</label>
+        <input type="range" id="postW" min="2" max="6" step="1" value="4"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Course stagger · <span id="stv" class="val"></span>%</label>
+        <input type="range" id="stagger" min="0" max="100" step="5" value="50"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Tone variation · <span id="tvv" class="val"></span>%</label>
+        <input type="range" id="tone" min="0" max="60" step="5" value="20"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Mortar depth · <span id="mdv" class="val"></span>%</label>
+        <input type="range" id="mortar" min="0" max="100" step="5" value="35"></div>
+    </div>
+  </div>
+
+  <div class="surface p-4 rounded-lg flex flex-col gap-3">
+    <h2>Cliff assembly</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+      <div><label class="block text-xs mb-1 text-gray-400">Cap band · <span id="cbv" class="val"></span>px</label>
+        <input type="range" id="cap" min="2" max="8" step="1" value="4"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Footer height · <span id="fhv" class="val"></span>px</label>
+        <input type="range" id="foot" min="3" max="10" step="1" value="6"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cliff height · <span id="chv" class="val"></span> tiles</label>
+        <input type="range" id="cliffH" min="1" max="5" step="1" value="2"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Base rounding · <span id="brv" class="val"></span>px</label>
+        <input type="range" id="bround" min="0" max="6" step="1" value="3"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Top corner rounding · <span id="trv" class="val"></span>px</label>
+        <input type="range" id="tround" min="0" max="6" step="1" value="3"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Outer corner shading · <span id="csv" class="val"></span>%</label>
+        <input type="range" id="cshade" min="0" max="80" step="5" value="40"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Inner corner depth · <span id="icv" class="val"></span>%</label>
+        <input type="range" id="ishade" min="0" max="90" step="5" value="60"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cast shadow · <span id="ssv" class="val"></span>%</label>
+        <input type="range" id="shadow" min="0" max="90" step="5" value="50"></div>
+      <div class="flex flex-col justify-end gap-1">
+        <label class="chk"><input type="checkbox" id="scree" checked class="accent-blue-500"> Scree at base</label>
+        <label class="chk"><input type="checkbox" id="lip" checked class="accent-blue-500"> Lit rim lip</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ENTRANCES ============ -->
+  <div class="surface p-4 rounded-lg flex flex-col gap-3">
+    <h2>Entrances — doors · mine adits · cave mouths</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+      <div><label class="block text-xs mb-1 text-gray-400">Size · <span id="esv" class="val"></span></label>
+        <select id="esize">
+          <option value="1,1">1 × 1 tile</option>
+          <option value="1,2">1 wide × 2 tall</option>
+          <option value="2,2" selected>2 × 2 tiles</option>
+          <option value="2,3">2 wide × 3 tall</option>
+          <option value="3,2">3 wide × 2 tall</option>
+        </select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Opening width · <span id="owv" class="val"></span>%</label>
+        <input type="range" id="openW" min="25" max="80" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Opening height · <span id="ohv" class="val"></span>%</label>
+        <input type="range" id="openH" min="35" max="95" step="5" value="72"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Arch · <span id="arv" class="val"></span>%</label>
+        <input type="range" id="arch" min="0" max="100" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Obliqueness · <span id="obv" class="val"></span>%</label>
+        <input type="range" id="obl" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Tunnel depth · <span id="tdv" class="val"></span></label>
+        <input type="range" id="tdepth" min="1" max="10" step="1" value="5"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cave jaggedness · <span id="jgv" class="val"></span></label>
+        <input type="range" id="jag" min="0" max="5" step="1" value="2"></div>
+      <div class="flex flex-col justify-end gap-1">
+        <label class="chk"><input type="checkbox" id="doorOpen" class="accent-blue-500"> Door open</label>
+        <label class="chk"><input type="checkbox" id="rails" checked class="accent-blue-500"> Mine rails</label>
+        <label class="chk"><input type="checkbox" id="rubble" checked class="accent-blue-500"> Rubble at mouth</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-orange-400">Entrance sheet — rows: door · mine · cave &nbsp;|&nbsp; columns: straight · left-facing · right-facing</h2>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="entPrev" class="block"></canvas></div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-orange-300">Entrance in place</h2>
+    <div class="flex flex-wrap gap-3 items-end">
+      <div class="w-40"><label class="block text-xs mb-1 text-gray-400">Preview</label>
+        <select id="entPick">
+          <option value="mine,straight" selected>Mine · straight</option>
+          <option value="mine,left">Mine · left-facing</option>
+          <option value="mine,right">Mine · right-facing</option>
+          <option value="cave,straight">Cave · straight</option>
+          <option value="cave,left">Cave · left-facing</option>
+          <option value="cave,right">Cave · right-facing</option>
+          <option value="door,straight">Door · straight</option>
+          <option value="door,left">Door · left-facing</option>
+          <option value="door,right">Door · right-facing</option>
+        </select></div>
+    </div>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="entScene" class="block"></canvas></div>
+  </div>
+
+  <div class="surface p-4 rounded-lg flex flex-col gap-3">
+    <h2>Floor-to-floor transition (47-tile blob)</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+      <div><label class="block text-xs mb-1 text-gray-400">Edge inset · <span id="eiv" class="val"></span>px</label>
+        <input type="range" id="inset" min="0" max="5" step="1" value="2"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Edge irregularity · <span id="erv" class="val"></span></label>
+        <input type="range" id="irreg" min="0" max="30" step="1" value="14"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Corner rounding · <span id="crv" class="val"></span></label>
+        <input type="range" id="fround" min="0" max="5" step="1" value="2"></div>
+      <div class="flex flex-col justify-end gap-1">
+        <label class="chk"><input type="checkbox" id="foutline" checked class="accent-blue-500"> Edge outline</label>
+        <label class="chk"><input type="checkbox" id="fshadow" checked class="accent-blue-500"> Drop shadow</label>
+        <label class="chk"><input type="checkbox" id="linkCorners" checked class="accent-blue-500"> Plateau corners match cliff</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-blue-400">Cliff set — 5 × 3</h2>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="cliffPrev" class="block"></canvas></div>
+    <p class="text-[10px] text-gray-500">Columns: outer-W · middle · outer-E · inner-W · inner-E &nbsp;|&nbsp; Rows: rim · face (repeats) · footer</p>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-purple-400">Floor blob set — plateau over ground</h2>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="blobPrev" class="block"></canvas></div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-pink-400">Plateau edge set — N/E/W outline, corners matched to the cliff</h2>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="platPrev" class="block"></canvas></div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <h2 class="text-green-400">Assembled scene</h2>
+    <div class="surface rounded-lg p-3 overflow-x-auto"><canvas id="scene" class="block"></canvas></div>
+    <div class="flex gap-2 items-center">
+      <button id="reshape" class="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-xs font-bold rounded">↻ New plateau shape</button>
+      <label class="chk"><input type="checkbox" id="seams" class="accent-blue-500"> Show 16px tile grid</label>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-3">
+    <button id="dlCliff" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold rounded">⬇ Cliff sheet</button>
+    <button id="dlEnt"   class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-xs font-bold rounded">⬇ Entrance sheet</button>
+    <button id="dlBlob"  class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-xs font-bold rounded">⬇ Floor blob sheet</button>
+    <button id="dlPlat"  class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-xs font-bold rounded">⬇ Plateau edge sheet</button>
+    <button id="dlFills" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-xs font-bold rounded">⬇ Floor fills</button>
+    <button id="reseed"  class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-xs font-bold rounded">↻ Reseed</button>
+  </div>
+</div>
+
+<canvas id="cliffSheet" class="hidden"></canvas>
+<canvas id="blobSheet" class="hidden"></canvas>
+<canvas id="plateauSheet" class="hidden"></canvas>
+<canvas id="entSheet" class="hidden"></canvas>
+
+<script>
+const T=16, CCOLS=5, CROWS=3;
+let mode='rock', seed=1337, shapeSeed=7;
+const $=id=>document.getElementById(id);
+
+/* ================= helpers ================= */
+function h2(i,j,s){ let n=(i*374761393+j*668265263+s*2246822519)>>>0;
+  n=(n^(n>>>13))>>>0; n=Math.imul(n,1274126177)>>>0; return ((n^(n>>>16))>>>0)/4294967296; }
+const sm=t=>t*t*(3-2*t), mix=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function noise(x,y,cells,s){
+  const fx=x*cells/T, fy=y*cells/T, x0=Math.floor(fx), y0=Math.floor(fy);
+  const tx=sm(fx-x0), ty=sm(fy-y0), w=n=>((n%cells)+cells)%cells;
+  const v=(i,j)=>h2(w(i),w(j),s);
+  return mix(mix(v(x0,y0),v(x0+1,y0),tx), mix(v(x0,y0+1),v(x0+1,y0+1),tx), ty);
+}
+const fbm=(x,y,s)=>noise(x,y,2,s)*0.55+noise(x,y,4,s+1)*0.30+noise(x,y,8,s+2)*0.15;
+function n1(x,s){ const c=4, fx=x*c/T, x0=Math.floor(fx), tx=sm(fx-x0), w=n=>((n%c)+c)%c;
+  return mix(h2(w(x0),0,s), h2(w(x0+1),0,s), tx); }
+// smooth non-tiling 1D noise for organic cave rims
+function w1(t,s){ const i=Math.floor(t), f=sm(t-i); return mix(h2(i,0,s), h2(i+1,0,s), f); }
+const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const rgbs=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+const scale=(c,k)=>c.map(v=>clamp(Math.round(v*k),0,255));
+const mixc=(a,b,t)=>[mix(a[0],b[0],t),mix(a[1],b[1],t),mix(a[2],b[2],t)].map(Math.round);
+function partition(total,n,chaos,s){
+  const even=total/n, w=[]; let sum=0;
+  for(let i=0;i<n;i++){ const j=1+(h2(i,n,s)-0.5)*2*chaos*0.7; const v=Math.max(1,Math.round(even*j)); w.push(v); sum+=v; }
+  let d=total-sum, i=0;
+  while(d!==0){ const k=i%n; if(d>0){w[k]++;d--;} else if(w[k]>1){w[k]--;d++;} i++; if(i>500)break; }
+  return w;
+}
+
+/* ================= floor terrains ================= */
+const TERRAINS={
+  grass:{name:'Grass',cols:['#4a7c3f','#3f6b36','#5c8f4a','#345c2c','#6ba055']},
+  dirt:{name:'Dirt',cols:['#7a5a3a','#6b4c30','#8a6a45','#57402a','#9a7c55']},
+  sand:{name:'Sand',cols:['#d6c08a','#c8b07a','#e2d09c','#b89c66','#efe0b4']},
+  stone:{name:'Flagstone',cols:['#7d7d85','#6b6b73','#8e8e96','#55555c','#a0a0a8']},
+  gravel:{name:'Gravel',cols:['#6e6a63','#5c5952','#807b72','#4a4741','#928d83']},
+  water:{name:'Water',cols:['#2f5f8a','#26506f','#3b7aa8','#1d3f59','#5aa0c4']},
+  snow:{name:'Snow',cols:['#dfe6ec','#cbd6df','#f2f6f9','#b3c1cc','#ffffff']}
+};
+function floorTile(key){
+  const c=document.createElement('canvas'); c.width=T;c.height=T;
+  const ctx=c.getContext('2d'), img=ctx.createImageData(T,T), P=TERRAINS[key].cols.map(hex);
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){
+    let v=fbm(x,y,seed+key.length*13), col;
+    if(key==='stone'){
+      const row=Math.floor(y/8), sx=(x+row*4)%T;
+      if(sx%8===0||y%8===0) col=P[3];
+      else{ const r=h2(Math.floor(sx/8),row,seed); col=P[r<0.33?1:r<0.7?0:2]; if(sx%8===1||y%8===1) col=P[4]; }
+    } else if(key==='sand'){
+      v=v*0.7+0.3*(0.5+0.5*Math.sin((y/T)*Math.PI*4+v*3)); col=P[v<0.42?1:v<0.62?0:v<0.85?2:4];
+    } else if(key==='water'){
+      const w=v*0.6+0.4*(0.5+0.5*Math.sin((x/T)*Math.PI*2+(y/T)*Math.PI*4));
+      col=P[w<0.4?1:w<0.62?0:w<0.85?2:4];
+    } else if(key==='gravel'){
+      const p=noise(x,y,8,seed+5); col=P[p<0.3?3:p<0.5?1:p<0.72?0:2]; if(p>0.86)col=P[4];
+    } else {
+      col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if(h2(x,y,seed+77)>0.93) col=P[4];
+    }
+    const i=(y*T+x)*4; img.data[i]=col[0];img.data[i+1]=col[1];img.data[i+2]=col[2];img.data[i+3]=255;
+  }
+  ctx.putImageData(img,0,0); return {canvas:c,data:img};
+}
+
+/* ================= wall face ================= */
+const ROCK={top:'#9ca3af',right:'#4b5563',left:'#374151',gap:'#31363d'};
+const WOOD={shadow:'#2e2016',dark:'#4a3524',mid:'#6b4c30',light:'#8a6440',high:'#a8805a',gap:'#241a12'};
+const TIMBER={shadow:'#241a12',dark:'#42301f',mid:'#63472c',light:'#7d5b39',high:'#9a7248'};
+const wallTop=()=> mode==='rock' ? hex(ROCK.top) : hex(WOOD.high);
+
+function faceTile(){
+  const chaos=+$('wrand').value/100, C=+$('courses').value;
+  const stag=+$('stagger').value/100, tone=+$('tone').value/100, mortar=+$('mortar').value/100;
+  const c=document.createElement('canvas'); c.width=T;c.height=T;
+  const ctx=c.getContext('2d',{alpha:false}); ctx.imageSmoothingEnabled=false;
+  const gapBase=hex(mode==='rock'?ROCK.gap:WOOD.gap);
+  ctx.fillStyle=rgbs(scale(gapBase, 1-mortar*0.5)); ctx.fillRect(0,0,T,T);
+  const px=(x,y,w,h,col)=>{ctx.fillStyle=(typeof col==='string')?col:rgbs(col);
+    ctx.fillRect(Math.round(x),Math.round(y),Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));};
+  const jitter=(i,j,amt)=>Math.round((h2(i,j,seed)-0.5)*2*amt*chaos);
+  const toneK=(i,j)=>1+(h2(i,j,seed+400)-0.5)*2*tone;
+
+  if(mode==='rock'){
+    const bsize=+$('bsize').value, per=+$('bpc').value, rowH=T/C;
+    const poly=(pts,col)=>{const s=rgbs(col);ctx.fillStyle=s;ctx.strokeStyle=s;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
+      ctx.closePath();ctx.fill();ctx.stroke();};
+    const cube=(x,y,sz,h,k)=>{
+      const cx=Math.round(x),cy=Math.round(y),p=2;
+      poly([[cx,cy-h],[cx+sz,cy-h+p],[cx,cy-h+p*2],[cx-sz,cy-h+p]], scale(hex(ROCK.top),k));
+      poly([[cx,cy-h+p*2],[cx+sz,cy-h+p],[cx+sz,cy+sz],[cx,cy+sz+p]], scale(hex(ROCK.right),k));
+      poly([[cx,cy-h+p*2],[cx-sz,cy-h+p],[cx-sz,cy+sz],[cx,cy+sz+p]], scale(hex(ROCK.left),k));
+    };
+    for(let r=0;r<C;r++){
+      const widths=partition(T, per, chaos, seed+r*31);
+      const off=(r%2)*(T/per/2)*stag; let x=0;
+      widths.forEach((w,i)=>{
+        const cx=x+w/2+off+jitter(r*17+i,1,1.2);
+        const cy=r*rowH+rowH/2+jitter(r*17+i,2,1.0);
+        const sz=Math.max(1,bsize+jitter(r*17+i,3,1.3));
+        const hh=Math.max(1,bsize+jitter(r*17+i,4,1.8));
+        for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
+          cube(cx+dx*T, cy+dy*T, sz, hh, toneK(r*17+i,5));
+        x+=w;
+      });
+    }
+  } else if(mode==='logs'){
+    const heights=partition(T, C, chaos*0.6, seed+11), L=[16,8,4][+$('lper').value];
+    let y=0;
+    heights.forEach((hh,r)=>{
+      const k=toneK(r,9);
+      for(let x=0;x<T;x++){
+        px(x,y,1,hh,scale(hex(WOOD.mid),k));
+        px(x,y,1,Math.max(1,hh-3),scale(hex(WOOD.light),k));
+        px(x,y,1,1,scale(hex(WOOD.high),k));
+        px(x,y+hh-1,1,1,WOOD.shadow);
+        if(hh>=4) px(x,y+hh-2,1,1,scale(hex(WOOD.dark),k));
+      }
+      const off=((Math.round((r*L/2)*stag + jitter(r,6,L/3))%L)+L)%L;
+      for(let x=off;x<T;x+=L){ px(x,y+1,1,hh-2,WOOD.shadow); px((x+1)%T,y+1,1,hh-2,scale(hex(WOOD.dark),k)); }
+      if(h2(r,1,seed)>0.4-chaos*0.3){ const kx=(off+3)%T; px(kx,y+2,2,1,scale(hex(WOOD.dark),k)); px(kx,y+2,1,1,WOOD.shadow); }
+      y+=hh;
+    });
+  } else {
+    const avg=+$('postW').value, n=Math.max(2,Math.round(T/avg));
+    const widths=partition(T, n, chaos, seed+21); let x=0;
+    widths.forEach((w,i)=>{
+      const k=toneK(i,13);
+      px(x,0,w,T,scale(hex(WOOD.mid),k));
+      const lit=Math.min(w-1,1+Math.round(h2(i,3,seed)*chaos*(w-2)));
+      px(x+lit,0,1,T,scale(hex(WOOD.high),k));
+      if(w>=4) px(x+lit+1,0,1,T,scale(hex(WOOD.light),k));
+      px(x+w-1,0,1,T,WOOD.shadow);
+      for(let g=0;g<3;g++){ const r=h2(i,g+40,seed);
+        if(r>0.55-chaos*0.25) px(x+1+Math.floor(r*Math.max(1,w-2)), Math.floor(r*T), 1, 2+Math.floor(r*3), scale(hex(WOOD.dark),k)); }
+      x+=w;
+    });
+    for(const ry of [3,11]) for(let X=0;X<T;X++){
+      px(X,ry,1,1,(X%3===0)?'#6b5b3a':'#8a7448'); px(X,ry+1,1,1,'#4a3f28'); }
+  }
+  return ctx.getImageData(0,0,T,T);
+}
+
+/* ================= cliff tiles ================= */
+function buildCliffTile(ctx,ox,oy,variant,band,A){
+  const img=ctx.createImageData(T,T);
+  const get=(src,x,y)=>[src.data[(y*T+x)*4],src.data[(y*T+x)*4+1],src.data[(y*T+x)*4+2]];
+  const put=(x,y,c)=>{const i=(y*T+x)*4;img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=255;};
+  const {cap,foot,cshade,ishade,shadow,scree,lip,bround,tround,capMat,caproll}=A;
+  const cs=cshade/100, is=ishade/100, ss=shadow/100, roll=caproll/100;
+  const wt=wallTop(), capStart=T-cap-4;
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){
+    let c, region;
+    if(band===0){
+      // the rim line curves through the turn, same radius as the base.
+      // convex (outer) corners cut back — the point is shaved off.
+      // concave (inner) corners fillet forward — the plateau wraps into the notch.
+      let capS=capStart;
+      if(tround>0){
+        const R=tround;
+        let dx=99, sign=0;
+        if(variant===0){ dx=x;     sign=-1; }
+        else if(variant===2){ dx=T-1-x; sign=-1; }
+        else if(variant===3){ dx=x;     sign= 1; }
+        else if(variant===4){ dx=T-1-x; sign= 1; }
+        if(dx<R){
+          const lift=R-Math.sqrt(Math.max(0,R*R-(R-dx)*(R-dx)));
+          capS=capStart+sign*lift;
+        }
+      }
+      capS=clamp(Math.round(capS),0,T-cap-1);
+      if(y<capS){ c=get(A.top,x,y); region='plateau'; }
+      else if(y<capS+cap){
+        const d=(y-capS)/cap, plate=get(A.top,x,y);
+        let base = capMat==='wall' ? wt : capMat==='blend' ? mixc(plate,wt,0.5) : plate;
+        c=scale(base, 1-d*roll);
+        if(lip && y===capS) c=scale(base,1.22);
+        region='cap';
+      } else { c=get(A.face,x,y); region='face'; }
+    } else if(band===1){ c=get(A.face,x,y); region='face'; }
+    else {
+      let lift=0;
+      if(bround>0){ const R=bround, dx=variant===0?x:variant===2?T-1-x:99;
+        if(dx<R) lift=R-Math.sqrt(Math.max(0,R*R-(R-dx)*(R-dx))); }
+      const faceEnd=T-foot-lift;
+      if(y<faceEnd-1){ c=get(A.face,x,y); region='face'; }
+      else if(y<faceEnd){ c=scale(get(A.face,x,y),0.45); region='contact'; }
+      else { c=get(A.gnd,x,y); const d=(y-faceEnd)/foot;
+        c=scale(c,1-ss*Math.max(0,1-d)*Math.max(0,1-d));
+        if(scree&&d<0.6&&h2(x,y,seed+31)>0.80) c=scale(wt,0.7);
+        region='ground'; }
+    }
+    if(region==='face'){
+      if(variant===0){ if(x<3) c=scale(c,1-cs*(1-x/3)*0.9); else if(x===3) c=scale(c,1-cs*0.35); }
+      else if(variant===2){ if(x>T-4) c=scale(c,1+cs*0.5*((x-(T-4))/3)); else if(x===T-4) c=scale(c,1-cs*0.3); }
+      else if(variant===3){ if(x<6) c=scale(c,1-is*1.15*(1-x/6)); }
+      else if(variant===4){ const dx=T-1-x; if(dx<6) c=scale(c,1-is*1.15*(1-dx/6)); }
+    }
+    put(x,y,c);
+  }
+  ctx.putImageData(img,ox,oy);
+}
+
+/* ================= ENTRANCES ================= */
+function entranceParams(){
+  const [ew,eh]=$('esize').value.split(',').map(Number);
+  return { ew, eh,
+    openW:+$('openW').value/100, openH:+$('openH').value/100,
+    arch:+$('arch').value/100, obl:+$('obl').value/100,
+    depth:+$('tdepth').value, jag:+$('jag').value,
+    doorOpen:$('doorOpen').checked, rails:$('rails').checked, rubble:$('rubble').checked,
+    cshade:+$('cshade').value/100 };
+}
+
+function drawEntrance(type, facing, P){
+  const W=P.ew*T, H=P.eh*T;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d',{alpha:false}); ctx.imageSmoothingEnabled=false;
+  // base: the wall face, tiled
+  for(let ty=0;ty<P.eh;ty++) for(let tx=0;tx<P.ew;tx++) ctx.putImageData(A.face, tx*T, ty*T);
+  const img=ctx.getImageData(0,0,W,H);
+  const gp=(x,y)=>{const i=(y*W+x)*4;return [img.data[i],img.data[i+1],img.data[i+2]];};
+  const sp=(x,y,c)=>{ if(x<0||y<0||x>=W||y>=H) return;
+    const i=(y*W+x)*4; img.data[i]=c[0];img.data[i+1]=c[1];img.data[i+2]=c[2];img.data[i+3]=255; };
+
+  const dir = facing==='left' ? -1 : facing==='right' ? 1 : 0;
+  // oblique openings are narrower and shifted toward the face they turn onto
+  const narrow = dir ? (1 - P.obl*0.28) : 1;
+  const ow = W*P.openW*narrow;
+  const cx = W/2 + dir*W*0.10*P.obl;
+  const L0 = cx-ow/2, R0 = cx+ow/2;
+  const floorY = H-1;
+  const archTop = H*(1-P.openH);
+  const archR = (ow/2)*P.arch;
+  const skewMax = dir*P.obl*W*0.10;
+
+  // horizontal bounds of the aperture at row y (top edge slides sideways → oblique read)
+  function bounds(y){
+    const t = clamp(1-(y-archTop)/Math.max(1,(floorY-archTop)),0,1);
+    const sk = skewMax*t;
+    let L=L0+sk, R=R0+sk;
+    if(type==='cave'){ L += (w1(y*0.35+3,seed+91)-0.5)*2*P.jag; R += (w1(y*0.35+9,seed+92)-0.5)*2*P.jag; }
+    return [L,R];
+  }
+  function topAt(x,L,R){
+    const u = clamp(((x-L)/Math.max(1,(R-L)))*2-1,-1,1);
+    let top = archTop + archR*(1-Math.sqrt(Math.max(0,1-u*u)));
+    if(type==='cave') top += (w1(x*0.45+17,seed+93)-0.5)*2*P.jag*1.4;
+    if(type==='mine') top = archTop + archR*0.25*(1-Math.sqrt(Math.max(0,1-u*u)));  // near-flat header
+    return top;
+  }
+  // vanishing point pulled toward the facing direction
+  const vpx = dir===0 ? cx : cx + dir*ow*0.22;
+  const DARK = type==='cave' ? [8,9,12] : type==='mine' ? [12,9,7] : [16,12,9];
+
+  const inside=[];
+  for(let y=0;y<H;y++){ inside[y]=[];
+    const [L,R]=bounds(y);
+    for(let x=0;x<W;x++){
+      const t=topAt(x,L,R);
+      inside[y][x] = (x>=L && x<=R && y>=t && y<=floorY);
+    }
+  }
+  const isIn=(x,y)=> (x<0||y<0||x>=W||y>=H)?false:inside[y][x];
+
+  // ---- interior
+  for(let y=0;y<H;y++){
+    const [L,R]=bounds(y);
+    for(let x=0;x<W;x++){
+      if(!inside[y][x]) continue;
+      const t=topAt(x,L,R);
+      const dEdge=Math.min(x-L, R-x, y-t);
+      // depth grows away from the rim and toward the vanishing point
+      const lateral = 1 - 0.45*Math.abs(x-vpx)/Math.max(1,(R-L)/2);
+      const d = clamp((dEdge/P.depth)*lateral, 0, 1);
+      const rim = scale(gp(x,y), 0.45);
+      let c = mixc(rim, DARK, sm(d));
+      if(type==='door' && !P.doorOpen){
+        // plank leaf instead of a void
+        const pw=4, pi=Math.floor((x-L)/pw);
+        const k=1+(h2(pi,7,seed)-0.5)*0.22;
+        c=scale(hex(TIMBER.mid),k);
+        if(((x-L)%pw)===0) c=hex(TIMBER.shadow);
+        else if(((x-L)%pw)===1) c=scale(hex(TIMBER.light),k);
+        if(y-t<2) c=scale(c,0.55);                       // recess shadow under the lintel
+        const bandY=[Math.round(t+(floorY-t)*0.25), Math.round(t+(floorY-t)*0.75)];
+        if(bandY.includes(y)) c=hex('#3a3a42');          // iron bands
+        const hingeSide = dir<0 ? R-2 : L+2;
+        if(bandY.includes(y) && Math.abs(x-hingeSide)<3) c=hex('#23232a');
+        const knobX = dir<0 ? L+3 : R-3;
+        if(Math.abs(x-knobX)<2 && Math.abs(y-(t+(floorY-t)*0.55))<2) c=hex('#b9942f');
+      }
+      sp(x,y,c);
+    }
+  }
+
+  // ---- mine timbering
+  if(type==='mine'){
+    const postW=Math.max(2,Math.round(W*0.055));
+    const [Lt,Rt]=bounds(archTop+1), [Lb,Rb]=bounds(floorY);
+    for(let y=Math.round(archTop);y<=floorY;y++){
+      const [L,R]=bounds(y);
+      for(let k=0;k<postW;k++){
+        const kk=1-k/postW*0.35;
+        sp(Math.round(L)-1-k, y, scale(hex(k===0?TIMBER.light:TIMBER.mid),kk));
+        sp(Math.round(R)+1+k, y, scale(hex(k===0?TIMBER.dark:TIMBER.mid),kk));
+      }
+    }
+    const hy=Math.round(archTop)-1, hh=Math.max(2,Math.round(H*0.09));
+    for(let y=hy-hh;y<=hy;y++) for(let x=Math.round(Math.min(Lt,Lb))-postW-2;x<=Math.round(Math.max(Rt,Rb))+postW+2;x++){
+      const k=y===hy-hh?1.2:y===hy?0.7:1;
+      sp(x,y,scale(hex(TIMBER.mid),k*(1+(h2(x,y,seed+8)-0.5)*0.15)));
+    }
+    // receding support frames
+    for(let s=1;s<=2;s++){
+      const f=s/3, yTop=archTop+(floorY-archTop)*f*0.35;
+      const [L,R]=bounds(Math.round(yTop));
+      const l=Math.round(mix(L,vpx,f*0.55)), r=Math.round(mix(R,vpx,f*0.55));
+      const dim=0.5-f*0.22;
+      for(let y=Math.round(yTop);y<=floorY;y++){ if(isIn(l,y)) sp(l,y,scale(hex(TIMBER.mid),dim));
+        if(isIn(r,y)) sp(r,y,scale(hex(TIMBER.dark),dim)); }
+      for(let x=l;x<=r;x++) if(isIn(x,Math.round(yTop))) sp(x,Math.round(yTop),scale(hex(TIMBER.mid),dim));
+    }
+    if(P.rails){
+      const steps=Math.max(6,Math.round(H*0.6));
+      for(let i=0;i<steps;i++){
+        const f=i/steps, y=Math.round(floorY-f*(floorY-archTop)*0.5);
+        const [L,R]=bounds(y);
+        const xl=Math.round(mix(L+2,vpx-1,f)), xr=Math.round(mix(R-2,vpx+1,f));
+        const dim=0.75-f*0.5;
+        if(isIn(xl,y)) sp(xl,y,scale([120,120,130],dim));
+        if(isIn(xr,y)) sp(xr,y,scale([120,120,130],dim));
+        if(i%3===0) for(let x=xl;x<=xr;x++) if(isIn(x,y)) sp(x,y,scale(hex(TIMBER.dark),dim));
+      }
+    }
+  }
+
+  // ---- door / cave rim treatment
+  if(type==='door'){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      if(inside[y][x]) continue;
+      if(isIn(x-1,y)||isIn(x+1,y)||isIn(x,y+1)||isIn(x,y-1)){
+        const lit = isIn(x+1,y) ? 1.35 : isIn(x-1,y) ? 0.7 : isIn(x,y+1) ? 1.2 : 0.6;
+        sp(x,y,scale(gp(x,y),lit));
+      }
+    }
+  }
+  if(type==='cave'){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      if(inside[y][x]) continue;
+      if(isIn(x,y+1)) sp(x,y,scale(gp(x,y),1.3));                 // lit brow above the mouth
+      else if(isIn(x-1,y)||isIn(x+1,y)) sp(x,y,scale(gp(x,y),0.8));
+    }
+  }
+
+  // ---- rubble spilling out of the mouth
+  if(P.rubble){
+    const wt=wallTop();
+    for(let x=0;x<W;x++){
+      const [L,R]=bounds(floorY);
+      if(x<L-3||x>R+3) continue;
+      const hgt=Math.round((w1(x*0.5,seed+61))*H*0.10);
+      for(let y=floorY;y>floorY-hgt;y--){
+        if(h2(x,y,seed+62)>0.35) sp(x,y,scale(wt, 0.5+h2(x,y,seed+63)*0.35));
+      }
+    }
+  }
+
+  // ---- match the corner variant this entrance will sit on
+  if(dir!==0){
+    const cs=P.cshade;
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      if(dir<0 && x<3) sp(x,y,scale(gp(x,y),1-cs*(1-x/3)*0.9));
+      if(dir>0 && x>W-4) sp(x,y,scale(gp(x,y),1+cs*0.5*((x-(W-4))/3)));
+    }
+  }
+
+  ctx.putImageData(img,0,0);
+  return cv;
+}
+
+const ENT_TYPES=['door','mine','cave'], ENT_FACING=['straight','left','right'];
+const entSheet=$('entSheet'), eCtx=entSheet.getContext('2d',{alpha:false});
+let entCells={};
+
+function buildEntrances(){
+  const P=entranceParams();
+  const cw=P.ew*T, ch=P.eh*T;
+  entSheet.width=cw*3; entSheet.height=ch*3;
+  eCtx.imageSmoothingEnabled=false;
+  eCtx.fillStyle='#000'; eCtx.fillRect(0,0,entSheet.width,entSheet.height);
+  entCells={};
+  ENT_TYPES.forEach((ty,r)=>ENT_FACING.forEach((fc,c)=>{
+    const cv=drawEntrance(ty,fc,P);
+    entCells[ty+','+fc]=cv;
+    eCtx.drawImage(cv, c*cw, r*ch);
+  }));
+}
+
+function drawEntranceScene(){
+  const P=entranceParams();
+  const [ty,fc]=$('entPick').value.split(',');
+  const cv=entCells[ty+','+fc]; if(!cv) return;
+  const MW=P.ew+4, MH=P.eh+3, S=5;
+  const c=$('entScene'), ctx=c.getContext('2d',{alpha:false});
+  c.width=MW*T*S; c.height=MH*T*S; ctx.imageSmoothingEnabled=false;
+  // ground everywhere, plateau on the top row
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++) ctx.drawImage(A.gndCanvas,0,0,T,T,x*T*S,y*T*S,T*S,T*S);
+  for(let x=0;x<MW;x++) ctx.drawImage(A.topCanvas,0,0,T,T,x*T*S,0,T*S,T*S);
+  const blit=(v,b,x,y)=>ctx.drawImage(cliffSheet,v*T,b*T,T,T,x*T*S,y*T*S,T*S,T*S);
+  const entX = fc==='left' ? 1 : fc==='right' ? MW-1-P.ew : Math.floor((MW-P.ew)/2);
+  for(let x=0;x<MW;x++){
+    const v = x===0?0 : x===MW-1?2 : 1;
+    blit(v,0,x,0);                                   // rim
+    for(let k=1;k<=P.eh;k++) blit(v,1,x,k);          // face
+    blit(v,2,x,P.eh+1);                              // footer
+  }
+  // entrance replaces the face rows
+  ctx.drawImage(cv, 0,0,cv.width,cv.height, entX*T*S, 1*T*S, cv.width*S, cv.height*S);
+}
+
+/* ================= floor blob (47) ================= */
+function canonical(m){
+  const N=!!(m&1),E=!!(m&4),S=!!(m&16),W=!!(m&64);
+  if(!(N&&E))m&=~2; if(!(E&&S))m&=~8; if(!(S&&W))m&=~32; if(!(W&&N))m&=~128;
+  return m;
+}
+const BLOB=[], BLOB_INDEX=new Map();
+(function(){ const seen=new Set(), all=[];
+  for(let m=0;m<256;m++){const c=canonical(m); if(!seen.has(c)){seen.add(c);all.push(c);} }
+  all.sort((a,b)=>(b===255)-(a===255)||a-b);
+  all.forEach((c,i)=>{BLOB.push(c);BLOB_INDEX.set(c,i);});
+})();
+const BCOLS=8, BROWS=Math.ceil(BLOB.length/BCOLS);
+
+function overlayMask(mask,inset,irreg,rnd){
+  const m=new Uint8Array(T*T), amp=irreg/10;
+  const N=!!(mask&1),NE=!!(mask&2),E=!!(mask&4),SE=!!(mask&8),
+        S=!!(mask&16),SW=!!(mask&32),W=!!(mask&64),NW=!!(mask&128);
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){
+    const qx=x<8?0:1, qy=y<8?0:1;
+    const sH=qx===0?W:E, sV=qy===0?N:S;
+    const dg=qx===0?(qy===0?NW:SW):(qy===0?NE:SE);
+    const lx=qx===0?x:T-1-x, ly=qy===0?y:T-1-y;
+    // the edge wobble tapers to zero approaching a tile corner, so every tile that
+    // meets at that corner agrees on exactly how wide the base band is there
+    const tapV=Math.min(1,Math.min(x,T-1-x)/4);
+    const tapH=Math.min(1,Math.min(y,T-1-y)/4);
+    const needV=sV?-99:inset+(n1(x,seed+3)-0.5)*2*amp*tapV;
+    const needH=sH?-99:inset+(n1(y,seed+9)-0.5)*2*amp*tapH;
+    let on=(ly>=needV)&&(lx>=needH);
+    // convex (outer) corner — quarter-circle arc rather than a 45-degree chamfer
+    if(on&&!sH&&!sV&&rnd>0){
+      const ax=lx-needH, ay=ly-needV;
+      if(ax<rnd&&ay<rnd) on=(ax*ax+ay*ay)>=rnd*rnd;
+    }
+    // concave (inner) corner — pocket of base terrain. Its depth at each seam MUST be
+    // exactly `inset`, because the three tiles sharing this corner each draw a quarter
+    // of it; anything else (or any noise here) leaves the spike. `rnd` only controls
+    // how square vs round the pocket is, never how deep.
+    if(on&&sH&&sV&&!dg&&inset>0){
+      const p=2+(5-Math.min(5,rnd))*1.6;
+      if(Math.pow(lx/inset,p)+Math.pow(ly/inset,p)<1) on=false;
+    }
+    m[y*T+x]=on?1:0;
+  }
+  return m;
+}
+function buildBlobTile(ctx,ox,oy,mask,base,over,o){
+  const img=ctx.createImageData(T,T), m=overlayMask(mask,o.inset,o.irreg,o.round);
+  const at=(a,x,y,k)=>a.data[((y*T+x)*4)+k];
+  const N=!!(mask&1),NE=!!(mask&2),E=!!(mask&4),SE=!!(mask&8),
+        S=!!(mask&16),SW=!!(mask&32),W=!!(mask&64),NW=!!(mask&128);
+  function on(x,y){
+    const ox2=x<0?-1:x>=T?1:0, oy2=y<0?-1:y>=T?1:0;
+    if(ox2===0&&oy2===0) return m[y*T+x];
+    let bit;
+    if(ox2===0) bit=oy2<0?N:S;
+    else if(oy2===0) bit=ox2<0?W:E;
+    else bit=ox2<0?(oy2<0?NW:SW):(oy2<0?NE:SE);
+    if(!bit) return 0;
+    return m[clamp(y,0,T-1)*T+clamp(x,0,T-1)];
+  }
+  for(let y=0;y<T;y++)for(let x=0;x<T;x++){
+    const i=(y*T+x)*4, src=m[y*T+x]?over:base;
+    let r=at(src,x,y,0),g=at(src,x,y,1),b=at(src,x,y,2);
+    if(m[y*T+x]&&o.outline){
+      if(!on(x-1,y)||!on(x+1,y)||!on(x,y-1)||!on(x,y+1)){ r*=0.72;g*=0.72;b*=0.74; }
+      else if(on(x,y-1)&&!on(x,y-2)){ r=Math.min(255,r*1.16);g=Math.min(255,g*1.16);b=Math.min(255,b*1.14); }
+    }
+    if(!m[y*T+x]&&o.shadow&&(on(x,y-1)||on(x-1,y-1))){ r*=0.62;g*=0.62;b*=0.68; }
+    img.data[i]=r;img.data[i+1]=g;img.data[i+2]=b;img.data[i+3]=255;
+  }
+  ctx.putImageData(img,ox,oy);
+}
+
+/* ================= build + preview ================= */
+const cliffSheet=$('cliffSheet'), cCtx=cliffSheet.getContext('2d',{alpha:false});
+const blobSheet=$('blobSheet'), bCtx=blobSheet.getContext('2d',{alpha:false});
+const plateauSheet=$('plateauSheet'), pCtx=plateauSheet.getContext('2d',{alpha:false});
+let A={};
+
+function buildAll(){
+  const topT=floorTile($('topSel').value), gndT=floorTile($('gndSel').value);
+  A={ top:topT.data, gnd:gndT.data, topCanvas:topT.canvas, gndCanvas:gndT.canvas,
+      face:faceTile(),
+      cap:+$('cap').value, foot:+$('foot').value, bround:+$('bround').value, tround:+$('tround').value,
+      cshade:+$('cshade').value, ishade:+$('ishade').value, shadow:+$('shadow').value,
+      scree:$('scree').checked, lip:$('lip').checked,
+      capMat:$('capMat').value, caproll:+$('caproll').value };
+  cliffSheet.width=CCOLS*T; cliffSheet.height=CROWS*T; cCtx.imageSmoothingEnabled=false;
+  for(let b=0;b<CROWS;b++)for(let v=0;v<CCOLS;v++) buildCliffTile(cCtx,v*T,b*T,v,b,A);
+
+  const o={inset:+$('inset').value, irreg:+$('irreg').value, round:+$('fround').value,
+           outline:$('foutline').checked, shadow:$('fshadow').checked};
+  blobSheet.width=BCOLS*T; blobSheet.height=BROWS*T; bCtx.imageSmoothingEnabled=false;
+  bCtx.fillStyle='#000'; bCtx.fillRect(0,0,blobSheet.width,blobSheet.height);
+  BLOB.forEach((m,i)=>buildBlobTile(bCtx,(i%BCOLS)*T,Math.floor(i/BCOLS)*T,m,A.gnd,A.top,o));
+
+  // plateau edge set — same two terrains, but the corner radius tracks the cliff rounding
+  const po={...o, round: $('linkCorners').checked ? +$('tround').value : +$('fround').value};
+  plateauSheet.width=BCOLS*T; plateauSheet.height=BROWS*T; pCtx.imageSmoothingEnabled=false;
+  pCtx.fillStyle='#000'; pCtx.fillRect(0,0,plateauSheet.width,plateauSheet.height);
+  BLOB.forEach((m,i)=>buildBlobTile(pCtx,(i%BCOLS)*T,Math.floor(i/BCOLS)*T,m,A.gnd,A.top,po));
+
+  buildEntrances();
+}
+
+function prev(srcCanvas,dstId,S,cellW,cellH){
+  const c=$(dstId), ctx=c.getContext('2d');
+  c.width=srcCanvas.width*S; c.height=srcCanvas.height*S; ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(srcCanvas,0,0,c.width,c.height);
+  ctx.strokeStyle='rgba(96,165,250,0.28)';
+  for(let x=cellW;x<srcCanvas.width;x+=cellW){ctx.beginPath();ctx.moveTo(x*S+.5,0);ctx.lineTo(x*S+.5,c.height);ctx.stroke();}
+  for(let y=cellH;y<srcCanvas.height;y+=cellH){ctx.beginPath();ctx.moveTo(0,y*S+.5);ctx.lineTo(c.width,y*S+.5);ctx.stroke();}
+}
+
+function drawScene(){
+  const MW=24, MH=15, S=3, H=+$('cliffH').value;
+  const P=Array.from({length:MH},()=>new Array(MW).fill(0));
+  for(let r=0;r<4;r++){
+    const w=3+Math.floor(h2(r,0,shapeSeed)*7), h=2+Math.floor(h2(r,1,shapeSeed)*4);
+    const x0=1+Math.floor(h2(r,2,shapeSeed)*(MW-w-2)), y0=1+Math.floor(h2(r,3,shapeSeed)*6);
+    for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++) P[y][x]=1;
+  }
+  const p=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?0:P[y][x];
+  const G=Array.from({length:MH},()=>new Array(MW).fill(0));
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+    const v=0.6*h2(Math.floor(x/3),Math.floor(y/3),shapeSeed+55)+0.4*h2(Math.floor(x/2),Math.floor(y/2),shapeSeed+56);
+    G[y][x]=(!p(x,y)&&v>0.62)?1:0;
+  }
+  const g=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?0:G[y][x];
+  const c=$('scene'), ctx=c.getContext('2d',{alpha:false});
+  c.width=MW*T*S; c.height=MH*T*S; ctx.imageSmoothingEnabled=false;
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++) ctx.drawImage(A.gndCanvas,0,0,T,T,x*T*S,y*T*S,T*S,T*S);
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+    if(!g(x,y)) continue;
+    let m=0;
+    if(g(x,y-1))m|=1; if(g(x+1,y-1))m|=2; if(g(x+1,y))m|=4; if(g(x+1,y+1))m|=8;
+    if(g(x,y+1))m|=16; if(g(x-1,y+1))m|=32; if(g(x-1,y))m|=64; if(g(x-1,y-1))m|=128;
+    const i=BLOB_INDEX.get(canonical(m));
+    ctx.drawImage(blobSheet,(i%BCOLS)*T,Math.floor(i/BCOLS)*T,T,T,x*T*S,y*T*S,T*S,T*S);
+  }
+  // plateau outline drawn through its own blob set, so N/E/W corners round like the cliff.
+  // the south side is forced to "matching" — the cliff rim owns that edge, no dirt bleed.
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+    if(!p(x,y)) continue;
+    let m=0;
+    if(p(x,y-1))m|=1; if(p(x+1,y-1))m|=2; if(p(x+1,y))m|=4;
+    if(p(x-1,y))m|=64; if(p(x-1,y-1))m|=128;
+    m|=16; if(m&4)m|=8; if(m&64)m|=32;
+    const i=BLOB_INDEX.get(canonical(m));
+    ctx.drawImage(plateauSheet,(i%BCOLS)*T,Math.floor(i/BCOLS)*T,T,T,x*T*S,y*T*S,T*S,T*S);
+  }
+  const blit=(v,b,x,y)=>ctx.drawImage(cliffSheet,v*T,b*T,T,T,x*T*S,y*T*S,T*S,T*S);
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){
+    if(!p(x,y)||p(x,y+1)) continue;
+    const wOpen=!p(x-1,y), eOpen=!p(x+1,y);
+    const wIn=p(x-1,y)&&p(x-1,y+1), eIn=p(x+1,y)&&p(x+1,y+1);
+    const v=wOpen?0:eOpen?2:wIn?3:eIn?4:1;
+    blit(v,0,x,y);
+    for(let k=1;k<=H;k++) if(y+k<MH) blit(v,1,x,y+k);
+    if(y+H+1<MH) blit(v,2,x,y+H+1);
+  }
+  if($('seams').checked){
+    ctx.strokeStyle='rgba(255,0,0,0.35)';
+    for(let x=1;x<MW;x++){ctx.beginPath();ctx.moveTo(x*T*S+.5,0);ctx.lineTo(x*T*S+.5,c.height);ctx.stroke();}
+    for(let y=1;y<MH;y++){ctx.beginPath();ctx.moveTo(0,y*T*S+.5);ctx.lineTo(c.width,y*T*S+.5);ctx.stroke();}
+  }
+}
+
+/* ================= wiring ================= */
+Object.entries(TERRAINS).forEach(([k,v])=>{
+  $('topSel').insertAdjacentHTML('beforeend',`<option value="${k}">${v.name}</option>`);
+  $('gndSel').insertAdjacentHTML('beforeend',`<option value="${k}">${v.name}</option>`);
+});
+$('topSel').value='grass'; $('gndSel').value='dirt';
+
+function render(){
+  $('wrv').textContent=$('wrand').value; $('wcv').textContent=$('courses').value;
+  $('bsv').textContent=$('bsize').value; $('bpv').textContent=$('bpc').value;
+  $('lpv').textContent=[16,8,4][+$('lper').value]; $('pwv').textContent=$('postW').value;
+  $('stv').textContent=$('stagger').value; $('tvv').textContent=$('tone').value;
+  $('mdv').textContent=$('mortar').value;
+  $('cbv').textContent=$('cap').value; $('fhv').textContent=$('foot').value;
+  $('chv').textContent=$('cliffH').value; $('brv').textContent=$('bround').value;
+  $('trv').textContent=$('tround').value;
+  $('csv').textContent=$('cshade').value; $('icv').textContent=$('ishade').value;
+  $('ssv').textContent=$('shadow').value; $('crov').textContent=$('caproll').value;
+  $('eiv').textContent=$('inset').value; $('erv').textContent=$('irreg').value;
+  $('crv').textContent=$('fround').value;
+  $('esv').textContent=$('esize').value.replace(',','×');
+  $('owv').textContent=$('openW').value; $('ohv').textContent=$('openH').value;
+  $('arv').textContent=$('arch').value; $('obv').textContent=$('obl').value;
+  $('tdv').textContent=$('tdepth').value; $('jgv').textContent=$('jag').value;
+  document.querySelectorAll('[data-for]').forEach(d=>d.classList.toggle('hide', d.dataset.for!==mode));
+  buildAll();
+  prev(cliffSheet,'cliffPrev',7,T,T);
+  prev(blobSheet,'blobPrev',5,T,T);
+  prev(plateauSheet,'platPrev',5,T,T);
+  const P=entranceParams();
+  prev(entSheet,'entPrev',5,P.ew*T,P.eh*T);
+  drawEntranceScene();
+  drawScene();
+}
+['topSel','gndSel','capMat','caproll','wrand','courses','bsize','bpc','lper','postW','stagger','tone','mortar',
+ 'cap','foot','cliffH','bround','tround','cshade','ishade','shadow','scree','lip',
+ 'esize','openW','openH','arch','obl','tdepth','jag','doorOpen','rails','rubble','entPick',
+ 'inset','irreg','fround','foutline','fshadow','linkCorners','seams'].forEach(id=>$(id).addEventListener('input',render));
+document.querySelectorAll('.modeBtn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.modeBtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); mode=b.dataset.mode; render();
+}));
+$('reshape').addEventListener('click',()=>{shapeSeed=(Math.random()*1e9)|0; drawScene();});
+$('reseed').addEventListener('click',()=>{seed=(Math.random()*1e9)|0; render();});
+$('dlCliff').addEventListener('click',()=>{const a=document.createElement('a');
+  a.download=`cliff_${mode}_${$('topSel').value}_to_${$('gndSel').value}.png`;
+  a.href=cliffSheet.toDataURL('image/png');a.click();});
+$('dlEnt').addEventListener('click',()=>{const a=document.createElement('a');
+  a.download=`entrances_${mode}_${$('esize').value.replace(',','x')}.png`;
+  a.href=entSheet.toDataURL('image/png');a.click();});
+$('dlBlob').addEventListener('click',()=>{const a=document.createElement('a');
+  a.download=`blob47_${$('topSel').value}_over_${$('gndSel').value}.png`;
+  a.href=blobSheet.toDataURL('image/png');a.click();});
+$('dlPlat').addEventListener('click',()=>{const a=document.createElement('a');
+  a.download=`plateau_edges_${$('topSel').value}_over_${$('gndSel').value}.png`;
+  a.href=plateauSheet.toDataURL('image/png');a.click();});
+$('dlFills').addEventListener('click',()=>{
+  [[$('topSel').value,A.topCanvas],[$('gndSel').value,A.gndCanvas]].forEach(([k,cv])=>{
+    const a=document.createElement('a');a.download=`floor_${k}_16x16.png`;a.href=cv.toDataURL('image/png');a.click();});
+});
+render();
+</script>
+</body>
+</html>

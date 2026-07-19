@@ -84,11 +84,12 @@ function waterTile(): PixelGrid {
 // ---------------------------------------------------------------------------
 
 describe("palette additions (§3)", () => {
-  it("umber and sandShade are appended with the spec'd values", () => {
+  it("umber/sandShade and the cool stone ramp are appended with the spec'd values", () => {
     expect(PALETTE.umber).toBe("#6e4036");
     expect(PALETTE.sandShade).toBe("#c69b7c");
-    // Appended at the end — existing entries were not reordered.
-    expect(NAMES.slice(-2)).toEqual(["umber", "sandShade"]);
+    // The desert-cliff cool stone ramp was appended after them; existing
+    // entries were not reordered.
+    expect(NAMES.slice(-4)).toEqual(["stoneLit", "stone", "stoneDark", "stoneDeep"]);
   });
 });
 
