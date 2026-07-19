@@ -41,10 +41,12 @@ interface AngleSpec {
   stepW: number; // horizontal px per step
   drop: number; // vertical px climbed per step
 }
+// Locked proportions: riser = drop = clean divisor of 16 (8 or 16). Period is
+// the number of 16px tiles over which the run climbs a whole tile.
 const ANGLES: Record<"2651" | "45" | "6343", AngleSpec> = {
-  "2651": { stepW: 8, drop: 4 }, // 2:1 shallow — 2-tile period
-  "45": { stepW: 4, drop: 4 }, // 1:1 — 1-tile period
-  "6343": { stepW: 4, drop: 8 }, // 1:2 steep — 2-tall period
+  "2651": { stepW: 16, drop: 8 }, // 1:2 shallow — climbs 1 tile per 2 wide (runA/runB)
+  "45": { stepW: 8, drop: 8 }, // 1:1 — climbs 1 tile per 1 (run)
+  "6343": { stepW: 8, drop: 16 }, // 2:1 steep — climbs 2 tiles per 1 (runU/runL)
 };
 
 const TREAD = 12; // walking-surface depth = bd(6) * rise(0.5) * unit(4) — the 6-ft stair width
@@ -58,6 +60,12 @@ function makeRock(seed: number): PixelGrid {
 }
 const rockAt = (rock: PixelGrid, gx: number, gy: number): PaletteName =>
   (rock.get(((gx % T) + T) % T, ((gy % T) + T) % T) as PaletteName) ?? "stoneDark";
+
+/** Tile-LOCAL hash (16-periodic, grid-aligned) — grain/flecks sampled with it
+ *  are seamless across seams AND repeat with the tile grid, so the run collapses
+ *  to a few distinct tiles instead of one-per-position. */
+const hh = (gx: number, gy: number, s: number): number =>
+  h2(((gx % T) + T) % T, ((gy % T) + T) % T, s);
 
 /** Global band sampler for the `se` stone staircase at `angle`. */
 function stoneCell(angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): Cell {
@@ -74,7 +82,7 @@ function stoneCell(angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): C
     const lx = ((gx % angle.stepW) + angle.stepW) % angle.stepW; // 0 = downhill .. stepW-1 = up-slope
     if (lx === angle.stepW - 1) return "stoneDark"; // 1px contact crease against next riser
     if (lx === angle.stepW - 2) return "stone"; // slight shade fading out
-    return h2(gx, gy, 9) < 0.1 ? "stone" : "stoneLit"; // lit walking surface + grain
+    return hh(gx, gy, 9) < 0.1 ? "stone" : "stoneLit"; // lit walking surface + grain
   }
   if (rel < TREAD + ROCKB) return rockAt(rock, gx, gy); // rock front
   return null;
@@ -98,8 +106,8 @@ function sandCell(angle: AngleSpec, rock: PixelGrid, gx: number, gy: number): Ce
     const f = rel / thick; // 0 = back/uphill .. 1 = downhill cliff-top lip
     // Shade at the uphill/back edge, LIT at the downhill cliff-top lip (light
     // from above; the cliff below must never appear to shade the surface).
-    if (f < 0.28) return h2(gx, gy, 5) < 0.1 ? "umber" : "sandShade"; // shade + sparse umber flecks
-    if (f < 0.7) return h2(gx, gy, 9) < 0.06 ? "sandLight" : "sand"; // mid sand + sparse light flecks
+    if (f < 0.28) return hh(gx, gy, 5) < 0.1 ? "umber" : "sandShade"; // shade + sparse umber flecks
+    if (f < 0.7) return hh(gx, gy, 9) < 0.06 ? "sandLight" : "sand"; // mid sand + sparse light flecks
     return "sandLight"; // lit downhill leading edge
   }
   if (rel < thick + ROCKB) return rockAt(rock, gx, gy); // same rock body as the stairs
