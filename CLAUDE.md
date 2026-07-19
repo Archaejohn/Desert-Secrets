@@ -9,6 +9,11 @@ named Piggy. Full design docs live in `docs/`:
 - `docs/STORY_ACTS3-7.md` — Part One's back half (the ingredient chase),
   in progress.
 - `docs/STORY_PARTS2-4.md` — long-term roadmap past Part One.
+- `docs/DIAGONAL_STAIRS_AND_RAMPS.md` — how the isometric diagonal
+  stair/ramp art system works (two-face cube model, angle = block
+  width∶height, the three tile-fraction slopes, stone-stairs vs
+  eased sand-ramp recipes, and the run-tile tiling lattice). Read
+  before touching `tools/pipeline/src/cliffs/diagonalRamps.ts`.
 
 ## Durable story facts (do not silently contradict these)
 
