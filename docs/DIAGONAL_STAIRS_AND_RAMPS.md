@@ -79,25 +79,60 @@ run at 1/2-per-tile climbs 1.5 tiles. "How long is it" therefore *sets* how
 high it ends up.
 
 **depth (`bd`) is independent of the angle** — it is the stair WIDTH (the
-"4-ft" walking width), and it stays visually constant no matter the slope
+walking width; **6 ft / `bd=6` / 12px is the locked default** — wider reads
+better than the old 4-ft), and it stays visually constant no matter the slope
 (see §4).
 
-## 3. Stairs (stoneSteps material) — the LOCKED recipe
+**Riser height** (`bh*unit`) should be a **clean divisor of 16 — use 4 or 8
+px** — so whole steps pack evenly into 16px tiles. (Riser height is a separate
+knob from the angle; the angle is the `bh:bw` *ratio*.)
 
-Discrete stone steps: each step is a cube with a `stoneLit` **top** (walking
-surface) over a rock **front**.
+## 3. Stairs (stoneSteps material) — the LOCKED algorithm
 
-- **Top / tread**: lit `stoneLit` walking surface with sparse `stone` grain
-  (~10%). A **shaded back lip** on the uphill/back ~28% of the foreshortened
-  depth (`stone`/`stoneDark`) — this is the shadow the step above casts on the
-  back of the tread. **Outline ONLY the top tread**, in `stoneDeep` (a 1px line
-  along the tread's top edge). Do **not** outline every cube — the front is one
-  continuous wall.
-- **Front**: `wallFace("rock", RAMP_WALL_PARAMS)` sampled by **absolute screen
-  position** so the whole front reads as a single continuous rock wall across
-  every tile seam. `RAMP_WALL_PARAMS = {courses:3, blockSize:3,
+Generated as an **algorithm over stacked cubes** (never hand-drawn). Per step
+(the top cube of column `i`) you see two faces: a `stoneLit` **top** (walking
+surface) over a rock **front**. Solid stack fills the body to the ground.
+
+**Dimensions** (units → px at `unit=4`, `rise=0.5`):
+
+| Unit param | Meaning | px | Note |
+|---|---|---|---|
+| `bw` (run) | horizontal run per step | `bw*4` | sets steepness (angle) |
+| `bh` (riser) | riser height per step | `bh*4` | **use 4 or 8 px — must divide 16** for clean tiling |
+| `bd` (depth) | stair WIDTH | `bd*2` | **6 ft default → bd=6 → 12px tread depth** |
+
+Wider is better: a 12px (6-ft) tread gives the shading room to read; narrow
+treads were hard to parse.
+
+**Per-face rules:**
+
+- **FRONT face (riser + body)**, at `z=0` → `wallFace("rock", RAMP_WALL_PARAMS)`
+  sampled by **absolute screen position** so the whole front is one continuous
+  rock wall across every seam. `RAMP_WALL_PARAMS = {courses:3, blockSize:3,
   blocksPerCourse:3, stagger:0.5, tone:0.16, mortar:0.28, orderVsRandom:0.45}`
-  (identical to the straight ramps + the desert cliff, so it matches).
+  (identical to the straight ramps + desert cliff).
+- **TOP face (walking surface)** of the top cube → `stoneLit` + sparse `stone`
+  grain (~10%, from `h2`).
+- **Tread shading = the step separator (NO outlines).** A slight shade on the
+  walking surface along its **UP-SLOPE edge** — for `se` (ascends right) that
+  is the tread's **RIGHT** edge; for `sw`, the **LEFT** — the edge that butts
+  against the **next step's riser**. Recipe: at the up-slope edge, 1px
+  `stoneDark` contact crease, then 1px `stone`, then the lit surface. In the
+  band sampler this is `lx = gx mod (bw*unit)`; shade where `lx` is at the
+  up-slope end.
+
+> **CRITICAL — verified against the 3D cube model (the artifact), do not
+> re-derive by eye.** The shade goes on the tread's **up-slope (right for `se`)
+> edge**, the edge against the NEXT step's riser. It does **NOT** go on the
+> tread's top/back edge: that edge recedes up the screen and is the high-`z`
+> side **against the INSIDE WALL**, so shading there is wrong (it reads as the
+> wall shadowing the tread). An earlier version made exactly this mistake — if
+> your steps look like they're lit from behind a wall, you shaded the wrong
+> edge. Confirm by rendering the explicit cubes and marking one tread + the
+> next step's riser (they meet at the tread's up-slope edge).
+
+- **No per-tread outline.** In a multi-step run, outlining each tread makes a
+  mess of stacked lines; the up-slope cast-shadow crease alone separates steps.
 
 ## 4. Ramps (sandSlope material) — the LOCKED recipe
 
