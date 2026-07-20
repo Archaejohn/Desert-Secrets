@@ -288,16 +288,27 @@ describe("generateTerrain + desert presets", () => {
 });
 
 describe("generateTerrain + ice preset (Task 4)", () => {
-  it("ice preset emits its full parity set, uniquely named", () => {
+  it("ice preset emits its full parity set (4 grounds, all-pairs = 7 pairings), uniquely named", () => {
     const out = generateTerrain(ICE_PRESETS[0]).map((o) => o.name);
     expect(out.filter((n) => n.startsWith("cliffGlacier_")).length).toBe(15);
     expect(out.filter((n) => n.startsWith("icePlateau_")).length).toBe(47);
+    // ice <-> {ice, snow, frozenLake, rimeMoss}
     expect(out.filter((n) => n.startsWith("iceIce_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceSnow_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceFrozenLake_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceRimeMoss_")).length).toBe(47);
+    // the other grounds autotile with each other: snow<->lake, snow<->moss, lake<->moss
+    expect(out.filter((n) => n.startsWith("snowFrozenLake_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("snowRimeMoss_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("frozenLakeRimeMoss_")).length).toBe(47);
     expect(out.filter((n) => n === "iceFill").length).toBe(1);
+    expect(out.filter((n) => n === "snowFill").length).toBe(1);
+    expect(out.filter((n) => n === "frozenLakeFill").length).toBe(1);
+    expect(out.filter((n) => n === "rimeMossFill").length).toBe(1);
     expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
     expect(new Set(out).size).toBe(out.length); // all unique
-    // total is preset-dependent (1 pairing): run once, then pin the number you get.
-    expect(out.length).toBe(274);
+    // 274 (1 pairing) + 6x47 pairings + 3 fills = 559.
+    expect(out.length).toBe(559);
   });
 });
 
@@ -398,10 +409,10 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     expect(a.cliff.height).toBe(47 * 16);
   });
 
-  it("cliffIce sheet is 16px frames padded to 8 columns, manifest-consistent", () => {
+  it("cliffIce sheet is 16px frames padded to 8 columns, manifest-consistent (all-pairs = 559)", () => {
     const names = cliffIceTileNames();
     const frames = cliffIceSheetFrames();
-    expect(names.length).toBe(274);
+    expect(names.length).toBe(559); // 4 grounds, all-pairs
     expect(frames.length % 8).toBe(0);
     frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
     const a = buildAssets();

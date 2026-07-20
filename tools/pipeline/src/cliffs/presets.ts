@@ -99,16 +99,30 @@ const ICE_CLIFF: TerrainParams = {
   scree: true,
   litLip: true,
 
-  // Floor blob edges — desert defaults.
+  // Floor blob edges — crisp/faceted default (low edgeIrregularity) to suit
+  // glacial ice, distinct from reef's soft organic fingers. Starting values;
+  // tuned live in the seam-rounding tuner at the review gate.
   edgeInset: 2,
-  edgeIrregularity: 14,
+  edgeIrregularity: 6,
   cornerRounding: 2,
   edgeOutline: true,
   dropShadow: true,
   linkPlateauCorners: true,
 
-  // Terrain pairings — ice over ice.
-  pairings: [{ over: "ice", base: "ice" }],
+  // All four frozen grounds autotile with each OTHER, not just ice-over-ice.
+  // Priority ice < snow < frozenLake < rimeMoss; `over` = lower-priority field,
+  // `base` = higher-priority ground carved in. Appended after ice-self so
+  // existing tile order/indices are unchanged (additive). Flip a pair's
+  // over/base to swap which ground owns that seam.
+  pairings: [
+    { over: "ice", base: "ice" },
+    { over: "ice", base: "snow" },
+    { over: "ice", base: "frozenLake" },
+    { over: "ice", base: "rimeMoss" },
+    { over: "snow", base: "frozenLake" },
+    { over: "snow", base: "rimeMoss" },
+    { over: "frozenLake", base: "rimeMoss" },
+  ],
   plateauTop: "ice",
   ground: "ice",
 
