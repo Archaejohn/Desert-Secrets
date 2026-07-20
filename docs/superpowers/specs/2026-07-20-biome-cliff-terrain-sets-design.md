@@ -74,11 +74,48 @@ biome cliff is defined by:
 - **preset knobs** — inherited from the desert defaults unless a biome needs a
   deliberate change.
 
-The block-cube wall geometry, the 15 directional cliff tiles, the 47-mask blob
-autotile, the ramp eased-incline profile, and the diagonal-flight lattice are
-**all material-independent** — they are geometry keyed to tile shape, not color.
-A biome is a **color-only re-skin**. This is the core claim the M0 refactor
-proves (see §8): after generalization, the desert output must be byte-identical.
+### 4.1 Geometry vs. texture — what is shared, what varies
+
+Two things are cleanly separable:
+
+- **Geometry** — the 15 directional cliff tiles, the 47-mask blob autotile, the
+  ramp eased-incline profile, and the diagonal-flight lattice are **material-
+  independent**: shapes keyed to tile position, not color. They are shared by
+  every biome unchanged. The M0 refactor's acceptance test (desert output
+  byte-identical, §8) proves this stays true.
+- **The wall-face *texture*** — the pixels stamped into the cliff face, footer,
+  and (by absolute-screen-position sampling) the diagonal-flight solid bodies —
+  **is fully per-biome.** `wallFace(material)` already switches per material, so
+  a material can supply its own drawing code, not just its own ramp. Change the
+  face and it propagates everywhere the face is sampled, for free.
+
+### 4.2 Texture tiers (owner decision: "bespoke where it matters")
+
+Each biome's wall texture sits at one of three tiers:
+
+1. **Recolor** — the shared stacked-stone algorithm with a new palette ramp.
+2. **Structure-tuned** — the shared algorithm with per-biome `WallParams`
+   (`courses/blockSize/blocksPerCourse/stagger/tone/mortar/orderVsRandom`): big
+   low-mortar blocks → glacial masonry, tall narrow blocks → columnar rock,
+   chunky high-chaos → rough cave rock. **No new code**, per-preset.
+3. **Bespoke** — a new `wallFace` branch: a genuinely different material
+   algorithm authored as pixel art (the way the original cliff stone was).
+
+**Decision:** every biome defaults to **tier 2** (distinct stone character via
+params). Biomes whose material is fundamentally *not* stacked stone get a
+**tier-3 bespoke** face — **ice** (crystalline/faceted glacier), **lava**
+(cracked basalt crust with ember glow in the fissures — the building
+generator's Worley-lava recipe is a proven starting point), and **reef**
+(coral-encrusted organic rock). **Grove/cave** and **sea** stay tier 2 (rough
+stacked stone reads as cave rock; cooler regular ashlar reads as sunless-sea
+temple masonry). Tier-3 faces are real pixel-art work and are **Fable-assisted**
+(the project convention for hard visual reworks).
+
+The **ground fill** for each biome should read like that biome's *existing*
+floor tile (tiles3 `iceFloor`, tiles7 `reefFloor`, tiles8 `emberFloor`, tiles6
+`groveGrass`, tiles4 `floe`), not a recolored sand — its recipe is ported/
+matched into `terrains.ts` `floorFill` per biome (tier 2–3 as the floor
+warrants).
 
 ## 5. Generator generalization (files touched)
 
@@ -87,8 +124,15 @@ proves (see §8): after generalization, the desert output must be byte-identical
 - **`cliffs/materials.ts`** — extend the `MaterialKey` union with the biome
   materials; refactor `rockWallFace` → **`blockWallFace(ramp, params, seed)`**
   (the `ROCK_TOP/RIGHT/LEFT/GAP` role indices stay, but read from the passed
-  ramp); `wallFace(material)` dispatches each material to `blockWallFace` with
-  its ramp. `rock` → `blockWallFace(ROCK, …)` (unchanged bytes).
+  ramp); `wallFace(material)` dispatches each material. `rock` and the **tier-2
+  biomes** (grove, sea) route to `blockWallFace(ramp, params, …)` — same
+  algorithm, biome ramp + biome `WallParams`. The **tier-3 biomes** (ice, lava,
+  reef) each get their own bespoke `wallFace` branch (a new draw function beside
+  `rockWallFace`), authored as pixel art. `rock` → `blockWallFace(ROCK, …)`
+  stays byte-identical.
+- **`cliffs/terrains.ts`** — `floorFill(key, seed)` gains a per-biome ground
+  recipe that reads like the biome's existing floor tile (not recolored sand);
+  tier 2–3 as the floor warrants.
 - **`cliffs/ramps.ts`** — generalize `RampMaterial` and `rampTiles` so the
   slope pours the **biome ground ramp** and the steps use a **stair ramp** (a
   shared stone-steps ramp by default, or a biome variant). The terrain/wall
@@ -149,6 +193,12 @@ nudged there). All names verified against `src/shared/palette.ts`.
 | **Grove/cave** | `caveStone` | `["clay","rust","umber","umber","plum","plum","plum","ink"]` | `grove` | `["jade","teal","tealDeep","umber"]` | `cliffGrove.png` |
 | **Sea** | `seaStone` | `["skyBlue","slate","indigo","indigo","tealDeep","tealDeep","tealDeep","ink"]` | `brine` | `["bone","skyBlue","slate","tealDeep"]` | `cliffSea.png` |
 
+**Texture tier per biome** (§4.2): **ice** (crystalline glacier), **lava**
+(cracked basalt + ember fissures), **reef** (coral-encrusted) are **tier-3
+bespoke** faces, Fable-assisted. **Grove/cave** (rough chunky high-chaos blocks)
+and **sea** (larger regular low-mortar ashlar) are **tier-2** — the shared
+algorithm with these `WallParams` directions, ramp above.
+
 Legibility note carried to the review gates: reef and grove both lean green;
 ice and sea both lean cool blue. Each biome's scene is eyeballed against its
 neighbors before its sha is pinned.
@@ -160,11 +210,16 @@ neighbors before its sha is pinned.
   `rock`/`sand` routed through the generalized path. **Acceptance: desert
   `cliff.png` sha is unchanged** (the determinism pin does not move) — this
   proves the re-skin is color-only and byte-safe. No behavior change ships.
-- **M1 — Ice.** `glacier` material + `ice` ground + `ICE_CLIFF` preset + full
-  parity tiles + `cliffIce.png` baked + sha pinned + `ice-scene.png` review →
-  **owner sign-off** → PR merge.
-- **M2–M5 — Reef, Lava, Grove, Sea.** Same groove, one biome per PR, each with
-  its review scene and sign-off before its sha is pinned.
+- **M1 — Ice (tier-3).** Bespoke `glacier` `wallFace` (crystalline, Fable-
+  assisted) + `ice` ground fill + `ICE_CLIFF` preset + full parity tiles +
+  `cliffIce.png` baked + sha pinned + `ice-scene.png` review → **owner sign-off**
+  → PR merge. As the first tier-3 biome it also proves the bespoke-face path end
+  to end.
+- **M2–M5 — Reef (tier-3), Lava (tier-3), Grove (tier-2), Sea (tier-2).** Same
+  groove, one biome per PR. Tier-3 biomes include a bespoke `wallFace`
+  authoring/review step (Fable); tier-2 biomes are a preset + `WallParams` +
+  ground-fill recipe. Each ships with its review scene and sign-off before its
+  sha is pinned.
 
 Each milestone is its own branch → PR → regular merge commit into `main`
 (per the project git flow).
