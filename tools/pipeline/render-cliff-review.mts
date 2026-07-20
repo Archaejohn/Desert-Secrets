@@ -277,11 +277,12 @@ function buildScene(params: typeof base): PixelGrid {
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
+    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
     put("capTop", c0, y0 + 1);
     for (let y = y0 + 2; y <= y0 + H + 1; y++) {
-      scene.blit(tile("cliffRock_mid_face"), c0 * T, y * T);
+      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
     }
-    scene.blit(tile("cliffRock_mid_footer"), c0 * T, (y0 + H + 2) * T);
+    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (y0 + H + 2) * T);
 
     for (let k = 1; k <= H; k++) {
       const runPiece = k === 1 ? "runTop" : "run";
@@ -292,7 +293,8 @@ function buildScene(params: typeof base): PixelGrid {
         for (let y = y0 + k + 2; y <= y0 + H + 1; y++) {
           scene.blit(tile("cliffRock_mid_face"), (c0 - k) * T, y * T);
         }
-        scene.blit(tile("cliffRock_mid_footer"), (c0 - k) * T, (y0 + H + 2) * T);
+        const footerName = k === H - 1 ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+        scene.blit(tile(footerName), (c0 - k) * T, (y0 + H + 2) * T);
       }
     }
     put("footLower", c0 - H, y0 + H + 2);

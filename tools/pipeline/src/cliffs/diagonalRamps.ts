@@ -124,7 +124,6 @@ const STEP = 4; // horizontal px per tread AND riser px per tread (1:1)
 
 const TREAD = 12; // walking-surface depth = bd(6) * rise(0.5) * unit(4) — 6-ft width
 const SAND_THICK = 16; // sand band vertical thickness ≈ TREAD * sqrt(1+slope²) at 45°
-const FOOT_CONTACT = 9; // footer tile's contact-shadow row (rock 0..8, ground 10..)
 
 /** Tile-LOCAL hash (16-periodic, grid-aligned) — grain/flecks sampled with it
  *  are seamless across seams AND repeat with the tile grid, so the run
