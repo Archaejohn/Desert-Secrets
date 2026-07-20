@@ -138,6 +138,26 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = 0; // white body
         if (h2(x, y, seed + 31) > 0.88) idx = 1; // scattered skyBlue accent (~12%)
         else if (e < 0.1 && h2(x, y, seed + 61) > 0.85) idx = 2; // rare, faint hairline seam (~1-2%)
+      } else if (key === "snow") {
+        // Packed snowdrift — warm pale body (bone, ramp[1]), brighter than the
+        // white ice, with sparse white highlights (ramp[0]) and a rare cool
+        // skyBlue shadow speck (ramp[2]). Low fleck density reads as smooth drift.
+        idx = 1;
+        if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse white highlight (~10%)
+        else if (h2(x, y, seed + 53) > 0.97) idx = 2; // rare skyBlue shadow (~3%)
+      } else if (key === "frozenLake") {
+        // Cracked lake ice — fbm-mottled slate/skyBlue surface sheen
+        // (ramp[1]/ramp[0]), bluer and darker than the white ice it sits below,
+        // with sparse indigo crack flecks (ramp[2]) and rare deep ink cracks (ramp[3]).
+        idx = v < 0.5 ? 1 : 0;
+        if (h2(x, y, seed + 53) > 0.93) idx = 2; // sparse indigo crack (~7%)
+        else if (h2(x, y, seed + 61) > 0.985) idx = 3; // rare deep ink crack (~1.5%)
+      } else if (key === "rimeMoss") {
+        // Frozen glow-moss — fbm-mottled teal/jade body (ramp[2]/ramp[1]) with
+        // generous mint glow highlights (ramp[0]); the brightest frozen ground
+        // (mirrors reef glowMoss / tileset3 mossGlow).
+        idx = v < 0.5 ? 2 : 1;
+        if (h2(x, y, seed + 31) > 0.85) idx = 0; // generous mint glow (~15%)
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]

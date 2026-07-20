@@ -500,3 +500,14 @@ describe("frozen biome ramps", () => {
     expect(TERRAIN_RAMPS[key]).toHaveLength(4);
   });
 });
+
+describe("frozen biome floorFill", () => {
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s fill is palette-locked to its ramp", (key) => {
+    const g = floorFill(key, 2026);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 2026).diff(floorFill(key, 2026))).toBe(0);
+  });
+});
