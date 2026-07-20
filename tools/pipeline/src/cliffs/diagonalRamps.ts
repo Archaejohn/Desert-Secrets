@@ -477,13 +477,13 @@ function footCell(
     // ground toward the west exit — the back line softens to `sandShade`
     // then breaks up, and the lit lip crumbles into flecks — so the walker
     // steps off onto bare sandFill with no hard tail edge.
-    if (c === "umber") {
-      if (gx >= 4 * sc) return "umber";
-      if (gx >= 2 * sc) return "sandShade";
-      return hh(gx, gy, 33) > 0.5 ? "sandShade" : "sand";
+    if (c === groundRamp[3]) { // umber
+      if (gx >= 4 * sc) return groundRamp[3]; // umber
+      if (gx >= 2 * sc) return groundRamp[2]; // sandShade
+      return hh(gx, gy, 33) > 0.5 ? groundRamp[2] : groundRamp[1]; // sandShade : sand
     }
-    if (c === "sandLight") return hh(gx, gy, 33) < 0.12 + (gx / sc) * 0.15 ? "sandLight" : "sand";
-    if (c === "sandShade" && gx <= 2 * sc - 1 && hh(gx, gy, 47) > 0.5) return "sand";
+    if (c === groundRamp[0]) return hh(gx, gy, 33) < 0.12 + (gx / sc) * 0.15 ? groundRamp[0] : groundRamp[1]; // sandLight : sand
+    if (c === groundRamp[2] && gx <= 2 * sc - 1 && hh(gx, gy, 47) > 0.5) return groundRamp[1]; // sand
     return c;
   }
   const lipY = ty + thick - 1;
