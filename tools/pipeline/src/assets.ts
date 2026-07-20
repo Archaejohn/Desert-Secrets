@@ -39,7 +39,7 @@ import { dustyFrames } from "./sprites/dusty";
 import { sahraFrames } from "./sprites/sahra";
 import { gearIconsFrames } from "./sprites/gearIcons";
 import { owMountainFrames } from "./owMountains";
-import { cliffSheetFrames } from "./cliffs/frames";
+import { cliffSheetFrames, cliffIceSheetFrames } from "./cliffs/frames";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -101,6 +101,9 @@ export interface BuiltAssets {
   // cliff: Desert Cliff Tileset generator sheet (cliffs/frames.ts) —
   // appended only, never reordered.
   cliff: PixelGrid;
+  // cliffIce: Ice Cliff Tileset generator sheet (cliffs/frames.ts) —
+  // appended only, never reordered.
+  cliffIce: PixelGrid;
 }
 
 /** Every sheet key that becomes a PNG (manifest excluded). */
@@ -151,7 +154,9 @@ export const SHEET_KEYS = [
   // owMountains: mask-based rounded-corner overworld mountain autotile.
   "owMountains",
   // cliff: Desert Cliff Tileset generator sheet — appended only, never reordered.
-  "cliff"
+  "cliff",
+  // cliffIce: Ice Cliff Tileset generator sheet — appended only, never reordered.
+  "cliffIce"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -200,6 +205,7 @@ export function buildAssets(): BuiltAssets {
     gearIcons: composeSheet(gearIconsFrames(), 12),
     owMountains: composeSheet(owMountainFrames(), 8),
     cliff: composeSheet(cliffSheetFrames(), 8),
+    cliffIce: composeSheet(cliffIceSheetFrames(), 8),
     manifest: buildManifest()
   };
 }

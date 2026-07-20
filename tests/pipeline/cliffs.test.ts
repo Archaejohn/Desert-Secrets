@@ -8,7 +8,7 @@ import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/mater
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
 import { DESERT_PRESETS, ICE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
-import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
 import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
@@ -321,6 +321,17 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     // composed sheet dims: 8 columns x 47 rows of 16x16 tiles.
     expect(a.cliff.width).toBe(8 * 16);
     expect(a.cliff.height).toBe(47 * 16);
+  });
+
+  it("cliffIce sheet is 16px frames padded to 8 columns, manifest-consistent", () => {
+    const names = cliffIceTileNames();
+    const frames = cliffIceSheetFrames();
+    expect(names.length).toBe(274);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffIce.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffIce.names).length).toBe(names.length);
   });
 });
 
