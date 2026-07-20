@@ -87,17 +87,29 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark speck (~4%)
       } else if (key === "ice") {
-        // Frosted crystalline floor (Task 8): a skyBlue body carved into
-        // large calm facets by slate hairline cracks (the toroidal Voronoi
-        // boundaries precomputed above), with indigo dashes marking the
-        // deepest crack pixels, sparse white glints and faint slate frost
-        // specks on the facet interiors. Visibly icy, but much quieter than
-        // the cliff face — it's a walking surface.
+        // Frosted floor (Task 8c retune): a bright WHITE crystalline body
+        // (idx 0, swapped from the previous skyBlue-dominant pass — owner
+        // wants this to read as white ice, not blue) with a scattering of
+        // single-pixel skyBlue accents (hash-placed via `h2`, same style as
+        // the sand branch's flecks above — coherent `fbm`/`noise()`
+        // thresholding was tried and rejected in the prior pass: `fbm`'s
+        // dominant cells=2 octave banded into hard stripes when
+        // thresholded directly, and a smoother single-octave `noise()`
+        // lattice produced a bold repeating blob/snowflake motif — both
+        // read as MORE graphic/patterned than plain scattered speckle, the
+        // opposite of "smooth"). Slate stays a rare dusting only on the
+        // tightest Voronoi seams (the toroidal boundary field precomputed
+        // above), giving a faint, calm hairline — and, since the plateau
+        // top reuses this same fill and the blob outline pass only darkens
+        // a boundary pixel by one ramp step (white -> skyBlue), that
+        // hairline chance also helps the cap edge read against an
+        // all-white body instead of relying solely on the one-step
+        // outline shade. Indigo is dropped entirely — it was the dark
+        // element driving the original "too dark and noisy" read.
         const e = iceEdge![y * T + x];
-        idx = 1; // skyBlue body
-        if (e < 0.42) idx = h2(x, y, seed + 61) > 0.9 ? 3 : 2; // hairline crack (rare indigo dash)
-        else if (h2(x, y, seed + 31) > 0.97) idx = 0; // white glint
-        else if (h2(x, y, seed + 53) > 0.95) idx = 2; // frost speck
+        idx = 0; // white body
+        if (h2(x, y, seed + 31) > 0.88) idx = 1; // scattered skyBlue accent (~12%)
+        else if (e < 0.1 && h2(x, y, seed + 61) > 0.85) idx = 2; // rare, faint hairline seam (~1-2%)
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]
