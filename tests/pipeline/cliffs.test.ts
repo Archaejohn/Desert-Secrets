@@ -7,7 +7,7 @@ import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
-import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
@@ -247,6 +247,20 @@ describe("generateTerrain + desert presets", () => {
     const pairing = out.find((o) => o.name === "sandAsphalt_255")!;
     expect(pairing.grid.diff(sandFill.grid)).toBe(0);
     expect(pairing.grid.diff(asphaltFill.grid)).toBe(256);
+  });
+});
+
+describe("generateTerrain + ice preset (Task 4)", () => {
+  it("ice preset emits its full parity set, uniquely named", () => {
+    const out = generateTerrain(ICE_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffGlacier_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("icePlateau_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceIce_")).length).toBe(47);
+    expect(out.filter((n) => n === "iceFill").length).toBe(1);
+    expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
+    expect(new Set(out).size).toBe(out.length); // all unique
+    // total is preset-dependent (1 pairing): run once, then pin the number you get.
+    expect(out.length).toBe(274);
   });
 });
 

@@ -67,3 +67,55 @@ const DESERT_ROCK_CLIFF: TerrainParams = {
 };
 
 export const DESERT_PRESETS: TerrainParams[] = [DESERT_ROCK_CLIFF];
+
+// Ice cliff — mirrors DESERT_ROCK_CLIFF's cliff assembly/floor-edge defaults
+// with ice material/terrain and tier-2 wall params (bigger, lower-mortar
+// blocks read as glacial masonry). The `glacier` wall face is a placeholder
+// recolor of `blockWallFace` (materials.ts) until Task 8's bespoke
+// crystalline face.
+const ICE_CLIFF: TerrainParams = {
+  material: "glacier",
+
+  // Wall structure — tier-2: larger low-mortar blocks.
+  courses: 3,
+  blockSize: 4,
+  blocksPerCourse: 2,
+  stagger: 0.5,
+  tone: 0.12,
+  mortar: 0.15,
+  orderVsRandom: 0.3,
+
+  // Cliff assembly — desert defaults.
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — desert defaults.
+  edgeInset: 2,
+  edgeIrregularity: 14,
+  cornerRounding: 2,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // Terrain pairings — ice over ice.
+  pairings: [{ over: "ice", base: "ice" }],
+  plateauTop: "ice",
+  ground: "ice",
+
+  seed: 2026,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const ICE_PRESETS: TerrainParams[] = [ICE_CLIFF];

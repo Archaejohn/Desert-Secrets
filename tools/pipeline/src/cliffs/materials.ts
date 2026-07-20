@@ -55,12 +55,12 @@
  */
 import { PixelGrid } from "../grid";
 import { h2, partition } from "./noise";
-import { ROCK, shade, type Ramp } from "./palette";
+import { ROCK, ICE, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock";
+export type MaterialKey = "rock" | "glacier";
 
 export interface WallParams {
   courses: number;
@@ -182,5 +182,7 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
   switch (material) {
     case "rock":
       return blockWallFace(ROCK, params, seed);
+    case "glacier":
+      return blockWallFace(ICE, params, seed); // placeholder recolor — bespoke face lands in Task 8
   }
 }
