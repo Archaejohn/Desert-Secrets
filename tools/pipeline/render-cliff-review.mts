@@ -475,6 +475,86 @@ function buildScene(params: typeof base): PixelGrid {
   stampDiagonalFlightSteep("stoneSteps", 12, 31); // stone: top col 12 → foot col 9
   stampDiagonalFlightSteep("sandSlope", 5, 31); // sand: top col 5 → runout col 1
 
+  // 9) REEF ground-transition demo — three small organic patches of
+  // reefSilt / reefWater / glowMoss sitting in the open reefFloor field
+  // (cols ~24-42, rows ~20-35 — clear of every cliff/ramp/stair demo
+  // above), each seam autotiled by the preset's reefFloor<Base> pairing
+  // blob set (mirrors the sand-over-sand ledge / plateau-top blob code in
+  // steps 2-3: patch cells get the flat `<base>Fill`, bordering reefFloor
+  // cells get the blended edge tile keyed by an 8-neighbor "is this
+  // neighbor reefFloor" mask). Biome-guarded: only the reef preset has
+  // these grounds, so desert/ice presets skip this block entirely and
+  // keep rendering their scene unchanged.
+  if (params.pairings.some((pr) => pr.base === "reefSilt")) {
+    type PatchBase = "reefSilt" | "reefWater" | "glowMoss";
+    const patches: { base: PatchBase; cells: [number, number][] }[] = [
+      // reefSilt — small diamond-ish silt bed.
+      {
+        base: "reefSilt",
+        cells: [
+          [28, 22], [29, 22],
+          [27, 23], [28, 23], [29, 23], [30, 23],
+          [28, 24], [29, 24],
+          [28, 25],
+        ],
+      },
+      // reefWater — a slightly larger pond, separated from the silt bed.
+      {
+        base: "reefWater",
+        cells: [
+          [36, 23], [37, 23], [38, 23],
+          [35, 24], [36, 24], [37, 24], [38, 24], [39, 24],
+          [36, 25], [37, 25], [38, 25],
+          [37, 26],
+        ],
+      },
+      // glowMoss — a mossy cluster below both, separated from each.
+      {
+        base: "glowMoss",
+        cells: [
+          [30, 30], [31, 30], [32, 30],
+          [29, 31], [30, 31], [31, 31], [32, 31], [33, 31],
+          [30, 32], [31, 32], [32, 32],
+          [31, 33],
+        ],
+      },
+    ];
+    const patchAt = new Map<string, PatchBase>();
+    for (const patch of patches) for (const [x, y] of patch.cells) patchAt.set(`${x},${y}`, patch.base);
+    const patchOf = (x: number, y: number): PatchBase | undefined => patchAt.get(`${x},${y}`);
+
+    // Patch interiors — flat fill, exactly like the background groundFill.
+    for (const patch of patches) {
+      const fillName = `${patch.base}Fill`;
+      for (const [x, y] of patch.cells) blit(fillName, x, y);
+    }
+
+    // reefFloor cells bordering a patch — blended edge tile. Bounding box
+    // covers every patch plus a 1-cell halo; interior reefFloor cells (no
+    // patch neighbor) keep the flat groundFill already blitted in step 1.
+    for (let y = 19; y <= 34; y++) {
+      for (let x = 24; x <= 40; x++) {
+        if (patchOf(x, y)) continue;
+        const neighborBases = [
+          patchOf(x, y - 1), patchOf(x + 1, y - 1), patchOf(x + 1, y), patchOf(x + 1, y + 1),
+          patchOf(x, y + 1), patchOf(x - 1, y + 1), patchOf(x - 1, y), patchOf(x - 1, y - 1),
+        ];
+        const base = neighborBases.find((b): b is PatchBase => !!b);
+        if (!base) continue; // no adjacent patch — plain reefFloor interior
+        let m = 0;
+        if (!patchOf(x, y - 1)) m |= 1;
+        if (!patchOf(x + 1, y - 1)) m |= 2;
+        if (!patchOf(x + 1, y)) m |= 4;
+        if (!patchOf(x + 1, y + 1)) m |= 8;
+        if (!patchOf(x, y + 1)) m |= 16;
+        if (!patchOf(x - 1, y + 1)) m |= 32;
+        if (!patchOf(x - 1, y)) m |= 64;
+        if (!patchOf(x - 1, y - 1)) m |= 128;
+        blit(`${params.plateauTop}${cap(base)}_${canonical(m)}`, x, y);
+      }
+    }
+  }
+
   return scene;
 }
 
@@ -531,6 +611,20 @@ for (const { label, params } of VARIANTS) {
     const cropPath = join(outDir, `${label}-diag-steep-crop.png`);
     writeFileSync(cropPath, encodePng(cropUp));
     console.log(`${label}-diag-steep-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+  }
+  // Zoomed crop of the REEF ground-transition demo (cols 23-41, rows
+  // 18-35) at x8 — reef preset only, so the seams between reefFloor and
+  // the silt/water/moss patches are individually inspectable.
+  if (label === "reef") {
+    const cx0 = 23, cy0 = 18, cw = 18, ch = 18;
+    const crop = new PixelGrid(cw * T, ch * T);
+    for (let y = 0; y < ch * T; y++) {
+      for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
+    }
+    const cropUp = upscale(crop, 8);
+    const cropPath = join(outDir, "reef-transitions-crop.png");
+    writeFileSync(cropPath, encodePng(cropUp));
+    console.log(`reef-transitions-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
   }
   const sceneUp = upscale(sceneRaw, SCENE_SCALE);
   // TEMP tile-grid overlay (atbGold at every 16px tile boundary) so placement

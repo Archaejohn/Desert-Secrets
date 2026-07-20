@@ -418,10 +418,16 @@ describe("cliff tileset byte-stability", () => {
   // recipes were split out of one shared placeholder branch into distinct,
   // palette-locked recipes per ground. Desert (`cliff`) and ice (`cliffIce`)
   // are untouched by this change — same hashes as before.
+  //
+  // cliffReef re-pinned again for M2 Task R3c: `coralRockWallFace`
+  // (materials.ts) replaces the tier-2 `blockWallFace` placeholder with a
+  // bespoke plum bio-rock wall face (the REEF face-ramp in palette.ts).
+  // Same 274 named tile slots, no reordering — only the reef wall's face
+  // pixels changed. Desert (`cliff`) and ice (`cliffIce`) are untouched.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
-    cliffReef: "d76f02b40a8664832056cf9dc490804a796d25fad23d169be21f2209f14a2b30"
+    cliffReef: "caa805fa68690160949b219a492cc2eb4a9ae9204f5e9706793e05d7fc75335c"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

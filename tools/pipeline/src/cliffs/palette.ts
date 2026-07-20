@@ -22,13 +22,16 @@ export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stone
 /** Glacial ice cliff ramp: white lit facets → deep indigo shadow. */
 export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indigo", "indigo", "ink"];
 
-/** Reef coral cliff ramp (R3a re-palette, matches the shipped reef zone's
- *  `reefWall`: plum bio-rock body with slate-lit facets and a skyBlue lit
- *  edge, deep indigo shadow. The bespoke coral-textured face itself lands
- *  in the next task — this ramp just fixes the placeholder's colours to
- *  harmonize with tileset7's reef instead of the old monochrome-green
- *  guess.) */
-export const REEF: Ramp = ["skyBlue", "slate", "plum", "plum", "mauve", "indigo", "indigo", "ink"];
+/** Reef bio-rock FACE ramp (R3b). This is purely the shading round-trip
+ *  ramp for the bespoke `coralRockWallFace` (materials.ts): `cliffFace`
+ *  re-quantizes every wall pixel through `REEF.indexOf(name)` and shifts
+ *  along it, so it must (a) contain every colour the bespoke face emits
+ *  and (b) run light→dark in true brightness order so darken/lighten
+ *  shifts stay physical. mint (biolight, brightest) → skyBlue (lit
+ *  corners) → slate (plates) → mauve (mid-tone) → plum (body) → indigo
+ *  (x2, shadow buffer) → ink (deep shadow), matching tileset7's shipped
+ *  `reefWall` material family. */
+export const REEF: Ramp = ["mint", "skyBlue", "slate", "mauve", "plum", "indigo", "indigo", "ink"];
 
 export type TerrainKey =
   | "sand"

@@ -54,8 +54,8 @@
  * pixel identical to the prototype (`:304-309`, `:318-319`).
  */
 import { PixelGrid } from "../grid";
-import { clamp, h2, partition } from "./noise";
-import { REEF, ROCK, shade, type Ramp } from "./palette";
+import { clamp, fbm, h2, n1, partition } from "./noise";
+import { ROCK, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
@@ -272,6 +272,109 @@ export function glacierWallFace(params: WallParams, seed: number): PixelGrid {
   return grid;
 }
 
+/**
+ * Bespoke reef BIO-ROCK face (Task R3b) — replaces the `blockWallFace`
+ * REEF-recolor placeholder, which read as generic stacked bricks rather
+ * than the shipped reef zone's drowned bio-rock.
+ *
+ * Model: one **course of bio-rock strata per tile**, the same anatomy as
+ * tileset7's `reefWall` so the cliff reads as the very same material:
+ *
+ *   - a dark **plum** body with sparse **mauve** rises at the tiling
+ *     `fbm`'s high extreme (organic rock grain, not brickwork);
+ *   - a lightly broken **slate** lit crest along the top of the course
+ *     (the analogue of `reefWall`'s slate top line);
+ *   - `reefWall`'s four crisp **slate** block plates at their shipped
+ *     spots (x jittered ±1 per seed), each with a single **skyBlue** lit
+ *     top-left corner;
+ *   - a **mauve** mineral vein (`reefWall`'s rust vein, transposed into
+ *     the cool face-ramp family — warm coral colours are decor, not wall);
+ *   - an **ink** shadowed lower band whose upper edge wobbles per column
+ *     (tiling 1D noise) behind an indigo/ink dither — the deep
+ *     under-shadow of each stratum;
+ *   - sparse **mint** and **skyBlue** bio-luminescent beads crusting the
+ *     shadow line and the body cracks.
+ *
+ * Palette-locked to the REEF face-ramp family ONLY — mint / skyBlue /
+ * slate / mauve / plum / indigo / ink — because `cliffFace` re-quantizes
+ * every face pixel through `REEF.indexOf(...)`, and the diagonal flight
+ * bodies reuse this exact grid; any colour outside the ramp would flatten
+ * in the round-trip. Deterministic (`h2`/`fbm`/`n1` only), fully opaque,
+ * and seamless: all geometry wraps mod 16 in BOTH axes (cliff faces tile
+ * side by side, and the flight bodies sample this tile toroidally).
+ */
+export function coralRockWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // organic strata have no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+  const w = (v: number): number => ((v % T) + T) % T;
+  const wpx = (x: number, y: number, c: PaletteName): void => grid.px(w(x), w(y), c);
+
+  // 1) Shadow-band profile: per-column top of the ink under-shadow, 10..12,
+  //    from tiling 1D noise so the left/right edges agree.
+  const bandTop: number[] = [];
+  for (let x = 0; x < T; x++) bandTop.push(10 + Math.round(n1(x, seed + 7) * 2));
+
+  // 2) Body: plum mottled to mauve/indigo by tiling fbm, then the band.
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      // Mostly-plum body (reefWall's is near-flat plum): mauve rises only
+      // at the fbm's high extreme, so the mottle reads as sparse organic
+      // grain instead of a loud repeating blob motif. No indigo mottle —
+      // the low-frequency octave pools it into a fake stratum.
+      const b = fbm(x, y, seed);
+      let c: PaletteName = b > 0.72 ? "mauve" : "plum";
+      if (y >= bandTop[x]) {
+        // Dissolve into the ink under-shadow: the first band row is an
+        // indigo/ink dither so the edge reads eaten, not ruled, then ink.
+        c = y === bandTop[x] ? (h2(x, 1, seed + 13) > 0.55 ? "indigo" : "ink") : "ink";
+      } else if (y === 0 && h2(x, 3, seed + 29) > 0.15) {
+        c = "slate"; // lit crest along the course top (reefWall's slate line)
+      }
+      grid.px(x, y, c);
+    }
+  }
+
+  // 3) Slate block plates — reefWall's facet recipe verbatim: the same four
+  //    crisp rects at the same spots, each with a single skyBlue lit
+  //    top-left corner. Only the x position jitters (±1, per seed) so
+  //    variant seeds shift the facet rhythm without ever merging plates.
+  const PLATES = [
+    { x: 2, y: 2, w: 4, h: 3 },
+    { x: 9, y: 2, w: 4, h: 4 },
+    { x: 3, y: 7, w: 5, h: 3 },
+    { x: 10, y: 8, w: 4, h: 3 },
+  ] as const;
+  PLATES.forEach((pl, i) => {
+    const jx = Math.round((h2(i, 51, seed) - 0.5) * 2); // -1..1
+    for (let dy = 0; dy < pl.h; dy++) {
+      for (let dx = 0; dx < pl.w; dx++) wpx(pl.x + jx + dx, pl.y + dy, "slate");
+    }
+    wpx(pl.x + jx, pl.y, "skyBlue"); // lit corner
+  });
+
+  // 4) Mauve mineral vein — reefWall's rust vein, transposed into the cool
+  //    face-ramp family (warm coral colours are decor, not wall).
+  for (const [vx, vy] of [[7, 3], [8, 4], [12, 6], [5, 10]] as const) {
+    wpx(vx + Math.round((h2(vx, 97, seed) - 0.5) * 2), vy, "mauve");
+  }
+
+  // 5) Bio-luminescent beads crusting the cracks: a few mint/skyBlue points,
+  //    biased into the shadowed lower half where the glow pops.
+  for (let i = 0; i < 4; i++) {
+    const bx = Math.floor(h2(i, 61, seed) * T);
+    const by = i < 2 ? 5 + Math.floor(h2(i, 67, seed) * 5) : 11 + Math.floor(h2(i, 67, seed) * 4);
+    wpx(bx, by, i % 2 === 0 ? "mint" : "skyBlue");
+  }
+  // one 2px glow pair on the shadow line (tileset7's glint motif)
+  {
+    const gx = Math.floor(h2(9, 71, seed) * T);
+    wpx(gx, 12, "skyBlue");
+    wpx(gx + 1, 12, "mint");
+  }
+
+  return grid;
+}
+
 /** A fully opaque, palette-locked 16x16 wall-face tile for `material`. */
 export function wallFace(material: MaterialKey, params: WallParams, seed: number): PixelGrid {
   switch (material) {
@@ -280,10 +383,6 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
     case "glacier":
       return glacierWallFace(params, seed);
     case "coralRock":
-      // Placeholder (Task R1, re-palette R3a) — recolor of blockWallFace on
-      // the REEF ramp; the bespoke coral face lands in the next task.
-      // Renamed from `reefStone` to avoid clashing with tileset7's own
-      // (unrelated) `reefStone` stepping-stone tile.
-      return blockWallFace(REEF, params, seed);
+      return coralRockWallFace(params, seed);
   }
 }
