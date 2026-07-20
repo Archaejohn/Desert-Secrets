@@ -152,10 +152,23 @@ const REEF_CLIFF: TerrainParams = {
   scree: true,
   litLip: true,
 
-  // Floor blob edges — mirrors ICE_CLIFF (== desert defaults).
-  edgeInset: 2,
-  edgeIrregularity: 14,
+  // Floor blob edges — reef ground-to-ground seams, tuned live by the owner
+  // in the seam-rounding tuner. Wider band than desert/ice (edgeInset 3) with
+  // heavy organic wobble (edgeIrregularity 20). Corner rounding is DECOUPLED
+  // into two knobs (see overlayMask): `cornerRounding` rounds the patches'
+  // INNER (concave) corners via a quarter-disc scoop; `pocketRounding` rounds
+  // their OUTER (convex) corners via the concave-pocket exponent (>=5 ==
+  // circular). Both maxed at 8 here: at this irregularity the edge wobble
+  // dominates the corner geometry, so the seams read as organic reef fingers
+  // rather than the over-scooped hard steps a high cornerRounding produces on
+  // a clean straight edge. `pairingSeed` reseeds ONLY the ground-transition
+  // blobs (7439, owner-tuned wobble) — the base `seed` (7777) still drives the
+  // approved coral wall face / ramps, so those stay byte-identical.
+  edgeInset: 3,
+  edgeIrregularity: 20,
   cornerRounding: 8,
+  pocketRounding: 8,
+  pairingSeed: 7439,
   edgeOutline: true,
   dropShadow: true,
   linkPlateauCorners: true,
@@ -167,6 +180,15 @@ const REEF_CLIFF: TerrainParams = {
     { over: "reefFloor", base: "reefSilt" },
     { over: "reefFloor", base: "reefWater" },
     { over: "reefFloor", base: "glowMoss" },
+    // All four grounds autotile with each OTHER, not just against reefFloor
+    // (owner requirement). Priority order reefFloor < reefSilt < reefWater <
+    // glowMoss: `over` = the lower-priority "field", `base` = the higher-
+    // priority ground carved into it at the seam. Appended AFTER the reefFloor
+    // pairings so the existing tile order/indices are unchanged (additive).
+    // Flip a pair's over/base to swap which ground owns that seam.
+    { over: "reefSilt", base: "reefWater" },
+    { over: "reefSilt", base: "glowMoss" },
+    { over: "reefWater", base: "glowMoss" },
   ],
   plateauTop: "reefFloor",
   ground: "reefFloor",

@@ -433,10 +433,24 @@ describe("cliff tileset byte-stability", () => {
   // named tile slots, no reordering — only ground-transition blob-mask
   // corner pixels changed. Desert (`cliff`) and ice (`cliffIce`) are
   // untouched.
+  //
+  // cliffReef re-pinned again (seam tuning + all-pairs): the reef ground
+  // seams were tuned live by the owner in the seam-rounding tuner —
+  // `edgeInset` 2->3, `edgeIrregularity` 14->20, `cornerRounding` stays 8,
+  // new decoupled `pocketRounding` 8 (rounds patches' OUTER corners
+  // independently of the INNER-corner `cornerRounding`), and a new
+  // `pairingSeed` 7439 that reseeds ONLY the ground-transition blobs (the
+  // coral wall face / ramps keep base seed 7777, so they're byte-identical).
+  // AND the four reef grounds now autotile with EACH OTHER, not just against
+  // reefFloor: three pairings appended — reefSilt<->reefWater,
+  // reefSilt<->glowMoss, reefWater<->glowMoss (+3x47 = 141 tiles, sheet grows
+  // 418 -> 559 tiles, 128x1120). Appended after the reefFloor pairings, so no
+  // existing tile is reordered (additive). Desert (`cliff`) and ice
+  // (`cliffIce`) are untouched — same hashes.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
-    cliffReef: "a400f2408e310e2e9d7ddd0271a112865c29405b3c711b5fcdca0ba7ac4a8d37"
+    cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

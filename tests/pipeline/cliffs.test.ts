@@ -302,14 +302,20 @@ describe("generateTerrain + ice preset (Task 4)", () => {
 });
 
 describe("generateTerrain + reef preset (Task R1)", () => {
-  it("reef preset emits its full parity set (4 grounds x 4 pairings), uniquely named", () => {
+  it("reef preset emits its full parity set (4 grounds, all-pairs = 7 pairings), uniquely named", () => {
     const out = generateTerrain(REEF_PRESETS[0]).map((o) => o.name);
     expect(out.filter((n) => n.startsWith("cliffCoralRock_")).length).toBe(15);
     expect(out.filter((n) => n.startsWith("reefFloorPlateau_")).length).toBe(47);
+    // reefFloor <-> {reefFloor, reefSilt, reefWater, glowMoss}
     expect(out.filter((n) => n.startsWith("reefFloorReefFloor_")).length).toBe(47);
     expect(out.filter((n) => n.startsWith("reefFloorReefSilt_")).length).toBe(47);
     expect(out.filter((n) => n.startsWith("reefFloorReefWater_")).length).toBe(47);
     expect(out.filter((n) => n.startsWith("reefFloorGlowMoss_")).length).toBe(47);
+    // the other grounds autotile with each other (owner req): silt<->water,
+    // silt<->moss, water<->moss.
+    expect(out.filter((n) => n.startsWith("reefSiltReefWater_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefSiltGlowMoss_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefWaterGlowMoss_")).length).toBe(47);
     expect(out).toContain("reefFloorFill");
     expect(out).toContain("reefSiltFill");
     expect(out).toContain("reefWaterFill");
@@ -317,8 +323,8 @@ describe("generateTerrain + reef preset (Task R1)", () => {
     expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
     expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
     expect(new Set(out).size).toBe(out.length); // all unique
-    // total is preset-dependent (4 pairings): run once, then pin the number you get.
-    expect(out.length).toBe(418);
+    // total is preset-dependent (7 pairings): 418 (4 pairings) + 3x47 = 559.
+    expect(out.length).toBe(559);
   });
 
   it("generateTerrain is deterministic for the reef preset", () => {
@@ -406,7 +412,7 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
   it("cliffReef sheet is 16px frames padded to 8 columns, manifest-consistent", () => {
     const names = cliffReefTileNames();
     const frames = cliffReefSheetFrames();
-    expect(names.length).toBe(418);
+    expect(names.length).toBe(559); // 4 grounds, all-pairs (7 pairings)
     expect(frames.length % 8).toBe(0);
     frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
     const a = buildAssets();

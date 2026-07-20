@@ -77,6 +77,15 @@ export type TerrainParams = {
   edgeInset: number;
   edgeIrregularity: number;
   cornerRounding: number;
+  // Concave inner-corner pocket roundness (rounds base patches' OUTER
+  // corners), decoupled from `cornerRounding` (which rounds their inner
+  // corners). Omit to track `cornerRounding` — desert/ice leave it unset.
+  pocketRounding?: number;
+  // Seed for the ground-to-ground pairing (transition) blob set only. Omit to
+  // track the preset `seed` — desert/ice leave it unset. Reef sets it so the
+  // seam wobble can be tuned independently of the (approved) wall face/ramps,
+  // which stay on `seed`.
+  pairingSeed?: number;
   edgeOutline: boolean;
   dropShadow: boolean;
   linkPlateauCorners: boolean;
@@ -166,6 +175,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     inset: p.edgeInset,
     irreg: p.edgeIrregularity,
     round: plateauRound,
+    pocketRound: p.pocketRounding,
     outline: p.edgeOutline,
     shadow: p.dropShadow,
     seed: p.seed,
@@ -180,9 +190,10 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
       inset: p.edgeInset,
       irreg: p.edgeIrregularity,
       round: p.cornerRounding,
+      pocketRound: p.pocketRounding,
       outline: p.edgeOutline,
       shadow: p.dropShadow,
-      seed: p.seed,
+      seed: p.pairingSeed ?? p.seed,
       overKey: pr.over,
       baseKey: pr.base,
     });
