@@ -30,7 +30,7 @@ import { PixelGrid } from "./src/grid";
 import { encodePng } from "./src/png";
 import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
-import { DESERT_PRESETS, ICE_PRESETS } from "./src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
 import { diagonalFlightTiles, type DiagonalMaterial, type DiagonalPiece } from "./src/cliffs/diagonalRamps";
 import { TERRAIN_RAMPS } from "./src/cliffs/palette";
@@ -55,6 +55,7 @@ const base = DESERT_PRESETS[0];
 const VARIANTS: { label: string; params: typeof base }[] = [
   { label: "desert", params: DESERT_PRESETS[0] },
   { label: "ice", params: ICE_PRESETS[0] },
+  { label: "reef", params: REEF_PRESETS[0] },
 ];
 
 // ---- demo scene ----------------------------------------------------------

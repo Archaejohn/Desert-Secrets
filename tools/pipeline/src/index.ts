@@ -64,7 +64,8 @@ const sheets = [
   ["owMountains.png", assets.owMountains],
   // cliff: Desert Cliff Tileset generator sheet — appended only, never reordered.
   ["cliff.png", assets.cliff],
-  ["cliffIce.png", assets.cliffIce]
+  ["cliffIce.png", assets.cliffIce],
+  ["cliffReef.png", assets.cliffReef]
 ] as const;
 
 for (const [name, grid] of sheets) {

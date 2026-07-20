@@ -39,7 +39,7 @@ import { TILE7_NAMES } from "./tileset7";
 import { TILE8_NAMES } from "./tileset8";
 import { OW_BILLBOARD_H, OW_BILLBOARD_NAMES, OW_BILLBOARD_W } from "./sprites/owBillboards";
 import { owMountainNames } from "./owMountains";
-import { cliffTileNames, cliffIceTileNames } from "./cliffs/frames";
+import { cliffTileNames, cliffIceTileNames, cliffReefTileNames } from "./cliffs/frames";
 
 export interface AnimationDef {
   frames: number[];
@@ -123,6 +123,7 @@ export interface Manifest {
   owMountains: TileSetDef;
   cliff: TileSetDef;
   cliffIce: TileSetDef;
+  cliffReef: TileSetDef;
 }
 
 const DIRECTIONS = ["down", "left", "right", "up"] as const;
@@ -284,6 +285,9 @@ export function buildManifest(): Manifest {
     cliff: { file: "cliff.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffTileNames()) },
     // cliffIce.png: real ice frames + blank padding to a multiple of 8
     // columns (see cliffs/frames.ts); only the real names are exposed here.
-    cliffIce: { file: "cliffIce.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffIceTileNames()) }
+    cliffIce: { file: "cliffIce.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffIceTileNames()) },
+    // cliffReef.png: real reef frames + blank padding to a multiple of 8
+    // columns (see cliffs/frames.ts); only the real names are exposed here.
+    cliffReef: { file: "cliffReef.png", tileSize: TILE_SIZE, columns: 8, names: tileNames(cliffReefTileNames()) }
   };
 }

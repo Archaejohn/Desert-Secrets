@@ -39,7 +39,7 @@ import { dustyFrames } from "./sprites/dusty";
 import { sahraFrames } from "./sprites/sahra";
 import { gearIconsFrames } from "./sprites/gearIcons";
 import { owMountainFrames } from "./owMountains";
-import { cliffSheetFrames, cliffIceSheetFrames } from "./cliffs/frames";
+import { cliffSheetFrames, cliffIceSheetFrames, cliffReefSheetFrames } from "./cliffs/frames";
 import { tileFrames } from "./tileset";
 import { tile2Frames } from "./tileset2";
 import { tile3Frames } from "./tileset3";
@@ -104,6 +104,9 @@ export interface BuiltAssets {
   // cliffIce: Ice Cliff Tileset generator sheet (cliffs/frames.ts) —
   // appended only, never reordered.
   cliffIce: PixelGrid;
+  // cliffReef: Reef Cliff Tileset generator sheet (cliffs/frames.ts) —
+  // appended only, never reordered.
+  cliffReef: PixelGrid;
 }
 
 /** Every sheet key that becomes a PNG (manifest excluded). */
@@ -156,7 +159,9 @@ export const SHEET_KEYS = [
   // cliff: Desert Cliff Tileset generator sheet — appended only, never reordered.
   "cliff",
   // cliffIce: Ice Cliff Tileset generator sheet — appended only, never reordered.
-  "cliffIce"
+  "cliffIce",
+  // cliffReef: Reef Cliff Tileset generator sheet — appended only, never reordered.
+  "cliffReef"
 ] as const;
 
 export function buildAssets(): BuiltAssets {
@@ -206,6 +211,7 @@ export function buildAssets(): BuiltAssets {
     owMountains: composeSheet(owMountainFrames(), 8),
     cliff: composeSheet(cliffSheetFrames(), 8),
     cliffIce: composeSheet(cliffIceSheetFrames(), 8),
+    cliffReef: composeSheet(cliffReefSheetFrames(), 8),
     manifest: buildManifest()
   };
 }

@@ -403,9 +403,17 @@ describe("cliff tileset byte-stability", () => {
   // Updated for Phase 1b (straight ramps, 238 tiles), Phase 1c 45° diagonal (270 tiles),
   // and Phase 1c shallow+steep (26.57° + 63.43° diagonal flights, 370 tiles).
   // 370 named tiles + 6 blank pad (8 columns x 47 rows). Visual look approved before pinning.
+  //
+  // cliffIce re-pinned for M2 Task R2: cliffFace.ts's scree-pebble band was
+  // hardcoded to the ROCK ramp regardless of biome, so ice's scree pebbles
+  // rendered gray instead of ice-colored. R1 fixed it to use the passed
+  // faceRamp; desert (faceRamp -> ROCK) stays byte-identical, but ice's
+  // scree pixels changed, moving this hash. Same 274 named tile slots, no
+  // reordering — only scree pixels changed.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
-    cliffIce: "3a1fc71113545b8a81a8cf32245ded2573104f23377831c2a2e988efeaa0fde4"
+    cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
+    cliffReef: "1d315542f222938c738bb1aa702136762482054297baa9476ac97cc2e2a351ca"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

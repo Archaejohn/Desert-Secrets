@@ -8,7 +8,7 @@ import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/mater
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
 import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
-import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
 import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
@@ -401,6 +401,17 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     const a = buildAssets();
     expect(a.cliffIce.width).toBe(8 * 16);
     expect(Object.keys(a.manifest.cliffIce.names).length).toBe(names.length);
+  });
+
+  it("cliffReef sheet is 16px frames padded to 8 columns, manifest-consistent", () => {
+    const names = cliffReefTileNames();
+    const frames = cliffReefSheetFrames();
+    expect(names.length).toBe(418);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffReef.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffReef.names).length).toBe(names.length);
   });
 });
 
