@@ -58,7 +58,9 @@ Locked constants: `unit=4`, `skew=0` (pure top+front, no side face),
 The staircase is a **solid stack**: column `i` contains cubes `j = 0..i`, so
 the mass fills down to the ground (the dark rock body under the run). The
 **top cube's top face** is the visible tread; everything below is front-face
-rock.
+rock. (In tiles that solid mass is realized as a **cascade of shortening
+plateaus** drawn by the map's cliff autotile, plus the flight's own rock body
+where it projects onto the ground — see §5.)
 
 ## 2. Angles = block width : height (this is the key relationship)
 
@@ -134,15 +136,16 @@ treads were hard to parse.
 - **No per-tread outline.** In a multi-step run, outlining each tread makes a
   mess of stacked lines; the up-slope cast-shadow crease alone separates steps.
 
-> **45° tuning (render-verified, 2026-07).** At the 45° cadence (4px treads)
+> **45° tuning (render-verified, shipped).** At the 45° cadence (4px treads)
 > the full recipe above over-fragments — against the busy boulder face the
 > treads read as separate slivers. The shipped 45° surface is deliberately
 > calmer: solid `stoneLit` body (no grain), a single soft `stone` crease at
 > the up-slope edge (same edge rule as above), a 1px `stone` shade at the
 > uphill back edge + `stoneDeep` contact line vs the rock, a continuous 2px
 > `stoneLit` lip at the downhill edge, and each tread's 4px riser FRONT face
-> drawn as `slate` between `stoneDeep` contact lines (see §5). The 26.57°
-> tiles should start from the original recipe (8px treads have room for it).
+> drawn as `slate` between `stoneDeep` contact lines (see §5). **26.57°** (8px
+> treads) uses that fuller recipe and **63.43°** (8px risers) the calm one —
+> both shipped.
 
 ## 4. Ramps (sandSlope material) — the LOCKED recipe
 
@@ -178,55 +181,78 @@ Four locked properties:
 4. **Variable rise.** Same 1/3, 1/2, 1/1-tile-per-tile slopes as the stairs;
    total height = slope × length; length sets steepness.
 
-## 5. Tiling — surface-only overlay pieces over the real cliff autotile
+## 5. Tiling — a cascade of SHORTENING PLATEAUS + the flight's own solid mass
 
-Tiles are 16×16 and placed on a 16px grid. A run is defined by ONE **global
-band sampler** `cell(gx, gy)` for the infinite run; tiles are sliced from it,
-so seam continuity is **structural**, not hand-fixed.
+This is the model that finally read right and shipped (all three angles).
 
-**The flight tiles carry ONLY the walking surface** (transparent everywhere
-else) and are composited over the map's ordinary autotiled cliff
-(rim / face / footer). This resolved the old "build snag" (a rock body baked
-into the run tiles fought the cliff autotile and had to be clipped at the
-base, chopping treads): the rock around/above/below the band now **IS** the
-`cliffRock_*_face` texture — identical by construction — the plateau cap
-shows over the flight's top tread, and the footer's contact-shadow + scree
-line runs STRAIGHT across beneath the foot. No special rock alignment, no
-clipping.
+### The support: shortening plateaus, drawn by the MAP's own autotile
 
-The band has a **translational symmetry**: for 45°,
-`cell(gx+16, gy−16) === cell(gx, gy)` — shifting 1 tile right and 1 tile up
-reproduces the band — so the run repeats on the **1-right / 1-up lattice**.
-The band is thicker than one tile's 16px drop (12px tread + riser / ≈17px
-sand width), so each lattice cell is a vertical PAIR: `run` (upper) +
-`runLower` (its spill into the tile below).
+A flight is **a cascade of small shortening plateaus**. Every step is its own
+one-tile plateau, built from the *real* plateau + cliff autotile
+(`sandPlateau_<mask>` top surface = the tread; `cliffRock_<variant>_{rim,
+face,footer}` = its support wall). Each successive step-plateau is one level
+lower and one column over, so its support wall is one tile **shorter** — and
+every step's footer lands on the **same base row**, giving the whole cascade
+one continuous ground-contact/scree line.
 
-**The five pieces (45°, per material, `se`)** — for a flight with top column
-`c0` on rim row `y0` over `H` face rows (footer at `y0+H+1`):
+Crucially, **the cascade is stamped by the MAP, not baked into flight tiles**
+(see `render-cliff-review.mts` `stampDiagonalFlight`): the top landing is a
+real plateau cell added to the plateau bitmap (a one-cell peninsula, drawn by
+the ordinary plateau/rim loops — *"the top landing is just an extension of
+the plateau"*), and each step is `rim + (H−k) faces + footer` standing in
+front of the main wall. So the edges get the autotiler's own corner rounding
+and inner/outer-corner fillets for free.
 
-| piece | where | what |
-|---|---|---|
-| `top` | `(c0, y0)` | flat top tread in the rim tile's rock rows (12–15); plateau + cap show above — *"the top landing is just an extension of the plateau"*. Stone: a TREAD-wide (12px) landing with a 4px rock shoulder east; sand: eased from flat into the incline (doc §4). |
-| `topLower` | `(c0, y0+1)` | the top tread's spill into the face row |
-| `run` | `(c0−k, y0+k)`, k=1..H | the repeating diagonal band |
-| `runLower` | `(c0−k, y0+k+1)`, k<H | its spill |
-| `foot` | `(c0−H, y0+H+1)` | the last spill, in the FOOTER row: `runLower` cut at the footer's contact row (in-tile row 9) so the final tread sits on the straight contact line and ground + scree continue unbroken |
+### The flight tiles: the walking band + its solid rock body
 
-The phase is exact: the top tread's lip is the rim's rock-face start (row
-12), each following tread drops 4px (the first riser is 6px, absorbing the
-rim-row-12 vs footer-ground-row-10 2px offset), and the final tread bottoms
-out on the footer contact line. Within the band, stone steps follow the
-locked cube cadence (§2: 4px run / 4px riser at 45°), each tread showing its
-lit top face over a `slate` riser front face (the retaining-cut inside-wall
-role, §6) — the slate keeps step fronts legible against the boulder face.
-The stone surface is deliberately **calm** (solid `stoneLit`, no grain): the
-busy boulder texture around it is what makes the cut read as a cut.
+The tiles `diagonalRamps.ts` generates ride on that support. Each is defined
+by ONE **global band sampler** `cell(gx, gy)`; tiles are sliced from it, so
+seams are **structural**. Every piece carries the walking surface **plus the
+flight's own solid rock body beneath it** (transparent only ABOVE the band,
+where the cliff rises over the flight). That body is
+`wallFace("rock", RAMP_WALL_PARAMS)` — the very texture `cliffRock_*_face` is
+built from — so **over the cliff it is pixel-identical to the wall behind and
+merges invisibly**, and **past the cliff base it stands on the sand as the
+projection's visible support wedge**. (History: an intermediate "surface-only,
+transparent-elsewhere" version left the projected foot floating; the owner's
+"support under the ENTIRE stairs" is why every piece now carries the body.)
+
+### The lattice and the angle generalization (`AngleSpec`)
+
+The band has a translational symmetry — a lattice repeat vector
+`(16·periodTiles, −16·latTilesY)`. `ANGLES` in `diagonalRamps.ts` carries the
+per-angle spec (`run`, `riser` px, `periodTiles`, `latTilesY`, `sandThick`,
+ease table); every sampler takes it. The band is thicker than one 16px tile
+drop, so a column spans several vertical **slices** (`run`/`runLower`/…). The
+step-phase constant derives from the lattice: `C = 14/15 + 16·(latTilesY−1)`,
+so the top tread lands flush on the rim's rock-face start (row 12) and the
+foot on the base line at every angle.
+
+| Angle | run/riser px | lattice | period | pieces / material / dir | count (×2 mat ×2 dir) |
+|---|---|---|---|---|---|
+| **45°** | 4 / 4 | `(16,−16)` | 1 wide | 8 (`run`,`runLower`,`runTop`,`foot`,`footLower`,`ground`,`groundLower`,`capTop`) | 32 |
+| **26.57°** | 8 / 4 | `(32,−16)` | 2 wide | 14 (`runA`/`runB` + lowers, `runTop`, `capTop`, `footA/B`+lowers, `groundA/B`+lowers) | 56 |
+| **63.43°** | 4 / 8 | `(16,−32)` | 2 tall | 11 (`run`/`runMid`/`runLower`/`runLowest`, `runTop`, `foot`/`footLower`, `ground`/`groundLower`, `capTop`, `capTopLower`) | 44 |
+
+The **projected FOOT/GROUND** pieces (`foot`/`footLower`/`ground`/
+`groundLower`) are sliced from one screen-space `footCell` block: where the
+band drops past the footer's contact row (in-tile row 9) the wall no longer
+backs it, so from there the body runs down to a flat ground-contact line
+(`BODY_BASE`) — the free-standing wedge standing on the sand — and the base
+line transitions cleanly from the footer/scree line to the foot's own base.
+Stone's last tread drops to a scuffed-sand walk-off; sand's incline eases
+flat and fades into `sandFill`.
+
+Within the band, stone steps show a lit `stoneLit` top face over a `slate`
+riser front (the retaining-cut inside-wall role, §6 — a hue the boulder face
+never uses, so step fronts read as carved faces). The 45° surface is
+deliberately **calm** (solid `stoneLit`, no grain) since 4px treads
+over-fragment against the busy boulder texture; 26.57°'s 8px treads use the
+fuller §3 recipe.
 
 `sw` is the structural mirror: every piece `mirrorX()`, stamped ascending
-left. 26.57° (`(32,−16)` symmetry, two-column period) and 63.43° will reuse
-the same overlay model when built; only 45° exists today
-(`diagonalFlightTiles` in `diagonalRamps.ts`, demoed in
-`render-cliff-review.mts` step 6).
+left. See `diagonalFlightTiles(material, dir, {seed}, angle)` and the three
+demos in `render-cliff-review.mts`.
 
 ## 6. Non-negotiable pipeline rules
 
@@ -239,11 +265,19 @@ the same overlay model when built; only 45° exists today
   **No `Math.random`, no `Date`.** Sheets are sha256-pinned in
   `tests/pipeline/determinism.test.ts`; the sheet is **additive-only** — never
   reorder existing frame indices; re-pin deliberately when you extend it.
-- **Integration path**: `diagonalRampTiles(...)` → `generateTerrain` emits the
-  `dramp*` names → `frames.ts` bakes them into `cliff.png` (padding is derived)
-  → wired like `owMountains` (assets.ts → manifest.ts → index.ts). Re-pin
-  `cliff.png` once after visual approval; land as a PR into `main` with a
-  regular merge commit (never commit to `main`, never fast-forward).
+- **Integration path (SHIPPED — all three angles)**:
+  `diagonalFlightTiles(material, dir, {seed}, angle)` → `generateTerrain` emits
+  `dramp{Sand|Steps}{45|2657|6343}_{se|sw}_{piece}` (the 45° group is emitted
+  FIRST and unchanged, the shallow/steep angles **appended** after it, so
+  existing frame indices never shift) → `frames.ts` bakes them into `cliff.png`
+  (padding derived) → wired like `owMountains` (assets.ts → manifest.ts →
+  index.ts). Current sheet: **370 named tiles, 8×47**, sha-pinned in
+  `determinism.test.ts`. To extend: add tiles **additively only** (never
+  reorder), re-pin the `cliff` sha deliberately, update the `cliffs.test.ts`
+  count/dim asserts, land as a PR into `main` with a regular merge commit
+  (never commit to `main`, never fast-forward). Runtime **placement** of a
+  flight into an actual zone map (the `stampDiagonalFlight`-style cascade) is
+  still phase 2 — the tiles exist in the sheet but aren't yet placed in any map.
 
 ## 7. Process lesson (so we don't repeat it)
 
