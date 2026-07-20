@@ -30,7 +30,7 @@ import { PixelGrid } from "./src/grid";
 import { encodePng } from "./src/png";
 import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
-import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "./src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
 import { diagonalFlightTiles, type DiagonalMaterial, type DiagonalPiece } from "./src/cliffs/diagonalRamps";
 import { TERRAIN_RAMPS } from "./src/cliffs/palette";
@@ -56,6 +56,7 @@ const VARIANTS: { label: string; params: typeof base }[] = [
   { label: "desert", params: DESERT_PRESETS[0] },
   { label: "ice", params: ICE_PRESETS[0] },
   { label: "reef", params: REEF_PRESETS[0] },
+  { label: "lava", params: LAVA_PRESETS[0] },
 ];
 
 // ---- demo scene ----------------------------------------------------------
@@ -589,6 +590,43 @@ function buildScene(params: typeof base): PixelGrid {
         if (!patchOf(x - 1, y)) m |= 64;
         if (!patchOf(x - 1, y - 1)) m |= 128;
         blit(`ice${cap(base)}_${canonical(m)}`, x, y);
+      }
+    }
+  }
+
+  // 11) LAVA ground-transition demo — ash / lava / lavaCrust patches in the open
+  // emberRock field, each seam autotiled by the preset's emberRock<Base> pairings
+  // (mirrors the reef/ice blocks). Biome-guarded on the ash ground.
+  if (params.pairings.some((pr) => pr.base === "ash")) {
+    type LavaPatch = "ash" | "lava" | "lavaCrust";
+    const patches: { base: LavaPatch; cells: [number, number][] }[] = [
+      { base: "ash", cells: [[28, 22], [29, 22], [27, 23], [28, 23], [29, 23], [30, 23], [28, 24], [29, 24], [28, 25]] },
+      { base: "lava", cells: [[36, 23], [37, 23], [38, 23], [35, 24], [36, 24], [37, 24], [38, 24], [39, 24], [36, 25], [37, 25], [38, 25], [37, 26]] },
+      { base: "lavaCrust", cells: [[30, 30], [31, 30], [32, 30], [29, 31], [30, 31], [31, 31], [32, 31], [33, 31], [30, 32], [31, 32], [32, 32], [31, 33]] },
+    ];
+    const patchAt = new Map<string, LavaPatch>();
+    for (const patch of patches) for (const [x, y] of patch.cells) patchAt.set(`${x},${y}`, patch.base);
+    const patchOf = (x: number, y: number): LavaPatch | undefined => patchAt.get(`${x},${y}`);
+    for (const patch of patches) { const fill = `${patch.base}Fill`; for (const [x, y] of patch.cells) blit(fill, x, y); }
+    for (let y = 19; y <= 34; y++) {
+      for (let x = 24; x <= 40; x++) {
+        if (patchOf(x, y)) continue;
+        const neighborBases = [
+          patchOf(x, y - 1), patchOf(x + 1, y - 1), patchOf(x + 1, y), patchOf(x + 1, y + 1),
+          patchOf(x, y + 1), patchOf(x - 1, y + 1), patchOf(x - 1, y), patchOf(x - 1, y - 1),
+        ];
+        const base = neighborBases.find((b): b is LavaPatch => !!b);
+        if (!base) continue;
+        let m = 0;
+        if (!patchOf(x, y - 1)) m |= 1;
+        if (!patchOf(x + 1, y - 1)) m |= 2;
+        if (!patchOf(x + 1, y)) m |= 4;
+        if (!patchOf(x + 1, y + 1)) m |= 8;
+        if (!patchOf(x, y + 1)) m |= 16;
+        if (!patchOf(x - 1, y + 1)) m |= 32;
+        if (!patchOf(x - 1, y)) m |= 64;
+        if (!patchOf(x - 1, y - 1)) m |= 128;
+        blit(`emberRock${cap(base)}_${canonical(m)}`, x, y);
       }
     }
   }

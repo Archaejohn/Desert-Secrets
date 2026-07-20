@@ -456,10 +456,17 @@ describe("cliff tileset byte-stability", () => {
   // 418 -> 559 tiles, 128x1120). Appended after the reefFloor pairings, so no
   // existing tile is reordered (additive). Desert (`cliff`) and ice
   // (`cliffIce`) are untouched — same hashes.
+  //
+  // cliffLava: NEW lava biome sheet (build order ice -> reef -> lava). Four
+  // volcanic grounds all autotiling (emberRock/ash/lava/lavaCrust), organic
+  // seams (edgeIrregularity 18), tier-2 PLACEHOLDER basalt wall face (the
+  // bespoke Worley-lava face re-pins this next). 559 tiles (128x1120), same
+  // shape as reef. Purely additive — desert/ice/reef byte-identical.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
-    cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b"
+    cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b",
+    cliffLava: "907cedde85b394df6bb0c8908b49e525d1a603d03fb87751a17d8d60363d8665"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
