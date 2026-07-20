@@ -55,7 +55,7 @@
  */
 import { PixelGrid } from "../grid";
 import { clamp, fbm, h2, n1, partition } from "./noise";
-import { ROCK, LAVA, shade, type Ramp } from "./palette";
+import { ROCK, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
@@ -375,6 +375,67 @@ export function coralRockWallFace(params: WallParams, seed: number): PixelGrid {
   return grid;
 }
 
+/**
+ * Bespoke lava BASALT face — replaces the `blockWallFace` LAVA-recolor
+ * placeholder, which read as generic stacked bricks rather than fractured
+ * volcanic rock.
+ *
+ * Model: packed dark-basalt **Worley cells** (the same periodic-Worley recipe
+ * the game already uses for lava rock) with **glowing molten fissures** along
+ * the cell boundaries — the inverse of the reef bio-rock face:
+ *  - the fissure core (where the two nearest Worley sites are closest) glows
+ *    hottest: `atbGold` centre -> `amber` -> `hpRed`, with a `rust` cooling rim;
+ *  - the cell bodies are dark basalt (`stoneDark`/`stoneDeep`), undersides
+ *    falling into `ink` shadow, with sparse `ink` vesicles.
+ *
+ * Palette-locked to the LAVA face-ramp family ONLY (atbGold / amber / hpRed /
+ * rust / stoneDark / stoneDeep / ink), because `cliffFace` re-quantizes every
+ * face pixel through `LAVA.indexOf(...)` and the diagonal-flight bodies reuse
+ * this grid. Deterministic (`h2` only), fully opaque, and seamless: the Worley
+ * hash uses WRAPPED cell indices so the fissures tile mod 16 in both axes.
+ */
+export function basaltRockWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // Worley basalt has no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+  const CS = 4, N = T / CS; // 4x4 Worley cells across the tile
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      const i0 = Math.floor(x / CS), j0 = Math.floor(y / CS);
+      let d1 = Infinity, d2 = Infinity, id = 0, siteY = 0;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const ci = i0 + di, cj = j0 + dj;
+          const wi = ((ci % N) + N) % N, wj = ((cj % N) + N) % N; // wrapped -> seamless
+          const sx = (ci + 0.18 + 0.64 * h2(wi, wj, seed + 5)) * CS;
+          const sy = (cj + 0.18 + 0.64 * h2(wi, wj, seed + 6)) * CS;
+          const dd = Math.hypot(x + 0.5 - sx, y + 0.5 - sy);
+          if (dd < d1) { d2 = d1; d1 = dd; id = wj * N + wi; siteY = sy; }
+          else if (dd < d2) d2 = dd;
+        }
+      }
+      const fissure = d2 - d1; // small near a cell boundary
+      // Dark basalt body dominates — fbm-mottled stoneDeep/stoneDark, ink lows.
+      const g = fbm(x, y, seed + 3);
+      let c: PaletteName = g > 0.68 ? "stoneDark" : g < 0.30 ? "ink" : "stoneDeep";
+      // Only ~half the cells run MOLTEN; the rest of the Worley cracks read as
+      // plain dark basalt fractures, so lava stays a minority accent.
+      const molten = h2(id % N, Math.floor(id / N), seed + 11) > 0.52;
+      if (fissure < 0.6) {
+        c = molten
+          ? (fissure < 0.22 ? "atbGold" : fissure < 0.40 ? "amber" : "hpRed") // hot core
+          : "ink"; // dark basalt fracture seam
+      } else if (fissure < 0.9 && molten) {
+        c = "rust"; // thin cooling rim just outside a molten crack
+      } else if (y + 0.5 - siteY > 2.2) {
+        c = "ink"; // cell undersides fall into shadow
+      }
+      if (h2(x, y, seed + 99) > 0.94) c = "ink"; // sparse vesicles
+      grid.px(x, y, c);
+    }
+  }
+  return grid;
+}
+
 /** A fully opaque, palette-locked 16x16 wall-face tile for `material`. */
 export function wallFace(material: MaterialKey, params: WallParams, seed: number): PixelGrid {
   switch (material) {
@@ -385,7 +446,6 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
     case "coralRock":
       return coralRockWallFace(params, seed);
     case "basaltRock":
-      // Placeholder (tier-2) until the bespoke Worley-lava face (lava biome T7).
-      return blockWallFace(LAVA, params, seed);
+      return basaltRockWallFace(params, seed);
   }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PALETTE } from "../../src/shared/palette";
 import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
-import { REEF, ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
+import { REEF, ROCK, LAVA, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
@@ -564,5 +564,11 @@ describe("generateTerrain + lava preset", () => {
     const a = buildAssets();
     expect(a.cliffLava.width).toBe(8 * 16);
     expect(Object.keys(a.manifest.cliffLava.names).length).toBe(names.length);
+  });
+
+  it("lava wall-face pixels come from the LAVA ramp (bespoke basalt face)", () => {
+    const out = generateTerrain(LAVA_PRESETS[0]);
+    const cliffFace = out.find((o) => o.name === "cliffBasaltRock_mid_face")!;
+    cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(LAVA).toContain(c); });
   });
 });

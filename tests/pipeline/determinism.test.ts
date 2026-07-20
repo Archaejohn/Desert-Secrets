@@ -459,14 +459,15 @@ describe("cliff tileset byte-stability", () => {
   //
   // cliffLava: NEW lava biome sheet (build order ice -> reef -> lava). Four
   // volcanic grounds all autotiling (emberRock/ash/lava/lavaCrust), organic
-  // seams (edgeIrregularity 18), tier-2 PLACEHOLDER basalt wall face (the
-  // bespoke Worley-lava face re-pins this next). 559 tiles (128x1120), same
-  // shape as reef. Purely additive — desert/ice/reef byte-identical.
+  // seams (edgeIrregularity 18), and a bespoke tier-3 `basaltRock` wall face
+  // (Worley basalt cells with molten fissures glowing through — ~half the
+  // cracks run molten, LAVA face-ramp). 559 tiles (128x1120), same shape as
+  // reef. Purely additive — desert/ice/reef byte-identical.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
     cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b",
-    cliffLava: "907cedde85b394df6bb0c8908b49e525d1a603d03fb87751a17d8d60363d8665"
+    cliffLava: "2921fbad05ff8fde47795eec0e3dadc230238bf9be3842d82574ad7b4ea2e9fb"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
