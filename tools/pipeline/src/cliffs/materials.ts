@@ -55,7 +55,7 @@
  */
 import { PixelGrid } from "../grid";
 import { h2, partition } from "./noise";
-import { ROCK, shade } from "./palette";
+import { ROCK, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
@@ -116,7 +116,7 @@ function fillPolyScanline(grid: PixelGrid, pts: readonly Point[], color: Palette
 /** Rock ramp role -> base ramp index (see file header for the mapping). */
 const ROCK_TOP = 1, ROCK_RIGHT = 3, ROCK_LEFT = 5, ROCK_GAP = 6;
 
-function rockWallFace(params: WallParams, seed: number): PixelGrid {
+export function blockWallFace(ramp: Ramp, params: WallParams, seed: number): PixelGrid {
   const grid = new PixelGrid(T, T);
   const { courses: C, blockSize: bsize, blocksPerCourse: per, stagger: stag, tone, mortar } = params;
   const chaos = params.orderVsRandom;
@@ -124,7 +124,7 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
 
   // Background / mortar fill: darkens toward `ink` as `mortar` rises
   // (palette-space analogue of the prototype's `scale(gapBase, 1-mortar*0.5)`).
-  grid.rect(0, 0, T, T, shade(ROCK, ROCK_GAP, Math.round(mortar * 2)));
+  grid.rect(0, 0, T, T, shade(ramp, ROCK_GAP, Math.round(mortar * 2)));
 
   const jitter = (i: number, j: number, amt: number): number =>
     Math.round((h2(i, j, seed) - 0.5) * 2 * amt * chaos);
@@ -141,17 +141,17 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
     fillPolyScanline(
       grid,
       [[cx, cy - h], [cx + sz, cy - h + p], [cx, cy - h + p * 2], [cx - sz, cy - h + p]],
-      shade(ROCK, ROCK_TOP, shift)
+      shade(ramp, ROCK_TOP, shift)
     );
     fillPolyScanline(
       grid,
       [[cx, cy - h + p * 2], [cx + sz, cy - h + p], [cx + sz, cy + sz], [cx, cy + sz + p]],
-      shade(ROCK, ROCK_RIGHT, shift)
+      shade(ramp, ROCK_RIGHT, shift)
     );
     fillPolyScanline(
       grid,
       [[cx, cy - h + p * 2], [cx - sz, cy - h + p], [cx - sz, cy + sz], [cx, cy + sz + p]],
-      shade(ROCK, ROCK_LEFT, shift)
+      shade(ramp, ROCK_LEFT, shift)
     );
   };
 
@@ -181,6 +181,6 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
 export function wallFace(material: MaterialKey, params: WallParams, seed: number): PixelGrid {
   switch (material) {
     case "rock":
-      return rockWallFace(params, seed);
+      return blockWallFace(ROCK, params, seed);
   }
 }
