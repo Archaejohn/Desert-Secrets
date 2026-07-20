@@ -54,8 +54,8 @@
  * pixel identical to the prototype (`:304-309`, `:318-319`).
  */
 import { PixelGrid } from "../grid";
-import { h2, partition } from "./noise";
-import { ROCK, ICE, shade, type Ramp } from "./palette";
+import { clamp, h2, partition } from "./noise";
+import { ROCK, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
@@ -177,12 +177,107 @@ export function blockWallFace(ramp: Ramp, params: WallParams, seed: number): Pix
   return grid;
 }
 
+/**
+ * Bespoke crystalline glacier face (Task 8) — replaces the `blockWallFace`
+ * ICE-recolor placeholder, which read as flat stacked bricks rather than ice.
+ *
+ * Model: a **toroidal Voronoi facet field**. N deterministic feature points
+ * are scattered on the 16x16 torus (all distances wrap mod 16, so the tile is
+ * seamless in both axes); each pixel belongs to its nearest point's facet.
+ * Where the nearest and second-nearest distances nearly tie, the pixel sits
+ * on a facet boundary — those pixels become the dark fracture lines (`indigo`,
+ * dropping to `ink` at the deepest, most equidistant pixels). Facet interiors
+ * take a per-facet base tone (`skyBlue` for most, `slate` / one `indigo` for
+ * shadowed panes). North light: the first interior row *below* a fracture is
+ * the facet's lit crest (one ramp step lighter — `white` on skyBlue facets);
+ * the row *above* a fracture is the shadowed under-edge (one step darker).
+ * Sparse `white` glints sparkle on bright facet interiors.
+ *
+ * Palette-locked to the ice family only: white / skyBlue / slate / indigo /
+ * ink. Fully opaque, deterministic (`h2` only), and a drop-in for
+ * `blockWallFace`'s call shape — the block-wall `params` don't map onto facet
+ * geometry and are deliberately ignored.
+ */
+const GLACIER_RAMP: readonly PaletteName[] = ["white", "skyBlue", "slate", "indigo", "ink"];
+
+export function glacierWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // facet geometry has no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+
+  // Deterministic facet seeds on the torus: a jittered 3x2 lattice (rather
+  // than fully random points) so sites keep a minimum separation — pure
+  // random placement produced skinny sliver facets and a dominant "X"
+  // crossing motif.
+  const GX = 3, GY = 2;
+  const N = GX * GY;
+  const sx: number[] = [], sy: number[] = [], tone: number[] = [];
+  for (let gy = 0; gy < GY; gy++) {
+    for (let gx = 0; gx < GX; gx++) {
+      sx.push(((gx + 0.2 + 0.6 * h2(gx, gy * 7 + 11, seed)) * T) / GX);
+      sy.push(((gy + 0.2 + 0.6 * h2(gx, gy * 7 + 23, seed)) * T) / GY);
+      tone.push(h2(gx, gy * 7 + 37, seed));
+    }
+  }
+  const wrapD = (d: number): number => {
+    const m = ((d % T) + T) % T;
+    return m > T / 2 ? m - T : m;
+  };
+
+  // Per-pixel: owning facet + boundary closeness (d2 - d1; small = on a
+  // crack) + junction closeness (d3 - d1; small = a triple point where
+  // three facets meet — the crack web's deepest pits).
+  const id = new Int32Array(T * T);
+  const edge = new Float64Array(T * T);
+  const junction = new Float64Array(T * T);
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      let i1 = 0, d1 = Infinity, d2 = Infinity, d3 = Infinity;
+      for (let k = 0; k < N; k++) {
+        const dx = wrapD(x + 0.5 - sx[k]);
+        const dy = wrapD(y + 0.5 - sy[k]);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < d1) { d3 = d2; d2 = d1; d1 = d; i1 = k; }
+        else if (d < d2) { d3 = d2; d2 = d; }
+        else if (d < d3) d3 = d;
+      }
+      id[y * T + x] = i1;
+      edge[y * T + x] = d2 - d1;
+      junction[y * T + x] = d3 - d1;
+    }
+  }
+  const CRACK = 0.75;
+  const crackAt = (x: number, y: number): boolean =>
+    edge[(((y % T) + T) % T) * T + (((x % T) + T) % T)] < CRACK;
+
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      const i = y * T + x;
+      let idx: number;
+      if (edge[i] < CRACK) {
+        // Fracture line between facets: solid indigo, dropping to ink only
+        // at triple points (junction pits) so the lines stay crisp instead
+        // of dithering ink/indigo pixel-by-pixel along diagonals.
+        idx = junction[i] < 0.8 ? 4 : 3;
+      } else {
+        const t = tone[id[i]];
+        const base = t < 0.55 ? 1 : t < 0.93 ? 2 : 3; // skyBlue / slate / rare indigo pane
+        idx = base;
+        if (crackAt(x, y - 1)) idx = base - 1; // north-lit crest under a fracture
+        else if (crackAt(x, y + 1)) idx = base + 1; // shadowed under-edge
+        else if (base === 1 && h2(x, y, seed + 91) > 0.96) idx = 0; // glint
+      }
+      grid.px(x, y, GLACIER_RAMP[clamp(idx, 0, 4)]);
+    }
+  }
+  return grid;
+}
+
 /** A fully opaque, palette-locked 16x16 wall-face tile for `material`. */
 export function wallFace(material: MaterialKey, params: WallParams, seed: number): PixelGrid {
   switch (material) {
     case "rock":
       return blockWallFace(ROCK, params, seed);
     case "glacier":
-      return blockWallFace(ICE, params, seed); // placeholder recolor — bespoke face lands in Task 8
+      return glacierWallFace(params, seed);
   }
 }

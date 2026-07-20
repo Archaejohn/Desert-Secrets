@@ -178,6 +178,27 @@ describe("wallFace rock material", () => {
   });
 });
 
+describe("wallFace glacier material (Task 8 bespoke crystalline face)", () => {
+  const WP: WallParams = {
+    courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: 0.5,
+    tone: 0.2, mortar: 0.35, orderVsRandom: 0.45,
+  };
+  // The ice family palette glacierWallFace draws from (materials.ts GLACIER_RAMP).
+  const GLACIER_ALLOWED = new Set(["white", "skyBlue", "slate", "indigo", "ink"]);
+
+  it("wallFace glacier is 16x16, palette-locked to the ice family, deterministic, opaque", () => {
+    const a = wallFace("glacier", WP, 7), b = wallFace("glacier", WP, 7);
+    expect(a.width).toBe(16); expect(a.height).toBe(16);
+    expect(a.diff(b)).toBe(0);
+    expect(a.countOpaque()).toBe(256);
+    a.forEach((_x, _y, c) => { if (c !== null) expect(GLACIER_ALLOWED.has(c)).toBe(true); });
+  });
+
+  it("different seeds differ", () => {
+    expect(wallFace("glacier", WP, 1).diff(wallFace("glacier", WP, 2))).toBeGreaterThan(0);
+  });
+});
+
 describe("cliff set (15 tiles)", () => {
   const mk = (over = 0) => cliffTiles({
     face: wallFace("rock", { courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: .5, tone: .2, mortar: .35, orderVsRandom: .45 }, 7),

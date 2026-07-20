@@ -40,6 +40,39 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
   const grid = new PixelGrid(T, T);
   const ramp = TERRAIN_RAMPS[key];
 
+  // Task 8 — precomputed frosted-facet field for the `ice` branch below: a
+  // coarse toroidal Voronoi (5 sites, distances wrapped mod 16 so the fill
+  // stays seamless) whose boundary-closeness map (d2 - d1) the per-pixel loop
+  // reads to place hairline cracks between large calm facets. Deterministic
+  // (`h2` only); untouched for every other terrain.
+  let iceEdge: Float64Array | null = null;
+  if (key === "ice") {
+    const N = 5;
+    const sx: number[] = [], sy: number[] = [];
+    for (let k = 0; k < N; k++) {
+      sx.push(h2(k, 111, seed) * T);
+      sy.push(h2(k, 123, seed) * T);
+    }
+    const wrapD = (d: number): number => {
+      const m = ((d % T) + T) % T;
+      return m > T / 2 ? m - T : m;
+    };
+    iceEdge = new Float64Array(T * T);
+    for (let y = 0; y < T; y++) {
+      for (let x = 0; x < T; x++) {
+        let d1 = Infinity, d2 = Infinity;
+        for (let k = 0; k < N; k++) {
+          const dx = wrapD(x + 0.5 - sx[k]);
+          const dy = wrapD(y + 0.5 - sy[k]);
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < d1) { d2 = d1; d1 = d; }
+          else if (d < d2) d2 = d;
+        }
+        iceEdge[y * T + x] = d2 - d1;
+      }
+    }
+  }
+
   for (let y = 0; y < T; y++) {
     for (let x = 0; x < T; x++) {
       let v = fbm(x, y, seed + key.length * 13);
@@ -54,11 +87,17 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark speck (~4%)
       } else if (key === "ice") {
-        // Glinting frost speckle: skyBlue body with sparse white glints and
-        // sparser slate hairline cracks (own recipe — NOT the asphalt fill).
-        idx = 1;                                      // skyBlue body
-        if (h2(x, y, seed + 31) > 0.94) idx = 0;      // white glint
-        else if (h2(x, y, seed + 53) > 0.95) idx = 2; // slate hairline crack
+        // Frosted crystalline floor (Task 8): a skyBlue body carved into
+        // large calm facets by slate hairline cracks (the toroidal Voronoi
+        // boundaries precomputed above), with indigo dashes marking the
+        // deepest crack pixels, sparse white glints and faint slate frost
+        // specks on the facet interiors. Visibly icy, but much quieter than
+        // the cliff face — it's a walking surface.
+        const e = iceEdge![y * T + x];
+        idx = 1; // skyBlue body
+        if (e < 0.42) idx = h2(x, y, seed + 61) > 0.9 ? 3 : 2; // hairline crack (rare indigo dash)
+        else if (h2(x, y, seed + 31) > 0.97) idx = 0; // white glint
+        else if (h2(x, y, seed + 53) > 0.95) idx = 2; // frost speck
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]

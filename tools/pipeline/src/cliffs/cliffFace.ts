@@ -89,6 +89,12 @@ const sc = (k: number): number => Math.round((1 - k) * SHADE_SENSITIVITY);
 export interface CliffParams {
   /** Rock wall-face texture (always ROCK-ramp in phase 1). */
   face: PixelGrid;
+  /** Ramp `face`'s pixels live on (default `ROCK`). Task 8: the bespoke
+   *  `glacier` face is authored on the `ICE` ramp — without this, the
+   *  `ROCK.indexOf` round-trip below maps every ice name to -1 -> clamps to
+   *  `stoneLit`, which is exactly why the placeholder ice wall read as flat
+   *  gray. Omitted for `rock`, so desert output is byte-identical. */
+  faceRamp?: Ramp;
   /** Plateau top terrain fill. */
   top: PixelGrid;
   /** Ground terrain fill (below the footer). */
@@ -133,8 +139,9 @@ function buildCliffTile(variant: number, band: number, p: CliffParams): PixelGri
   const bround = p.baseRounding, tround = p.topRounding;
   const capStart = T - cap - 4;
 
+  const faceRamp = p.faceRamp ?? ROCK;
   const faceIdx = (x: number, y: number): number =>
-    ROCK.indexOf(p.face.get(x, y) as PaletteName);
+    faceRamp.indexOf(p.face.get(x, y) as PaletteName);
   const topIdx = (x: number, y: number): number =>
     nameToRampIndex(topKey, p.top.get(x, y) as PaletteName);
   const gndIdx = (x: number, y: number): number =>
@@ -182,10 +189,10 @@ function buildCliffTile(variant: number, band: number, p: CliffParams): PixelGri
           if (lip && y === capS) idx = baseIdx + sc(1.22); // lit lip (overrides)
           region = "cap";
         } else {
-          ramp = ROCK; idx = faceIdx(x, y); region = "face";
+          ramp = faceRamp; idx = faceIdx(x, y); region = "face";
         }
       } else if (band === 1) {
-        ramp = ROCK; idx = faceIdx(x, y); region = "face";
+        ramp = faceRamp; idx = faceIdx(x, y); region = "face";
       } else {
         // Footer.
         let lift = 0;
@@ -195,9 +202,9 @@ function buildCliffTile(variant: number, band: number, p: CliffParams): PixelGri
         }
         const faceEnd = T - foot - lift;
         if (y < faceEnd - 1) {
-          ramp = ROCK; idx = faceIdx(x, y); region = "face";
+          ramp = faceRamp; idx = faceIdx(x, y); region = "face";
         } else if (y < faceEnd) {
-          ramp = ROCK; idx = faceIdx(x, y) + sc(0.45); region = "contact"; // contact shadow
+          ramp = faceRamp; idx = faceIdx(x, y) + sc(0.45); region = "contact"; // contact shadow
         } else {
           ramp = gndRamp; idx = gndIdx(x, y);
           const d = (y - faceEnd) / foot;
