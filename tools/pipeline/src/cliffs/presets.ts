@@ -155,7 +155,7 @@ const REEF_CLIFF: TerrainParams = {
   // Floor blob edges — mirrors ICE_CLIFF (== desert defaults).
   edgeInset: 2,
   edgeIrregularity: 14,
-  cornerRounding: 2,
+  cornerRounding: 8,
   edgeOutline: true,
   dropShadow: true,
   linkPlateauCorners: true,

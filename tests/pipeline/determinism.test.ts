@@ -424,10 +424,19 @@ describe("cliff tileset byte-stability", () => {
   // bespoke plum bio-rock wall face (the REEF face-ramp in palette.ts).
   // Same 274 named tile slots, no reordering — only the reef wall's face
   // pixels changed. Desert (`cliff`) and ice (`cliffIce`) are untouched.
+  //
+  // cliffReef re-pinned again for M2 Task R3d: REEF_CLIFF's `cornerRounding`
+  // raised 2 -> 8 (presets.ts) so the reef's ground-to-ground blob seams
+  // (reefFloor<->reefSilt/reefWater/glowMoss/reefFloor) read as larger,
+  // rounder, more organic corners than the cliff/plateau edges, which keep
+  // their own `topRounding` (unchanged, via `linkPlateauCorners`). Same 274
+  // named tile slots, no reordering — only ground-transition blob-mask
+  // corner pixels changed. Desert (`cliff`) and ice (`cliffIce`) are
+  // untouched.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
-    cliffReef: "caa805fa68690160949b219a492cc2eb4a9ae9204f5e9706793e05d7fc75335c"
+    cliffReef: "a400f2408e310e2e9d7ddd0271a112865c29405b3c711b5fcdca0ba7ac4a8d37"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
