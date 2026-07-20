@@ -58,7 +58,7 @@ const VARIANTS: { label: string; params: typeof base }[] = [{ label: "scene", pa
 // plateau blocks east of the original gateway arch — see the ramp block
 // comments below for exact column/row layout.
 const MW = 48;
-const MH = 22;
+const MH = 40;
 
 // Plateau bitmap (deterministic, hand-authored). A "gateway" mass: a crossbar
 // across the top joined to two legs, leaving a 2-tile-wide OPENING (cols 10,11)
@@ -114,6 +114,29 @@ P[12][28] = P[12][29] = false;
 fill(1, 11, 10, 13);
 P[14][9] = true; // stone flight's landing (head col 9)
 P[14][4] = true; // sand flight's landing (head col 4)
+
+// (e) SHALLOW (26.57°) diagonal flight demo — same model as (d) at half
+// slope: the run period is TWO tiles wide (`runB` beside the landing,
+// `runA` west of it) and the support cascade shortens one tile every TWO
+// tiles across. Block rows 20-22 (rim row 22, faces 23-24, footer 25);
+// each flight spans 7 columns (c0-6..c0). Landings protrude at row 23,
+// drawn by the ordinary plateau/rim loops exactly like (d)'s.
+fill(1, 20, 18, 22);
+P[23][17] = true; // stone flight's landing (head col 17)
+P[23][8] = true; // sand flight's landing (head col 8)
+
+// (f) STEEP (63.43°) diagonal flight demo — same model at double slope:
+// the run period is 1 tile wide × TWO tiles TALL (cell(gx+16, gy-32) ===
+// cell(gx, gy)), so each column carries FOUR band slices and the support
+// cascade shortens TWO tiles per column (1-left-per-2-down). The preset's
+// 2-row cliff is too shallow for a whole 2-tall period, so this block's
+// wall is extended to D=5 face rows (rim row 31, faces 32-36, footer 37,
+// cascade footers 38) in `buildScene` step 8, the same trick as the
+// switchback (c). Landings protrude at row 32, drawn by the ordinary
+// plateau/rim loops exactly like (d)'s.
+fill(1, 29, 15, 31);
+P[32][12] = true; // stone flight's landing (head col 12)
+P[32][5] = true; // sand flight's landing (head col 5)
 
 const p = (x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < MW && y < MH && P[y][x];
@@ -304,6 +327,138 @@ function buildScene(params: typeof base): PixelGrid {
   stampDiagonalFlight("stoneSteps", 9, 13); // stone flight: top col 9 → foot col 7
   stampDiagonalFlight("sandSlope", 4, 13); // sand flight: top col 4 → foot col 2
 
+  // 7) SHALLOW (26.57°) diagonal flight demos — the same cascade model at
+  // half slope. Two differences from step 6, both direct consequences of
+  // the 2-tile-wide lattice period (cell(gx+32, gy-16) === cell(gx, gy)):
+  //   - each face row k carries a PAIR of run tiles (`runB` east, `runA`
+  //     west — `runTop` is the eased runB beside the landing), so the
+  //     cascade's support wall shortens one tile every TWO tiles across;
+  //   - the projected base is a 4-column block (footB/footA over the
+  //     cascade's own footer line, then groundB/groundA standing on the
+  //     sand), instead of 45°'s 2-column foot/ground pair.
+  const stampDiagonalFlightShallow = (material: DiagonalMaterial, c0: number, y0: number): void => {
+    const pieces = new Map(
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "26.57").map((t) => [t.piece, t.grid])
+    );
+    const put = (piece: DiagonalPiece, x: number, y: number): void =>
+      scene.blit(pieces.get(piece)!, x * T, y * T);
+    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
+    put("capTop", c0, y0 + 1);
+    for (let y = y0 + 2; y <= y0 + H + 1; y++) {
+      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
+    }
+    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (y0 + H + 2) * T);
+
+    for (let k = 1; k <= H; k++) {
+      const xB = c0 - 2 * k + 1; // east tile of pair k (beside the previous pair)
+      const xA = c0 - 2 * k; // west tile of pair k
+      put(k === 1 ? "runTop" : "runB", xB, y0 + k);
+      put("runA", xA, y0 + k);
+      put(k === H ? "footB" : "runBLower", xB, y0 + k + 1);
+      put(k === H ? "footA" : "runALower", xA, y0 + k + 1);
+      if (k < H) {
+        for (const x of [xB, xA]) {
+          for (let y = y0 + k + 2; y <= y0 + H + 1; y++) {
+            scene.blit(tile("cliffRock_mid_face"), x * T, y * T);
+          }
+        }
+        scene.blit(tile("cliffRock_mid_footer"), xB * T, (y0 + H + 2) * T);
+        const footerA = k === H - 1 ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+        scene.blit(tile(footerA), xA * T, (y0 + H + 2) * T);
+      }
+    }
+    put("footBLower", c0 - 2 * H + 1, y0 + H + 2);
+    put("footALower", c0 - 2 * H, y0 + H + 2);
+    put("groundB", c0 - 2 * H - 1, y0 + H + 1);
+    put("groundBLower", c0 - 2 * H - 1, y0 + H + 2);
+    put("groundA", c0 - 2 * H - 2, y0 + H + 1);
+    put("groundALower", c0 - 2 * H - 2, y0 + H + 2);
+  };
+  stampDiagonalFlightShallow("stoneSteps", 17, 22); // stone: top col 17 → walk-off col 11
+  stampDiagonalFlightShallow("sandSlope", 8, 22); // sand: top col 8 → runout col 2
+
+  // 8) STEEP (63.43°) diagonal flight demos — the same cascade model at
+  // double slope. Differences from step 6, all consequences of the
+  // 1-wide × 2-TALL lattice period (cell(gx+16, gy-32) === cell(gx, gy)):
+  //   - each column carries FOUR vertical band slices (run/runMid/
+  //     runLower/runLowest — the 20px stone / 27px sand band descends 32px
+  //     across a 16px column), and the cascade's support wall shortens TWO
+  //     tiles per column (1-left-per-2-down);
+  //   - the head blend is 2-tall too (capTop + capTopLower: the 8px step-0
+  //     riser / the steep incline's cap roll spill below the landing tile);
+  //   - the terminal compresses: the band crosses the footer contact AND
+  //     lands its final riser on the ground line inside the ONE foot
+  //     column (plus a plain `run` slice above it on the last face row);
+  //     the ground column is just the walk-off (stone) / levelled runout
+  //     fade (sand).
+  // The preset wall (H=2) can't fit a whole 2-tall period, so the block's
+  // south wall is first extended to D = 2K+1 = 5 face rows (K=2 run
+  // columns), footer row 37 — the switchback-(c) trick, variants matching
+  // what the step-4 loop chose from P (innerW/innerE frame the protruding
+  // landings).
+  {
+    const y0s = 31; // block (f) rim row
+    const Ds = 5; // extended face depth = 2K+1
+    const Fs = y0s + Ds + 1; // main footer row (37)
+    const STEEP_FLANK: Record<number, string> = {
+      1: "outerW", 2: "mid", 3: "mid", 4: "innerE",
+      6: "innerW", 7: "mid", 8: "mid", 9: "mid", 10: "mid", 11: "innerE",
+      13: "innerW", 14: "mid", 15: "outerE",
+    };
+    for (const [xs, variant] of Object.entries(STEEP_FLANK)) {
+      const x = Number(xs);
+      // step 4 drew rim@31, faces 32-33, footer 34 — deepen to Ds faces
+      for (let y = y0s + H + 1; y <= y0s + Ds; y++) {
+        scene.blit(tile(`cliffRock_${variant}_face`), x * T, y * T);
+      }
+      scene.blit(tile(`cliffRock_${variant}_footer`), x * T, Fs * T);
+    }
+  }
+  const stampDiagonalFlightSteep = (material: DiagonalMaterial, c0: number, y0: number): void => {
+    const pieces = new Map(
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "63.43").map((t) => [t.piece, t.grid])
+    );
+    const put = (piece: DiagonalPiece, x: number, y: number): void =>
+      scene.blit(pieces.get(piece)!, x * T, y * T);
+    const K = 2; // run columns (2 face rows each)
+    const D = 2 * K + 1; // face depth below the rim
+    const F = y0 + D + 1; // main footer row
+    // landing wall — outerE rim/faces/footer one tile south of the main
+    // wall's, then the head blend over its top two tiles
+    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
+    for (let y = y0 + 2; y <= F; y++) {
+      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
+    }
+    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (F + 1) * T);
+    put("capTop", c0, y0 + 1);
+    put("capTopLower", c0, y0 + 2);
+
+    for (let k = 1; k <= K; k++) {
+      const x = c0 - k;
+      // cascade support wall under the band — two tiles shorter per
+      // column, every footer on the same base row (F+1)
+      for (let y = y0 + 2 * k + 3; y <= F; y++) {
+        scene.blit(tile("cliffRock_mid_face"), x * T, y * T);
+      }
+      const footerName = k === K ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+      scene.blit(tile(footerName), x * T, (F + 1) * T);
+      put(k === 1 ? "runTop" : "run", x, y0 + 2 * k - 1);
+      put("runMid", x, y0 + 2 * k);
+      put("runLower", x, y0 + 2 * k + 1);
+      put("runLowest", x, y0 + 2 * k + 2);
+    }
+    // foot column: a plain run slice on the last face row, then the band
+    // crossing the footer + landing its final riser on the ground line
+    put("run", c0 - K - 1, F - 1);
+    put("foot", c0 - K - 1, F);
+    put("footLower", c0 - K - 1, F + 1);
+    // ground column: walk-off (stone) / levelled runout fade (sand)
+    put("ground", c0 - K - 2, F);
+    put("groundLower", c0 - K - 2, F + 1);
+  };
+  stampDiagonalFlightSteep("stoneSteps", 12, 31); // stone: top col 12 → foot col 9
+  stampDiagonalFlightSteep("sandSlope", 5, 31); // sand: top col 5 → runout col 1
+
   return scene;
 }
 
@@ -334,6 +489,32 @@ for (const { label, params } of VARIANTS) {
     const cropPath = join(outDir, "diag-crop.png");
     writeFileSync(cropPath, encodePng(cropUp));
     console.log(`diag-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+  }
+  // Zoomed crop of the SHALLOW (26.57°) flight demo block (cols 0-19, rows
+  // 19-27) at x8.
+  {
+    const cx0 = 0, cy0 = 19, cw = 20, ch = 9;
+    const crop = new PixelGrid(cw * T, ch * T);
+    for (let y = 0; y < ch * T; y++) {
+      for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
+    }
+    const cropUp = upscale(crop, 8);
+    const cropPath = join(outDir, "diag-shallow-crop.png");
+    writeFileSync(cropPath, encodePng(cropUp));
+    console.log(`diag-shallow-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+  }
+  // Zoomed crop of the STEEP (63.43°) flight demo block (cols 0-16, rows
+  // 28-39) at x8.
+  {
+    const cx0 = 0, cy0 = 28, cw = 17, ch = 12;
+    const crop = new PixelGrid(cw * T, ch * T);
+    for (let y = 0; y < ch * T; y++) {
+      for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
+    }
+    const cropUp = upscale(crop, 8);
+    const cropPath = join(outDir, "diag-steep-crop.png");
+    writeFileSync(cropPath, encodePng(cropUp));
+    console.log(`diag-steep-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
   }
   const sceneUp = upscale(sceneRaw, SCENE_SCALE);
   // TEMP tile-grid overlay (atbGold at every 16px tile boundary) so placement
