@@ -22,7 +22,19 @@ export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stone
 /** Glacial ice cliff ramp: white lit facets → deep indigo shadow. */
 export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indigo", "indigo", "ink"];
 
-export type TerrainKey = "sand" | "frostSand" | "asphalt" | "ice";
+/** Reef coral cliff ramp (placeholder, tier-3 bespoke face lands in R3):
+ *  mint lit facets → deep teal shadow. */
+export const REEF: Ramp = ["mint", "jade", "teal", "teal", "tealDeep", "tealDeep", "tealDeep", "ink"];
+
+export type TerrainKey =
+  | "sand"
+  | "frostSand"
+  | "asphalt"
+  | "ice"
+  | "reefFloor"
+  | "reefSilt"
+  | "reefWater"
+  | "glowMoss";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -31,6 +43,14 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
   asphalt: ["slate", "indigo", "plum", "ink"],
   ice: ["white", "skyBlue", "slate", "indigo"],
+  // Deep coral-green floor: plateau top + main reef ground.
+  reefFloor: ["jade", "teal", "tealDeep", "umber"],
+  // Pale sediment.
+  reefSilt: ["sandLight", "sandShade", "umber", "ink"],
+  // Reef water, shallow -> deep.
+  reefWater: ["skyBlue", "teal", "tealDeep", "indigo"],
+  // Bright glowing moss.
+  glowMoss: ["mint", "jade", "teal", "tealDeep"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));

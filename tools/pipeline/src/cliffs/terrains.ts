@@ -86,6 +86,14 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = 1;
         if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark speck (~4%)
+      } else if (key === "reefFloor" || key === "reefSilt" || key === "reefWater" || key === "glowMoss") {
+        // Reef grounds (Task R1 placeholder — refined in R3): body = ramp[1],
+        // sparse ramp[0] light fleck (~5%), sparse ramp[2] dark fleck (~4%),
+        // same hash-scattered single-pixel style as the sand branch above.
+        // Palette-locked to THIS ground's own 4-slot ramp only.
+        idx = 1;
+        if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
+        else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark fleck (~4%)
       } else if (key === "ice") {
         // Frosted floor (Task 8c retune): a bright WHITE crystalline body
         // (idx 0, swapped from the previous skyBlue-dominant pass — owner

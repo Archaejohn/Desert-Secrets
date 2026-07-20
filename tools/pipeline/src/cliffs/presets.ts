@@ -119,3 +119,60 @@ const ICE_CLIFF: TerrainParams = {
 };
 
 export const ICE_PRESETS: TerrainParams[] = [ICE_CLIFF];
+
+// Reef cliff — mirrors ICE_CLIFF's cliff-assembly/floor-edge defaults with
+// the reef material/terrains and four ground pairings (reefFloor, reefSilt,
+// reefWater, glowMoss). The `reefStone` wall face is a placeholder recolor
+// of `blockWallFace` (materials.ts) until Task R3's bespoke coral face.
+const REEF_CLIFF: TerrainParams = {
+  material: "reefStone",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors ICE_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — mirrors ICE_CLIFF (== desert defaults).
+  edgeInset: 2,
+  edgeIrregularity: 14,
+  cornerRounding: 2,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // Terrain pairings — reef floor plateau/ground, with reefFloor transitioning
+  // into reefSilt, reefWater, and glowMoss blob edges.
+  pairings: [
+    { over: "reefFloor", base: "reefFloor" },
+    { over: "reefFloor", base: "reefSilt" },
+    { over: "reefFloor", base: "reefWater" },
+    { over: "reefFloor", base: "glowMoss" },
+  ],
+  plateauTop: "reefFloor",
+  ground: "reefFloor",
+
+  seed: 7777,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const REEF_PRESETS: TerrainParams[] = [REEF_CLIFF];

@@ -55,12 +55,12 @@
  */
 import { PixelGrid } from "../grid";
 import { clamp, h2, partition } from "./noise";
-import { ROCK, shade, type Ramp } from "./palette";
+import { REEF, ROCK, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock" | "glacier";
+export type MaterialKey = "rock" | "glacier" | "reefStone";
 
 export interface WallParams {
   courses: number;
@@ -279,5 +279,9 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
       return blockWallFace(ROCK, params, seed);
     case "glacier":
       return glacierWallFace(params, seed);
+    case "reefStone":
+      // Placeholder (Task R1) — recolor of blockWallFace on the REEF ramp;
+      // the bespoke coral face lands in R3.
+      return blockWallFace(REEF, params, seed);
   }
 }

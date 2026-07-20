@@ -211,7 +211,11 @@ function buildCliffTile(variant: number, band: number, p: CliffParams): PixelGri
           const g = Math.max(0, 1 - d);
           idx += sc(1 - ss * g * g);                   // cast shadow
           if (scree && d < 0.6 && h2(x, y, SCREE_SEED + 31) > 0.80) {
-            ramp = ROCK; idx = WALL_TOP_IDX + sc(0.7); // scree pebble = scale(wallTop,0.7)
+            // Scree pebbles take the cliff's own face ramp (default ROCK),
+            // not a hardcoded ROCK — so a biome cliff's scree reads in that
+            // biome's colour instead of always gray. Desert (faceRamp
+            // defaults to ROCK) stays byte-identical.
+            ramp = faceRamp; idx = WALL_TOP_IDX + sc(0.7); // scree pebble = scale(wallTop,0.7)
           }
           region = "ground";
         }

@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { PALETTE } from "../../src/shared/palette";
 import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
-import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
+import { REEF, ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
-import { DESERT_PRESETS, ICE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
@@ -73,6 +73,22 @@ describe("terrain floor fills", () => {
         expect(a.get(x, y)).toBe(b.get(x, y)); // deterministic
       }
   });
+
+  it.each(["reefFloor", "reefSilt", "reefWater", "glowMoss"] as const)(
+    "reef ground %s floorFill is palette-locked to its own ramp and deterministic",
+    (key) => {
+      const a = floorFill(key, 7777);
+      const b = floorFill(key, 7777);
+      const allowed = new Set(TERRAIN_RAMPS[key]);
+      expect(a.width).toBe(16);
+      expect(a.height).toBe(16);
+      for (let y = 0; y < 16; y++)
+        for (let x = 0; x < 16; x++) {
+          expect(allowed.has(a.get(x, y)!)).toBe(true);
+          expect(a.get(x, y)).toBe(b.get(x, y)); // deterministic
+        }
+    }
+  );
 });
 
 describe("47-blob canonical masks + overlayMask geometry", () => {
@@ -282,6 +298,38 @@ describe("generateTerrain + ice preset (Task 4)", () => {
     expect(new Set(out).size).toBe(out.length); // all unique
     // total is preset-dependent (1 pairing): run once, then pin the number you get.
     expect(out.length).toBe(274);
+  });
+});
+
+describe("generateTerrain + reef preset (Task R1)", () => {
+  it("reef preset emits its full parity set (4 grounds x 4 pairings), uniquely named", () => {
+    const out = generateTerrain(REEF_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffReefStone_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("reefFloorPlateau_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorReefFloor_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorReefSilt_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorReefWater_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorGlowMoss_")).length).toBe(47);
+    expect(out).toContain("reefFloorFill");
+    expect(out).toContain("reefSiltFill");
+    expect(out).toContain("reefWaterFill");
+    expect(out).toContain("glowMossFill");
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
+    expect(new Set(out).size).toBe(out.length); // all unique
+    // total is preset-dependent (4 pairings): run once, then pin the number you get.
+    expect(out.length).toBe(418);
+  });
+
+  it("generateTerrain is deterministic for the reef preset", () => {
+    const a = generateTerrain(REEF_PRESETS[0]), b = generateTerrain(REEF_PRESETS[0]);
+    a.forEach((o, i) => expect(o.grid.diff(b[i].grid)).toBe(0));
+  });
+
+  it("reef wall-face pixels come from the REEF ramp (faceRamp threaded through)", () => {
+    const out = generateTerrain(REEF_PRESETS[0]);
+    const cliffFace = out.find((o) => o.name === "cliffReefStone_mid_face")!;
+    cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(REEF).toContain(c); });
   });
 });
 

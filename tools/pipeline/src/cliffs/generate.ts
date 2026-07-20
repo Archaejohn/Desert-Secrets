@@ -41,7 +41,7 @@
  * from the prototype's `po = {...o, round: linkCorners ? tround : fround}`.
  */
 import { PixelGrid } from "../grid";
-import { ICE, TERRAIN_RAMPS, type TerrainKey } from "./palette";
+import { ICE, REEF, TERRAIN_RAMPS, type TerrainKey } from "./palette";
 import { floorFill } from "./terrains";
 import { blobTiles } from "./blob47";
 import { wallFace, type MaterialKey } from "./materials";
@@ -130,9 +130,10 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
 
   const cliffGrids = cliffTiles({
     face,
-    // Task 8: the bespoke glacier face lives on the ICE ramp; rock omits
-    // this (default ROCK) so desert output is byte-identical.
-    faceRamp: p.material === "glacier" ? ICE : undefined,
+    // Task 8: the bespoke glacier face lives on the ICE ramp; the reef
+    // placeholder face lives on the REEF ramp; rock omits this (default
+    // ROCK) so desert output is byte-identical.
+    faceRamp: p.material === "glacier" ? ICE : p.material === "reefStone" ? REEF : undefined,
     top: fills.get(p.plateauTop)!,
     gnd: fills.get(p.ground)!,
     topKey: p.plateauTop,
