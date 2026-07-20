@@ -400,10 +400,11 @@ describe("owMountains blob-autotile byte-stability", () => {
 
 describe("cliff tileset byte-stability", () => {
   // sha256 of the desert cliff+floor+cap sheet.
-  // Updated for Phase 1b (straight ramps, 238 tiles) and Phase 1c (45° diagonal ramps + capTop/runTop, 270 tiles).
-  // 270 named tiles + 2 blank pad (8 columns x 34 rows). Visual look approved before pinning.
+  // Updated for Phase 1b (straight ramps, 238 tiles), Phase 1c 45° diagonal (270 tiles),
+  // and Phase 1c shallow+steep (26.57° + 63.43° diagonal flights, 370 tiles).
+  // 370 named tiles + 6 blank pad (8 columns x 47 rows). Visual look approved before pinning.
   const FROZEN = {
-    cliff: "09c26f86cb7000f474f147b700fbe78d765f62789ebc006b1dbe6a0650506259"
+    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

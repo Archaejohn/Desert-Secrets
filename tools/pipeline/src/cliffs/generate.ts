@@ -202,7 +202,9 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     for (const t of tiles) out.push({ name: `${prefix}_${t.col}_${t.row}`, grid: t.grid });
   }
 
-  // Diagonal flight tiles (24 total) — Phase 1c, appended after straight ramps
+  // Diagonal flight tiles — Phase 1c, appended after straight ramps. The 45°
+  // block is emitted FIRST and unchanged so its frame indices stay put
+  // (additive-only); the shallow/steep angles are appended after it.
   if (p.diagonalRamps) {
     const dirs = ["se", "sw"] as const;
     for (const m of p.ramps) {
@@ -214,6 +216,25 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
             name: `dramp${matName}45_${dir}_${t.piece}`,
             grid: t.grid,
           });
+        }
+      }
+    }
+    // Shallow (26.57°) + steep (63.43°), appended after the 45° group.
+    const extraAngles = [
+      { angle: "26.57", tag: "2657" },
+      { angle: "63.43", tag: "6343" },
+    ] as const;
+    for (const { angle, tag } of extraAngles) {
+      for (const m of p.ramps) {
+        const matName = m === "sandSlope" ? "Sand" : "Steps";
+        for (const dir of dirs) {
+          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle);
+          for (const t of tiles) {
+            out.push({
+              name: `dramp${matName}${tag}_${dir}_${t.piece}`,
+              grid: t.grid,
+            });
+          }
         }
       }
     }
