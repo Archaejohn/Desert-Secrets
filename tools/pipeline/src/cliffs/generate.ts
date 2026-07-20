@@ -211,7 +211,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     for (const m of p.ramps) {
       const matName = m === "sandSlope" ? "Sand" : "Steps";
       for (const dir of dirs) {
-        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, "45", groundRamp);
+        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, "45", groundRamp, p.material);
         for (const t of tiles) {
           out.push({
             name: `dramp${matName}45_${dir}_${t.piece}`,
@@ -229,7 +229,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
       for (const m of p.ramps) {
         const matName = m === "sandSlope" ? "Sand" : "Steps";
         for (const dir of dirs) {
-          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle, groundRamp);
+          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle, groundRamp, p.material);
           for (const t of tiles) {
             out.push({
               name: `dramp${matName}${tag}_${dir}_${t.piece}`,

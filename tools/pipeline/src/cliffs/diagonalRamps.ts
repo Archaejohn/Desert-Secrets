@@ -152,7 +152,7 @@
 import { PixelGrid, type Cell } from "../grid";
 import type { PaletteName } from "../../../../src/shared/palette";
 import { h2 } from "./noise";
-import { wallFace } from "./materials";
+import { wallFace, type MaterialKey } from "./materials";
 import { RAMP_WALL_PARAMS } from "./ramps";
 import { TERRAIN_RAMPS, type Ramp } from "./palette";
 
@@ -641,13 +641,15 @@ export function diagonalFlightTiles(
   dir: DiagonalDir,
   p: DiagonalRampParams,
   angle: DiagonalAngle = "45",
-  groundRamp: Ramp = TERRAIN_RAMPS.sand
+  groundRamp: Ramp = TERRAIN_RAMPS.sand,
+  wallMaterial: MaterialKey = "rock"
 ): { piece: DiagonalPiece; grid: PixelGrid }[] {
   const a = ANGLES[angle];
-  // The flight's support body — the same rock the cliff face / straight
-  // ramp walls use, so the whole solid mass reads as the same stone and is
-  // pixel-identical to the face autotile wherever it is over the cliff.
-  const rock = wallFace("rock", RAMP_WALL_PARAMS, p.seed);
+  // The flight's support body — the same wall material the cliff face /
+  // straight ramp walls use for this biome preset, so the whole solid mass
+  // reads as the same stone/ice and is pixel-identical to the face autotile
+  // wherever it is over the cliff.
+  const rock = wallFace(wallMaterial, RAMP_WALL_PARAMS, p.seed);
   const run = (gx: number, gy: number): Cell => runSolidCell(a, material, rock, groundRamp, gx, gy);
   const runTop = (gx: number, gy: number): Cell => runTopCell(a, material, rock, groundRamp, gx, gy);
   const fc = (gx: number, gy: number): Cell => footCell(a, material, rock, groundRamp, gx, gy);

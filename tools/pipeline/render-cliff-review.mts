@@ -311,7 +311,7 @@ function buildScene(params: typeof base): PixelGrid {
   // diagonalRamps.ts for the piece/lattice model.
   const stampDiagonalFlight = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }, "45", groundRamp).map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "45", groundRamp, params.material).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
@@ -353,7 +353,7 @@ function buildScene(params: typeof base): PixelGrid {
   //     sand), instead of 45°'s 2-column foot/ground pair.
   const stampDiagonalFlightShallow = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }, "26.57", groundRamp).map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "26.57", groundRamp, params.material).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
@@ -431,7 +431,7 @@ function buildScene(params: typeof base): PixelGrid {
   }
   const stampDiagonalFlightSteep = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }, "63.43", groundRamp).map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "63.43", groundRamp, params.material).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
