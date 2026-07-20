@@ -55,12 +55,12 @@
  */
 import { PixelGrid } from "../grid";
 import { clamp, fbm, h2, n1, partition } from "./noise";
-import { ROCK, shade, type Ramp } from "./palette";
+import { ROCK, LAVA, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock" | "glacier" | "coralRock";
+export type MaterialKey = "rock" | "glacier" | "coralRock" | "basaltRock";
 
 export interface WallParams {
   courses: number;
@@ -384,5 +384,8 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
       return glacierWallFace(params, seed);
     case "coralRock":
       return coralRockWallFace(params, seed);
+    case "basaltRock":
+      // Placeholder (tier-2) until the bespoke Worley-lava face (lava biome T7).
+      return blockWallFace(LAVA, params, seed);
   }
 }
