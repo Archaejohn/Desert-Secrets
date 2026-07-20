@@ -19,7 +19,10 @@ export type Ramp = readonly PaletteName[];
  *  3=right plane, 5=left plane, 6=gap/mortar. */
 export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stoneDeep", "stoneDeep", "stoneDeep", "ink"];
 
-export type TerrainKey = "sand" | "frostSand" | "asphalt";
+/** Glacial ice cliff ramp: white lit facets → deep indigo shadow. */
+export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indigo", "indigo", "ink"];
+
+export type TerrainKey = "sand" | "frostSand" | "asphalt" | "ice";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -27,6 +30,7 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   sand: ["sandLight", "sand", "sandShade", "umber"],
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
   asphalt: ["slate", "indigo", "plum", "ink"],
+  ice: ["white", "skyBlue", "slate", "indigo"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));

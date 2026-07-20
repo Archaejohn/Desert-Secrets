@@ -61,6 +61,18 @@ describe("terrain floor fills", () => {
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[0])).toBe(0);
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[TERRAIN_RAMPS.sand.length-1])).toBe(TERRAIN_RAMPS.sand.length-1);
   });
+  it("ice floorFill is palette-locked to the ice ground ramp and deterministic", () => {
+    const a = floorFill("ice", 1337);
+    const b = floorFill("ice", 1337);
+    const allowed = new Set(TERRAIN_RAMPS.ice);
+    expect(a.width).toBe(16);
+    expect(a.height).toBe(16);
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) {
+        expect(allowed.has(a.get(x, y)!)).toBe(true);
+        expect(a.get(x, y)).toBe(b.get(x, y)); // deterministic
+      }
+  });
 });
 
 describe("47-blob canonical masks + overlayMask geometry", () => {

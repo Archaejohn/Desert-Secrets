@@ -53,6 +53,12 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = 1;
         if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark speck (~4%)
+      } else if (key === "ice") {
+        // Glinting frost speckle: skyBlue body with sparse white glints and
+        // sparser slate hairline cracks (own recipe — NOT the asphalt fill).
+        idx = 1;                                      // skyBlue body
+        if (h2(x, y, seed + 31) > 0.94) idx = 0;      // white glint
+        else if (h2(x, y, seed + 53) > 0.95) idx = 2; // slate hairline crack
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]
