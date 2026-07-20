@@ -493,3 +493,10 @@ describe("ramps", () => {
     }
   });
 });
+
+describe("frozen biome ramps", () => {
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});

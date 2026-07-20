@@ -41,7 +41,10 @@ export type TerrainKey =
   | "reefFloor"
   | "reefSilt"
   | "reefWater"
-  | "glowMoss";
+  | "glowMoss"
+  | "snow"
+  | "frozenLake"
+  | "rimeMoss";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -59,6 +62,11 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   reefWater: ["skyBlue", "teal", "tealDeep", "indigo"],
   // Bright glowing moss (R3a: matches shipped `glowMoss`).
   glowMoss: ["mint", "jade", "teal", "tealDeep"],
+  // Frozen biome grounds (light -> dark). Pale packed snow, deep cracked lake
+  // ice, and a frozen glow-moss accent — all in the existing frost family.
+  snow: ["white", "bone", "skyBlue", "slate"],
+  frozenLake: ["skyBlue", "slate", "indigo", "ink"],
+  rimeMoss: ["mint", "jade", "teal", "tealDeep"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));
