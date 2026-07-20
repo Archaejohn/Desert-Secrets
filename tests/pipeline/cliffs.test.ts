@@ -8,7 +8,7 @@ import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/mater
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
 import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
-import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames, cliffLavaTileNames, cliffLavaSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
 import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
@@ -553,5 +553,16 @@ describe("generateTerrain + lava preset", () => {
     expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
     expect(new Set(out).size).toBe(out.length);
     expect(out.length).toBe(559); // 4 fills + 15 cliff + 47 plateau + 7x47 + 32 ramps + 132 diag
+  });
+
+  it("cliffLava sheet is 16px frames padded to 8 columns, manifest-consistent (559)", () => {
+    const names = cliffLavaTileNames();
+    const frames = cliffLavaSheetFrames();
+    expect(names.length).toBe(559);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffLava.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffLava.names).length).toBe(names.length);
   });
 });

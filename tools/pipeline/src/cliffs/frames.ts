@@ -36,7 +36,7 @@
 import { PixelGrid } from "../grid";
 import { generateTerrain } from "./generate";
 import type { TerrainParams } from "./generate";
-import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "./presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "./presets";
 
 const COLUMNS = 8;
 
@@ -83,3 +83,9 @@ export const cliffReefTileNames = (): string[] => realEntriesFor(REEF_PRESETS).m
 /** The real reef tiles followed by blank/transparent padding frames (see
  *  module doc), bringing the total up to the next multiple of `COLUMNS`. */
 export const cliffReefSheetFrames = (): PixelGrid[] => sheetFramesFor(REEF_PRESETS);
+
+/** Real lava tile names (the manifest-visible entries of `cliffLavaSheetFrames()`). */
+export const cliffLavaTileNames = (): string[] => realEntriesFor(LAVA_PRESETS).map((e) => e.name);
+
+/** Real lava tiles + blank padding to the next multiple of `COLUMNS`. */
+export const cliffLavaSheetFrames = (): PixelGrid[] => sheetFramesFor(LAVA_PRESETS);
