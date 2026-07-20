@@ -154,6 +154,7 @@ import type { PaletteName } from "../../../../src/shared/palette";
 import { h2 } from "./noise";
 import { wallFace } from "./materials";
 import { RAMP_WALL_PARAMS } from "./ramps";
+import { TERRAIN_RAMPS, type Ramp } from "./palette";
 
 const T = 16;
 
@@ -299,18 +300,25 @@ function stoneSurface(
 /** Sand walking surface across the band depth `f = rel/thick` (0 = uphill
  *  back edge, 1 = downhill lip). Lit at the downhill cliff-top lip; the
  *  cliff below must never appear to shade the surface (doc §4). */
-function sandSurface(gx: number, gy: number, rel: number, thick: number, noUphillOutline?: boolean): PaletteName {
-  if (rel < 1 && !noUphillOutline) return "umber"; // back-edge outline
+function sandSurface(
+  gx: number,
+  gy: number,
+  rel: number,
+  thick: number,
+  groundRamp: Ramp,
+  noUphillOutline?: boolean
+): PaletteName {
+  if (rel < 1 && !noUphillOutline) return groundRamp[3]; // back-edge outline (umber)
   const f = rel / thick;
-  if (f < 0.28 && !noUphillOutline) return hh(gx, gy, 5) < 0.1 ? "umber" : "sandShade";
-  if (f < 0.7) return hh(gx, gy, 9) < 0.06 ? "sandLight" : "sand";
-  return "sandLight";
+  if (f < 0.28 && !noUphillOutline) return hh(gx, gy, 5) < 0.1 ? groundRamp[3] : groundRamp[2]; // umber : sandShade
+  if (f < 0.7) return hh(gx, gy, 9) < 0.06 ? groundRamp[0] : groundRamp[1]; // sandLight : sand
+  return groundRamp[0]; // sandLight
 }
 
 /** Global `se` RUN band sampler (descends left / ascends right).
  *  Transparent outside the walking surface — the cliff autotile owns all
  *  rock. Symmetry: cell(gx + 16*periodTiles, gy-16) === cell(gx, gy). */
-function runCell(a: AngleSpec, material: DiagonalMaterial, gx: number, gy: number): Cell {
+function runCell(a: AngleSpec, material: DiagonalMaterial, groundRamp: Ramp, gx: number, gy: number): Cell {
   if (material === "stoneSteps") {
     const ty = stoneTy(a, gx);
     const rel = gy - ty;
@@ -320,7 +328,7 @@ function runCell(a: AngleSpec, material: DiagonalMaterial, gx: number, gy: numbe
   const ty = sandTy(a, gx);
   const rel = gy - ty;
   if (rel < 0 || rel >= a.sandThick) return null;
-  return sandSurface(gx, gy, rel, a.sandThick);
+  return sandSurface(gx, gy, rel, a.sandThick, groundRamp);
 }
 
 /** The flight's SUPPORT rock, sampled at tile-local coordinates from the
@@ -347,10 +355,11 @@ function runSolidCell(
   a: AngleSpec,
   material: DiagonalMaterial,
   rock: PixelGrid,
+  groundRamp: Ramp,
   gx: number,
   gy: number
 ): Cell {
-  const c = runCell(a, material, gx, gy);
+  const c = runCell(a, material, groundRamp, gx, gy);
   if (c !== null) return c;
   return gy >= runBandEnd(a, material, gx) ? rockPx(rock, gx, gy) : null;
 }
@@ -417,6 +426,7 @@ function footCell(
   a: AngleSpec,
   material: DiagonalMaterial,
   rock: PixelGrid,
+  groundRamp: Ramp,
   gx: number,
   gy: number
 ): Cell {
@@ -439,7 +449,7 @@ function footCell(
         ? "sandLight"
         : null;
     }
-    const c = runCell(a, material, gx, gy - fShift);
+    const c = runCell(a, material, groundRamp, gx, gy - fShift);
     if (c !== null) return c;
     const base = stoneTy(a, gx) + fShift + stoneThick(a) - 1; // riser base row
     // Draw solid rock from the steps down to the flat ground contact (BODY_BASE)
@@ -461,7 +471,7 @@ function footCell(
       : Math.min(BODY_BASE - 1, sandTy(a, gx) + fShift + a.sandThick - 1) - ty + 1;
   const rel = gy - ty;
   if (rel >= 0 && rel < thick) {
-    const c = sandSurface(gx, gy, rel, thick);
+    const c = sandSurface(gx, gy, rel, thick, groundRamp);
     if (gx >= 6 * sc) return c;
     // runout fade (west of 6·sc): the levelled surface dissolves into plain
     // ground toward the west exit — the back line softens to `sandShade`
@@ -488,9 +498,9 @@ function footCell(
     // Draw solid rock from the incline down to the flat ground contact (BODY_BASE)
     if (gy > lipY && gy < BODY_BASE) return rockPx(rock, gx, gy);
     if (gy === BODY_BASE) return "stoneDeep"; // ground-contact line
-    if (gy === BODY_BASE + 1) return "sandShade"; // cast shadow on the sand
+    if (gy === BODY_BASE + 1) return groundRamp[2]; // cast shadow on the sand
   } else if (gx >= 2 * sc && gy === lipY + 1) {
-    return "sandShade"; // levelled runout's contact shadow
+    return groundRamp[2]; // levelled runout's contact shadow
   }
   return null;
 }
@@ -514,12 +524,13 @@ function runTopCell(
   a: AngleSpec,
   material: DiagonalMaterial,
   rock: PixelGrid,
+  groundRamp: Ramp,
   gx: number,
   gy: number
 ): Cell {
   if (material === "stoneSteps") {
     // Stone steps just use the normal runCell behavior (steps are good)
-    return runSolidCell(a, material, rock, gx, gy);
+    return runSolidCell(a, material, rock, groundRamp, gx, gy);
   }
   if (a.latTilesY > 1) {
     // sandSlope, 2-tall period (63.43°): only the tile-0 slice of this
@@ -536,8 +547,8 @@ function runTopCell(
     if (gy < yU) return null;
     const thick = plainTy + a.sandThick - yU;
     const rel = gy - yU;
-    if (rel < thick) return sandSurface(gx, gy, rel, thick, yU === 0);
-    return runSolidCell(a, material, rock, gx, gy);
+    if (rel < thick) return sandSurface(gx, gy, rel, thick, groundRamp, yU === 0);
+    return runSolidCell(a, material, rock, groundRamp, gx, gy);
   }
   // sandSlope
   let y_uphill = sandTy(a, gx);
@@ -550,7 +561,7 @@ function runTopCell(
     const thick = y_downhill - y_uphill;
     const rel = gy - y_uphill;
     const noUphillOutline = (y_uphill === 0);
-    return sandSurface(gx, gy, rel, thick, noUphillOutline);
+    return sandSurface(gx, gy, rel, thick, groundRamp, noUphillOutline);
   }
   if (gy < T * 2) return rockPx(rock, gx, gy % T);
   return null;
@@ -567,13 +578,14 @@ function capTopCell(
   a: AngleSpec,
   material: DiagonalMaterial,
   rock: PixelGrid,
+  groundRamp: Ramp,
   gx: number,
   gy: number
 ): Cell {
   if (material === "stoneSteps") {
     if (gx >= a.run) return null; // transparent on the right, letting the landing autotile show through
     const globalGx = gx + T * a.periodTiles;
-    const c = runCell(a, material, globalGx, gy);
+    const c = runCell(a, material, groundRamp, globalGx, gy);
     if (c !== null) return c;
     // Rock body below the Step 0 riser (63.43°'s 8px riser bottoms out 2px
     // into the tile BELOW the landing — capTopLower — so the fill extends
@@ -589,14 +601,14 @@ function capTopCell(
   // [15,14,13,12,11,10,9,8,8,8,8,8] table.)
   const y_downhill = Math.max(8, sandTy(a, gx + T * a.periodTiles) + a.sandThick);
   if (gy < y_downhill) {
-    return sandSurface(gx, gy, gy, y_downhill, true); // capTop is flat plateau at the top, so no outline
+    return sandSurface(gx, gy, gy, y_downhill, groundRamp, true); // capTop is flat plateau at the top, so no outline
   }
   // 4px shaded plateau cap rim
   if (gy >= y_downhill && gy < y_downhill + 4) {
     const rel = gy - y_downhill;
-    if (rel === 0) return "sandLight"; // lit lip at top of overhang
-    if (rel === 1) return "sand";
-    if (rel === 2) return "sandShade";
+    if (rel === 0) return groundRamp[0]; // lit lip at top of overhang (sandLight)
+    if (rel === 1) return groundRamp[1]; // sand
+    if (rel === 2) return groundRamp[2]; // sandShade
     return "stoneDeep"; // dark rim edge at bottom of overhang
   }
   // 63.43°: the twice-as-steep incline's lip enters the landing tile up to
@@ -628,17 +640,18 @@ export function diagonalFlightTiles(
   material: DiagonalMaterial,
   dir: DiagonalDir,
   p: DiagonalRampParams,
-  angle: DiagonalAngle = "45"
+  angle: DiagonalAngle = "45",
+  groundRamp: Ramp = TERRAIN_RAMPS.sand
 ): { piece: DiagonalPiece; grid: PixelGrid }[] {
   const a = ANGLES[angle];
   // The flight's support body — the same rock the cliff face / straight
   // ramp walls use, so the whole solid mass reads as the same stone and is
   // pixel-identical to the face autotile wherever it is over the cliff.
   const rock = wallFace("rock", RAMP_WALL_PARAMS, p.seed);
-  const run = (gx: number, gy: number): Cell => runSolidCell(a, material, rock, gx, gy);
-  const runTop = (gx: number, gy: number): Cell => runTopCell(a, material, rock, gx, gy);
-  const fc = (gx: number, gy: number): Cell => footCell(a, material, rock, gx, gy);
-  const ct = (gx: number, gy: number): Cell => capTopCell(a, material, rock, gx, gy);
+  const run = (gx: number, gy: number): Cell => runSolidCell(a, material, rock, groundRamp, gx, gy);
+  const runTop = (gx: number, gy: number): Cell => runTopCell(a, material, rock, groundRamp, gx, gy);
+  const fc = (gx: number, gy: number): Cell => footCell(a, material, rock, groundRamp, gx, gy);
+  const ct = (gx: number, gy: number): Cell => capTopCell(a, material, rock, groundRamp, gx, gy);
   const pieces: { piece: DiagonalPiece; grid: PixelGrid }[] =
     a.latTilesY > 1
       ? [

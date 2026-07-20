@@ -41,7 +41,7 @@
  * from the prototype's `po = {...o, round: linkCorners ? tround : fround}`.
  */
 import { PixelGrid } from "../grid";
-import type { TerrainKey } from "./palette";
+import { TERRAIN_RAMPS, type TerrainKey } from "./palette";
 import { floorFill } from "./terrains";
 import { blobTiles } from "./blob47";
 import { wallFace, type MaterialKey } from "./materials";
@@ -207,10 +207,11 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
   // (additive-only); the shallow/steep angles are appended after it.
   if (p.diagonalRamps) {
     const dirs = ["se", "sw"] as const;
+    const groundRamp = TERRAIN_RAMPS[p.plateauTop];
     for (const m of p.ramps) {
       const matName = m === "sandSlope" ? "Sand" : "Steps";
       for (const dir of dirs) {
-        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed });
+        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, "45", groundRamp);
         for (const t of tiles) {
           out.push({
             name: `dramp${matName}45_${dir}_${t.piece}`,
@@ -228,7 +229,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
       for (const m of p.ramps) {
         const matName = m === "sandSlope" ? "Sand" : "Steps";
         for (const dir of dirs) {
-          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle);
+          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle, groundRamp);
           for (const t of tiles) {
             out.push({
               name: `dramp${matName}${tag}_${dir}_${t.piece}`,
