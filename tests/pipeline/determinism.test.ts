@@ -404,7 +404,8 @@ describe("cliff tileset byte-stability", () => {
   // and Phase 1c shallow+steep (26.57° + 63.43° diagonal flights, 370 tiles).
   // 370 named tiles + 6 blank pad (8 columns x 47 rows). Visual look approved before pinning.
   const FROZEN = {
-    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd"
+    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
+    cliffIce: "f4c348a0508fcb97f0aef76edddca9d235e2a72cce44ce3c93200e189f374ea8"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
