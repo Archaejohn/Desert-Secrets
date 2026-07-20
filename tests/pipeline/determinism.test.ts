@@ -411,6 +411,15 @@ describe("cliff tileset byte-stability", () => {
   // scree pixels changed, moving this hash. Same 274 named tile slots, no
   // reordering — only scree pixels changed.
   //
+  // cliffIce re-pinned again (frozen multi-ground): the frozen biome grew from
+  // one `ice` ground to FOUR that all autotile with each other — `snow`,
+  // `frozenLake`, `rimeMoss` added as grounds + fills, and ICE_CLIFF's pairings
+  // went from ice-over-ice to all 6 cross-pairs (ice<->snow/frozenLake/rimeMoss,
+  // snow<->frozenLake, snow<->rimeMoss, frozenLake<->rimeMoss). Crisp/faceted
+  // seams (edgeIrregularity 14 -> 6). +6x47 pairings +3 fills → 274 -> 559 tiles
+  // (128x1120). Appended after ice-self, so no existing tile reorders. Desert
+  // (`cliff`) and reef (`cliffReef`) are untouched — same hashes.
+  //
   // cliffReef re-pinned for M2 Task R3a: reef ramps (REEF wall + the four
   // reefFloor/reefSilt/reefWater/glowMoss ground ramps) recoloured to match
   // the shipped tileset7 reef zone (plum/skyBlue/indigo bio-rock wall over
@@ -449,7 +458,7 @@ describe("cliff tileset byte-stability", () => {
   // (`cliffIce`) are untouched — same hashes.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
-    cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
+    cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
     cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b"
   } as const;
 
