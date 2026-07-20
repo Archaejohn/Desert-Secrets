@@ -30,9 +30,10 @@ import { PixelGrid } from "./src/grid";
 import { encodePng } from "./src/png";
 import { buildAssets } from "./src/assets";
 import { generateTerrain } from "./src/cliffs/generate";
-import { DESERT_PRESETS } from "./src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS } from "./src/cliffs/presets";
 import { canonical } from "./src/cliffs/blob47";
 import { diagonalFlightTiles, type DiagonalMaterial, type DiagonalPiece } from "./src/cliffs/diagonalRamps";
+import { TERRAIN_RAMPS } from "./src/cliffs/palette";
 
 const T = 16; // tile size
 
@@ -49,9 +50,12 @@ function upscale(src: PixelGrid, s: number): PixelGrid {
   return out;
 }
 
-// Render the shipped desert preset.
+// Render the shipped desert + ice presets.
 const base = DESERT_PRESETS[0];
-const VARIANTS: { label: string; params: typeof base }[] = [{ label: "scene", params: base }];
+const VARIANTS: { label: string; params: typeof base }[] = [
+  { label: "desert", params: DESERT_PRESETS[0] },
+  { label: "ice", params: ICE_PRESETS[0] },
+];
 
 // ---- demo scene ----------------------------------------------------------
 // Widened (Task 4) to fit three ramp demonstrations cut into standalone
@@ -150,6 +154,8 @@ const g = (x: number, y: number): boolean =>
 
 const VARIANT = ["outerW", "mid", "outerE", "innerW", "innerE"] as const;
 
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
 /** Assemble the demo scene from one variant's generated tile set. */
 function buildScene(params: typeof base): PixelGrid {
   const tiles = new Map<string, PixelGrid>();
@@ -163,8 +169,17 @@ function buildScene(params: typeof base): PixelGrid {
   const scene = new PixelGrid(MW * T, MH * T);
   const blit = (name: string, x: number, y: number): void => scene.blit(tile(name), x * T, y * T);
 
+  // Preset-derived tile-name prefixes (Task 7) — desert stays `sandFill` /
+  // `sandPlateau_` / `sandSand_` / `cliffRock_`; ice becomes `iceFill` /
+  // `icePlateau_` / `iceIce_` / `cliffGlacier_`.
+  const groundFill = `${params.ground}Fill`;
+  const plateau = (m: number): string => `${params.plateauTop}Plateau_${m}`;
+  const pairSelf = (m: number): string => `${params.plateauTop}${cap(params.plateauTop)}_${m}`;
+  const cliff = (v: string, band: string): string => `cliff${cap(params.material)}_${v}_${band}`;
+  const groundRamp = TERRAIN_RAMPS[params.plateauTop];
+
   // 1) ground field everywhere.
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) blit("sandFill", x, y);
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) blit(groundFill, x, y);
 
   // 2) sand-over-sand ledge (subtle low elevation) — 8-neighbor blob mask.
   for (let y = 0; y < MH; y++) {
@@ -179,7 +194,7 @@ function buildScene(params: typeof base): PixelGrid {
       if (g(x - 1, y + 1)) m |= 32;
       if (g(x - 1, y)) m |= 64;
       if (g(x - 1, y - 1)) m |= 128;
-      blit(`sandSand_${canonical(m)}`, x, y);
+      blit(pairSelf(canonical(m)), x, y);
     }
   }
 
@@ -196,7 +211,7 @@ function buildScene(params: typeof base): PixelGrid {
       m |= 16;
       if (m & 4) m |= 8;
       if (m & 64) m |= 32;
-      blit(`sandPlateau_${canonical(m)}`, x, y);
+      blit(plateau(canonical(m)), x, y);
     }
   }
 
@@ -210,9 +225,9 @@ function buildScene(params: typeof base): PixelGrid {
       const eIn = p(x + 1, y) && p(x + 1, y + 1);
       const v = wOpen ? 0 : eOpen ? 2 : wIn ? 3 : eIn ? 4 : 1;
       const variant = VARIANT[v];
-      blit(`cliffRock_${variant}_rim`, x, y);
-      for (let k = 1; k <= H; k++) if (y + k < MH) blit(`cliffRock_${variant}_face`, x, y + k);
-      if (y + H + 1 < MH) blit(`cliffRock_${variant}_footer`, x, y + H + 1);
+      blit(cliff(variant, "rim"), x, y);
+      for (let k = 1; k <= H; k++) if (y + k < MH) blit(cliff(variant, "face"), x, y + k);
+      if (y + H + 1 < MH) blit(cliff(variant, "footer"), x, y + H + 1);
     }
   }
 
@@ -257,10 +272,10 @@ function buildScene(params: typeof base): PixelGrid {
     // zigzag. Wall it off with ordinary cliff tiles (rim at the same height
     // as the flank rim, face below), mirrored below the landing at col A
     // for flight 2's height (landingY+1..landingY+H+1, footer at the foot).
-    blit("cliffRock_mid_rim", colB, y0);
-    for (let k = 1; k <= H; k++) blit("cliffRock_mid_face", colB, y0 + k);
-    for (let k = 1; k <= H; k++) blit("cliffRock_mid_face", colA, landingY + k);
-    blit("cliffRock_mid_footer", colA, landingY + H + 1);
+    blit(cliff("mid", "rim"), colB, y0);
+    for (let k = 1; k <= H; k++) blit(cliff("mid", "face"), colB, y0 + k);
+    for (let k = 1; k <= H; k++) blit(cliff("mid", "face"), colA, landingY + k);
+    blit(cliff("mid", "footer"), colA, landingY + H + 1);
 
     // The south-edge loop (step 4) already drew a standard cliffHeight-deep
     // flank wall for the cap's non-gap columns (rim @ y0, face x H, footer
@@ -277,9 +292,9 @@ function buildScene(params: typeof base): PixelGrid {
     const staleFooterY = y0 + H + 1; // where step 4 put the flank footer
     for (const [xs, variant] of Object.entries(FLANK_VARIANT)) {
       const x = Number(xs);
-      blit(`cliffRock_${variant}_face`, x, staleFooterY);
-      for (let k = 1; k <= H; k++) blit(`cliffRock_${variant}_face`, x, landingY + k);
-      blit(`cliffRock_${variant}_footer`, x, landingY + H + 1);
+      blit(cliff(variant, "face"), x, staleFooterY);
+      for (let k = 1; k <= H; k++) blit(cliff(variant, "face"), x, landingY + k);
+      blit(cliff(variant, "footer"), x, landingY + H + 1);
     }
   }
 
@@ -296,16 +311,16 @@ function buildScene(params: typeof base): PixelGrid {
   // diagonalRamps.ts for the piece/lattice model.
   const stampDiagonalFlight = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }).map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "45", groundRamp).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
-    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
+    scene.blit(tile(cliff("outerE", "rim")), c0 * T, (y0 + 1) * T);
     put("capTop", c0, y0 + 1);
     for (let y = y0 + 2; y <= y0 + H + 1; y++) {
-      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
+      scene.blit(tile(cliff("outerE", "face")), c0 * T, y * T);
     }
-    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (y0 + H + 2) * T);
+    scene.blit(tile(cliff("outerE", "footer")), c0 * T, (y0 + H + 2) * T);
 
     for (let k = 1; k <= H; k++) {
       const runPiece = k === 1 ? "runTop" : "run";
@@ -314,9 +329,9 @@ function buildScene(params: typeof base): PixelGrid {
       put(runLowerPiece, c0 - k, y0 + k + 1);
       if (k < H) {
         for (let y = y0 + k + 2; y <= y0 + H + 1; y++) {
-          scene.blit(tile("cliffRock_mid_face"), (c0 - k) * T, y * T);
+          scene.blit(tile(cliff("mid", "face")), (c0 - k) * T, y * T);
         }
-        const footerName = k === H - 1 ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+        const footerName = k === H - 1 ? cliff("outerW", "footer") : cliff("mid", "footer");
         scene.blit(tile(footerName), (c0 - k) * T, (y0 + H + 2) * T);
       }
     }
@@ -338,16 +353,16 @@ function buildScene(params: typeof base): PixelGrid {
   //     sand), instead of 45°'s 2-column foot/ground pair.
   const stampDiagonalFlightShallow = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }, "26.57").map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "26.57", groundRamp).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
-    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
+    scene.blit(tile(cliff("outerE", "rim")), c0 * T, (y0 + 1) * T);
     put("capTop", c0, y0 + 1);
     for (let y = y0 + 2; y <= y0 + H + 1; y++) {
-      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
+      scene.blit(tile(cliff("outerE", "face")), c0 * T, y * T);
     }
-    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (y0 + H + 2) * T);
+    scene.blit(tile(cliff("outerE", "footer")), c0 * T, (y0 + H + 2) * T);
 
     for (let k = 1; k <= H; k++) {
       const xB = c0 - 2 * k + 1; // east tile of pair k (beside the previous pair)
@@ -359,11 +374,11 @@ function buildScene(params: typeof base): PixelGrid {
       if (k < H) {
         for (const x of [xB, xA]) {
           for (let y = y0 + k + 2; y <= y0 + H + 1; y++) {
-            scene.blit(tile("cliffRock_mid_face"), x * T, y * T);
+            scene.blit(tile(cliff("mid", "face")), x * T, y * T);
           }
         }
-        scene.blit(tile("cliffRock_mid_footer"), xB * T, (y0 + H + 2) * T);
-        const footerA = k === H - 1 ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+        scene.blit(tile(cliff("mid", "footer")), xB * T, (y0 + H + 2) * T);
+        const footerA = k === H - 1 ? cliff("outerW", "footer") : cliff("mid", "footer");
         scene.blit(tile(footerA), xA * T, (y0 + H + 2) * T);
       }
     }
@@ -409,14 +424,14 @@ function buildScene(params: typeof base): PixelGrid {
       const x = Number(xs);
       // step 4 drew rim@31, faces 32-33, footer 34 — deepen to Ds faces
       for (let y = y0s + H + 1; y <= y0s + Ds; y++) {
-        scene.blit(tile(`cliffRock_${variant}_face`), x * T, y * T);
+        scene.blit(tile(cliff(variant, "face")), x * T, y * T);
       }
-      scene.blit(tile(`cliffRock_${variant}_footer`), x * T, Fs * T);
+      scene.blit(tile(cliff(variant, "footer")), x * T, Fs * T);
     }
   }
   const stampDiagonalFlightSteep = (material: DiagonalMaterial, c0: number, y0: number): void => {
     const pieces = new Map(
-      diagonalFlightTiles(material, "se", { seed: params.seed }, "63.43").map((t) => [t.piece, t.grid])
+      diagonalFlightTiles(material, "se", { seed: params.seed }, "63.43", groundRamp).map((t) => [t.piece, t.grid])
     );
     const put = (piece: DiagonalPiece, x: number, y: number): void =>
       scene.blit(pieces.get(piece)!, x * T, y * T);
@@ -425,11 +440,11 @@ function buildScene(params: typeof base): PixelGrid {
     const F = y0 + D + 1; // main footer row
     // landing wall — outerE rim/faces/footer one tile south of the main
     // wall's, then the head blend over its top two tiles
-    scene.blit(tile("cliffRock_outerE_rim"), c0 * T, (y0 + 1) * T);
+    scene.blit(tile(cliff("outerE", "rim")), c0 * T, (y0 + 1) * T);
     for (let y = y0 + 2; y <= F; y++) {
-      scene.blit(tile("cliffRock_outerE_face"), c0 * T, y * T);
+      scene.blit(tile(cliff("outerE", "face")), c0 * T, y * T);
     }
-    scene.blit(tile("cliffRock_outerE_footer"), c0 * T, (F + 1) * T);
+    scene.blit(tile(cliff("outerE", "footer")), c0 * T, (F + 1) * T);
     put("capTop", c0, y0 + 1);
     put("capTopLower", c0, y0 + 2);
 
@@ -438,9 +453,9 @@ function buildScene(params: typeof base): PixelGrid {
       // cascade support wall under the band — two tiles shorter per
       // column, every footer on the same base row (F+1)
       for (let y = y0 + 2 * k + 3; y <= F; y++) {
-        scene.blit(tile("cliffRock_mid_face"), x * T, y * T);
+        scene.blit(tile(cliff("mid", "face")), x * T, y * T);
       }
-      const footerName = k === K ? "cliffRock_outerW_footer" : "cliffRock_mid_footer";
+      const footerName = k === K ? cliff("outerW", "footer") : cliff("mid", "footer");
       scene.blit(tile(footerName), x * T, (F + 1) * T);
       put(k === 1 ? "runTop" : "run", x, y0 + 2 * k - 1);
       put("runMid", x, y0 + 2 * k);
@@ -486,9 +501,9 @@ for (const { label, params } of VARIANTS) {
       for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
     }
     const cropUp = upscale(crop, 10);
-    const cropPath = join(outDir, "diag-crop.png");
+    const cropPath = join(outDir, `${label}-diag-crop.png`);
     writeFileSync(cropPath, encodePng(cropUp));
-    console.log(`diag-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+    console.log(`${label}-diag-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
   }
   // Zoomed crop of the SHALLOW (26.57°) flight demo block (cols 0-19, rows
   // 19-27) at x8.
@@ -499,9 +514,9 @@ for (const { label, params } of VARIANTS) {
       for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
     }
     const cropUp = upscale(crop, 8);
-    const cropPath = join(outDir, "diag-shallow-crop.png");
+    const cropPath = join(outDir, `${label}-diag-shallow-crop.png`);
     writeFileSync(cropPath, encodePng(cropUp));
-    console.log(`diag-shallow-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+    console.log(`${label}-diag-shallow-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
   }
   // Zoomed crop of the STEEP (63.43°) flight demo block (cols 0-16, rows
   // 28-39) at x8.
@@ -512,9 +527,9 @@ for (const { label, params } of VARIANTS) {
       for (let x = 0; x < cw * T; x++) crop.px(x, y, sceneRaw.get(cx0 * T + x, cy0 * T + y));
     }
     const cropUp = upscale(crop, 8);
-    const cropPath = join(outDir, "diag-steep-crop.png");
+    const cropPath = join(outDir, `${label}-diag-steep-crop.png`);
     writeFileSync(cropPath, encodePng(cropUp));
-    console.log(`diag-steep-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
+    console.log(`${label}-diag-steep-crop.png -> ${cropPath} (${cropUp.width}x${cropUp.height})`);
   }
   const sceneUp = upscale(sceneRaw, SCENE_SCALE);
   // TEMP tile-grid overlay (atbGold at every 16px tile boundary) so placement
@@ -523,7 +538,7 @@ for (const { label, params } of VARIANTS) {
   for (let gy = 0; gy <= MH; gy++) for (let x = 0; x < sceneUp.width; x++) sceneUp.px(x, Math.min(gy * step, sceneUp.height - 1), "atbGold");
   for (let gx = 0; gx <= MW; gx++) for (let y = 0; y < sceneUp.height; y++) sceneUp.px(Math.min(gx * step, sceneUp.width - 1), y, "atbGold");
   const buf = encodePng(sceneUp);
-  const path = join(outDir, `cliff-scene-${label}.png`);
+  const path = join(outDir, `${label}-scene.png`);
   writeFileSync(path, buf);
-  console.log(`cliff-scene-${label}.png -> ${path} (${sceneUp.width}x${sceneUp.height})`);
+  console.log(`${label}-scene.png -> ${path} (${sceneUp.width}x${sceneUp.height})`);
 }
