@@ -555,6 +555,44 @@ function buildScene(params: typeof base): PixelGrid {
     }
   }
 
+  // 10) ICE ground-transition demo — snow / frozenLake / rimeMoss patches in
+  // the open ice field, each seam autotiled by the preset's ice<Base> pairings
+  // (mirrors the reef block above). Biome-guarded: only the ice preset has
+  // these grounds, so desert/reef skip this block entirely.
+  if (params.pairings.some((pr) => pr.base === "snow")) {
+    type IcePatch = "snow" | "frozenLake" | "rimeMoss";
+    const patches: { base: IcePatch; cells: [number, number][] }[] = [
+      { base: "snow", cells: [[28, 22], [29, 22], [27, 23], [28, 23], [29, 23], [30, 23], [28, 24], [29, 24], [28, 25]] },
+      { base: "frozenLake", cells: [[36, 23], [37, 23], [38, 23], [35, 24], [36, 24], [37, 24], [38, 24], [39, 24], [36, 25], [37, 25], [38, 25], [37, 26]] },
+      { base: "rimeMoss", cells: [[30, 30], [31, 30], [32, 30], [29, 31], [30, 31], [31, 31], [32, 31], [33, 31], [30, 32], [31, 32], [32, 32], [31, 33]] },
+    ];
+    const patchAt = new Map<string, IcePatch>();
+    for (const patch of patches) for (const [x, y] of patch.cells) patchAt.set(`${x},${y}`, patch.base);
+    const patchOf = (x: number, y: number): IcePatch | undefined => patchAt.get(`${x},${y}`);
+    for (const patch of patches) { const fill = `${patch.base}Fill`; for (const [x, y] of patch.cells) blit(fill, x, y); }
+    for (let y = 19; y <= 34; y++) {
+      for (let x = 24; x <= 40; x++) {
+        if (patchOf(x, y)) continue;
+        const neighborBases = [
+          patchOf(x, y - 1), patchOf(x + 1, y - 1), patchOf(x + 1, y), patchOf(x + 1, y + 1),
+          patchOf(x, y + 1), patchOf(x - 1, y + 1), patchOf(x - 1, y), patchOf(x - 1, y - 1),
+        ];
+        const base = neighborBases.find((b): b is IcePatch => !!b);
+        if (!base) continue;
+        let m = 0;
+        if (!patchOf(x, y - 1)) m |= 1;
+        if (!patchOf(x + 1, y - 1)) m |= 2;
+        if (!patchOf(x + 1, y)) m |= 4;
+        if (!patchOf(x + 1, y + 1)) m |= 8;
+        if (!patchOf(x, y + 1)) m |= 16;
+        if (!patchOf(x - 1, y + 1)) m |= 32;
+        if (!patchOf(x - 1, y)) m |= 64;
+        if (!patchOf(x - 1, y - 1)) m |= 128;
+        blit(`ice${cap(base)}_${canonical(m)}`, x, y);
+      }
+    }
+  }
+
   return scene;
 }
 
