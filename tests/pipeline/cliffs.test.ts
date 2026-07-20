@@ -7,7 +7,7 @@ import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
-import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
@@ -538,5 +538,20 @@ describe("lava biome floorFill", () => {
   });
   it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s fill is deterministic", (key) => {
     expect(floorFill(key, 8888).diff(floorFill(key, 8888))).toBe(0);
+  });
+});
+
+describe("generateTerrain + lava preset", () => {
+  it("lava preset emits its full parity set (4 grounds, all-pairs = 7 pairings)", () => {
+    const out = generateTerrain(LAVA_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffBasaltRock_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("emberRockPlateau_")).length).toBe(47);
+    for (const p of ["emberRockEmberRock", "emberRockAsh", "emberRockLava", "emberRockLavaCrust", "ashLava", "ashLavaCrust", "lavaLavaCrust"]) {
+      expect(out.filter((n) => n.startsWith(`${p}_`)).length).toBe(47);
+    }
+    for (const f of ["emberRockFill", "ashFill", "lavaFill", "lavaCrustFill"]) expect(out).toContain(f);
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(new Set(out).size).toBe(out.length);
+    expect(out.length).toBe(559); // 4 fills + 15 cliff + 47 plateau + 7x47 + 32 ramps + 132 diag
   });
 });

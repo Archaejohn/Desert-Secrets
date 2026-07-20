@@ -214,3 +214,66 @@ const REEF_CLIFF: TerrainParams = {
 };
 
 export const REEF_PRESETS: TerrainParams[] = [REEF_CLIFF];
+
+// Lava cliff — mirrors REEF_CLIFF's cliff-assembly/floor-edge defaults with the
+// basalt material and four volcanic ground pairings (emberRock, ash, lava,
+// lavaCrust). The `basaltRock` wall face is a tier-2 placeholder recolour of
+// `blockWallFace` (materials.ts) until the bespoke Worley-lava face lands.
+const LAVA_CLIFF: TerrainParams = {
+  material: "basaltRock",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors REEF_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — organic/flowing (owner-picked) to suit molten lava/ash.
+  // Starting values; tuned live in the seam-rounding tuner at the review gate.
+  edgeInset: 2,
+  edgeIrregularity: 18,
+  cornerRounding: 8,
+  pocketRounding: 8,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // All four volcanic grounds autotile with each OTHER. Priority emberRock <
+  // ash < lava < lavaCrust; `over` = lower-priority field, `base` = higher-
+  // priority ground carved in. Self first, cross-pairs appended (additive).
+  pairings: [
+    { over: "emberRock", base: "emberRock" },
+    { over: "emberRock", base: "ash" },
+    { over: "emberRock", base: "lava" },
+    { over: "emberRock", base: "lavaCrust" },
+    { over: "ash", base: "lava" },
+    { over: "ash", base: "lavaCrust" },
+    { over: "lava", base: "lavaCrust" },
+  ],
+  plateauTop: "emberRock",
+  ground: "emberRock",
+
+  seed: 8888,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const LAVA_PRESETS: TerrainParams[] = [LAVA_CLIFF];
