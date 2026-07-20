@@ -133,7 +133,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     // Task 8: the bespoke glacier face lives on the ICE ramp; the reef
     // placeholder face lives on the REEF ramp; rock omits this (default
     // ROCK) so desert output is byte-identical.
-    faceRamp: p.material === "glacier" ? ICE : p.material === "reefStone" ? REEF : undefined,
+    faceRamp: p.material === "glacier" ? ICE : p.material === "coralRock" ? REEF : undefined,
     top: fills.get(p.plateauTop)!,
     gnd: fills.get(p.ground)!,
     topKey: p.plateauTop,

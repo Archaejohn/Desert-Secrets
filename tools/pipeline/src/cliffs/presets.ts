@@ -122,10 +122,12 @@ export const ICE_PRESETS: TerrainParams[] = [ICE_CLIFF];
 
 // Reef cliff — mirrors ICE_CLIFF's cliff-assembly/floor-edge defaults with
 // the reef material/terrains and four ground pairings (reefFloor, reefSilt,
-// reefWater, glowMoss). The `reefStone` wall face is a placeholder recolor
-// of `blockWallFace` (materials.ts) until Task R3's bespoke coral face.
+// reefWater, glowMoss). The `coralRock` wall face is a placeholder recolor
+// of `blockWallFace` (materials.ts) until the next task's bespoke coral
+// face (renamed from `reefStone` in R3a to avoid clashing with tileset7's
+// own unrelated `reefStone` tile).
 const REEF_CLIFF: TerrainParams = {
-  material: "reefStone",
+  material: "coralRock",
 
   // Wall structure — tier-2 placeholder (bespoke face replaces the look).
   courses: 3,

@@ -22,9 +22,13 @@ export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stone
 /** Glacial ice cliff ramp: white lit facets → deep indigo shadow. */
 export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indigo", "indigo", "ink"];
 
-/** Reef coral cliff ramp (placeholder, tier-3 bespoke face lands in R3):
- *  mint lit facets → deep teal shadow. */
-export const REEF: Ramp = ["mint", "jade", "teal", "teal", "tealDeep", "tealDeep", "tealDeep", "ink"];
+/** Reef coral cliff ramp (R3a re-palette, matches the shipped reef zone's
+ *  `reefWall`: plum bio-rock body with slate-lit facets and a skyBlue lit
+ *  edge, deep indigo shadow. The bespoke coral-textured face itself lands
+ *  in the next task — this ramp just fixes the placeholder's colours to
+ *  harmonize with tileset7's reef instead of the old monochrome-green
+ *  guess.) */
+export const REEF: Ramp = ["skyBlue", "slate", "plum", "plum", "mauve", "indigo", "indigo", "ink"];
 
 export type TerrainKey =
   | "sand"
@@ -43,13 +47,14 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
   asphalt: ["slate", "indigo", "plum", "ink"],
   ice: ["white", "skyBlue", "slate", "indigo"],
-  // Deep coral-green floor: plateau top + main reef ground.
-  reefFloor: ["jade", "teal", "tealDeep", "umber"],
-  // Pale sediment.
-  reefSilt: ["sandLight", "sandShade", "umber", "ink"],
-  // Reef water, shallow -> deep.
+  // Dark teal floor (R3a: matches shipped `reefFloor`/reefBase): plateau
+  // top + main reef ground.
+  reefFloor: ["teal", "tealDeep", "indigo", "ink"],
+  // Dark indigo silt (R3a: matches shipped `reefSilt`).
+  reefSilt: ["tealDeep", "indigo", "plum", "ink"],
+  // Reef water, shallow -> deep (R3a: matches shipped `reefWater`).
   reefWater: ["skyBlue", "teal", "tealDeep", "indigo"],
-  // Bright glowing moss.
+  // Bright glowing moss (R3a: matches shipped `glowMoss`).
   glowMoss: ["mint", "jade", "teal", "tealDeep"],
 };
 

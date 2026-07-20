@@ -60,7 +60,7 @@ import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock" | "glacier" | "reefStone";
+export type MaterialKey = "rock" | "glacier" | "coralRock";
 
 export interface WallParams {
   courses: number;
@@ -279,9 +279,11 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
       return blockWallFace(ROCK, params, seed);
     case "glacier":
       return glacierWallFace(params, seed);
-    case "reefStone":
-      // Placeholder (Task R1) — recolor of blockWallFace on the REEF ramp;
-      // the bespoke coral face lands in R3.
+    case "coralRock":
+      // Placeholder (Task R1, re-palette R3a) — recolor of blockWallFace on
+      // the REEF ramp; the bespoke coral face lands in the next task.
+      // Renamed from `reefStone` to avoid clashing with tileset7's own
+      // (unrelated) `reefStone` stepping-stone tile.
       return blockWallFace(REEF, params, seed);
   }
 }

@@ -304,7 +304,7 @@ describe("generateTerrain + ice preset (Task 4)", () => {
 describe("generateTerrain + reef preset (Task R1)", () => {
   it("reef preset emits its full parity set (4 grounds x 4 pairings), uniquely named", () => {
     const out = generateTerrain(REEF_PRESETS[0]).map((o) => o.name);
-    expect(out.filter((n) => n.startsWith("cliffReefStone_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("cliffCoralRock_")).length).toBe(15);
     expect(out.filter((n) => n.startsWith("reefFloorPlateau_")).length).toBe(47);
     expect(out.filter((n) => n.startsWith("reefFloorReefFloor_")).length).toBe(47);
     expect(out.filter((n) => n.startsWith("reefFloorReefSilt_")).length).toBe(47);
@@ -328,7 +328,7 @@ describe("generateTerrain + reef preset (Task R1)", () => {
 
   it("reef wall-face pixels come from the REEF ramp (faceRamp threaded through)", () => {
     const out = generateTerrain(REEF_PRESETS[0]);
-    const cliffFace = out.find((o) => o.name === "cliffReefStone_mid_face")!;
+    const cliffFace = out.find((o) => o.name === "cliffCoralRock_mid_face")!;
     cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(REEF).toContain(c); });
   });
 });

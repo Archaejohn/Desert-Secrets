@@ -410,10 +410,18 @@ describe("cliff tileset byte-stability", () => {
   // faceRamp; desert (faceRamp -> ROCK) stays byte-identical, but ice's
   // scree pixels changed, moving this hash. Same 274 named tile slots, no
   // reordering — only scree pixels changed.
+  //
+  // cliffReef re-pinned for M2 Task R3a: reef ramps (REEF wall + the four
+  // reefFloor/reefSilt/reefWater/glowMoss ground ramps) recoloured to match
+  // the shipped tileset7 reef zone (plum/skyBlue/indigo bio-rock wall over
+  // a dark teal/indigo floor family), and the four reef ground `floorFill`
+  // recipes were split out of one shared placeholder branch into distinct,
+  // palette-locked recipes per ground. Desert (`cliff`) and ice (`cliffIce`)
+  // are untouched by this change — same hashes as before.
   const FROZEN = {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "698f4d197e0f0dd8fa9e68bc763b0953984ac2d114220ceee477f0cc092206c4",
-    cliffReef: "1d315542f222938c738bb1aa702136762482054297baa9476ac97cc2e2a351ca"
+    cliffReef: "d76f02b40a8664832056cf9dc490804a796d25fad23d169be21f2209f14a2b30"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

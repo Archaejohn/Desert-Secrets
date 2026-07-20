@@ -86,14 +86,34 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = 1;
         if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark speck (~4%)
-      } else if (key === "reefFloor" || key === "reefSilt" || key === "reefWater" || key === "glowMoss") {
-        // Reef grounds (Task R1 placeholder — refined in R3): body = ramp[1],
-        // sparse ramp[0] light fleck (~5%), sparse ramp[2] dark fleck (~4%),
-        // same hash-scattered single-pixel style as the sand branch above.
-        // Palette-locked to THIS ground's own 4-slot ramp only.
+      } else if (key === "reefFloor") {
+        // R3a — dark teal seabed (matches shipped tileset7 reefFloor/reefBase):
+        // calm tealDeep body (ramp[1]), very sparse indigo speckle (ramp[2]),
+        // and a rare tiny lighter glow bead (ramp[0], teal). Kept the darkest
+        // and lowest-contrast of the four reef grounds so it reads as the
+        // "background" floor the other three sit against.
         idx = 1;
-        if (h2(x, y, seed + 31) > 0.95) idx = 0; // sparse light fleck (~5%)
-        else if (h2(x, y, seed + 53) > 0.96) idx = 2; // sparser dark fleck (~4%)
+        if (h2(x, y, seed + 53) > 0.97) idx = 2; // very sparse indigo speckle (~3%)
+        else if (h2(x, y, seed + 31) > 0.985) idx = 0; // rare tiny glow bead (~1.5%)
+      } else if (key === "reefSilt") {
+        // R3a — dark indigo silt (matches shipped reefSilt): indigo body
+        // (ramp[1]), sparse ink flecks (ramp[3]) reading as hollows/grit, and
+        // a rarer tealDeep glint (ramp[0]).
+        idx = 1;
+        if (h2(x, y, seed + 53) > 0.94) idx = 3; // sparse ink flecks (~6%)
+        else if (h2(x, y, seed + 31) > 0.98) idx = 0; // rare glint (~2%)
+      } else if (key === "reefWater") {
+        // R3a — reef water (matches shipped reefWater): fbm-mottled teal/
+        // tealDeep body (ramp[1]/ramp[2]) with sparse skyBlue ripple pixels
+        // (ramp[0]).
+        idx = v < 0.5 ? 1 : 2;
+        if (h2(x, y, seed + 31) > 0.92) idx = 0; // sparse skyBlue ripple (~8%)
+      } else if (key === "glowMoss") {
+        // R3a — glowing moss (matches shipped glowMoss): fbm-mottled teal/
+        // jade body (ramp[2]/ramp[1]) with sparse mint highlights (ramp[0]) —
+        // the brightest of the four reef grounds.
+        idx = v < 0.5 ? 2 : 1;
+        if (h2(x, y, seed + 31) > 0.88) idx = 0; // sparse mint highlight (~12%)
       } else if (key === "ice") {
         // Frosted floor (Task 8c retune): a bright WHITE crystalline body
         // (idx 0, swapped from the previous skyBlue-dominant pass — owner
