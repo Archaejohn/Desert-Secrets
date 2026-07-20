@@ -32,6 +32,9 @@ export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indig
  *  (x2, shadow buffer) → ink (deep shadow), matching tileset7's shipped
  *  `reefWall` material family. */
 export const REEF: Ramp = ["mint", "skyBlue", "slate", "mauve", "plum", "indigo", "indigo", "ink"];
+// Basalt wall with molten fissures (light molten glow -> dark basalt), for the
+// bespoke basaltRock face (lava biome). Mirrors ROCK/ICE/REEF's 8-slot shape.
+export const LAVA: Ramp = ["atbGold", "amber", "hpRed", "rust", "stoneDark", "stoneDeep", "stoneDeep", "ink"];
 
 export type TerrainKey =
   | "sand"
@@ -44,7 +47,11 @@ export type TerrainKey =
   | "glowMoss"
   | "snow"
   | "frozenLake"
-  | "rimeMoss";
+  | "rimeMoss"
+  | "emberRock"
+  | "ash"
+  | "lava"
+  | "lavaCrust";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -67,6 +74,12 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   snow: ["white", "bone", "skyBlue", "slate"],
   frozenLake: ["skyBlue", "slate", "indigo", "ink"],
   rimeMoss: ["mint", "jade", "teal", "tealDeep"],
+  // Lava biome grounds (light -> dark). Warm dark basalt, pale ash, vivid molten
+  // flow, and cooling crust with red fissures — on the current warm/stone palette.
+  emberRock: ["clay", "rust", "stoneDeep", "ink"],
+  ash: ["bone", "sandShade", "stone", "stoneDark"],
+  lava: ["atbGold", "amber", "hpRed", "rust"],
+  lavaCrust: ["hpRed", "rust", "stoneDeep", "ink"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));

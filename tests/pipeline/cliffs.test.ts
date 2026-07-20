@@ -522,3 +522,21 @@ describe("frozen biome floorFill", () => {
     expect(floorFill(key, 2026).diff(floorFill(key, 2026))).toBe(0);
   });
 });
+
+describe("lava biome ramps", () => {
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});
+
+describe("lava biome floorFill", () => {
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s fill is palette-locked", (key) => {
+    const g = floorFill(key, 8888);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 8888).diff(floorFill(key, 8888))).toBe(0);
+  });
+});

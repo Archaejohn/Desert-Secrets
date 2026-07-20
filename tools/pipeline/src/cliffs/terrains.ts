@@ -158,6 +158,28 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         // (mirrors reef glowMoss / tileset3 mossGlow).
         idx = v < 0.5 ? 2 : 1;
         if (h2(x, y, seed + 31) > 0.85) idx = 0; // generous mint glow (~15%)
+      } else if (key === "emberRock") {
+        // Dark basalt floor (ramp[2]/ramp[3]) with sparse warm ember-glow flecks
+        // (ramp[0]) — the low-contrast background the other three sit against.
+        idx = v < 0.5 ? 2 : 3;
+        if (h2(x, y, seed + 31) > 0.94) idx = 0; // sparse ember glow (~6%)
+        else if (h2(x, y, seed + 53) > 0.97) idx = 1; // rare warm rust speck (~3%)
+      } else if (key === "ash") {
+        // Pale grey ash drift — bone/sandShade body (ramp[0]/ramp[1]), smooth,
+        // low fleck density, with a rare darker cinder speck (ramp[3]).
+        idx = v < 0.5 ? 0 : 1;
+        if (h2(x, y, seed + 53) > 0.96) idx = 3; // rare cinder speck (~4%)
+      } else if (key === "lava") {
+        // Molten flow — fbm-mottled amber/hpRed body (ramp[1]/ramp[2]) with
+        // generous bright gold glow (ramp[0]); the most saturated ground.
+        idx = v < 0.5 ? 1 : 2;
+        if (h2(x, y, seed + 31) > 0.82) idx = 0; // generous gold glow (~18%)
+      } else if (key === "lavaCrust") {
+        // Cooling crust — dark body (ramp[2]/ramp[3]) with sparse red fissure
+        // flecks (ramp[0], glowing) reading as cracks in the black crust.
+        idx = v < 0.5 ? 2 : 3;
+        if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse red fissure (~10%)
+        else if (h2(x, y, seed + 53) > 0.96) idx = 1; // rarer rust ember (~4%)
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]
