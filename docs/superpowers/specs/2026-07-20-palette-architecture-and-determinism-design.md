@@ -46,6 +46,10 @@ pins the exact 64 hex list; a test asserts the core map matches it byte-for-byte
   draw from here — see the frozen-biome spec.
 - `reef`: teal / coral / mint-glow / deep-indigo.
 - `sunlessSea`: abyssal blue-black + bioluminescent cyan/mint glow + kelp green.
+  Includes the Act 3 **partially sunken sun-temple ruins** — mostly **core**
+  (weathered stone, temple gold) + these `sunlessSea` accents + a small
+  verdigris/gold "ruins" flavor. A worked example of a sub-location reusing
+  core + a biome's accents rather than needing its own set.
 - `mine`: cinnabar red + lantern amber + damp stone.
 - `grove`: lush greens + sunlight gold.
 - `space`/per-planet (Part 3): each planet defines its own ~4–8 accent set.
