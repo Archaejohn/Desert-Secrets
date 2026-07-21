@@ -388,12 +388,16 @@ git commit -m "feat(palette): CORE=AAP-64 (re-hex 25 legacy + append 39), empty 
 
 ---
 
-## Task 5: Regenerate sheets + re-pin determinism
+## Task 5: Shade-LUT repair + regenerate sheets + re-pin determinism
 
 **Files:**
-- Modify: `tests/pipeline/determinism.test.ts` (all 42 pins)
-- Modify: `tests/pipeline/manifest.test.ts` (embedded-palette assertion → 64)
+- Modify: `tools/pipeline/src/fx.ts` (2 `shadowOf` retargets)
+- Modify: `tests/pipeline/fx.test.ts` (2 assertions: appended-hex snapshot + the strict-darker invariant now holds)
+- Modify: `tests/pipeline/determinism.test.ts` (all 42 pins — recomputed programmatically)
+- Modify: `tests/pipeline/manifest.test.ts` (embedded-palette assertion → 64, if not already green from Task 4)
 - Regenerated (not committed by hand): `src/assets/generated/*.png`, `src/assets/generated/manifest.json`
+
+- [ ] **Step 0 (discovered in T4): repair the 2 shadowOf inversions the remap introduced.** Post-remap two `shadowOf` entries violate the "shadow strictly darker" invariant: `shadowOf[indigo]=plum` (plum L56.1 > indigo L48.7) and `shadowOf[hpRed]=rust` (rust L94.8 > hpRed L94.3). Retarget to a darker same-family core: `shadowOf[indigo] = "blue1"` (#242234, L35.7) and `shadowOf[hpRed] = "red0"` (#73172d, L44.1). These are the ONLY two 25-color inversions; the 39 appended-color chains already satisfy strict-darker. Also update the `palette additions (§3)` test's hardcoded hexes (`umber`→`#71413b`, `sandShade`→`#c7b08b`, stone ramp → new values). Verify `npx vitest run tests/pipeline/fx.test.ts` → all 36 pass. Commit this as its own step before regenerating (it changes indigo/hpRed-shaded pixels). Flag both retargets for the Task 7 owner look review.
 
 - [ ] **Step 1: Regenerate all art**
 
