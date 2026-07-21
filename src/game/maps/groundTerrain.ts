@@ -10,6 +10,18 @@ export const REEF_GARDEN_GROUND_TO_TERRAIN: Readonly<Record<string, TerrainKey>>
 };
 export const REEF_GARDEN_DEFAULT_TERRAIN: TerrainKey = "reefFloor";
 
+/** ReefHollow non-water ground → TerrainKey (reefStone banks → the firmer reefFloor). */
+const REEF_HOLLOW_LAND: Readonly<Record<string, TerrainKey>> = {
+  reefSilt: "reefSilt", glowMoss: "glowMoss", reefStone: "reefFloor", mintKelp: "glowMoss",
+};
+/** Floor pass: water maps to seabed (reefSilt) so the composite shows continuous seabed
+ *  under the water. Both animation-phase names mapped (baseName doesn't strip the `...2`). */
+export const REEF_HOLLOW_SEABED: Readonly<Record<string, TerrainKey>> = { ...REEF_HOLLOW_LAND, reefWater: "reefSilt", reefWater2: "reefSilt" };
+/** Mask pass: water KEPT as reefWater so `compositeMapLayers().terrainId===reefWater` gives
+ *  the organic water footprint for the surface overlay. */
+export const REEF_HOLLOW_WATER: Readonly<Record<string, TerrainKey>> = { ...REEF_HOLLOW_LAND, reefWater: "reefWater", reefWater2: "reefWater" };
+export const REEF_HOLLOW_DEFAULT: TerrainKey = "reefSilt";
+
 /** One (possibly dressed) ground tile-name → TerrainKey via its base name, or null if unmapped. */
 export function groundNameToTerrainKey(name: string | null, table: Readonly<Record<string, TerrainKey>>): TerrainKey | null {
   const b = baseName(name);
