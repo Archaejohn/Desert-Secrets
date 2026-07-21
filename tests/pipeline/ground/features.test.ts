@@ -10,22 +10,29 @@ function blank(wTiles: number, hTiles: number) {
 }
 
 describe("paintFeatures", () => {
-  it("sunEmblem paints an amber disc and marks it crisp", () => {
+  it("sunEmblem paints a blue-cast disc, blurred (un-crisp) for the under-water look", () => {
     const { grid, terrainId, shadow, W } = blank(3, 3);
     const feats: GroundFeature[] = [{ kind: "sunEmblem", tx: 1, ty: 1 }];
     paintFeatures(grid, terrainId, shadow, feats, W);
     const cx = 1 * 16 + 8, cy = 1 * 16 + 8;
-    // check a disc pixel offset from center (center itself is the sandLight highlight).
-    expect(grid.get(cx + 3, cy)).toBe("amber");
-    expect(shadow[cy * W + (cx + 3)]).toBe(1);
-    expect(grid.get(cx, cy)).toBe("sandLight"); // center highlight
+    expect(grid.get(cx + 3, cy)).toBe("slate");        // blue-gray disc body
+    expect(shadow[cy * W + (cx + 3)]).toBe(1);         // crisp here; CompositeGroundView blurs it at 3-box
+    expect(grid.get(cx, cy)).toBe("teal");             // center boss
+    let rim = 0, caustics = 0;
+    grid.forEach((_x, _y, c) => { if (c === "ink") rim++; if (c === "skyBlue") caustics++; });
+    expect(rim).toBeGreaterThan(0);                    // dark carved rim + inner ring
+    expect(caustics).toBeGreaterThan(0);               // faint underwater caustic glints
   });
-  it("shatter paints ink fissures", () => {
+  it("shatter carves TRANSPARENT (see-through) cracks, not a painted block", () => {
     const { grid, terrainId, shadow, W } = blank(3, 3);
     paintFeatures(grid, terrainId, shadow, [{ kind: "shatter", tx: 1, ty: 1, seed: 3 }], W);
-    let inks = 0;
-    grid.forEach((_x, _y, c) => { if (c === "ink") inks++; });
-    expect(inks).toBeGreaterThan(0);
+    let gaps = 0, marked = 0;
+    grid.forEach((x, y, c) => {
+      if (c === null) { gaps++; expect(shadow[y * W + x]).toBe(1); } // gap marked crisp
+      if (c !== "plum" && c !== null) marked++;
+    });
+    expect(gaps).toBeGreaterThan(0);   // real transparent cracks
+    expect(marked).toBe(0);            // no opaque paint — the slab shows around the gaps
   });
   it("leaves pixels outside features untouched", () => {
     const { grid, terrainId, shadow, W } = blank(3, 3);

@@ -72,8 +72,9 @@ export class SunTempleScene extends ZoneScene {
       });
     }
 
-    // The carved sun-glyph: inspect for the lore beat.
-    this.addProp("seaSparkle", SUNTEMPLE_GLYPH.x, SUNTEMPLE_GLYPH.y, { depthSort: false });
+    // The carved sun-glyph (the composited gray-stone sun-emblem feature IS the
+    // landmark now — the old seaSparkle prop read as an unclear blue box): inspect
+    // for the lore beat.
     this.addInteractPoint(SUNTEMPLE_GLYPH.x, SUNTEMPLE_GLYPH.y, () => {
       this.openScript(templeLoreScript, () => {
         const s = getState(this);
