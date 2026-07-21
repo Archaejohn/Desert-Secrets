@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
 import { fill, fillField } from "../../../tools/pipeline/src/ground/fills";
 import { encodePng } from "../../../tools/pipeline/src/png";
-import { TERRAIN_RAMPS } from "../../../tools/pipeline/src/cliffs/palette";
+import { GROUND_RAMPS } from "../../../tools/pipeline/src/ground/groundRamps";
 
 const DESERT = ["sand", "frostSand", "asphalt"] as const;
 const REEF_ICE = ["reefFloor", "reefSilt", "reefWater", "glowMoss", "ice", "snow", "frozenLake", "rimeMoss"] as const;
@@ -10,30 +10,30 @@ const LAVA_GROVE = ["emberRock", "ash", "lava", "lavaCrust", "groveGrass", "grov
 // golden-crop pins — re-pin ONLY on an intentional recipe change (Step 4 fills these).
 const FROZEN: Record<string, string> = {
   sand: "05a4353d6bc843ca200edac75de8c5df0b715f86f0d5501a3074791d6d7ed0f9",
-  frostSand: "e36833299f13946142e28b2771dbf48d7f5167ca0a72b41cdbc70d269a3a5d30",
-  asphalt: "32dd54b2e1c90000e5f1c5d6e6e50ca8d238f7b533ed277ac540df8e9b1bbc14",
+  frostSand: "dd7fdbbb01dab273e2b73cba22b2a7aec349e14d131ba37a302ad10abd24d1d0",
+  asphalt: "c17f856a762d76df7c58af896cf3915ab1b4c762091275c19cfd3e8eebf9b622",
   reefFloor: "0fd4f6878324722c76971d7ec680aa3d11c9853c56b4319d649d26735e4b05ff",
   reefSilt: "d9c01f70c18bb7529d06abbc00a5fe1fae389d55378953243406522a516ed950",
-  reefWater: "478e82b9239f12bcc18e1d14efea320ee6a2e796d82b3a5142b04661981b9fdb",
+  reefWater: "285a4f59377a3dd19fc02f340f0cc8af5d70d2fe8b5f581122905de6d8516dfa",
   glowMoss: "99edc23a05d4e22f0eb21e556da8431620f894aa8c2d1f1400a629140e7ee0f9",
-  ice: "d9456b964a51eb56d4256eb0a228e79f83119ee9e1d799d7c7a123d1ca784d83",
+  ice: "626f78443ba91e2fd5c2cae472e91c8fe69d933323cc00e551f83c945492a3ff",
   snow: "728313a2e92893ea6487eabf6722835ea639add920d6ce4d0e60de8ecf61ddc8",
-  frozenLake: "c3db571ec8645b409eb1b1aabe8f23a8919c09b4f659ec5fcd717ebd00bf7d07",
+  frozenLake: "6cf5be247e9b81e5bd6b9683161dfb2fdc2a69b4deeb8e90b1b087c6d98d8c7d",
   rimeMoss: "af410df5d7d46844458aeec361a4ef4c657dcd6efaaa9b0f94eb4b5b086b6871",
-  emberRock: "6fb9c72ac9950df499d6e318e03834dc2e617d3cfc605e222bc963bc637ac9a6",
-  ash: "c28c4cabcab1bf781782e3e20b730c982538923fa3c78cdbaa53b7f3f3480c07",
-  lava: "c693daacf1fb1b56ce813933e2e62123a602ef8d7426447dbd6b3c00de8b70c6",
-  lavaCrust: "c476f6e795a7e311b1f8513705331c6f864ef8c94f6a7ac7c36d822878bb8931",
+  emberRock: "d9dfbabc48f5477d739b2bfeae40de8bf92c5fbe78ab22dd79f761275cd30003",
+  ash: "b2811425ba69b64d90355c9aaab6002cc989dae706e50e1d5a11a81967b1bd39",
+  lava: "285384ecaa076b1e786d53ff335f6eafe06104db5622d0341330d1feb351e90a",
+  lavaCrust: "ad3839feee43beac1c6d495d985b81d5b72440af8d71e69c742f9d905fc7dfba",
   groveGrass: "efbe300f5da5e0dd5bc61dc714d70b1ab2286f5c390e4b830a4feefdca891dcc",
-  groveMoss: "f50011c59407b42c58a816dce8150a9e7efe3989b3c7a570b0d2bce5746cc979",
-  groveWater: "7a8b4b8bb100e38f1dbc5981540fa2c9334b8e23ccc755aae4548718f5e6f136",
-  groveSoil: "e15a3e5bc1b326957d526730f988895c6b0b91365a66d86697229670e6e9ed38",
+  groveMoss: "23d4981f6eddc304017e5fff35173ca939114ee60336b9cfd3383631fbac965e",
+  groveWater: "f53c4907a8c0b806923a853b51fd31417ad92fe495b09389bbd6bfcb61f78e8d",
+  groveSoil: "44e4098a7304ca0d8a03d3010558a69b878077fe1129f2da2ce9eb0729166678",
 };
 
 describe("fill — desert", () => {
   it("is deterministic and palette-locked to each terrain's ramp", () => {
     for (const k of DESERT) {
-      const ramp = new Set(TERRAIN_RAMPS[k]);
+      const ramp = new Set(GROUND_RAMPS[k]);
       const g = fillField(k, 500, 500, 48, 48);
       g.forEach((_x, _y, c) => { if (c !== null) expect(ramp.has(c as any), `${k} pixel ${c} off-ramp`).toBe(true); });
       expect(fill(k, 500, 500)).toBe(fill(k, 500, 500)); // pure
@@ -56,7 +56,7 @@ describe("fill — desert", () => {
 describe("fill — reef + ice", () => {
   it("is deterministic and palette-locked to each terrain's ramp", () => {
     for (const k of REEF_ICE) {
-      const ramp = new Set(TERRAIN_RAMPS[k]);
+      const ramp = new Set(GROUND_RAMPS[k]);
       const g = fillField(k, 500, 500, 48, 48);
       g.forEach((_x, _y, c) => { if (c !== null) expect(ramp.has(c as any), `${k} pixel ${c} off-ramp`).toBe(true); });
       expect(fill(k, 500, 500)).toBe(fill(k, 500, 500)); // pure
@@ -79,7 +79,7 @@ describe("fill — reef + ice", () => {
 describe("fill — lava + grove", () => {
   it("is deterministic and palette-locked to each terrain's ramp", () => {
     for (const k of LAVA_GROVE) {
-      const ramp = new Set(TERRAIN_RAMPS[k]);
+      const ramp = new Set(GROUND_RAMPS[k]);
       const g = fillField(k, 500, 500, 48, 48);
       g.forEach((_x, _y, c) => { if (c !== null) expect(ramp.has(c as any), `${k} pixel ${c} off-ramp`).toBe(true); });
       expect(fill(k, 500, 500)).toBe(fill(k, 500, 500)); // pure
