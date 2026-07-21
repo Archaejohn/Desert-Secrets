@@ -58,11 +58,12 @@ export const shadowOf: Record<PaletteName, PaletteName> = {
   teal: "tealDeep",
   tealDeep: "indigo",
 
-  // Water/ice ramp: white(glint) → skyBlue → slate → indigo → plum.
+  // Water/ice ramp: white(glint) → skyBlue → slate → indigo → blue1 (AAP-64
+  // retarget, 2026-07-20: plum was brighter than indigo post-remap).
   white: "skyBlue",
   skyBlue: "slate",
   slate: "indigo",
-  indigo: "plum",
+  indigo: "blue1",
 
   // Cool stone ramp (desert-cliff face): steps darker down its own ramp,
   // converging into ink.
@@ -73,7 +74,7 @@ export const shadowOf: Record<PaletteName, PaletteName> = {
 
   // UI gauge colours (rare on tiles, but the LUT must be total): keep hue
   // identity while stepping darker.
-  hpRed: "rust",
+  hpRed: "red0",
   atbGold: "amber",
 
   // Terminators (see SHADOW_TERMINATORS): repeated shading converges here.
