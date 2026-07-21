@@ -1,8 +1,9 @@
-import { TERRAIN_RAMPS, shade, type TerrainKey } from "../cliffs/palette";
-import { nameToRampIndex } from "../cliffs/terrains";
+import { TERRAIN_RAMPS, type TerrainKey } from "../cliffs/palette";
 import { PixelGrid } from "../grid";
 import { overlayMask } from "../cliffs/blob47";
 import { fill } from "./fills";
+import { CORE, type PaletteName } from "../../../../src/shared/palette";
+import { redmean } from "../palette/remap";
 
 /** Global seam priority; higher = owns the seam (carves into lower). Seeded from
  *  the per-biome orders in presets.ts, biomes ordered desert<reef<ice<lava<grove. */
@@ -35,81 +36,106 @@ export function neighborConfig(atOverSide: (dx: number, dy: number) => boolean):
 const T = 16;
 
 /** Shared 16x16 seam stencil params (owner-tuned; see MEMORY reef-cliff-tuned-seam-values). */
-export const SEAM = { inset: 3, irreg: 20, round: 8, pocketRound: 8, seed: 7439 };
+export const SEAM = { inset: 5, irreg: 30, round: 8, pocketRound: 8, seed: 7439 };
 
 const terrainAt = (map: TerrainKey[][], cx: number, cy: number): TerrainKey | null =>
   (cy >= 0 && cy < map.length && cx >= 0 && cx < map[cy].length) ? map[cy][cx] : null;
 
-/** Composite one 16x16 map cell (cx,cy) from G1's world-position fills. The
- *  cell's own terrain (`self`) is the field; the single highest-priority
- *  neighbor that outranks `self` (`carve`) carves in through the shared
- *  `overlayMask` stencil. Sampled at world position (ox+cx*16+x, oy+cy*16+y)
- *  so texture is seamless across cell boundaries. Task 4 adds an outline/
- *  drop-shadow pass ported from `blobTiles` (cliffs/blob47.ts): the darkened
- *  field-edge / lit inner lip / drop-shadow ramp-index shifts, using the same
- *  `on(x,y)` 8-neighbor boundary test built from the mask + config bits.
- *  NOTE on naming: `carve` here is the OPPOSITE of blob47's local `over` (there,
- *  `over` is the mask=1 painted field; here, mask=1 is `self` and `carve` is the
- *  mask=0 higher-priority terrain reaching in) — kept distinct on purpose to
- *  avoid a cross-file naming trap. */
+// --- soft seam shadow -------------------------------------------------------
+// Palette-locked "alpha-blend dark gray into the pixel": for each CORE colour,
+// its softly-shadowed variant = the colour nudged ~38% toward a soft dark grey,
+// snapped to the nearest CORE colour. Gives a gentle grey seam shadow instead of
+// the hard near-black outline `shade()` produced at ramp ends.
+const CORE_NAMES = Object.keys(CORE) as PaletteName[];
+const rgbOf = (hex: string): [number, number, number] => {
+  const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const nearestCore = (rgb: [number, number, number]): PaletteName => {
+  let best = CORE_NAMES[0], bd = Infinity;
+  for (const k of CORE_NAMES) { const d = redmean(rgb, rgbOf(CORE[k])); if (d < bd) { bd = d; best = k; } }
+  return best;
+};
+const SHADOW_RGB: [number, number, number] = [28, 25, 36]; // dark grey-violet
+const SHADOW_A = 0.52;
+const SOFT_SHADOW: Record<string, PaletteName> = {};
+for (const k of CORE_NAMES) {
+  const c = rgbOf(CORE[k]);
+  SOFT_SHADOW[k] = nearestCore([
+    c[0] + (SHADOW_RGB[0] - c[0]) * SHADOW_A,
+    c[1] + (SHADOW_RGB[1] - c[1]) * SHADOW_A,
+    c[2] + (SHADOW_RGB[2] - c[2]) * SHADOW_A,
+  ]);
+}
+
+/** Composite one 16x16 map cell (cx,cy) from G1's world-position fills, sampled at
+ *  world position (ox+cx*16+x, oy+cy*16+y) so texture is seamless across cells.
+ *
+ *  PRIORITY-LAYERING: the cell's own terrain (`self`) is the base; EVERY neighbor
+ *  terrain that outranks `self` carves in as its own `overlayMask` layer, processed
+ *  in ascending priority so higher terrains overpaint lower ones. This is what makes
+ *  3-4-way junctions overlap correctly — an earlier "single highest neighbor only"
+ *  version dropped the other transitions and left hard, straight, untransitioned
+ *  edges. Then a soft grey seam shadow (SOFT_SHADOW) is applied to the lower side of
+ *  each seam — a gentle darkened border, not a hard ink line. */
 export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: number, oy: number): PixelGrid {
   const g = new PixelGrid(T, T);
   const self = map[cy][cx];
   const wx0 = ox + cx * T, wy0 = oy + cy * T;
+  const selfPri = GROUND_PRIORITY[self];
 
-  // highest-priority neighbor that outranks `self`
-  let carve: TerrainKey = self, carvePri = GROUND_PRIORITY[self];
-  for (const d of DIRS) {
-    const n = terrainAt(map, cx + d.dx, cy + d.dy);
-    if (n && GROUND_PRIORITY[n] > carvePri) { carve = n; carvePri = GROUND_PRIORITY[n]; }
-  }
-  if (carve === self) {
+  // PRIORITY-LAYERING: every neighbor terrain that OUTRANKS self, ascending by priority,
+  // carves in as its own mask layer; higher layers overpaint lower. At a 3-4-way junction
+  // all transitions are drawn and overlap correctly — the previous "single highest
+  // neighbor only" shortcut dropped the others and left hard straight untransitioned edges.
+  const higher = [...new Set<TerrainKey>(
+    DIRS.map((d) => terrainAt(map, cx + d.dx, cy + d.dy))
+      .filter((n): n is TerrainKey => !!n && GROUND_PRIORITY[n] > selfPri),
+  )].sort((a, b) => GROUND_PRIORITY[a] - GROUND_PRIORITY[b]);
+
+  if (higher.length === 0) {
     for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) g.px(x, y, fill(self, wx0 + x, wy0 + y));
     return g;
   }
-  // config: bit SET where the neighbor is NOT carving in (priority <= self); the
-  // carved terrain `carve` (higher) reaches in from cleared-bit directions.
-  const cfg = neighborConfig((dx, dy) => {
-    const n = terrainAt(map, cx + dx, cy + dy);
-    return !n || GROUND_PRIORITY[n] <= GROUND_PRIORITY[self];
-  });
-  const m = overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed, SEAM.pocketRound);
 
-  // Outline/shadow pass: same 8-neighbor boundary test as blobTiles, built from
-  // `m` plus the config bits (so it agrees with neighboring cells at the seam).
-  const N = !!(cfg & 1), NE = !!(cfg & 2), E = !!(cfg & 4), SE = !!(cfg & 8),
-        S = !!(cfg & 16), SW = !!(cfg & 32), W = !!(cfg & 64), NW = !!(cfg & 128);
-  const on = (x: number, y: number): number => {
-    const ox2 = x < 0 ? -1 : x >= T ? 1 : 0, oy2 = y < 0 ? -1 : y >= T ? 1 : 0;
-    if (ox2 === 0 && oy2 === 0) return m[y * T + x];
-    let bit: boolean;
-    if (ox2 === 0) bit = oy2 < 0 ? N : S; else if (oy2 === 0) bit = ox2 < 0 ? W : E;
-    else bit = ox2 < 0 ? (oy2 < 0 ? NW : SW) : (oy2 < 0 ? NE : SE);
-    if (!bit) return 0;
-    const cxp = Math.max(0, Math.min(T - 1, x)), cyp = Math.max(0, Math.min(T - 1, y));
-    return m[cyp * T + cxp];
-  };
-  const fieldRamp = TERRAIN_RAMPS[self], carveRamp = TERRAIN_RAMPS[carve];
+  // Each higher terrain U's carve mask + its own on() lookup. U carves the cell from
+  // directions where a neighbor of priority >= P[U] sits; retreats toward lower neighbors.
+  // Distinct seed per U so overlapping seams don't align identically.
+  const layers = higher.map((U) => {
+    const pu = GROUND_PRIORITY[U];
+    const cfg = neighborConfig((dx, dy) => { const n = terrainAt(map, cx + dx, cy + dy); return !n || GROUND_PRIORITY[n] < pu; });
+    const m = overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed + pu, SEAM.pocketRound);
+    const bN = !!(cfg & 1), bNE = !!(cfg & 2), bE = !!(cfg & 4), bSE = !!(cfg & 8),
+          bS = !!(cfg & 16), bSW = !!(cfg & 32), bW = !!(cfg & 64), bNW = !!(cfg & 128);
+    const on = (x: number, y: number): number => {
+      const ox2 = x < 0 ? -1 : x >= T ? 1 : 0, oy2 = y < 0 ? -1 : y >= T ? 1 : 0;
+      if (ox2 === 0 && oy2 === 0) return m[y * T + x];
+      let bit: boolean;
+      if (ox2 === 0) bit = oy2 < 0 ? bN : bS; else if (oy2 === 0) bit = ox2 < 0 ? bW : bE;
+      else bit = ox2 < 0 ? (oy2 < 0 ? bNW : bSW) : (oy2 < 0 ? bNE : bSE);
+      if (!bit) return 0;
+      const cxp = Math.max(0, Math.min(T - 1, x)), cyp = Math.max(0, Math.min(T - 1, y));
+      return m[cyp * T + cxp];
+    };
+    return { U, on };
+  });
+
+  // Pass 1: winning terrain per pixel (ascending layers; the highest U that carves wins).
+  const win = new Array<TerrainKey>(T * T);
   for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
-    // mask=1 -> field (self); mask=0 -> carved higher terrain (carve)
-    const isField = m[y * T + x] === 1;
-    const terr = isField ? self : carve;
-    let name = fill(terr, wx0 + x, wy0 + y);
-    if (isField) {
-      if (!on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1)) {
-        const idx = nameToRampIndex(self, name);
-        // G1 fills draw from the enriched GROUND_RAMPS, which include intermediate
-        // tones not present in the bare 4-color TERRAIN_RAMPS; nameToRampIndex
-        // returns -1 for those, so skip the shade and keep the flat fill.
-        if (idx !== -1) name = shade(fieldRamp, idx, 1);       // darkened field-edge
-      } else if (on(x, y - 1) && !on(x, y - 2)) {
-        const idx = nameToRampIndex(self, name);
-        if (idx !== -1) name = shade(fieldRamp, idx, -1);      // lit inner lip
-      }
-    } else if (on(x, y - 1) || on(x - 1, y - 1)) {
-      const idx = nameToRampIndex(carve, name);
-      if (idx !== -1) name = shade(carveRamp, idx, 2);         // drop shadow on carve side
-    }
+    let terr = self;
+    for (const L of layers) if (L.on(x, y) === 0) terr = L.U;
+    win[y * T + x] = terr;
+  }
+
+  // Pass 2: fill + SOFT GREY seam shadow — a pixel on the lower side of a seam (a
+  // higher-priority winner 4-neighbours it) is nudged toward grey via SOFT_SHADOW.
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
+    const w = win[y * T + x];
+    let name = fill(w, wx0 + x, wy0 + y);
+    const p = GROUND_PRIORITY[w];
+    const shadowed = (nx: number, ny: number): boolean =>
+      nx >= 0 && nx < T && ny >= 0 && ny < T && GROUND_PRIORITY[win[ny * T + nx]] > p;
+    if (shadowed(x - 1, y) || shadowed(x + 1, y) || shadowed(x, y - 1) || shadowed(x, y + 1)) name = SOFT_SHADOW[name];
     g.px(x, y, name);
   }
   return g;

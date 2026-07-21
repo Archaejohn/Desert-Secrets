@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { GROUND_PRIORITY, neighborConfig, compositeCell, compositeMap, SEAM } from "../../../tools/pipeline/src/ground/composite";
-import { TERRAIN_RAMPS, TERRAIN_RAMPS as R } from "../../../tools/pipeline/src/cliffs/palette";
+import { GROUND_PRIORITY, neighborConfig, compositeCell, compositeMap } from "../../../tools/pipeline/src/ground/composite";
+import { TERRAIN_RAMPS } from "../../../tools/pipeline/src/cliffs/palette";
 import { GROUND_RAMPS } from "../../../tools/pipeline/src/ground/groundRamps";
-import { overlayMask } from "../../../tools/pipeline/src/cliffs/blob47";
-import { fill } from "../../../tools/pipeline/src/ground/fills";
+import { CORE } from "../../../src/shared/palette";
+
+const CORE_KEYS = new Set(Object.keys(CORE));
 
 describe("GROUND_PRIORITY", () => {
   it("ranks every terrain and preserves the per-biome orders", () => {
@@ -21,40 +22,61 @@ describe("GROUND_PRIORITY", () => {
 
 describe("neighborConfig", () => {
   it("sets a bit where the neighbor is on the over side, clears where it carves in", () => {
-    // E neighbor carves in (returns false), all others over-side (true)
-    const cfg = neighborConfig((dx, dy) => !(dx === 1 && dy === 0));
+    const cfg = neighborConfig((dx, dy) => !(dx === 1 && dy === 0)); // only E carves in
     expect(cfg & 4).toBe(0);            // E bit cleared
     expect(cfg & 1).toBe(1);            // N bit set
-    expect(neighborConfig(() => true)).toBe(255);  // fully surrounded by over
+    expect(neighborConfig(() => true)).toBe(255);  // fully field
     expect(neighborConfig(() => false)).toBe(0);   // fully carved
   });
 });
 
 describe("compositeCell", () => {
-  // 3×3 map: center reefFloor (low), east neighbor glowMoss (high) → moss carves in from east
-  const map = [
+  // center reefFloor (low), glowMoss (higher) to the E → moss carves in from the east
+  const mossE = [
     ["reefFloor", "reefFloor", "reefFloor"],
     ["reefFloor", "reefFloor", "glowMoss"],
     ["reefFloor", "reefFloor", "reefFloor"],
   ] as any;
-  it("is palette-locked to the two involved ramps and deterministic", () => {
-    const allowed = new Set([...R.reefFloor, ...R.glowMoss]);
-    const g = compositeCell(map, 1, 1, 1000, 1000);
-    g.forEach((_x, _y, c) => { if (c) expect(allowed.has(c as any), `off-ramp ${c}`).toBe(true); });
-    const h = compositeCell(map, 1, 1, 1000, 1000);
+  const MOSS_SIG = new Set(["mint", "jade"]); // in glowMoss's fill, never in reefFloor's
+
+  it("is palette-locked to CORE (AAP-64) and deterministic", () => {
+    // fills draw from the enriched GROUND_RAMPS and the seam shadow snaps to nearest CORE,
+    // so the composite's true invariant is: every pixel is a valid CORE colour.
+    const g = compositeCell(mossE, 1, 1, 1000, 1000);
+    g.forEach((_x, _y, c) => { if (c) expect(CORE_KEYS.has(c as string), `off-palette ${c}`).toBe(true); });
+    const h = compositeCell(mossE, 1, 1, 1000, 1000);
     g.forEach((x, y, c) => expect(h.get(x, y)).toBe(c)); // pure
   });
-  it("carves the higher terrain in from the higher-neighbor side", () => {
-    const g = compositeCell(map, 1, 1, 0, 0);
-    // east column should contain glowMoss (base) pixels; west edge should be reefFloor (over)
-    const eastHasMoss = [...Array(16).keys()].some((y) => R.glowMoss.includes(g.get(15, y) as any));
-    const westIsFloor = [...Array(16).keys()].every((y) => R.reefFloor.includes(g.get(0, y) as any));
-    expect(eastHasMoss).toBe(true);
-    expect(westIsFloor).toBe(true);
+
+  it("carves the higher terrain in from the higher-neighbor side only", () => {
+    const g = compositeCell(mossE, 1, 1, 0, 0);
+    let eastMoss = false, westMoss = false;
+    g.forEach((x, _y, c) => { if (c && MOSS_SIG.has(c as string)) { if (x >= 8) eastMoss = true; else westMoss = true; } });
+    expect(eastMoss, "glowMoss must appear on the east (its side)").toBe(true);
+    expect(westMoss, "glowMoss must NOT reach the far west").toBe(false);
   });
-  it("a cell with no higher neighbor is pure fill(T)", () => {
-    const g = compositeCell(map, 0, 0, 0, 0); // corner reefFloor, no higher neighbor
-    g.forEach((_x, _y, c) => { if (c) expect(R.reefFloor.includes(c as any)).toBe(true); });
+
+  it("priority-layers ALL higher neighbors at a junction, not just the highest", () => {
+    // reefFloor flanked by lava (W, highest) and glowMoss (E) — disjoint warm/teal palettes.
+    // The old single-highest-neighbor code carved only lava and DROPPED the moss transition.
+    const twoHigher = [
+      ["reefFloor", "reefFloor", "reefFloor"],
+      ["lava", "reefFloor", "glowMoss"],
+      ["reefFloor", "reefFloor", "reefFloor"],
+    ] as any;
+    const g = compositeCell(twoHigher, 1, 1, 0, 0);
+    const cols = new Set<string>(); g.forEach((_x, _y, c) => { if (c) cols.add(c as string); });
+    const lavaSet = new Set(GROUND_RAMPS.lava); // fully disjoint from reef greens
+    const hasLava = [...cols].some((c) => lavaSet.has(c as any));
+    const hasMoss = [...cols].some((c) => MOSS_SIG.has(c));
+    expect(hasLava, "lava (W neighbor) carves in").toBe(true);
+    expect(hasMoss, "glowMoss (E neighbor) ALSO carves in — the priority-layering fix").toBe(true);
+  });
+
+  it("a cell with no higher neighbor is pure fill(T) (no seam, no shadow)", () => {
+    const g = compositeCell(mossE, 0, 0, 0, 0); // corner reefFloor, no higher neighbor
+    const rampSet = new Set(GROUND_RAMPS.reefFloor);
+    g.forEach((_x, _y, c) => { if (c) expect(rampSet.has(c as any), `${c} not in reefFloor ramp`).toBe(true); });
   });
 });
 
@@ -64,53 +86,14 @@ describe("compositeMap", () => {
     ["reefSilt", "glowMoss", "reefWater"],
     ["reefFloor", "reefFloor", "glowMoss"],
   ] as any;
-  it("assembles a w*16 x h*16 texture, palette-locked and deterministic", () => {
+  it("assembles a w*16 x h*16 texture, palette-locked to CORE and deterministic", () => {
     const g = compositeMap(map);
     expect(g.width).toBe(48); expect(g.height).toBe(48);
-    // fill() draws from each terrain's ENRICHED ramp (GROUND_RAMPS), not the bare
-    // 4-identity TERRAIN_RAMPS — see fills.ts header. That's the true palette-lock
-    // invariant for ground fills (compositeCell's existing tests use TERRAIN_RAMPS
-    // only because reefFloor/glowMoss happen not to reach their enriched gaps).
-    const allowed = new Set(["reefFloor","reefSilt","reefWater","glowMoss"].flatMap((k) => (GROUND_RAMPS as any)[k]));
-    g.forEach((_x, _y, c) => { if (c) expect(allowed.has(c as any)).toBe(true); });
+    g.forEach((_x, _y, c) => { if (c) expect(CORE_KEYS.has(c as string), `off-palette ${c}`).toBe(true); });
     const h = compositeMap(map);
     g.forEach((x, y, c) => expect(h.get(x, y)).toBe(c));
   });
-  it("does not throw on a 3-terrain junction cell", () => {
-    // center touches reefSilt, glowMoss, reefWater, reefFloor — composites, no off-palette
+  it("does not throw on a 3+-terrain junction cell", () => {
     expect(() => compositeMap(map)).not.toThrow();
-  });
-});
-
-describe("outline", () => {
-  // 2x2 map: corner reefFloor (self, low) with glowMoss (higher) to the E — moss carves in.
-  const map = [["reefFloor", "glowMoss"], ["reefFloor", "reefFloor"]] as any;
-
-  // NOTE: the literal brief test ("seam column has >1 distinct reefFloor TERRAIN_RAMPS
-  // tone") passes even WITHOUT an outline pass, because fill()'s own per-pixel dithering
-  // (ditherRamp, see fills.ts/texture.ts) already lands on multiple TERRAIN_RAMPS-member
-  // tones within a flat body by chance. That test doesn't discriminate outline-vs-no-outline
-  // (verified: it passes red, before this task's implementation). Instead, reconstruct the
-  // pre-outline flat mask+fill composite (Tasks 1-3 behavior) directly and assert the new
-  // output diverges from it somewhere — a real outline/shadow pass changes pixel values at
-  // the seam that a flat composite would not.
-  it("shades the seam edge, diverging from the flat mask+fill composite", () => {
-    const g = compositeCell(map, 0, 0, 0, 0);
-    const terrainAt = (cx: number, cy: number): "reefFloor" | "glowMoss" | null =>
-      cy >= 0 && cy < map.length && cx >= 0 && cx < map[cy].length ? map[cy][cx] : null;
-    const cfg = neighborConfig((dx, dy) => {
-      const n = terrainAt(dx, dy);
-      return !n || GROUND_PRIORITY[n] <= GROUND_PRIORITY.reefFloor;
-    });
-    const m = overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed, SEAM.pocketRound);
-    let differs = false;
-    for (let y = 0; y < 16 && !differs; y++) {
-      for (let x = 0; x < 16; x++) {
-        const terr = m[y * 16 + x] === 1 ? "reefFloor" : "glowMoss";
-        const flat = fill(terr, x, y); // same world coords as compositeCell(map,0,0,0,0)
-        if (g.get(x, y) !== flat) { differs = true; break; }
-      }
-    }
-    expect(differs).toBe(true);
   });
 });
