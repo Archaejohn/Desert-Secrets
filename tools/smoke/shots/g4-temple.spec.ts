@@ -9,7 +9,8 @@ const BASE_FLAGS = { actComplete: true, act2Started: true, act2Complete: true, s
 
 test("g4 — sun-temple authored floor", async ({ page }, testInfo) => {
   await seed(page, fixture("act3-start"));
-  await jumpTo(page, { zone: "sunTemple", flags: BASE_FLAGS, hp: 999, settleMs: 1400, stand: { x: 7, y: 8 }, standSettleMs: 500 });
+  // Stand a few tiles off the glyph (7,7) so the player + its interact prompt don't occlude the sun emblem.
+  await jumpTo(page, { zone: "sunTemple", flags: BASE_FLAGS, hp: 999, settleMs: 1400, stand: { x: 7, y: 10 }, standSettleMs: 500 });
   const s = await snapshot(page);
   expect(s.zoneKey, "reached sunTemple").toBe("sunTemple");
   await page.screenshot({ path: testInfo.outputPath("g4-temple.png") });
