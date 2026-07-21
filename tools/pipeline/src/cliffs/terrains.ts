@@ -180,6 +180,30 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = v < 0.5 ? 2 : 3;
         if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse red fissure (~10%)
         else if (h2(x, y, seed + 53) > 0.96) idx = 1; // rarer rust ember (~4%)
+      } else if (key === "groveGrass") {
+        // Lush grass — mottled jade/teal body (ramp[1]/ramp[2]) with sparse bright
+        // mint highlights (ramp[0]); smooth, low fleck density.
+        idx = v < 0.5 ? 1 : 2;
+        if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse mint highlight (~10%)
+      } else if (key === "groveMoss") {
+        // Darker + MORE spotted than grass, on darkened soil (owner direction):
+        // umber soil base (ramp[2]) showing between generous mottled green moss
+        // clumps (teal ramp[1] / jade ramp[0]); rare ink deep shadow (ramp[3]).
+        const g = fbm(x, y, seed + 5);
+        idx = g > 0.55 ? 1 : 2; // teal moss on fbm highs, umber soil elsewhere
+        if (h2(x, y, seed + 31) > 0.80) idx = 0; // bright jade moss fleck (~20%)
+        else if (h2(x, y, seed + 53) > 0.94) idx = 3; // rare ink shadow (~6%)
+      } else if (key === "groveWater") {
+        // Spring water — fbm-mottled teal/tealDeep body (ramp[1]/ramp[2]) with
+        // sparse skyBlue ripples (ramp[0]).
+        idx = v < 0.5 ? 1 : 2;
+        if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse skyBlue ripple (~10%)
+      } else if (key === "groveSoil") {
+        // Bare earth — mottled umber/stoneDeep body (ramp[1]/ramp[2]) with sparse
+        // clay light grit (ramp[0]) and rare ink specks (ramp[3]).
+        idx = v < 0.5 ? 1 : 2;
+        if (h2(x, y, seed + 31) > 0.92) idx = 0; // sparse clay grit (~8%)
+        else if (h2(x, y, seed + 53) > 0.96) idx = 3; // rare ink speck (~4%)
       } else {
         // asphalt — prototype's generic branch, collapsed per the mapping above.
         // Prototype: col=P[v<0.36?1:v<0.58?0:v<0.82?2:3]; if h2(...)>0.93 col=P[4]

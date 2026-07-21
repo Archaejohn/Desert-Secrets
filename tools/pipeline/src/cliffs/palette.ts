@@ -35,6 +35,9 @@ export const REEF: Ramp = ["mint", "skyBlue", "slate", "mauve", "plum", "indigo"
 // Basalt wall with molten fissures (light molten glow -> dark basalt), for the
 // bespoke basaltRock face (lava biome). Mirrors ROCK/ICE/REEF's 8-slot shape.
 export const LAVA: Ramp = ["atbGold", "amber", "hpRed", "rust", "stoneDark", "stoneDeep", "stoneDeep", "ink"];
+// Damp cave stone with water/moss highlights (light -> dark stone), for the
+// bespoke groveStone face. 8-slot like ROCK/ICE/REEF/LAVA.
+export const GROVE: Ramp = ["mint", "skyBlue", "jade", "teal", "stoneDark", "stoneDeep", "tealDeep", "ink"];
 
 export type TerrainKey =
   | "sand"
@@ -51,7 +54,11 @@ export type TerrainKey =
   | "emberRock"
   | "ash"
   | "lava"
-  | "lavaCrust";
+  | "lavaCrust"
+  | "groveGrass"
+  | "groveMoss"
+  | "groveWater"
+  | "groveSoil";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -80,6 +87,12 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   ash: ["bone", "sandShade", "stone", "stoneDark"],
   lava: ["atbGold", "amber", "hpRed", "rust"],
   lavaCrust: ["hpRed", "rust", "stoneDeep", "ink"],
+  // Grove/cave biome grounds (light -> dark). Lush grass, darker spotted moss on
+  // darkened soil (umber), spring water, and bare earth.
+  groveGrass: ["mint", "jade", "teal", "tealDeep"],
+  groveMoss: ["jade", "teal", "umber", "ink"],
+  groveWater: ["skyBlue", "teal", "tealDeep", "indigo"],
+  groveSoil: ["clay", "umber", "stoneDeep", "ink"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));

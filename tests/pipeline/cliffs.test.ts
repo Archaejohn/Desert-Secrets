@@ -541,6 +541,24 @@ describe("lava biome floorFill", () => {
   });
 });
 
+describe("grove biome ramps", () => {
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});
+
+describe("grove biome floorFill", () => {
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s fill is palette-locked", (key) => {
+    const g = floorFill(key, 9090);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 9090).diff(floorFill(key, 9090))).toBe(0);
+  });
+});
+
 describe("generateTerrain + lava preset", () => {
   it("lava preset emits its full parity set (4 grounds, all-pairs = 7 pairings)", () => {
     const out = generateTerrain(LAVA_PRESETS[0]).map((o) => o.name);
