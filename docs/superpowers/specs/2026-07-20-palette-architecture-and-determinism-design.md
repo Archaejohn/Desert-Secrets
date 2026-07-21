@@ -119,3 +119,22 @@ Sequence: **A → B → (C in parallel once A lands).**
 
 Per plan: `tsc`, `vitest` (new invariants green; nominated pins stable), `build`,
 `smoke`. Owner review gates at the palette remap (A) and first runtime forest (C).
+
+## Addendum (2026-07-20) — Plan A execution decisions
+
+Recorded when Plan A was picked up for implementation (owner-confirmed):
+
+- **Ordering.** Plan A (AAP-64 palette migration) runs **before** the ground-
+  compositing **G1** fill library — G1's world-position fills should be authored
+  once against the final palette, not the old 25 then re-colored.
+- **Remap fidelity: "embrace AAP-64" (clean refresh).** All 25 shipped colors snap
+  to their **nearest AAP-64 core** color by redmean ΔE. **No preservation accents**
+  are carried over from the current set; `BIOME_ACCENTS` starts effectively empty
+  and grows only as new biomes need signature hues. The shipped desert look shifts
+  deliberately — accepted at the remap review gate.
+- **Core naming.** AAP-64 ships no canonical color names. Plan A assigns stable,
+  semantic/family names consistent with the current style (`rust`, `tealDeep`, …),
+  owner-tweakable at the remap review gate.
+- **Collision handling.** If two shipped colors snap to the *same* AAP-64 color (a
+  ramp would lose a step), the collision is surfaced at the review gate for the owner
+  to nudge one to a neighboring core color.
