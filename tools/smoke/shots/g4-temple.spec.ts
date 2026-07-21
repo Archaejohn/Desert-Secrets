@@ -5,7 +5,7 @@ import { seed, fixture } from "../kit/seed";
 import { snapshot } from "../kit/snapshot";
 import { jumpTo } from "../kit/debug";
 
-const BASE_FLAGS = { actComplete: true, act2Started: true, act2Complete: true, slitherJoined: true, act3Started: true };
+const BASE_FLAGS = { actComplete: true, act2Started: true, act2Complete: true, slitherJoined: true, act3Started: true, sawTempleEntry: true };
 
 test("g4 — sun-temple authored floor", async ({ page }, testInfo) => {
   await seed(page, fixture("act3-start"));
