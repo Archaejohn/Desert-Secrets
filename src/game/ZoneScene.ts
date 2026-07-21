@@ -13,6 +13,9 @@ import { InventoryMenu } from "./ui/InventoryMenu";
 import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
+import type { TerrainKey } from "../../tools/pipeline/src/cliffs/palette";
+import { CompositeGroundView } from "./gfx/CompositeGroundView";
+import { terrainGrid } from "./maps/groundTerrain";
 import { equipItem, unequipSlot, respawn, type ZoneId } from "../core/gameState";
 import { nextThomasFragment } from "../core/scripts/thomas";
 import { EncounterClock, ENCOUNTERS, type EncounterTable } from "../core/encounters";
@@ -31,6 +34,7 @@ import {
 
 export const TILE = 16;
 const PLAYER_SPEED = 72;
+const COMPOSITE_GROUND_DEPTH = -100;
 const TALK_RANGE = 26;
 /** Ink-with-alpha helper for text/panel backgrounds below (keeps them tied to
  *  PALETTE.ink instead of a stale hardcoded hex). */
@@ -47,6 +51,9 @@ export interface ZoneConfig {
   defaultSpawn: { x: number; y: number };
   encounterZone?: keyof typeof ENCOUNTERS;
   battleBg: BattleBg;
+  /** Opt-in: render this zone's ground via the runtime composite instead of the tileset.
+   *  Carries the zone's own ground-name → TerrainKey table + fallback. */
+  compositeGround?: { table: Readonly<Record<string, TerrainKey>>; fallback: TerrainKey };
 }
 
 export interface ZoneEntryData {
@@ -94,6 +101,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected groundLayer!: Phaser.Tilemaps.TilemapLayer;
   protected decorLayer!: Phaser.Tilemaps.TilemapLayer;
   protected inputLocked = false;
+  private compositeGroundView: CompositeGroundView | null = null;
 
   /**
    * Two-camera world/UI split (docs/CONTRACTS.md "v21"). `uiLayer` is an
@@ -203,6 +211,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.animatedTiles = [];
     this.activeNpc = null;
     this.encounterClock = null;
+    this.compositeGroundView = null;
   }
 
   create(): void {
@@ -219,6 +228,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     setState(this, { ...state, zone: this.cfg.zoneId });
 
     this.buildMap(width, height);
+    this.setupCompositeGround();
     this.spawnPlayer();
     this.setupInput();
 
@@ -482,6 +492,20 @@ export abstract class ZoneScene extends Phaser.Scene {
     }
     this.groundLayer.setCollision([...solidGids]);
     this.decorLayer.setCollision([...solidGids]);
+  }
+
+  /** Opt-in: replace the tileset ground layer with a runtime-composited canvas
+   *  texture (see `CompositeGroundView`). No-op unless `cfg.compositeGround` is
+   *  set. Hiding the ground layer is visual-only — Arcade tile collision on it
+   *  (set via `setCollision` above) is unaffected by `setVisible`. */
+  private setupCompositeGround(): void {
+    const cg = this.cfg.compositeGround;
+    if (!cg) return;
+    if (this.compositeGroundView) this.compositeGroundView.destroy(); // defensive: guard against re-entry
+    const grid = terrainGrid(this.cfg.map.ground, cg.table, cg.fallback);
+    const blur = !new URLSearchParams(location.search).has("noblur"); // texture blur ON by default; ?noblur to compare
+    this.compositeGroundView = new CompositeGroundView(this, grid, COMPOSITE_GROUND_DEPTH, { blur });
+    this.groundLayer.setVisible(false);
   }
 
   /** Animate all tiles of nameA <-> nameB on a timer (e.g. water). */
