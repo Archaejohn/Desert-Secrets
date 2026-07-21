@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { GROUND_PRIORITY, neighborConfig, compositeCell } from "../../../tools/pipeline/src/ground/composite";
+import { GROUND_PRIORITY, neighborConfig, compositeCell, compositeMap } from "../../../tools/pipeline/src/ground/composite";
 import { TERRAIN_RAMPS, TERRAIN_RAMPS as R } from "../../../tools/pipeline/src/cliffs/palette";
+import { GROUND_RAMPS } from "../../../tools/pipeline/src/ground/groundRamps";
 
 describe("GROUND_PRIORITY", () => {
   it("ranks every terrain and preserves the per-biome orders", () => {
@@ -52,5 +53,29 @@ describe("compositeCell", () => {
   it("a cell with no higher neighbor is pure fill(T)", () => {
     const g = compositeCell(map, 0, 0, 0, 0); // corner reefFloor, no higher neighbor
     g.forEach((_x, _y, c) => { if (c) expect(R.reefFloor.includes(c as any)).toBe(true); });
+  });
+});
+
+describe("compositeMap", () => {
+  const map = [
+    ["reefFloor", "reefSilt", "reefWater"],
+    ["reefSilt", "glowMoss", "reefWater"],
+    ["reefFloor", "reefFloor", "glowMoss"],
+  ] as any;
+  it("assembles a w*16 x h*16 texture, palette-locked and deterministic", () => {
+    const g = compositeMap(map);
+    expect(g.width).toBe(48); expect(g.height).toBe(48);
+    // fill() draws from each terrain's ENRICHED ramp (GROUND_RAMPS), not the bare
+    // 4-identity TERRAIN_RAMPS — see fills.ts header. That's the true palette-lock
+    // invariant for ground fills (compositeCell's existing tests use TERRAIN_RAMPS
+    // only because reefFloor/glowMoss happen not to reach their enriched gaps).
+    const allowed = new Set(["reefFloor","reefSilt","reefWater","glowMoss"].flatMap((k) => (GROUND_RAMPS as any)[k]));
+    g.forEach((_x, _y, c) => { if (c) expect(allowed.has(c as any)).toBe(true); });
+    const h = compositeMap(map);
+    g.forEach((x, y, c) => expect(h.get(x, y)).toBe(c));
+  });
+  it("does not throw on a 3-terrain junction cell", () => {
+    // center touches reefSilt, glowMoss, reefWater, reefFloor — composites, no off-palette
+    expect(() => compositeMap(map)).not.toThrow();
   });
 });

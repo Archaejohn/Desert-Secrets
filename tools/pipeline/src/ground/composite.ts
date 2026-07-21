@@ -73,3 +73,19 @@ export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: n
   }
   return g;
 }
+
+/** Composite an entire map region into one seamless `(w*16)×(h*16)` texture by
+ *  blitting `compositeCell` for every grid cell. `ox`/`oy` shift the world
+ *  sampling origin (kept in sync with `compositeCell`'s own world-position
+ *  fills) so a sub-region composited on its own still tiles seamlessly with
+ *  the rest of the map. Graceful degradation for 3+-terrain junctions is
+ *  inherited from `compositeCell`: each cell only ever seams to its single
+ *  highest-priority neighbor, so composition never throws. */
+export function compositeMap(map: TerrainKey[][], ox = 0, oy = 0): PixelGrid {
+  const h = map.length, w = map[0].length;
+  const out = new PixelGrid(w * T, h * T);
+  for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
+    out.blit(compositeCell(map, cx, cy, ox, oy), cx * T, cy * T);
+  }
+  return out;
+}
