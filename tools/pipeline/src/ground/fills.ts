@@ -284,9 +284,35 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       break;
     }
 
-    // ---- AUTHORED SLAB (temple flagstones) — filled out in Task 2 -------
+    // ---- AUTHORED SLAB (submerged temple flagstones) ---------------------
+    // 3x2-tile (48x32) slab lattice on the world grid: per-slab flat body tone,
+    // per-slab shading off a top-left light (lit lip + far-edge shade), dark grout
+    // joints at block boundaries, a ridged crack network, sparse wear, and a faint
+    // near-horizontal skyBlue water sheen (the one off-ramp accent).
     case "templeSlab": {
-      idx = ditherRamp(0.5, wx, wy, seed + 17, P[1], P[2]); // placeholder plum↔indigo body
+      const BW = 48, BH = 32;
+      const bx = Math.floor(wx / BW), by = Math.floor(wy / BH);
+      const lx = wx - bx * BW, ly = wy - by * BH;   // 0..BW-1 / 0..BH-1
+      // per-slab flat body tone: small deterministic step around plum P[1].
+      const tone = h2(bx, by, seed);
+      let i = P[1];
+      if (tone > 0.70) i = clampIdx(P[1] + 1, R.length);
+      else if (tone < 0.30) i = clampIdx(P[1] - 1, R.length);
+      // per-slab shading off a top-left light.
+      if (lx < 2 || ly < 2) i = P[0];               // lit lip (mauve) inside top/left
+      if (lx >= BW - 1 || ly >= BH - 1) i = P[2];   // shaded far edge (indigo)
+      // grout joints along block boundaries (override the lit lip so joints stay dark).
+      if (lx === 0 || ly === 0) i = (lx === 0 && ly === 0) ? P[3] : P[2];
+      // crack network crossing slabs: creases settle to indigo, rare ink cores.
+      const r = ridged(wx, wy, seed + 5);
+      if (r > 0.90) i = P[2];
+      if (r > 0.965 && h2(ix, iy, seed + 47) > 0.5) i = P[3];
+      // rare wear fleck toward the lit tone.
+      if (h2(ix, iy, seed + 71) > 0.985) i = P[0];
+      // faint water sheen: sparse near-horizontal skyBlue glint (off-ramp accent).
+      const sheen = striate(wx, wy, Math.PI / 2, 0.10, 3.0, seed + 11);
+      if (sheen > 0.965) return "skyBlue";
+      idx = i;
       break;
     }
 
