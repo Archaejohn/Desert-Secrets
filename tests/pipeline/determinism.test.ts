@@ -8,6 +8,12 @@
 // carrying a wrong ground onto mismatched terrain (the minecart-on-sand bug).
 // See docs/CONTRACTS.md "v27". Only prop tiles' pixels changed — no tile index
 // moved, no ground/wall/autotile tile touched.
+// 2026-07-20: ALL pinned hashes below were re-pinned in one pass for the
+// AAP-64 palette migration (Task 5) — CORE (src/shared/palette.ts) was
+// recolored to canonical AAP-64 targets (Task 4), plus the shadowOf.indigo/
+// hpRed strict-darker repair in fx.ts (Task 5 Step 0). No sheet's tile
+// count, frame indices, or grid geometry changed — only palette hexes did.
+// See docs/superpowers/sdd/task-5-brief.md.
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
@@ -42,22 +48,25 @@ describe("pre-act2 asset byte-stability", () => {
   // in place — same grids, same frame indices, only pixels. Tile sheets are
   // untouched by this pass and keep their previous hashes.
   const FROZEN = {
-    hero: "c8d99f5cc6070c1f308da9acdfe2dab6a6381efad38f10f4337c275ddf721b79",
-    npc: "f66216827e701f3845b0762116ce4f2252097354d9d481f43b27d93da1023b05",
-    scarab: "e8f2bd6732bf960ed717852c43799fef5e1a90fb49272fc00c24c7a1a24dcacf",
+    hero: "90712234982e8eef31a1ef861d839cdd607fe5121cc862dcc0c9d48881ecc46e",
+    npc: "e44931c7f5b2ad2f87a54b27acc2d6869de7b583c6de9874fd90bba21298f166",
+    scarab: "e8f769631f7617868aac889102e038e6f5e84072b8f748ae5e315d2ed2471522",
     // Deliberately re-pinned for the Phase O overworld art pass
     // (docs/ART_DIRECTION.md §4a, docs/CONTRACTS.md "Phase O"): the sand
     // family + water were redrawn in place — dune ridge lanes and the
     // 3-value wave recipe replace the per-pixel speckle. Same 16 tile
     // slots, no reordering; only pixels changed.
-    tiles: "f506d7a4c5c2401aebe324b994c8e6ee773b9d38accc3aef12f3f5ad8efc06f9",
-    rosa: "7a34c3022fd0975aee7e72896fa7817ed050e1ff8fa569158b37a06e9058f800",
-    piggy: "cc3f766a6eb7be16010a92dee01f32f68fcb74f3fd15004cd2657fb4ca449b14",
-    jackrabbit: "673e3c6735518e804cb6889d2fa36dbc40bdc691a884497815adc843d94f24b1",
-    buzzard: "6852ce5278b03a8ceb575f6f9ef6481eb5aacab8b2a231f8eee4f7c965d21515",
-    gila: "8eb0b4071b8b8932c1729c5668553b328be8578c521e3fe2827d326935b0740e",
-    foreman: "3a19d6645c9811766b263a7d4545cb3ccef9d07f4e7ef394acda26efac77b3d6",
-    queen: "0310d5f91f7cc5fe1cee632196247bd1c8850634648468166140e068ae0fd06d",
+    // Re-pinned again for the AAP-64 palette migration (2026-07-20,
+    // Task 5): CORE recolored, plus the shadowOf.indigo/hpRed strict-
+    // darker repair (fx.ts). Same tile slots/grids, only hexes changed.
+    tiles: "2e4ce54236c980453561a7f9f0bbd3f7c66e8d920917c9366e2e00c776bcdf4f",
+    rosa: "b9d45fca0156c6ab0386d9019cb59aa3fffe49168e980d73c958437850d63c09",
+    piggy: "dc4401b6bd437a55bb83404b315b0f9e2bce0fbe2ec4c38dd9f9be6c8a56d91b",
+    jackrabbit: "916c9898a44eb36aa7d43a7bcf85dae9654364bec26673f02cc8126c4bfe429a",
+    buzzard: "47d8a183fbf4aaadfd4a136851e296dea95e0ff5a58a875e3ba7ba06bf217585",
+    gila: "28741373a3204edf4e43dba55c16b93f3abf7ef0f73f7866e61bf32637545fef",
+    foreman: "7f899bfc30cbfd6275de21b836232ab425dfaa63a036d6b8375480b7948da475",
+    queen: "236f73d477207f6e83b98faa2c9e5d45e8d76064a7e08399765eb663b4b99391",
     // Deliberately re-pinned four times: first for docs/CONTRACTS.md "v9"
     // (the eight appended mountain-ridge tiles), again for the Phase O
     // overworld art pass (docs/ART_DIRECTION.md §4a: mountain1–8 redrawn in
@@ -79,7 +88,9 @@ describe("pre-act2 asset byte-stability", () => {
     // feature was still unshipped/uncommitted, not an append-only
     // violation of any previously-shipped index. Sheet grew from 88 to 96
     // tiles (128x176 -> 128x192).
-    tiles2: "2323dbac873c1586ad4089d31c3e24d0c4c8e2901eeb82917479553cd34aa281"
+    // Re-pinned for the AAP-64 palette migration (2026-07-20, Task 5):
+    // CORE recolored; same 96 tile slots, no reordering.
+    tiles2: "09997441acdaa9bf168e00d0872c8b476e492efa000faeb3d015b0057c965076"
   } as const;
 
   it("all twelve pre-act2 sheets still encode to their committed bytes", () => {
@@ -97,9 +108,9 @@ describe("act1-retcon asset byte-stability", () => {
   // refactors can't silently move a shipped pixel.
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    john: "f98e6e021b271968ddd0075e8185c99cde89e322521bbaa80754c2795996d3a4",
-    pamela: "80de26de1cab3a87195947ba6273e335ffa1a956eaefe551e326f26aa128ff1a",
-    chicken: "c5da747f347ae1642a0cee2f6eb37fcd77b099b61dd0a66f6bdf73a886db2263"
+    john: "0085f6285893528eea849e470c0bffb898dd1fb9a19e0db9b62965f4421f00bb",
+    pamela: "e60d8ab475eab7826feaeb2e479bb765bef313893bc526263e5b1c75164a4e9f",
+    chicken: "dc3f1d304a5cba8f09f9da247bb6f6770ac1a3a70ad52121831a1a4c3802ed1b"
   } as const;
 
   it("john/pamela/chicken sheets encode to their committed bytes", () => {
@@ -117,7 +128,7 @@ describe("thomas asset byte-stability", () => {
   // tools/pipeline/src/sprites/thomas.ts). Pinned once here so future refactors
   // can't silently move a shipped pixel.
   const FROZEN = {
-    thomas: "a209526cd6549ee7039ed847fec99b1128bfbc0972c659f995de026e0f121fbb"
+    thomas: "a7c429a87d98fa79f793f9033906027ab9237fccdf238f1c5cd68600731a4488"
   } as const;
 
   it("thomas sheet encodes to its committed bytes", () => {
@@ -135,7 +146,7 @@ describe("bucket asset byte-stability", () => {
   // once here so future refactors can't silently move a shipped pixel.
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    bucket: "830d0036b0193466c104cf54cc8615da923be72c1e0d6df4c53a595d655558a9"
+    bucket: "4bcbfa67c8d31d9579f4f7322f5f2ffb1f69f3475862fbd6e9d7220aea1b606c"
   } as const;
 
   it("bucket sheet encodes to its committed bytes", () => {
@@ -153,7 +164,7 @@ describe("spigot asset byte-stability", () => {
   // refactors can't silently move a shipped pixel.
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    spigot: "010650cffe7d4d9d538e72ecd40050037bf7d0cd0fef77f5e56d96352c861ef3"
+    spigot: "fc51fdc452be361195cad0e7497557e203446857a7410bad397065c035e63a9d"
   } as const;
 
   it("spigot sheet encodes to its committed bytes", () => {
@@ -172,15 +183,15 @@ describe("act3 asset byte-stability", () => {
   // Purely additive — no prior sheet's bytes change (asserted above).
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    anglerfish: "ed32256b88db361046b9b6e7b73357b45da3a688734ace23488424ce0f3f5ffd",
-    reefeel: "af75f0b1261277f8fbf10aafda110435cf573c13c2ff4f1b4859246e254b9f44",
-    lurker: "bd1eea8907e5ad52b0397cbf91612c5d8788ebbd470dcfff0bcbdbd532a0a799",
+    anglerfish: "ba0368b1422d73365a8afe40f97853013aab2fa8b877726533520e52e71d1bb3",
+    reefeel: "7651269af3b1593987fab6451aed570a28d7a1da47647e4e20fc428bfefa8938",
+    lurker: "481f482d51df366ca423c5e4acac8059e9c1bd282349adf3a076b710d14894cd",
     // tiles4 deliberately re-pinned for the Phase Z 2.5D art pass
     // (docs/ART_DIRECTION.md §5): seaWater redrawn to the wave recipe,
     // floe/templeFloor speckle replaced by motif clusters, templePillar
     // reads base-lit, and 16 dressing tiles appended (floe coast ring +
     // shades). Additive — no existing tile index moved.
-    tiles4: "bb1808e7203d861d1ccd12b46e59f11aa8e0134e5ed33f2f84b7116174ca1e16"
+    tiles4: "e70e85b11c40d05110696f9acbc159dde2be42d9697bc0e37c71cd4a861c6471"
   } as const;
 
   it("anglerfish/reefeel/lurker/tiles4 encode to their committed bytes", () => {
@@ -204,12 +215,12 @@ describe("act4 asset byte-stability", () => {
   // tile's pixels changed.
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    middenmite: "c14dc21ac560222d3e0b15e0650014d3db45e38779c0809d891860ac48a25c35",
+    middenmite: "042b59fcd348ed8c800b4a5a6eccffa3b87c92f4017dad1f547c2481b4350f1b",
     // tiles5 deliberately re-pinned again for the Phase Z 2.5D art pass:
     // plank floor gains a lit board subgrid, campWall becomes a wall-top
     // texture, crates/barrel get lit tops (G1), and 8 dressing tiles are
     // appended (campWall cap/face + floor shades). Additive only.
-    tiles5: "b25f695bb592aed06d9959fe2e6d39cef451f87988edd9f4b653768a20b2f277"
+    tiles5: "c85263638a411200f0232f0ecc4a52f740130e47e0b286b4816e6ba05b710255"
   } as const;
 
   it("middenmite/tiles5 encode to their committed bytes", () => {
@@ -229,7 +240,7 @@ describe("act5 asset byte-stability", () => {
   // bytes change (asserted above).
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    sunwasp: "04f7f3606f868ce181ccbfd132b4180db663d11712fb0e92599dd463f7f4de81",
+    sunwasp: "4cb90083ac1f99d47e8d1f0579107d6b88773db63ff247968d8643353efe75d3",
     // tiles6 deliberately re-pinned for the Phase Z 2.5D art pass: the SoM
     // organic showcase — grass/moss/sunbeam redrawn as motif clusters and
     // rounded lobes, and 24 dressing tiles appended (caveWall cap/face,
@@ -243,7 +254,7 @@ describe("act5 asset byte-stability", () => {
     // bug reported after ship. orangeTreeCanopy itself is untouched and
     // stays in the sheet, unreferenced (additive-only); sheet grew from
     // 48 to 64 tiles (8x6 -> 8x8).
-    tiles6: "6e1615a4e7bc3fb5f22a9190115823edfff8e910a7af9ef31e934d6d43fd685a"
+    tiles6: "e40f862bc5892b47d3ab050dc3497fc6e8c45603430e409c7f7703199c055204"
   } as const;
 
   it("sunwasp/tiles6 encode to their committed bytes", () => {
@@ -263,12 +274,12 @@ describe("act6 asset byte-stability", () => {
   // change (asserted above).
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    reefstalker: "9c3d22957812eeee4015e9f3f4025a793a4385cbaced0f2a171823d465c50848",
+    reefstalker: "8ce177294dea0e6f7d39ab77576728d9d3415c1b76b427f6a6ada7629423aa5f",
     // tiles7 deliberately re-pinned for the Phase Z 2.5D art pass: reef
     // floors/water/glow-moss redrawn to motif clusters and rounded lobes,
     // and 16 dressing tiles appended (reefWall cap/face, shades, silt↔floor
     // fingers). Additive only.
-    tiles7: "2a60e7f02f61386adb03ee42f0ee4e9741ec68bbdca4ec94a392d96fdbac3905"
+    tiles7: "099ad72a86da3abbcaf7cb8cdb02cf71ed5086e54a2b21ee7add9b834e794572"
   } as const;
 
   it("reefstalker/tiles7 encode to their committed bytes", () => {
@@ -288,12 +299,12 @@ describe("act7 asset byte-stability", () => {
   // bytes change (asserted above).
   // Re-pinned for the Phase S sprite polish — see the note on the first block.
   const FROZEN = {
-    testudo: "4d6f2d2ee453e69ca7dedab13f7d3dfc1833b823bb3b2f621ed46758481bf335",
+    testudo: "5849a9c1e01ee6c716e7f3899f37802892ec082e3aa743086aa267f6a5c91ffd",
     // tiles8 deliberately re-pinned for the Phase Z 2.5D art pass: the
     // lavaVent glow ramp (rust→amber→bone heart), ember/ash motif clusters,
     // checker-floor bevel subgrid, and 16 dressing tiles appended
     // (basaltWall cap/face, shades, ash↔ember seams). Additive only.
-    tiles8: "a3a8e8ceb26078b05c306d983cfbfc74ffbbcc63f94a501c601897b10ccf7e24"
+    tiles8: "5b53fb74d09fdaab353296d35371ab47646dc6cf95924153a09342c337b5d3e4"
   } as const;
 
   it("testudo/tiles8 encode to their committed bytes", () => {
@@ -312,7 +323,7 @@ describe("phase-z zone-dressing asset byte-stability", () => {
   // speckle, and 16 dressing tiles are appended (iceWallDeep cap/face,
   // floor shades, the chasm lip set). Additive — no existing index moved.
   const FROZEN = {
-    tiles3: "ec5e17dafca75111d7e6fc8cbc7019346bf9eecbf6f9488e3d08c0a0fbfb0798"
+    tiles3: "596debecc92151aa8855c58a79c608e72693515a727100559e8bb75afed95f51"
   } as const;
 
   it("tiles3 encodes to its committed bytes", () => {
@@ -331,8 +342,8 @@ describe("phase S asset byte-stability", () => {
   // Sahra the grove keeper (replacing the generic npc in SahraGroveScene).
   // Pinned once here so future refactors can't silently move a shipped pixel.
   const FROZEN = {
-    dusty: "da5fc1e2abe64a238deefafb86d576b4237e3c95f12034fdc30cea1094cb9147",
-    sahra: "fb91a963b0c5dc7a2270d0dcf27cade3c864566fce3a2d031c2e640b327b62a9"
+    dusty: "f8fe333fca6a83e977d3948d0ef316456ef83e7963baab7e1b83a087bb5f7333",
+    sahra: "c4cd6892c81ccda411ea6a304e66ed18411faaef93aac9a65ed9af491cb6519e"
   } as const;
 
   it("dusty/sahra encode to their committed bytes", () => {
@@ -352,7 +363,7 @@ describe("gearIcons byte-stability", () => {
   // can't silently shift a shipped pixel or reorder the frame contract the
   // Equipment UI indexes by.
   const FROZEN = {
-    gearIcons: "0e6f3de9ec6150fc574bfac9dd9ade83f60971f274ee175de673c67575c13e80"
+    gearIcons: "23db85453a279f0fc85452b818699e53da604126f65f27041117c0ec6fb5323c"
   } as const;
 
   it("gearIcons encodes to its committed bytes", () => {
@@ -386,7 +397,7 @@ describe("owMountains blob-autotile byte-stability", () => {
   // of true topology. Fixed by snapshotting the sentinel grid before any
   // mutation. Same 80 tile slots, no reordering — only pixels changed.
   const FROZEN = {
-    owMountains: "cdb2dbdb76f56992782acd02dc21ebff4243aa5d842776f8b1cf5185854e06b9"
+    owMountains: "9048d6c0f452d373f3a502774799db3155eb93ce682dc22569f58eb5ef147e58"
   } as const;
 
   it("owMountains encodes to its committed bytes", () => {
@@ -464,16 +475,19 @@ describe("cliff tileset byte-stability", () => {
   // cracks run molten, LAVA face-ramp). 559 tiles (128x1120), same shape as
   // reef. Purely additive — desert/ice/reef byte-identical.
   const FROZEN = {
-    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
-    cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
-    cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b",
-    cliffLava: "2921fbad05ff8fde47795eec0e3dadc230238bf9be3842d82574ad7b4ea2e9fb",
+    cliff: "9855c0d2a44564a413ff26ff49e06a42e696d72023e72e7e6fc67a91f9e38830",
+    cliffIce: "a6f67685331ca51f28a0b950dbe44a7eb6c2de9b9fe0056061e8d87116afc0f0",
+    cliffReef: "842f7eaad9e0a5264980082f13a7a5675d8774bde2a4d0f1045f612919e5769a",
+    cliffLava: "8f7e28a519282d0a8532b55fbac06a4ab850d7853562254da9be0503a23a6337",
     // cliffGrove: NEW grove/cave biome sheet (build order ...lava -> grove). Four
     // grounds all autotiling (groveGrass/groveMoss/groveWater/groveSoil); moss is
     // teal-dominant with darkened umber soil showing through. Organic seams
     // (edgeIrregularity 18), tier-2 PLACEHOLDER groveStone wall face (bespoke damp-
     // cave face is future work). 559 tiles. Additive — desert/ice/reef/lava identical.
-    cliffGrove: "6e35a0097ee3deda6cf0aee025108a140e509effb5b0e9e2d45f7a307363914b"
+    //
+    // All five re-pinned for the AAP-64 palette migration (2026-07-20,
+    // Task 5): CORE recolored; same tile counts/geometry, only hexes moved.
+    cliffGrove: "ece22dda91ba568c7899456cad49503c43747dc5fcab3a8afab50ae96508ee85"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
