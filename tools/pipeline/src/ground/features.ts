@@ -54,16 +54,20 @@ function drawSunEmblem(mark: Mark, ox: number, oy: number): void {
   }
 }
 
-/** A slab broken into shards: ink fissures splitting the tile, indigo displaced edges. */
+/** A caved-in slab: the block drops to shadow (indigo) with ink fissures radiating
+ *  from a jittered impact point — reads clearly as a broken/collapsed flagstone. */
 function drawShatter(mark: Mark, ox: number, oy: number, seed: number): void {
-  // Two deterministic diagonal fissures crossing near the tile center.
-  const jitter = (n: number) => Math.floor(h2(ox + n, oy + n, seed) * 5) - 2; // -2..2
-  const c = 8 + jitter(1);
-  for (let t = 0; t < T; t++) {
-    const a = c + Math.floor((t - 8) * 0.6) + jitter(t);   // main diagonal
-    const b = c - Math.floor((t - 8) * 0.9) + jitter(t + 3); // cross diagonal
-    mark(ox + t, oy + a, "ink");
-    mark(ox + t, oy + a + 1, "indigo");                    // displaced edge
-    mark(ox + b, oy + t, "ink");
+  const cx = ox + 8 + Math.floor(h2(ox, oy, seed) * 4) - 2;      // jittered impact
+  const cy = oy + 8 + Math.floor(h2(ox + 1, oy + 1, seed) * 4) - 2;
+  // sunken base: the whole tile drops to indigo shadow (the slab has fallen away).
+  for (let dy = 0; dy < T; dy++) for (let dx = 0; dx < T; dx++) mark(ox + dx, oy + dy, "indigo");
+  // 5 ink fissures radiating to the edges from the impact point.
+  for (let s = 0; s < 5; s++) {
+    const ang = (s / 5) * Math.PI * 2 + h2(ox + s, oy, seed + 7) * 0.9;
+    const len = 6 + Math.floor(h2(ox, oy + s, seed + 3) * 4);    // 6..9
+    for (let r = 0; r <= len; r++) {
+      mark(Math.round(cx + Math.cos(ang) * r), Math.round(cy + Math.sin(ang) * r), "ink");
+    }
   }
+  mark(cx, cy, "ink");
 }

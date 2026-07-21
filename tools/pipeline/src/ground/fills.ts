@@ -293,11 +293,11 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const BW = 48, BH = 32;
       const bx = Math.floor(wx / BW), by = Math.floor(wy / BH);
       const lx = wx - bx * BW, ly = wy - by * BH;   // 0..BW-1 / 0..BH-1
-      // per-slab flat body tone: small deterministic step around plum P[1].
+      // per-slab flat body tone: WARM variation between plum (P[1]) and one step
+      // toward mauve (P[1]-1, a tan stone) — never toward indigo, so slabs read as
+      // purple/tan flagstones, not blue. Indigo is reserved for grout/shade/cracks.
       const tone = h2(bx, by, seed);
-      let i = P[1];
-      if (tone > 0.70) i = clampIdx(P[1] + 1, R.length);
-      else if (tone < 0.30) i = clampIdx(P[1] - 1, R.length);
+      let i = tone > 0.5 ? P[1] : clampIdx(P[1] - 1, R.length);
       // per-slab shading off a top-left light.
       if (lx < 2 || ly < 2) i = P[0];               // lit lip (mauve) inside top/left
       if (lx >= BW - 1 || ly >= BH - 1) i = P[2];   // shaded far edge (indigo)
@@ -309,9 +309,10 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       if (r > 0.965 && h2(ix, iy, seed + 47) > 0.5) i = P[3];
       // rare wear fleck toward the lit tone.
       if (h2(ix, iy, seed + 71) > 0.985) i = P[0];
-      // faint water sheen: sparse near-horizontal skyBlue glint (off-ramp accent).
-      const sheen = striate(wx, wy, Math.PI / 2, 0.10, 3.0, seed + 11);
-      if (sheen > 0.965) return "skyBlue";
+      // faint water sheen: very sparse SCATTERED skyBlue glints (off-ramp accent) —
+      // a wet sparkle on slab interiors, NOT a banded streak (an earlier striate
+      // sheen concentrated into bright horizontal rivulets along block rows).
+      if (lx > 1 && ly > 1 && h2(ix, iy, seed + 11) > 0.99) return "skyBlue";
       idx = i;
       break;
     }
