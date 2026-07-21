@@ -48,8 +48,46 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       idx = v < 0.58 ? 2 : v < 0.82 ? 1 : 3;
       if (h2(ix, iy, seed + 77) > 0.93) idx = 0;
       break;
+    case "reefFloor": // idx=1; h2>0.97 -> 2; else h2>0.985 -> 0
+      idx = 1;
+      if (h2(ix, iy, seed + 53) > 0.97) idx = 2;
+      else if (h2(ix, iy, seed + 31) > 0.985) idx = 0;
+      break;
+    case "reefSilt": // idx=1; h2>0.94 -> 3; else h2>0.98 -> 0
+      idx = 1;
+      if (h2(ix, iy, seed + 53) > 0.94) idx = 3;
+      else if (h2(ix, iy, seed + 31) > 0.98) idx = 0;
+      break;
+    case "reefWater": // v<0.5?1:2; h2>0.92 -> 0
+      idx = v < 0.5 ? 1 : 2;
+      if (h2(ix, iy, seed + 31) > 0.92) idx = 0;
+      break;
+    case "glowMoss": // v<0.5?2:1; h2>0.88 -> 0
+      idx = v < 0.5 ? 2 : 1;
+      if (h2(ix, iy, seed + 31) > 0.88) idx = 0;
+      break;
+    case "ice": // white body idx0; h2>0.88 -> 1 (skyBlue accent); rare tile-local
+      // Voronoi hairline seam DROPPED (see docs/CONTRACTS.md note / task-3
+      // report — that construction is inherently tile-periodic).
+      idx = 0;
+      if (h2(ix, iy, seed + 31) > 0.88) idx = 1;
+      break;
+    case "snow": // idx=1; h2>0.90 -> 0; else h2>0.97 -> 2
+      idx = 1;
+      if (h2(ix, iy, seed + 31) > 0.90) idx = 0;
+      else if (h2(ix, iy, seed + 53) > 0.97) idx = 2;
+      break;
+    case "frozenLake": // v<0.5?1:0; h2>0.93 -> 2; else h2>0.985 -> 3
+      idx = v < 0.5 ? 1 : 0;
+      if (h2(ix, iy, seed + 53) > 0.93) idx = 2;
+      else if (h2(ix, iy, seed + 61) > 0.985) idx = 3;
+      break;
+    case "rimeMoss": // v<0.5?2:1; h2>0.85 -> 0
+      idx = v < 0.5 ? 2 : 1;
+      if (h2(ix, iy, seed + 31) > 0.85) idx = 0;
+      break;
     default:
-      idx = 1; // reef/ice/lava/grove branches added in Tasks 3-4
+      idx = 1; // lava/grove branches added in Task 4
   }
   return ramp[clampIdx(idx, ramp.length)];
 }
