@@ -134,97 +134,98 @@ export function protoFill(key: ProtoKey, wx: number, wy: number): PaletteName {
 
   switch (key) {
     // sand ["sandLight","sand","sandShade","umber"]
-    // STRUCTURE: fine near-horizontal wind ripples. Bands, not dots — gentle,
-    // low amplitude, so most pixels are base `sand` with faint light/dark
-    // ripple crests and troughs marching across.
+    // STRUCTURE: fine near-horizontal wind ripples. LOW-CONTRAST tune: the
+    // bulk stays within the two ADJACENT mids (sand ↔ sandShade); sandLight
+    // crests and umber deep-grain are RARE, sparse accents only.
     case "sand": {
       const r = striate(wx, wy, Math.PI / 2 + 0.12, 0.16, 2.2, seed);   // near-horizontal
       const r2 = striate(wx, wy, Math.PI / 2 - 0.05, 0.42, 1.4, seed + 9); // fine detail
       const band = r * 0.7 + r2 * 0.3;
-      idx = 1;                                  // base sand
-      if (band > 0.70) idx = 0;                 // light ripple crest
-      else if (band < 0.30) idx = 2;            // shaded ripple trough
-      if (band < 0.12) idx = 3;                 // rare deep grain (umber) in trough shadow
+      idx = band >= 0.5 ? 1 : 2;                // bulk: sand ↔ sandShade
+      if (band > 0.91) idx = 0;                 // rare light ripple crest
+      else if (band < 0.10) idx = 3;            // rare deep grain in trough shadow
       break;
     }
 
     // reefWater ["skyBlue","teal","tealDeep","indigo"]
-    // STRUCTURE: horizontal caustic wave bands — a fast band crossed with a
-    // slow band, plus sparse bright skyBlue crests. Flowing, no dots.
+    // STRUCTURE: horizontal caustic wave bands. LOW-CONTRAST tune: bulk stays
+    // teal ↔ tealDeep (adjacent); indigo deep troughs and bright skyBlue
+    // crests are rare, sparse accents.
     case "reefWater": {
       const fast = striate(wx, wy, Math.PI / 2, 0.24, 3.0, seed);        // primary caustic
       const slow = striate(wx, wy, Math.PI / 2 + 0.08, 0.08, 4.5, seed + 17); // slow swell
       const c = fast * 0.6 + slow * 0.4;
-      idx = c > 0.55 ? 1 : 2;                   // teal shallows / tealDeep depths
-      if (c < 0.22) idx = 3;                    // indigo deep troughs
-      // sparse bright ripple crest where the fast caustic peaks
-      if (fast > 0.86 && h2(Math.floor(wx), Math.floor(wy), seed + 31) > 0.55) idx = 0;
+      idx = c > 0.5 ? 1 : 2;                     // bulk: teal ↔ tealDeep
+      if (c < 0.12) idx = 3;                     // rare indigo deep trough
+      // rare bright ripple crest only where the fast caustic strongly peaks
+      if (fast > 0.93 && h2(Math.floor(wx), Math.floor(wy), seed + 31) > 0.72) idx = 0;
       break;
     }
 
     // lava ["atbGold","amber","hpRed","rust"]
-    // STRUCTURE: cracked molten cells. worley cells are cooling pools (tone by
-    // cell); cell EDGES (f2-f1 ~ 0) glow bright gold — a cracked-magma look.
+    // STRUCTURE: cracked molten cells. LOW-CONTRAST tune: bulk is the cooled
+    // crust (hpRed ↔ rust, adjacent); seams mostly glow the DIMMER amber, with
+    // only the thinnest/rarest seams flaring bright atbGold — occasional, not
+    // every cell edge.
     case "lava": {
       const w = worley(wx, wy, 0.12, seed);
       const edge = w.f2 - w.f1;
-      if (edge < 0.07) {
-        idx = 0;                                // atbGold molten crack glowing at seams
+      if (edge < 0.05) {                        // a cell seam
+        // dim amber glow along seams; only the very thinnest seams, sparsely
+        // gated, flare bright gold
+        idx = (edge < 0.02 && h2(w.cell & 0xffff, w.cell >>> 16, seed + 41) > 0.8) ? 0 : 1;
       } else {
         const tone = cellTone(w.cell, seed);    // per-pool temperature
-        idx = tone < 0.35 ? 3 : tone < 0.70 ? 2 : 1; // rust crust / hpRed / amber pool
-        // a hot core near each pool centre (small f1) stays bright amber/gold
-        if (w.f1 < 0.30 && tone > 0.5) idx = 1;
+        idx = tone < 0.5 ? 3 : 2;               // bulk: rust ↔ hpRed cooled crust
       }
       break;
     }
 
     // groveMoss ["jade","teal","umber","ink"]
-    // STRUCTURE: clumpy organic moss patches — domain-warped low-freq field
-    // thresholded into irregular jade clumps over teal, umber soil in the gaps.
+    // STRUCTURE: clumpy organic moss patches. LOW-CONTRAST tune: bulk is
+    // teal ↔ umber (adjacent) — mossy green over soil; bright jade clump
+    // highlights and ink shadows are rare accents. Softer clump edges.
     case "groveMoss": {
       const [x2, y2] = warp(wx, wy, 7, seed);
       const m = worldNoise(x2, y2, 0.07, seed + 3) * 0.7
               + worldNoise(x2, y2, 0.15, seed + 5) * 0.3; // big warped clumps
-      if (m > 0.58) idx = 0;                    // jade moss clump
-      else if (m > 0.44) idx = 1;               // teal understory
-      else if (m > 0.30) idx = 2;               // umber soil showing through gaps
-      else idx = 3;                             // ink — deepest gap shadow
+      idx = m > 0.5 ? 1 : 2;                     // bulk: teal moss ↔ umber soil
+      if (m > 0.80) idx = 0;                     // rare bright jade clump crown
+      else if (m < 0.18) idx = 3;               // rare ink deep-gap shadow
       break;
     }
 
     // ice ["white","skyBlue","slate","indigo"]
-    // STRUCTURE: crystalline facets — each worley cell a flat facet with a
-    // slight per-cell tone shift, hairline seams where f2-f1 is tiny (this is
-    // also how ice gets its cracks back, non-tiling).
+    // STRUCTURE: crystalline facets. LOW-CONTRAST tune: bulk is white ↔
+    // skyBlue (adjacent) with a SMALL per-facet tone shift; seams are faint
+    // (mostly slate) and only the thinnest hairlines darken to a rare indigo.
     case "ice": {
       const w = worley(wx, wy, 0.10, seed);
       const edge = w.f2 - w.f1;
-      if (edge < 0.035) {
-        idx = 3;                                // indigo hairline crack seam
-      } else if (edge < 0.09) {
-        idx = 2;                                // slate — soft facet-boundary bevel
+      if (edge < 0.02) {
+        idx = 3;                                // rare indigo hairline crack
+      } else if (edge < 0.05) {
+        idx = 2;                                // faint slate facet-boundary bevel
       } else {
-        const tone = cellTone(w.cell, seed);    // flat per-facet shade
-        idx = tone > 0.72 ? 1 : 0;              // skyBlue tinted facet / white facet
+        const tone = cellTone(w.cell, seed);    // subtle flat per-facet shade
+        idx = tone > 0.6 ? 1 : 0;               // skyBlue-tinted facet / white facet
       }
       break;
     }
 
     // groveSoil ["clay","umber","stoneDeep","ink"]
-    // STRUCTURE: granular clumped earth — warped, higher-freq worley grains
-    // gather into gritty clumps (light clay flecks + dark stone grit) rather
-    // than uniform single-pixel speckle.
+    // STRUCTURE: granular clumped earth. LOW-CONTRAST tune: bulk is umber ↔
+    // stoneDeep (adjacent) gritty earth; light clay grains and ink hollows are
+    // rare, sparse accents.
     case "groveSoil": {
       const [x2, y2] = warp(wx, wy, 3.5, seed + 5);
       const w = worley(x2, y2, 0.40, seed);      // fine grain cells
       const cluster = worldNoise(wx, wy, 0.06, seed + 11); // where grit gathers
       const tone = cellTone(w.cell, seed);
-      idx = 1;                                    // umber earth body
-      if (tone > 0.68) idx = 0;                   // clay light grain
-      else if (tone < 0.30) idx = 2;              // stoneDeep dark grit
-      // dark grit concentrates in low-cluster hollows; edges deepen to ink
-      if (cluster < 0.40 && w.f2 - w.f1 < 0.08) idx = 3;
+      idx = tone < 0.45 ? 2 : 1;                 // bulk: stoneDeep grit ↔ umber earth
+      if (tone > 0.89) idx = 0;                  // rare clay light grain
+      // ink only in the deepest hollows right on a grain seam
+      if (cluster < 0.30 && w.f2 - w.f1 < 0.05) idx = 3;
       break;
     }
 
