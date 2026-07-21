@@ -103,3 +103,25 @@ export function warp(wx: number, wy: number, amp: number, s: number): [number, n
   const oy = (worldFbm(wx, wy, s + 53) - 0.5) * amp;
   return [wx + ox, wy + oy];
 }
+
+/**
+ * Hash-dithered ramp index. Maps a continuous value `t ∈ [0,1]` to a fractional
+ * position between ramp indices `lo` and `hi`, then quantises it by comparing a
+ * per-pixel `h2` hash to the fractional part — so the two adjacent colours
+ * INTERLEAVE (blue-noise stipple) across the transition instead of snapping at
+ * a hard 0.5 threshold. At game zoom the interleave reads as a smooth gradient
+ * between the two body tones; the hash keeps it non-repeating (no 4px Bayer
+ * grid) and fully deterministic. Palette-lock is preserved — the result is
+ * always an integer ramp index in `[lo,hi]`, never a new colour.
+ */
+export function ditherRamp(
+  t: number, wx: number, wy: number, seed: number, lo: number, hi: number,
+): number {
+  const tc = t < 0 ? 0 : t > 1 ? 1 : t;
+  const pos = lo + tc * (hi - lo);
+  const base = Math.floor(pos);
+  const frac = pos - base;
+  const up = h2(Math.floor(wx), Math.floor(wy), seed) < frac ? 1 : 0;
+  const r = base + up;
+  return r < lo ? lo : r > hi ? hi : r;
+}

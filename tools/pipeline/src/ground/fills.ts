@@ -20,7 +20,7 @@
 import { PixelGrid } from "../grid";
 import { h2 } from "../cliffs/noise";
 import { worldNoise, worldFbm } from "./worldNoise";
-import { worley, cellTone, ridged, striate, warp } from "./texture";
+import { worley, cellTone, ridged, striate, warp, ditherRamp } from "./texture";
 import { TERRAIN_RAMPS, type TerrainKey } from "../cliffs/palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
@@ -45,7 +45,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const r = striate(wx, wy, Math.PI / 2 + 0.12, 0.16, 2.2, seed);       // near-horizontal
       const r2 = striate(wx, wy, Math.PI / 2 - 0.05, 0.42, 1.4, seed + 9);  // fine detail
       const band = r * 0.7 + r2 * 0.3;
-      idx = band >= 0.5 ? 1 : 2;                  // shade within sand ↔ sandShade
+      idx = ditherRamp(1 - band, wx, wy, seed + 17, 1, 2); // dithered sand ↔ sandShade (smooth transition)
       if (band > 0.90) idx = 0;                   // gentle light ripple crest (body-neighbour)
       if (h2(ix, iy, seed + 71) > 0.985) idx = 3; // rare umber grain speck only
       break;
@@ -57,7 +57,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const r = striate(wx, wy, Math.PI / 2 + 0.12, 0.16, 2.2, seed);
       const r2 = striate(wx, wy, Math.PI / 2 - 0.05, 0.42, 1.4, seed + 9);
       const band = r * 0.7 + r2 * 0.3;
-      idx = band >= 0.5 ? 1 : 2;                  // sandLight ↔ skyBlue
+      idx = ditherRamp(1 - band, wx, wy, seed + 17, 1, 2); // dithered sandLight ↔ skyBlue
       if (band > 0.90) idx = 0;                   // gentle bone crest
       if (h2(ix, iy, seed + 71) > 0.985) idx = 3; // rare sandShade grain speck
       break;
@@ -153,7 +153,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const [x2, y2] = warp(wx, wy, 6, seed);
       const m = worldNoise(x2, y2, 0.08, seed + 3) * 0.7
               + worldNoise(x2, y2, 0.17, seed + 5) * 0.3;
-      idx = m > 0.5 ? 1 : 2;                       // jade ↔ teal
+      idx = ditherRamp(1 - m, wx, wy, seed + 17, 1, 2); // dithered jade ↔ teal (soft clump edges)
       if (m > 0.80 && h2(ix, iy, seed + 23) > 0.25) idx = 0; // sparse mint glow crown
       if (m < 0.16 && h2(ix, iy, seed + 67) > 0.5) idx = 3;  // rare tealDeep deep-gap speck
       break;
@@ -164,7 +164,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const [x2, y2] = warp(wx, wy, 5, seed);
       const m = worldNoise(x2, y2, 0.11, seed + 3) * 0.65
               + worldNoise(x2, y2, 0.22, seed + 5) * 0.35; // finer clumps
-      idx = m > 0.5 ? 1 : 2;                       // jade ↔ teal
+      idx = ditherRamp(1 - m, wx, wy, seed + 17, 1, 2); // dithered jade ↔ teal (soft clump edges)
       if (m > 0.85 && h2(ix, iy, seed + 23) > 0.4) idx = 0;  // sparse mint frost crown
       if (m < 0.15 && h2(ix, iy, seed + 67) > 0.5) idx = 3;  // rare tealDeep deep-gap speck
       break;
@@ -175,7 +175,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const [x2, y2] = warp(wx, wy, 8, seed);
       const m = worldNoise(x2, y2, 0.06, seed + 3) * 0.72
               + worldNoise(x2, y2, 0.14, seed + 5) * 0.28; // broad clumps
-      idx = m > 0.5 ? 1 : 2;                       // jade ↔ teal
+      idx = ditherRamp(1 - m, wx, wy, seed + 17, 1, 2); // dithered jade ↔ teal (soft clump edges)
       if (m > 0.80 && h2(ix, iy, seed + 23) > 0.4) idx = 0;  // sparse mint blade highlight
       if (m < 0.16 && h2(ix, iy, seed + 67) > 0.55) idx = 3; // rare tealDeep gap speck
       break;
@@ -191,7 +191,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const w = worley(x2, y2, 0.40, seed);        // fine grain cells
       const cluster = worldNoise(wx, wy, 0.06, seed + 11); // where grit gathers
       const tone = cellTone(w.cell, seed);
-      idx = tone < 0.45 ? 2 : 1;                   // shade within stoneDeep ↔ umber
+      idx = ditherRamp(1 - tone, wx, wy, seed + 17, 1, 2); // dithered umber ↔ stoneDeep (soft grit)
       if (h2(ix, iy, seed + 29) > 0.94) idx = 0;   // sparse clay light-grain fleck
       else if (cluster < 0.35 && h2(ix, iy, seed + 37) > 0.965) idx = 3; // rare ink hollow fleck
       break;
@@ -204,7 +204,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const w = worley(x2, y2, 0.40, seed);
       const cluster = worldNoise(wx, wy, 0.06, seed + 11);
       const tone = cellTone(w.cell, seed);
-      idx = tone < 0.45 ? 2 : 1;                   // stone ↔ sandShade
+      idx = ditherRamp(1 - tone, wx, wy, seed + 17, 1, 2); // dithered sandShade ↔ stone (soft grain)
       if (h2(ix, iy, seed + 29) > 0.94) idx = 0;   // sparse bone light-ash fleck
       else if (cluster < 0.35 && h2(ix, iy, seed + 37) > 0.965) idx = 3; // rare stoneDark fleck
       break;
@@ -216,7 +216,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const w = worley(x2, y2, 0.42, seed);
       const cluster = worldNoise(wx, wy, 0.06, seed + 11);
       const tone = cellTone(w.cell, seed);
-      idx = tone < 0.45 ? 2 : 1;                   // plum ↔ indigo
+      idx = ditherRamp(1 - tone, wx, wy, seed + 17, 1, 2); // dithered indigo ↔ plum (soft silt)
       if (h2(ix, iy, seed + 29) > 0.945) idx = 0;  // sparse tealDeep light fleck
       else if (cluster < 0.35 && h2(ix, iy, seed + 37) > 0.965) idx = 3; // rare ink hollow fleck
       break;
@@ -241,7 +241,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const w = worley(x2, y2, 0.40, seed);
       const cluster = worldNoise(wx, wy, 0.06, seed + 11);
       const tone = cellTone(w.cell, seed);
-      idx = tone < 0.45 ? 2 : 1;                   // indigo ↔ tealDeep
+      idx = ditherRamp(1 - tone, wx, wy, seed + 17, 1, 2); // dithered tealDeep ↔ indigo (soft floor)
       if (h2(ix, iy, seed + 29) > 0.955) idx = 0;  // sparse teal light fleck
       else if (cluster < 0.35 && h2(ix, iy, seed + 37) > 0.965) idx = 3; // rare ink hollow fleck
       break;
@@ -282,7 +282,7 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       const [x2, y2] = warp(wx, wy, 5, seed);
       const d = worldNoise(x2, y2, 0.04, seed + 3) * 0.7
               + worldNoise(x2, y2, 0.09, seed + 5) * 0.3; // broad, smooth
-      idx = d > 0.5 ? 0 : 1;                        // white ↔ bone
+      idx = ditherRamp(1 - d, wx, wy, seed + 17, 0, 1);   // dithered white ↔ bone (kills choppy bands)
       if (d < 0.24 && h2(ix, iy, seed + 41) > 0.6) idx = 2; // rare soft skyBlue hollow
       if (h2(ix, iy, seed + 83) > 0.985) idx = 3;  // rarest slate speck
       break;
