@@ -67,8 +67,8 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       if (h2(ix, iy, seed + 31) > 0.88) idx = 0;
       break;
     case "ice": // white body idx0; h2>0.88 -> 1 (skyBlue accent); rare tile-local
-      // Voronoi hairline seam DROPPED (see docs/CONTRACTS.md note / task-3
-      // report — that construction is inherently tile-periodic).
+      // Voronoi hairline seam DROPPED: that construction is a tile-local
+      // boundary field and can't be re-expressed at world position.
       idx = 0;
       if (h2(ix, iy, seed + 31) > 0.88) idx = 1;
       break;
@@ -86,8 +86,45 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       idx = v < 0.5 ? 2 : 1;
       if (h2(ix, iy, seed + 31) > 0.85) idx = 0;
       break;
+    case "emberRock": // v<0.5?2:3; h2>0.94 -> 0; else h2>0.97 -> 1
+      idx = v < 0.5 ? 2 : 3;
+      if (h2(ix, iy, seed + 31) > 0.94) idx = 0;
+      else if (h2(ix, iy, seed + 53) > 0.97) idx = 1;
+      break;
+    case "ash": // v<0.5?0:1; h2>0.96 -> 3
+      idx = v < 0.5 ? 0 : 1;
+      if (h2(ix, iy, seed + 53) > 0.96) idx = 3;
+      break;
+    case "lava": // v<0.5?1:2; h2>0.82 -> 0
+      idx = v < 0.5 ? 1 : 2;
+      if (h2(ix, iy, seed + 31) > 0.82) idx = 0;
+      break;
+    case "lavaCrust": // v<0.5?2:3; h2>0.90 -> 0; else h2>0.96 -> 1
+      idx = v < 0.5 ? 2 : 3;
+      if (h2(ix, iy, seed + 31) > 0.90) idx = 0;
+      else if (h2(ix, iy, seed + 53) > 0.96) idx = 1;
+      break;
+    case "groveGrass": // v<0.5?1:2; h2>0.90 -> 0
+      idx = v < 0.5 ? 1 : 2;
+      if (h2(ix, iy, seed + 31) > 0.90) idx = 0;
+      break;
+    case "groveMoss": // idx=1; fbm(x,y,seed+5)<0.42 -> 2; h2>0.82 -> 0; else h2>0.95 -> 3
+      idx = 1;
+      if (worldFbm(wx, wy, seed + 5) < 0.42) idx = 2;
+      if (h2(ix, iy, seed + 31) > 0.82) idx = 0;
+      else if (h2(ix, iy, seed + 53) > 0.95) idx = 3;
+      break;
+    case "groveWater": // v<0.5?1:2; h2>0.90 -> 0
+      idx = v < 0.5 ? 1 : 2;
+      if (h2(ix, iy, seed + 31) > 0.90) idx = 0;
+      break;
+    case "groveSoil": // v<0.5?1:2; h2>0.92 -> 0; else h2>0.96 -> 3
+      idx = v < 0.5 ? 1 : 2;
+      if (h2(ix, iy, seed + 31) > 0.92) idx = 0;
+      else if (h2(ix, iy, seed + 53) > 0.96) idx = 3;
+      break;
     default:
-      idx = 1; // lava/grove branches added in Task 4
+      throw new Error(`unknown terrain ${key}`);
   }
   return ramp[clampIdx(idx, ramp.length)];
 }
