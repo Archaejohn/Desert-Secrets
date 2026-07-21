@@ -36,7 +36,7 @@
 import { PixelGrid } from "../grid";
 import { generateTerrain } from "./generate";
 import type { TerrainParams } from "./generate";
-import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "./presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS, GROVE_PRESETS } from "./presets";
 
 const COLUMNS = 8;
 
@@ -89,3 +89,9 @@ export const cliffLavaTileNames = (): string[] => realEntriesFor(LAVA_PRESETS).m
 
 /** Real lava tiles + blank padding to the next multiple of `COLUMNS`. */
 export const cliffLavaSheetFrames = (): PixelGrid[] => sheetFramesFor(LAVA_PRESETS);
+
+/** Real grove tile names (the manifest-visible entries of `cliffGroveSheetFrames()`). */
+export const cliffGroveTileNames = (): string[] => realEntriesFor(GROVE_PRESETS).map((e) => e.name);
+
+/** Real grove tiles + blank padding to the next multiple of `COLUMNS`. */
+export const cliffGroveSheetFrames = (): PixelGrid[] => sheetFramesFor(GROVE_PRESETS);

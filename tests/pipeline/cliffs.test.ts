@@ -8,7 +8,7 @@ import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/mater
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
 import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS, GROVE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
-import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames, cliffLavaTileNames, cliffLavaSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames, cliffLavaTileNames, cliffLavaSheetFrames, cliffGroveTileNames, cliffGroveSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
 import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
@@ -603,5 +603,16 @@ describe("generateTerrain + lava preset", () => {
     const out = generateTerrain(LAVA_PRESETS[0]);
     const cliffFace = out.find((o) => o.name === "cliffBasaltRock_mid_face")!;
     cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(LAVA).toContain(c); });
+  });
+
+  it("cliffGrove sheet is 16px frames padded to 8 columns, manifest-consistent (559)", () => {
+    const names = cliffGroveTileNames();
+    const frames = cliffGroveSheetFrames();
+    expect(names.length).toBe(559);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffGrove.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffGrove.names).length).toBe(names.length);
   });
 });

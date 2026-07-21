@@ -66,7 +66,8 @@ const sheets = [
   ["cliff.png", assets.cliff],
   ["cliffIce.png", assets.cliffIce],
   ["cliffReef.png", assets.cliffReef],
-  ["cliffLava.png", assets.cliffLava]
+  ["cliffLava.png", assets.cliffLava],
+  ["cliffGrove.png", assets.cliffGrove]
 ] as const;
 
 for (const [name, grid] of sheets) {
