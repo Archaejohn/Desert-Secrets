@@ -55,12 +55,12 @@
  */
 import { PixelGrid } from "../grid";
 import { clamp, fbm, h2, n1, partition } from "./noise";
-import { ROCK, shade, type Ramp } from "./palette";
+import { ROCK, GROVE, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock" | "glacier" | "coralRock" | "basaltRock";
+export type MaterialKey = "rock" | "glacier" | "coralRock" | "basaltRock" | "groveStone";
 
 export interface WallParams {
   courses: number;
@@ -447,5 +447,8 @@ export function wallFace(material: MaterialKey, params: WallParams, seed: number
       return coralRockWallFace(params, seed);
     case "basaltRock":
       return basaltRockWallFace(params, seed);
+    case "groveStone":
+      // Placeholder (tier-2) until the bespoke damp-cave face (grove biome T7).
+      return blockWallFace(GROVE, params, seed);
   }
 }
