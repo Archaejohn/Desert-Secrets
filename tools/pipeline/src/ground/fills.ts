@@ -284,6 +284,12 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       break;
     }
 
+    // ---- AUTHORED SLAB (temple flagstones) — filled out in Task 2 -------
+    case "templeSlab": {
+      idx = ditherRamp(0.5, wx, wy, seed + 17, P[1], P[2]); // placeholder plum↔indigo body
+      break;
+    }
+
     default: {
       const _never: never = key;
       throw new Error(`unknown terrain ${_never as string}`);

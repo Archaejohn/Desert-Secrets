@@ -13,6 +13,7 @@ const ORDER: TerrainKey[] = [
   "ice", "snow", "frozenLake", "rimeMoss",
   "emberRock", "ash", "lava", "lavaCrust",
   "groveGrass", "groveMoss", "groveWater", "groveSoil",
+  "templeSlab",
 ];
 export const GROUND_PRIORITY: Record<TerrainKey, number> = Object.fromEntries(
   ORDER.map((k, i) => [k, i]),

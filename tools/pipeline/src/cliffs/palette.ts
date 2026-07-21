@@ -58,7 +58,8 @@ export type TerrainKey =
   | "groveGrass"
   | "groveMoss"
   | "groveWater"
-  | "groveSoil";
+  | "groveSoil"
+  | "templeSlab";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -93,6 +94,9 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   groveMoss: ["jade", "teal", "umber", "ink"],
   groveWater: ["skyBlue", "teal", "tealDeep", "indigo"],
   groveSoil: ["clay", "umber", "stoneDeep", "ink"],
+  // Submerged sun-temple flagstones (authored slab floor). Light→dark:
+  // lit slab lip, plum body, indigo grout/shade, ink crack core.
+  templeSlab: ["mauve", "plum", "indigo", "ink"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));
