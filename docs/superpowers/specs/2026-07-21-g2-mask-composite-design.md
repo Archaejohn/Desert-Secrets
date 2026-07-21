@@ -91,3 +91,28 @@ edge reads right — in scope for G2 if the base edge lands quickly, else a G2 p
 
 `tsc --noEmit`, `vitest run` (parity + conformance + determinism green), `npm run build`.
 Owner review gate at the composite render (§7).
+
+## Addendum (2026-07-21) — what actually shipped
+
+Two changes from the §3/§5 design, both from the owner's review of the first render:
+
+- **Priority-LAYERING replaced single-carve (§3).** The first implementation seamed each
+  cell to only its *single highest-priority* neighbor, which dropped the other transitions
+  at 3–4-way junctions and left hard, straight, untransitioned edges (owner-diagnosed as
+  "wrong overlap of interior tiles at the 4-way junction"). `compositeCell` now layers
+  **every** higher-priority neighbor as its own `overlayMask` layer, processed ascending so
+  higher terrains overpaint lower ones. All transitions overlap correctly; patches read as
+  organic blobs. (This is what the parent spec §4 meant by "priority-layered junctions" — the
+  single-carve shortcut was the bug.)
+- **Soft grey seam shadow replaced the `blobTiles` ink outline (§5).** The ported outline
+  darkened toward each ramp's near-black end, reading as a hard ink line on flat ground.
+  Replaced with a palette-locked `SOFT_SHADOW` lookup: each CORE colour blended ~52% toward a
+  dark grey-violet and snapped to nearest CORE, applied to the **lower side** of each seam —
+  a soft darkened border, owner-tuned. Palette-lock is therefore at the **CORE (AAP-64)**
+  level (the shadow may be any CORE colour), not per-terrain ramp. No lit-lip; the `SEAM`
+  inset/irregularity were widened (inset 5, irreg 30) for a wavier boundary.
+
+The parity-pin idea (§6) was dropped: the composite samples world-position fills (not the
+pre-baked `floorFill`), so it cannot be byte-compared to `blobTiles`; tests instead assert
+CORE palette-lock, determinism, and a junction-layering regression (a cell flanked by two
+different higher terrains must show BOTH). Warp/animation stay out (G3).
