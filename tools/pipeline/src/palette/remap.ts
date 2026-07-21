@@ -51,7 +51,11 @@ export function remapPalette(
   const idx = assignInjective(srcHex, AAP64 as string[]);
   const used = new Set(idx);
   const mapping: Record<string, string> = {};
-  names.forEach((n, i) => (mapping[n] = AAP64[idx[i]]));
+  const assignedIdx = new Map<string, number>();
+  names.forEach((n, i) => {
+    mapping[n] = AAP64[idx[i]];
+    assignedIdx.set(n, idx[i]);
+  });
 
   // Monotonicity repair pass (bounded; deterministic order).
   for (let pass = 0; pass < 4; pass++) {
@@ -71,8 +75,10 @@ export function remapPalette(
             if (d < bestD) { bestD = d; best = t; }
           }
           if (best >= 0) {
-            used.delete(AAP64.indexOf(mapping[ramp[i]]));
+            const oldIndex = assignedIdx.get(ramp[i])!;
+            used.delete(oldIndex);
             mapping[ramp[i]] = AAP64[best];
+            assignedIdx.set(ramp[i], best);
             used.add(best);
             changed = true;
           }
