@@ -55,7 +55,7 @@ const html = `<!doctype html><meta charset=utf8><title>AAP-64 remap review</titl
  .legend{color:#999;font-size:12px;margin-top:4px}
 </style>
 <h1>AAP-64 remap review — "embrace" clean refresh</h1>
-<p class="legend">Injective 25→64 nearest-match (redmean ΔE) with per-ramp luminance-monotonicity repair.
+<p class="legend">Injective 25→64 nearest-match (redmean ΔE); ramp inversions are reported below, not forced.
 For each ramp: <b>top strip = current</b>, <b>bottom strip = AAP-64</b>. Hover a swatch for its name.</p>
 <h2>Per-color mapping (current → AAP-64)</h2>
 <table><tr><th>name</th><th>current</th><th>AAP-64</th></tr>${rows}</table>

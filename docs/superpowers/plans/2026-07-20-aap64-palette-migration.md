@@ -16,7 +16,7 @@
 - **Injective mapping:** the 25 map to 25 *distinct* AAP-64 colors (no collisions collapsing a ramp step). (addendum)
 - **Ramp monotonicity — SOFT, report don't force (corrected during T2):** `cliffFace`/`quantize` index ramps by `ramp.indexOf(name)`, so light→dark ordering matters *visually*, but a small luminance near-tie is cosmetically negligible and some shipped ramps (e.g. `frostSand`) are already ~0.02 non-monotonic. Diagnostic finding: forcing strict monotonicity cascades dark/purple colors to near-black (plum ΔE 166) while injective nearest-match keeps worst inversion at 0.087 and worst color ΔE at 70. **Decision: injective nearest-match with NO destructive repair; a `rampInversions()` reporter surfaces any residual inversion in the swatch for the owner to judge/override.** (inventory §2 + T2 diagnostic)
 - **Append-only ordering contract:** the 25 existing PALETTE entries keep their name AND position; the 39 new colors are appended after them. (inventory §1)
-- **Determinism this plan:** still under the OLD full-pin rule — all 42 sha256 pins get re-pinned as a coherent set. (Plan B relaxes the rule later; not this plan.)
+- **Determinism this plan:** still under the OLD full-pin rule — all 40 sha256 pins get re-pinned as a coherent set. (Plan B relaxes the rule later; not this plan.)
 - **Verification bar:** `tsc --noEmit`, `vitest run`, `npm run build`, `npm run smoke`, `npm run smoke:touch`. Owner review gates at the remap (Task 3) and the regenerated look (Task 7).
 
 ---
@@ -29,7 +29,7 @@
 - **Create** `tests/pipeline/paletteRemap.test.ts` — unit tests for `remap.ts` (injectivity, coverage, monotonicity).
 - **Modify** `src/shared/palette.ts` — restructure to `CORE` (64) + `BIOME_ACCENTS` (empty); 25 names re-hexed, 39 appended; keep `PALETTE`/`PaletteName`/`PALETTE_HEX`/`hexToRgb`/`hexToInt` exports.
 - **Modify** `tests/pipeline/manifest.test.ts` — update the embedded-palette assertion to 64 colors.
-- **Modify** `tests/pipeline/determinism.test.ts` — re-pin all 42 sha256 hashes.
+- **Modify** `tests/pipeline/determinism.test.ts` — re-pin all 40 sha256 hashes.
 - **Modify** (optional, Task 6) `src/game/updateCheck.ts` + the ~15 stray `#241827xx`/`0xffffff`/`0x000000` gfx sites — route through `PALETTE`.
 
 ---
@@ -393,7 +393,7 @@ git commit -m "feat(palette): CORE=AAP-64 (re-hex 25 legacy + append 39), empty 
 **Files:**
 - Modify: `tools/pipeline/src/fx.ts` (2 `shadowOf` retargets)
 - Modify: `tests/pipeline/fx.test.ts` (2 assertions: appended-hex snapshot + the strict-darker invariant now holds)
-- Modify: `tests/pipeline/determinism.test.ts` (all 42 pins — recomputed programmatically)
+- Modify: `tests/pipeline/determinism.test.ts` (all 40 pins — recomputed programmatically)
 - Modify: `tests/pipeline/manifest.test.ts` (embedded-palette assertion → 64, if not already green from Task 4)
 - Regenerated (not committed by hand): `src/assets/generated/*.png`, `src/assets/generated/manifest.json`
 
@@ -407,20 +407,20 @@ Expected: rewrites every PNG + `manifest.json` under `src/assets/generated/` wit
 - [ ] **Step 2: Run determinism + manifest tests to see them fail**
 
 Run: `npx vitest run tests/pipeline/determinism.test.ts tests/pipeline/manifest.test.ts`
-Expected: FAIL — all 42 hashes changed + manifest now has 64 palette entries. Each failure prints `Received` (the new hash).
+Expected: FAIL — all 40 hashes changed + manifest now has 64 palette entries. Each failure prints `Received` (the new hash).
 
 - [ ] **Step 3: Re-pin.** Replace every `FROZEN` hash in `determinism.test.ts` with its new `Received` value (copy from the test output — do NOT hand-compute). Update the `manifest.test.ts` palette assertion to expect the 64 CORE colors.
 
 - [ ] **Step 4: Verify determinism green + two-run stability**
 
 Run: `npx vitest run tests/pipeline/determinism.test.ts tests/pipeline/manifest.test.ts`
-Expected: PASS (all 42 re-pinned; two-run byte-identical + cell-identical tests still pass — the generators are unchanged, only palette hexes moved).
+Expected: PASS (all 40 re-pinned; two-run byte-identical + cell-identical tests still pass — the generators are unchanged, only palette hexes moved).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add tests/pipeline/determinism.test.ts tests/pipeline/manifest.test.ts src/assets/generated
-git commit -m "chore(palette): regenerate sheets + re-pin 42 hashes for AAP-64"
+git commit -m "chore(palette): regenerate sheets + re-pin 40 hashes for AAP-64"
 ```
 
 ---
