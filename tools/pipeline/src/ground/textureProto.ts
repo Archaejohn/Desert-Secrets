@@ -165,20 +165,18 @@ export function protoFill(key: ProtoKey, wx: number, wy: number): PaletteName {
     }
 
     // lava ["atbGold","amber","hpRed","rust"]
-    // SHADED recipe: molten cell bodies shade only amber(1) ↔ hpRed(2); seams
-    // glow the body-tone amber. The dark extreme rust(3) is no longer a cell
-    // body — it survives only as rare cooled specks; the bright extreme
-    // atbGold(0) flares only along the thinnest seams, sparsely gated.
+    // FLOWING recipe: NOT cellular. Two domain-warp passes swirl the coords,
+    // then worldFbm gives soft streaming light/dark magma currents. Body shades
+    // only amber(1) ↔ hpRed(2). atbGold(0) appears only as sparse hot glints on
+    // the brightest flow ridges (~2-3%); rust(3) only as rare dark specks. No
+    // angular cell boundaries.
     case "lava": {
-      const w = worley(wx, wy, 0.12, seed);
-      const edge = w.f2 - w.f1;
-      if (edge < 0.05) {                        // a cell seam → amber body-glow
-        idx = (edge < 0.02 && h2(w.cell & 0xffff, w.cell >>> 16, seed + 41) > 0.82) ? 0 : 1;
-      } else {
-        const tone = cellTone(w.cell, seed);    // per-pool temperature
-        idx = tone < 0.5 ? 2 : 1;               // shade within hpRed ↔ amber
-      }
-      if (h2(ix, iy, seed + 91) > 0.978) idx = 3; // rare rust cooled speck only
+      const [x1, y1] = warp(wx, wy, 8, seed);            // primary current bend
+      const [x2, y2] = warp(x1, y1, 4.5, seed + 31);     // second pass → turbulent flow
+      const flow = worldFbm(x2, y2, seed + 3);           // swirling molten current field
+      idx = flow > 0.5 ? 1 : 2;                           // shade within amber ↔ hpRed
+      if (flow > 0.66 && h2(ix, iy, seed + 41) > 0.72) idx = 0; // sparse hot-gold flow glint
+      else if (flow < 0.36 && h2(ix, iy, seed + 91) > 0.84) idx = 3; // rare dark cooled speck
       break;
     }
 
