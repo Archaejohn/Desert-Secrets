@@ -99,10 +99,12 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       idx = v < 0.5 ? 1 : 2;
       if (h2(ix, iy, seed + 31) > 0.82) idx = 0;
       break;
-    case "lavaCrust": // v<0.5?2:3; h2>0.90 -> 0; else h2>0.96 -> 1
-      idx = v < 0.5 ? 2 : 3;
-      if (h2(ix, iy, seed + 31) > 0.90) idx = 0;
-      else if (h2(ix, iy, seed + 53) > 0.96) idx = 1;
+    case "lavaCrust": // owner-tuned (G1): fissures muted vs floorFill — AAP-64 hpRed
+      // reads too bright, so most cracks are the darker rust and bright-red glints
+      // are rare (was ~10% hpRed; now ~10% rust + ~2.5% hpRed glint).
+      idx = v < 0.5 ? 2 : 3;                             // dark crust body (stoneDeep/ink)
+      if (h2(ix, iy, seed + 53) > 0.90) idx = 1;         // muted rust fissure (~10%)
+      else if (h2(ix, iy, seed + 31) > 0.975) idx = 0;   // rare bright red glint (~2.5%)
       break;
     case "groveGrass": // v<0.5?1:2; h2>0.90 -> 0
       idx = v < 0.5 ? 1 : 2;
