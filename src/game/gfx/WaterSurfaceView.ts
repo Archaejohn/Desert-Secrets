@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { compositeMapLayers, GROUND_PRIORITY } from "../../../tools/pipeline/src/ground/composite";
 import type { TerrainKey } from "../../../tools/pipeline/src/cliffs/palette";
-import { PALETTE, hexToInt } from "../../shared/palette";
+import { PALETTE, hexToInt, hexToRgb } from "../../shared/palette";
 import { waterAlphaFromLayers } from "./waterMask";
 
 let seq = 0;
@@ -69,7 +69,7 @@ export class WaterSurfaceView {
     if (!t) throw new Error("WaterSurfaceView: could not create caustic texture");
     const img = t.context.createImageData(s, s);
     const d = img.data;
-    const [cr, cg, cb] = [0xa6, 0xfc, 0xdb]; // bright mint-cyan highlight (green6)
+    const [cr, cg, cb] = hexToRgb(PALETTE.green6); // bright mint-cyan highlight
     const f = (k: number) => (2 * Math.PI * k) / s;
     for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
       // Bands run roughly horizontally; their crest wanders along x (one dominant direction).
@@ -94,11 +94,15 @@ export class WaterSurfaceView {
   }
 
   destroy(): void {
-    this.caustic?.clearMask(true);
+    // Detach both caustic layers from the shared mask BEFORE freeing it (clearMask(false)
+    // so we destroy the mask exactly once, below).
+    this.caustic?.clearMask(false);
+    this.caustic2?.clearMask(false);
     this.mask?.destroy();
     this.caustic?.destroy();
+    this.caustic2?.destroy();
     this.tint?.destroy();
-    this.caustic = undefined; this.tint = undefined; this.mask = undefined;
+    this.caustic = undefined; this.caustic2 = undefined; this.tint = undefined; this.mask = undefined;
     for (const k of [this.alphaKey, this.causticKey]) if (this.scene.textures.exists(k)) this.scene.textures.remove(k);
   }
 }
