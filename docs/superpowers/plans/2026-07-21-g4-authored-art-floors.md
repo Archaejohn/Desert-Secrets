@@ -155,12 +155,18 @@ describe("templeSlab authored structure", () => {
     const b = fillField("templeSlab", 48, 0, 48, 32);
     expect(a.diff(b)).toBeGreaterThan(0);
   });
-  it("draws a dark grout joint along block boundaries", () => {
-    // Column wx=0 (block left edge) is grout (indigo/ink); an interior column is not.
-    const grout = fill("templeSlab", 0, 10);
-    const interior = fill("templeSlab", 24, 16);
-    expect(["indigo", "ink"]).toContain(grout);
-    expect(["indigo", "ink"]).not.toContain(interior);
+  it("block boundaries are darker (grout) than slab interiors on average", () => {
+    // Robust to sparse cracks/sheen: compare the fraction of dark (indigo/ink)
+    // pixels along block-boundary columns vs interior columns.
+    const darkFrac = (xs: number[], ys: number[]) => {
+      let d = 0, n = 0;
+      for (const wy of ys) for (const wx of xs) { const c = fill("templeSlab", wx, wy); n++; if (c === "indigo" || c === "ink") d++; }
+      return d / n;
+    };
+    const ys = Array.from({ length: 24 }, (_, k) => 4 + k);
+    const boundary = darkFrac([0, 48, 96], ys);   // block-left grout columns
+    const interior = darkFrac([20, 24, 28, 68], ys); // slab interiors
+    expect(boundary).toBeGreaterThan(interior);
   });
 });
 ```
@@ -254,13 +260,15 @@ function blank(wTiles: number, hTiles: number) {
 }
 
 describe("paintFeatures", () => {
-  it("sunEmblem paints amber near its tile center and marks it crisp", () => {
+  it("sunEmblem paints an amber disc and marks it crisp", () => {
     const { grid, terrainId, shadow, W } = blank(3, 3);
     const feats: GroundFeature[] = [{ kind: "sunEmblem", tx: 1, ty: 1 }];
     paintFeatures(grid, terrainId, shadow, feats, W);
     const cx = 1 * 16 + 8, cy = 1 * 16 + 8;
-    expect(grid.get(cx, cy)).toBe("amber");
-    expect(shadow[cy * W + cx]).toBe(1);
+    // check a disc pixel offset from center (center itself is the sandLight highlight).
+    expect(grid.get(cx + 3, cy)).toBe("amber");
+    expect(shadow[cy * W + (cx + 3)]).toBe(1);
+    expect(grid.get(cx, cy)).toBe("sandLight"); // center highlight
   });
   it("shatter paints ink fissures", () => {
     const { grid, terrainId, shadow, W } = blank(3, 3);
