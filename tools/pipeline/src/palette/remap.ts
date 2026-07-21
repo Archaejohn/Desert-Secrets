@@ -38,54 +38,48 @@ export function assignInjective(sourceHexes: string[], targetHexes: string[]): n
 }
 
 /**
- * Injective 25→AAP-64 remap, then per-ramp monotonicity repair: if a ramp's
- * mapped luminances aren't non-increasing, re-assign the offending name to the
- * nearest still-free AAP-64 hex that restores order. Deterministic.
+ * Injective 25→AAP-64 remap: plain greedy nearest-match, no repair pass.
+ * A prior monotonicity-repair loop cascaded dark/purple colors toward
+ * near-black to force strict light→dark ramps (e.g. plum -> #060608, ΔE 166
+ * from its true nearest neighbor) while still leaving ramp violations. Small
+ * luminance near-ties within a ramp are cosmetically fine; forcing them is
+ * not worth destroying color fidelity. The `ramps` param is kept only for
+ * call-site compatibility (see `rampInversions` below for reporting instead).
  */
 export function remapPalette(
   current: Record<string, string>,
-  ramps: readonly (readonly string[])[],
+  ramps?: readonly (readonly string[])[],
 ): Record<string, string> {
+  void ramps;
   const names = Object.keys(current);
   const srcHex = names.map((n) => current[n]);
   const idx = assignInjective(srcHex, AAP64 as string[]);
-  const used = new Set(idx);
   const mapping: Record<string, string> = {};
-  const assignedIdx = new Map<string, number>();
   names.forEach((n, i) => {
     mapping[n] = AAP64[idx[i]];
-    assignedIdx.set(n, idx[i]);
   });
+  return mapping;
+}
 
-  // Monotonicity repair pass (bounded; deterministic order).
-  for (let pass = 0; pass < 4; pass++) {
-    let changed = false;
-    for (const ramp of ramps) {
-      for (let i = 1; i < ramp.length; i++) {
-        const prev = luminance(mapping[ramp[i - 1]]);
-        const cur = luminance(mapping[ramp[i]]);
-        if (cur > prev + 1e-9) {
-          // find nearest free AAP-64 hex darker than prev, closest to current target
-          const want = toRgb(mapping[ramp[i]]);
-          let best = -1, bestD = Infinity;
-          for (let t = 0; t < AAP64.length; t++) {
-            if (used.has(t)) continue;
-            if (luminance(AAP64[t]) > prev + 1e-9) continue;
-            const d = redmean(want, toRgb(AAP64[t]));
-            if (d < bestD) { bestD = d; best = t; }
-          }
-          if (best >= 0) {
-            const oldIndex = assignedIdx.get(ramp[i])!;
-            used.delete(oldIndex);
-            mapping[ramp[i]] = AAP64[best];
-            assignedIdx.set(ramp[i], best);
-            used.add(best);
-            changed = true;
-          }
-        }
+/**
+ * Reports luminance inversions within each ramp (light→dark expected) under
+ * a given name→hex mapping, without altering the mapping. Walks adjacent
+ * slots; an inversion is when a later (nominally darker) slot ends up
+ * brighter than the slot before it.
+ */
+export function rampInversions(
+  mapping: Record<string, string>,
+  ramps: readonly (readonly string[])[],
+): { rampIndex: number; slot: number; from: string; to: string; drop: number }[] {
+  const out: { rampIndex: number; slot: number; from: string; to: string; drop: number }[] = [];
+  ramps.forEach((ramp, rampIndex) => {
+    for (let i = 1; i < ramp.length; i++) {
+      const prevLum = luminance(mapping[ramp[i - 1]]);
+      const curLum = luminance(mapping[ramp[i]]);
+      if (curLum > prevLum) {
+        out.push({ rampIndex, slot: i, from: ramp[i - 1], to: ramp[i], drop: curLum - prevLum });
       }
     }
-    if (!changed) break;
-  }
-  return mapping;
+  });
+  return out;
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { redmean, luminance, assignInjective, remapPalette } from "../../tools/pipeline/src/palette/remap";
+import { redmean, assignInjective, remapPalette, rampInversions } from "../../tools/pipeline/src/palette/remap";
 import { PALETTE } from "../../src/shared/palette";
-import { TERRAIN_RAMPS } from "../../tools/pipeline/src/cliffs/palette";
+import { TERRAIN_RAMPS, ROCK, ICE, REEF, LAVA, GROVE } from "../../tools/pipeline/src/cliffs/palette";
 
 describe("redmean", () => {
   it("is zero for identical colors and positive otherwise", () => {
@@ -21,21 +21,25 @@ describe("assignInjective", () => {
 });
 
 describe("remapPalette (real palette)", () => {
-  const ramps = Object.values(TERRAIN_RAMPS).map((r) => r as readonly string[]);
-  const mapping = remapPalette(PALETTE as Record<string, string>, ramps);
+  const allRamps = [...Object.values(TERRAIN_RAMPS), ROCK, ICE, REEF, LAVA, GROVE] as readonly (readonly string[])[];
+  const mapping = remapPalette(PALETTE as Record<string, string>);
 
-  it("remaps all 25 names to distinct AAP-64 hexes", () => {
+  it("remaps all 25 names to distinct AAP-64 hexes (injective)", () => {
     const names = Object.keys(PALETTE);
     expect(Object.keys(mapping).sort()).toEqual(names.sort());
     expect(new Set(Object.values(mapping)).size).toBe(names.length);
   });
 
-  it("keeps every terrain ramp luminance-monotonic (light→dark)", () => {
-    for (const [key, ramp] of Object.entries(TERRAIN_RAMPS)) {
-      const lums = (ramp as readonly string[]).map((n) => luminance(mapping[n]));
-      for (let i = 1; i < lums.length; i++) {
-        expect(lums[i], `${key} ramp not monotonic at ${i}`).toBeLessThanOrEqual(lums[i - 1] + 1e-9);
-      }
+  it("keeps every color faithful — no color pushed far from the original (ΔE <= 80)", () => {
+    const toRgb = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    for (const [name, oldHex] of Object.entries(PALETTE)) {
+      expect(redmean(toRgb(oldHex as string), toRgb(mapping[name])), `${name} pushed too far`).toBeLessThanOrEqual(80);
+    }
+  });
+
+  it("introduces no large ramp inversion (all inversions <= 0.12 luminance)", () => {
+    for (const inv of rampInversions(mapping, allRamps)) {
+      expect(inv.drop, `ramp ${inv.rampIndex} slot ${inv.slot} ${inv.from}->${inv.to}`).toBeLessThanOrEqual(0.12);
     }
   });
 });
