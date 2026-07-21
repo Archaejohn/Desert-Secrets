@@ -277,3 +277,65 @@ const LAVA_CLIFF: TerrainParams = {
 };
 
 export const LAVA_PRESETS: TerrainParams[] = [LAVA_CLIFF];
+
+// Grove/cave cliff — mirrors LAVA_CLIFF's defaults with the grove material and
+// four grounds (groveGrass, groveMoss, groveWater, groveSoil). The `groveStone`
+// wall face is a tier-2 placeholder until the bespoke damp-cave face lands.
+const GROVE_CLIFF: TerrainParams = {
+  material: "groveStone",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors LAVA_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — organic/flowing (owner-picked) for the lush grove.
+  // Starting values; tuned live in the seam-rounding tuner at the review gate.
+  edgeInset: 2,
+  edgeIrregularity: 18,
+  cornerRounding: 8,
+  pocketRounding: 8,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // All four grove grounds autotile with each OTHER. Priority groveGrass <
+  // groveMoss < groveWater < groveSoil; `over` = lower-priority field, `base`
+  // = higher-priority ground carved in. Self first, cross-pairs appended.
+  pairings: [
+    { over: "groveGrass", base: "groveGrass" },
+    { over: "groveGrass", base: "groveMoss" },
+    { over: "groveGrass", base: "groveWater" },
+    { over: "groveGrass", base: "groveSoil" },
+    { over: "groveMoss", base: "groveWater" },
+    { over: "groveMoss", base: "groveSoil" },
+    { over: "groveWater", base: "groveSoil" },
+  ],
+  plateauTop: "groveGrass",
+  ground: "groveGrass",
+
+  seed: 9090,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const GROVE_PRESETS: TerrainParams[] = [GROVE_CLIFF];

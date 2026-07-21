@@ -7,7 +7,7 @@ import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
-import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS, GROVE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
 import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames, cliffLavaTileNames, cliffLavaSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
@@ -556,6 +556,21 @@ describe("grove biome floorFill", () => {
   });
   it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s fill is deterministic", (key) => {
     expect(floorFill(key, 9090).diff(floorFill(key, 9090))).toBe(0);
+  });
+});
+
+describe("generateTerrain + grove preset", () => {
+  it("grove preset emits its full parity set (4 grounds, all-pairs = 7 pairings)", () => {
+    const out = generateTerrain(GROVE_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffGroveStone_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("groveGrassPlateau_")).length).toBe(47);
+    for (const p of ["groveGrassGroveGrass", "groveGrassGroveMoss", "groveGrassGroveWater", "groveGrassGroveSoil", "groveMossGroveWater", "groveMossGroveSoil", "groveWaterGroveSoil"]) {
+      expect(out.filter((n) => n.startsWith(`${p}_`)).length).toBe(47);
+    }
+    for (const f of ["groveGrassFill", "groveMossFill", "groveWaterFill", "groveSoilFill"]) expect(out).toContain(f);
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(new Set(out).size).toBe(out.length);
+    expect(out.length).toBe(559);
   });
 });
 
