@@ -22,6 +22,17 @@ export const REEF_HOLLOW_SEABED: Readonly<Record<string, TerrainKey>> = { ...REE
 export const REEF_HOLLOW_WATER: Readonly<Record<string, TerrainKey>> = { ...REEF_HOLLOW_LAND, reefWater: "reefWater", reefWater2: "reefWater" };
 export const REEF_HOLLOW_DEFAULT: TerrainKey = "reefSilt";
 
+/** Sun-temple ground tile-names → TerrainKey. Floor + glyph become the authored
+ *  templeSlab; the flooded surround composites as dark reefSilt seabed (both water
+ *  animation phases). `baseName` folds the dressed `…Shade` variants in. */
+export const SUNTEMPLE_GROUND_TO_TERRAIN: Readonly<Record<string, TerrainKey>> = {
+  templeFloor: "templeSlab",
+  templeGlyph: "templeSlab",
+  seaWater: "reefSilt",
+  seaWater2: "reefSilt",
+};
+export const SUNTEMPLE_DEFAULT_TERRAIN: TerrainKey = "reefSilt";
+
 /** One (possibly dressed) ground tile-name → TerrainKey via its base name, or null if unmapped. */
 export function groundNameToTerrainKey(name: string | null, table: Readonly<Record<string, TerrainKey>>): TerrainKey | null {
   const b = baseName(name);

@@ -14,6 +14,7 @@ import { getState, setState } from "./state";
 import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import type { TerrainKey } from "../../tools/pipeline/src/cliffs/palette";
+import type { GroundFeature } from "../../tools/pipeline/src/ground/features";
 import { CompositeGroundView } from "./gfx/CompositeGroundView";
 import { WaterSurfaceView } from "./gfx/WaterSurfaceView";
 import { terrainGrid } from "./maps/groundTerrain";
@@ -56,7 +57,11 @@ export interface ZoneConfig {
   battleBg: BattleBg;
   /** Opt-in: render this zone's ground via the runtime composite instead of the tileset.
    *  Carries the zone's own ground-name → TerrainKey table + fallback. */
-  compositeGround?: { table: Readonly<Record<string, TerrainKey>>; fallback: TerrainKey };
+  compositeGround?: {
+    table: Readonly<Record<string, TerrainKey>>;
+    fallback: TerrainKey;
+    features?: readonly GroundFeature[];
+  };
   /** Opt-in (needs `compositeGround`): render water as a translucent surface over the
    *  composited seabed. `table` keeps water as `reefWater` so the footprint mask can be
    *  derived; names mapping to `reefWater` are also hidden on the decor layer. */
@@ -513,7 +518,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (this.compositeGroundView) this.compositeGroundView.destroy(); // defensive: guard against re-entry
     const grid = terrainGrid(this.cfg.map.ground, cg.table, cg.fallback);
     const blur = !new URLSearchParams(location.search).has("noblur"); // texture blur ON by default; ?noblur to compare
-    this.compositeGroundView = new CompositeGroundView(this, grid, COMPOSITE_GROUND_DEPTH, { blur });
+    this.compositeGroundView = new CompositeGroundView(this, grid, COMPOSITE_GROUND_DEPTH, { blur, features: cg.features });
     this.groundLayer.setVisible(false);
 
     const water = this.cfg.water;

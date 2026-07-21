@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { compositeMapLayers, GROUND_PRIORITY } from "../../../tools/pipeline/src/ground/composite";
 import type { TerrainKey } from "../../../tools/pipeline/src/cliffs/palette";
+import { paintFeatures, type GroundFeature } from "../../../tools/pipeline/src/ground/features";
 import { pixelGridToRGBA } from "./pixelGridRGBA";
 import { maskedBlur } from "./maskedBlur";
 
@@ -22,8 +23,14 @@ export class CompositeGroundView {
   private readonly key: string;
   private image?: Phaser.GameObjects.Image;
 
-  constructor(private scene: Phaser.Scene, grid: TerrainKey[][], depth: number, opts: { blur?: boolean } = {}) {
+  constructor(
+    private scene: Phaser.Scene,
+    grid: TerrainKey[][],
+    depth: number,
+    opts: { blur?: boolean; features?: readonly GroundFeature[] } = {},
+  ) {
     const { grid: pg, terrainId, shadow } = compositeMapLayers(grid);
+    if (opts.features?.length) paintFeatures(pg, terrainId, shadow, opts.features, pg.width);
     this.key = `__composite_ground_${seq++}`;
     if (scene.textures.exists(this.key)) scene.textures.remove(this.key);
     const tex = scene.textures.createCanvas(this.key, pg.width, pg.height);
