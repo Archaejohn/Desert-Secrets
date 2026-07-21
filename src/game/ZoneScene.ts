@@ -32,6 +32,9 @@ import {
 export const TILE = 16;
 const PLAYER_SPEED = 72;
 const TALK_RANGE = 26;
+/** Ink-with-alpha helper for text/panel backgrounds below (keeps them tied to
+ *  PALETTE.ink instead of a stale hardcoded hex). */
+const inkA = (a: string) => PALETTE.ink + a;
 
 export type Dir = "down" | "left" | "right" | "up";
 export type BattleBg = "desert" | "mine" | "ice";
@@ -294,7 +297,7 @@ export abstract class ZoneScene extends Phaser.Scene {
           fontFamily: "monospace",
           fontSize: "8px",
           color: PALETTE.bone,
-          backgroundColor: "#24182799",
+          backgroundColor: inkA("99"),
           padding: { x: 4, y: 2 }
         }
       )
@@ -640,7 +643,7 @@ export abstract class ZoneScene extends Phaser.Scene {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.skyBlue,
-        backgroundColor: "#24182799",
+        backgroundColor: inkA("99"),
         padding: { x: 4, y: 2 }
       })
       .setOrigin(0.5)

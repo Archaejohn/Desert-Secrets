@@ -26,16 +26,22 @@
  * public/sw.js). Never auto-reloads: applying is always the player's tap, so
  * an update can't yank the page out from under an active battle.
  */
+import { PALETTE } from "../shared/palette";
+
 const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 const FLASH_MS = 1500;
 const RESTING_GLYPH = "⟳";
 
-// Desert palette (mirrors src/shared/palette.ts; kept literal so this plain-DOM
-// module has no Phaser/asset imports).
-const INK = "#241827";
-const GOLD = "#f0c439";
-const BONE = "#eec48f";
-const PLUM = "#75485e";
+// Desert palette, read from the single source of truth (src/shared/palette.ts)
+// rather than duplicated as stale hex literals. This module stays plain-DOM
+// (no Phaser) — pulling in the palette module is a plain data import, not an
+// asset/engine dependency, so it doesn't compromise that.
+const INK = PALETTE.ink;
+const GOLD = PALETTE.atbGold;
+const BONE = PALETTE.sand;
+const PLUM = PALETTE.mauve;
+// Ink-with-alpha helper for text/panel backgrounds below.
+const inkA = (a: string) => PALETTE.ink + a;
 
 async function fetchDeployedVersion(): Promise<string | null> {
   try {
@@ -90,7 +96,7 @@ export function initUpdateCheck(): void {
     padding: "8px 10px 8px 12px",
     border: `1px solid ${GOLD}`,
     borderRadius: "8px",
-    background: "#241827f2",
+    background: inkA("f2"),
     color: BONE,
     fontFamily: "monospace",
     fontSize: "13px",
@@ -163,7 +169,7 @@ export function initUpdateCheck(): void {
     padding: "0",
     border: `1px solid ${PLUM}`,
     borderRadius: "4px",
-    background: "#24182799",
+    background: inkA("99"),
     color: BONE,
     fontFamily: "monospace",
     fontSize: "14px",

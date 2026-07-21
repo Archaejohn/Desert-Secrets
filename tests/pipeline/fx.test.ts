@@ -85,11 +85,28 @@ function waterTile(): PixelGrid {
 
 describe("palette additions (§3)", () => {
   it("umber/sandShade and the cool stone ramp are appended with the spec'd values", () => {
-    expect(PALETTE.umber).toBe("#6e4036");
-    expect(PALETTE.sandShade).toBe("#c69b7c");
-    // The desert-cliff cool stone ramp was appended after them; existing
-    // entries were not reordered.
-    expect(NAMES.slice(-4)).toEqual(["stoneLit", "stone", "stoneDark", "stoneDeep"]);
+    // AAP-64 migration (2026-07-20): these 25 legacy names were re-hexed to
+    // their nearest AAP-64 core colours; PALETTE is the source of truth.
+    expect(PALETTE.umber).toBe("#71413b");
+    expect(PALETTE.sandShade).toBe("#c7b08b");
+    expect(PALETTE.stoneLit).toBe("#b3b9d1");
+    expect(PALETTE.stone).toBe("#6d758d");
+    expect(PALETTE.stoneDark).toBe("#4a5462");
+    expect(PALETTE.stoneDeep).toBe("#333941");
+    // The desert-cliff cool stone ramp sits right after sandShade and right
+    // before the 39 AAP-64 colors appended by the CORE=AAP-64 migration
+    // (2026-07-20); existing entries were not reordered. (No longer the
+    // literal last 4 names in PALETTE now that the 39 appended colors follow
+    // them — check contiguity/position instead.)
+    const stoneStart = NAMES.indexOf("stoneLit");
+    expect(NAMES.slice(stoneStart, stoneStart + 4)).toEqual([
+      "stoneLit",
+      "stone",
+      "stoneDark",
+      "stoneDeep"
+    ]);
+    expect(NAMES[stoneStart - 1]).toBe("sandShade");
+    expect(NAMES[stoneStart + 4]).toBe("red0");
   });
 });
 

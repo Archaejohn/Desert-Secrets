@@ -19,10 +19,15 @@ import { mulberry32 } from "./rng";
 
 /**
  * Declared LUT terminators — the only names allowed to map to themselves.
- * `plum` is the universal shadow terminator (§3); `ink` is already the
- * darkest value in the palette. Repeated recolors converge onto these.
+ * `plum` is the universal shadow terminator (§3); `ink` is the darkest of
+ * the 25 legacy (art-emittable) names. `blue0` is the darkest of the 39
+ * AAP-64 colors appended in the CORE=AAP-64 migration (2026-07-20) — none
+ * of those 39 are wired into any drawn ramp yet, so they fall back to a
+ * short ink-ward chain (see the "AAP-64 remainder" block below) rather than
+ * a designed material ramp; revisit when/if a sheet actually uses one.
+ * Repeated recolors converge onto a terminator.
  */
-export const SHADOW_TERMINATORS: readonly PaletteName[] = ["plum", "ink"];
+export const SHADOW_TERMINATORS: readonly PaletteName[] = ["plum", "ink", "blue0"];
 
 /**
  * The global shadow LUT (§3): every colour maps to a darker, cooler palette
@@ -53,11 +58,12 @@ export const shadowOf: Record<PaletteName, PaletteName> = {
   teal: "tealDeep",
   tealDeep: "indigo",
 
-  // Water/ice ramp: white(glint) → skyBlue → slate → indigo → plum.
+  // Water/ice ramp: white(glint) → skyBlue → slate → indigo → blue1 (AAP-64
+  // retarget, 2026-07-20: plum was brighter than indigo post-remap).
   white: "skyBlue",
   skyBlue: "slate",
   slate: "indigo",
-  indigo: "plum",
+  indigo: "blue1",
 
   // Cool stone ramp (desert-cliff face): steps darker down its own ramp,
   // converging into ink.
@@ -68,12 +74,60 @@ export const shadowOf: Record<PaletteName, PaletteName> = {
 
   // UI gauge colours (rare on tiles, but the LUT must be total): keep hue
   // identity while stepping darker.
-  hpRed: "rust",
+  hpRed: "red0",
   atbGold: "amber",
 
   // Terminators (see SHADOW_TERMINATORS): repeated shading converges here.
   plum: "plum",
-  ink: "ink"
+  ink: "ink",
+
+  // --- AAP-64 remainder (39 names appended by the CORE=AAP-64 migration,
+  // 2026-07-20): none are drawn by any sheet yet, so there is no designed
+  // material ramp for them. Placeholder chain only, to keep this LUT total
+  // and satisfy its darker/no-cycle invariants — revisit per-color once a
+  // sheet actually adopts one (see docs/superpowers/specs/
+  // 2026-07-18-desert-cliff-tileset-design.md's note on this exact cost). ---
+  yellow0: "ink",
+  green7: "ink",
+  green6: "ink",
+  blue8: "ink",
+  green5: "ink",
+  blue7: "ink",
+  orange5: "ink",
+  green4: "ink",
+  blue6: "ink",
+  orange4: "ink",
+  red5: "ink",
+  teal1: "ink",
+  orange3: "ink",
+  green3: "ink",
+  blue5: "ink",
+  blue3: "ink",
+  orange1: "ink",
+  red4: "ink",
+  blue4: "ink",
+  red3: "ink",
+  orange2: "ink",
+  green2: "ink",
+  orange0: "ink",
+  pink3: "ink",
+  green1: "ink",
+  blue2: "ink",
+  green0: "ink",
+  pink2: "ink",
+  red2: "ink",
+  grey2: "ink",
+  red1: "ink",
+  grey1: "ink",
+  red0: "ink",
+  pink1: "ink",
+  blue1: "ink",
+  pink0: "ink",
+  // these three are darker than `ink` itself, so they chain among
+  // themselves instead, bottoming out at the new `blue0` terminator:
+  teal0: "grey0",
+  grey0: "blue0",
+  blue0: "blue0"
 };
 
 /**
