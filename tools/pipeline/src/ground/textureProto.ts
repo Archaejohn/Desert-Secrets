@@ -130,82 +130,81 @@ export type ProtoKey = (typeof PROTO_KEYS)[number];
 export function protoFill(key: ProtoKey, wx: number, wy: number): PaletteName {
   const ramp = TERRAIN_RAMPS[key as TerrainKey];
   const seed = keySeed(key);
+  const ix = Math.floor(wx), iy = Math.floor(wy); // integer world cell for sparse specks
   let idx: number;
 
   switch (key) {
     // sand ["sandLight","sand","sandShade","umber"]
-    // STRUCTURE: fine near-horizontal wind ripples. LOW-CONTRAST tune: the
-    // bulk stays within the two ADJACENT mids (sand ↔ sandShade); sandLight
-    // crests and umber deep-grain are RARE, sparse accents only.
+    // SHADED recipe: the ripple STRUCTURE modulates only within the body
+    // window — sand(1) ↔ sandShade(2), with a gentle sandLight(0) crest as the
+    // light body-neighbour. The dark extreme umber(3) is REMOVED from the
+    // ripple and appears only as a rare sparse grain speck (~1.5%). No brown
+    // bands.
     case "sand": {
       const r = striate(wx, wy, Math.PI / 2 + 0.12, 0.16, 2.2, seed);   // near-horizontal
       const r2 = striate(wx, wy, Math.PI / 2 - 0.05, 0.42, 1.4, seed + 9); // fine detail
       const band = r * 0.7 + r2 * 0.3;
-      idx = band >= 0.5 ? 1 : 2;                // bulk: sand ↔ sandShade
-      if (band > 0.91) idx = 0;                 // rare light ripple crest
-      else if (band < 0.10) idx = 3;            // rare deep grain in trough shadow
+      idx = band >= 0.5 ? 1 : 2;                // shade within sand ↔ sandShade
+      if (band > 0.90) idx = 0;                 // gentle light ripple crest (body-neighbour)
+      if (h2(ix, iy, seed + 71) > 0.985) idx = 3; // rare umber grain speck only
       break;
     }
 
     // reefWater ["skyBlue","teal","tealDeep","indigo"]
-    // STRUCTURE: horizontal caustic wave bands. LOW-CONTRAST tune: bulk stays
-    // teal ↔ tealDeep (adjacent); indigo deep troughs and bright skyBlue
-    // crests are rare, sparse accents.
+    // SHADED recipe: wave bands shade only teal(1) ↔ tealDeep(2). The dark
+    // extreme indigo(3) is no longer a coherent trough band — it survives only
+    // as a rare deep speck; bright skyBlue(0) crests stay sparse accents.
     case "reefWater": {
       const fast = striate(wx, wy, Math.PI / 2, 0.24, 3.0, seed);        // primary caustic
       const slow = striate(wx, wy, Math.PI / 2 + 0.08, 0.08, 4.5, seed + 17); // slow swell
       const c = fast * 0.6 + slow * 0.4;
-      idx = c > 0.5 ? 1 : 2;                     // bulk: teal ↔ tealDeep
-      if (c < 0.12) idx = 3;                     // rare indigo deep trough
-      // rare bright ripple crest only where the fast caustic strongly peaks
-      if (fast > 0.93 && h2(Math.floor(wx), Math.floor(wy), seed + 31) > 0.72) idx = 0;
+      idx = c > 0.5 ? 1 : 2;                     // shade within teal ↔ tealDeep
+      if (fast > 0.93 && h2(ix, iy, seed + 31) > 0.72) idx = 0; // sparse bright crest speck
+      else if (c < 0.10 && h2(ix, iy, seed + 83) > 0.6) idx = 3; // rare indigo deep speck
       break;
     }
 
     // lava ["atbGold","amber","hpRed","rust"]
-    // STRUCTURE: cracked molten cells. LOW-CONTRAST tune: bulk is the cooled
-    // crust (hpRed ↔ rust, adjacent); seams mostly glow the DIMMER amber, with
-    // only the thinnest/rarest seams flaring bright atbGold — occasional, not
-    // every cell edge.
+    // SHADED recipe: molten cell bodies shade only amber(1) ↔ hpRed(2); seams
+    // glow the body-tone amber. The dark extreme rust(3) is no longer a cell
+    // body — it survives only as rare cooled specks; the bright extreme
+    // atbGold(0) flares only along the thinnest seams, sparsely gated.
     case "lava": {
       const w = worley(wx, wy, 0.12, seed);
       const edge = w.f2 - w.f1;
-      if (edge < 0.05) {                        // a cell seam
-        // dim amber glow along seams; only the very thinnest seams, sparsely
-        // gated, flare bright gold
-        idx = (edge < 0.02 && h2(w.cell & 0xffff, w.cell >>> 16, seed + 41) > 0.8) ? 0 : 1;
+      if (edge < 0.05) {                        // a cell seam → amber body-glow
+        idx = (edge < 0.02 && h2(w.cell & 0xffff, w.cell >>> 16, seed + 41) > 0.82) ? 0 : 1;
       } else {
         const tone = cellTone(w.cell, seed);    // per-pool temperature
-        idx = tone < 0.5 ? 3 : 2;               // bulk: rust ↔ hpRed cooled crust
+        idx = tone < 0.5 ? 2 : 1;               // shade within hpRed ↔ amber
       }
+      if (h2(ix, iy, seed + 91) > 0.978) idx = 3; // rare rust cooled speck only
       break;
     }
 
     // groveMoss ["jade","teal","umber","ink"]
-    // STRUCTURE: clumpy organic moss patches. LOW-CONTRAST tune: bulk is
-    // teal ↔ umber (adjacent) — mossy green over soil; bright jade clump
-    // highlights and ink shadows are rare accents. Softer clump edges.
+    // SHADED recipe: clumps shade only teal(1) ↔ umber(2) — mossy green over
+    // soil. The light extreme jade(0) is a small, sparse clump-crown highlight;
+    // the dark extreme ink(3) survives only as a rare deep-gap speck.
     case "groveMoss": {
       const [x2, y2] = warp(wx, wy, 7, seed);
       const m = worldNoise(x2, y2, 0.07, seed + 3) * 0.7
               + worldNoise(x2, y2, 0.15, seed + 5) * 0.3; // big warped clumps
-      idx = m > 0.5 ? 1 : 2;                     // bulk: teal moss ↔ umber soil
-      if (m > 0.80) idx = 0;                     // rare bright jade clump crown
-      else if (m < 0.18) idx = 3;               // rare ink deep-gap shadow
+      idx = m > 0.5 ? 1 : 2;                     // shade within teal ↔ umber
+      if (m > 0.84 && h2(ix, iy, seed + 23) > 0.35) idx = 0; // sparse jade crown highlight
+      if (m < 0.16 && h2(ix, iy, seed + 67) > 0.5) idx = 3;  // rare ink deep-gap speck
       break;
     }
 
     // ice ["white","skyBlue","slate","indigo"]
-    // STRUCTURE: crystalline facets. LOW-CONTRAST tune: bulk is white ↔
-    // skyBlue (adjacent) with a SMALL per-facet tone shift; seams are faint
-    // (mostly slate) and only the thinnest hairlines darken to a rare indigo.
+    // SHADED recipe: facets shade only within the cool light window white(0) ↔
+    // skyBlue(1), with faint slate(2) facet-boundary bevels. The dark extreme
+    // indigo(3) survives only as the rarest hairline-crack cores (~2%).
     case "ice": {
       const w = worley(wx, wy, 0.10, seed);
       const edge = w.f2 - w.f1;
-      if (edge < 0.02) {
-        idx = 3;                                // rare indigo hairline crack
-      } else if (edge < 0.05) {
-        idx = 2;                                // faint slate facet-boundary bevel
+      if (edge < 0.03) {                        // facet seam
+        idx = edge < 0.01 ? 3 : 2;              // rare indigo hairline core / faint slate bevel
       } else {
         const tone = cellTone(w.cell, seed);    // subtle flat per-facet shade
         idx = tone > 0.6 ? 1 : 0;               // skyBlue-tinted facet / white facet
@@ -214,18 +213,17 @@ export function protoFill(key: ProtoKey, wx: number, wy: number): PaletteName {
     }
 
     // groveSoil ["clay","umber","stoneDeep","ink"]
-    // STRUCTURE: granular clumped earth. LOW-CONTRAST tune: bulk is umber ↔
-    // stoneDeep (adjacent) gritty earth; light clay grains and ink hollows are
-    // rare, sparse accents.
+    // SHADED recipe: grit shades only umber(1) ↔ stoneDeep(2) via the worley
+    // grain cells. The light extreme clay(0) is a sparse light-grain fleck and
+    // the dark extreme ink(3) a rare hollow fleck — neither a coherent region.
     case "groveSoil": {
       const [x2, y2] = warp(wx, wy, 3.5, seed + 5);
       const w = worley(x2, y2, 0.40, seed);      // fine grain cells
       const cluster = worldNoise(wx, wy, 0.06, seed + 11); // where grit gathers
       const tone = cellTone(w.cell, seed);
-      idx = tone < 0.45 ? 2 : 1;                 // bulk: stoneDeep grit ↔ umber earth
-      if (tone > 0.89) idx = 0;                  // rare clay light grain
-      // ink only in the deepest hollows right on a grain seam
-      if (cluster < 0.30 && w.f2 - w.f1 < 0.05) idx = 3;
+      idx = tone < 0.45 ? 2 : 1;                 // shade within stoneDeep ↔ umber
+      if (h2(ix, iy, seed + 29) > 0.94) idx = 0; // sparse clay light-grain fleck
+      else if (cluster < 0.35 && h2(ix, iy, seed + 37) > 0.965) idx = 3; // rare ink hollow fleck
       break;
     }
 
