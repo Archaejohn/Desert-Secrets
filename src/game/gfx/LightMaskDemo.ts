@@ -25,6 +25,8 @@ import { PALETTE, hexToInt } from "../../shared/palette";
 
 const LIGHT_DEPTH = 5000;
 const LABEL_DEPTH = LIGHT_DEPTH + 60;
+/** Ink-with-alpha helper for the demo's label/legend backgrounds. */
+const inkA = (a: string) => PALETTE.ink + a;
 
 export class LightMaskDemo {
   private readonly scene: Phaser.Scene;
@@ -200,7 +202,7 @@ export class LightMaskDemo {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone,
-        backgroundColor: "#241827cc",
+        backgroundColor: inkA("cc"),
         padding: { x: 2, y: 1 }
       })
       .setOrigin(0.5, 0.5)
@@ -214,7 +216,7 @@ export class LightMaskDemo {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.bone,
-        backgroundColor: "#241827cc",
+        backgroundColor: inkA("cc"),
         padding: { x: 4, y: 3 }
       })
       .setOrigin(0, 0)

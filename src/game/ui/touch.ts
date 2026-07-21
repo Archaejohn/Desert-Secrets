@@ -21,6 +21,8 @@ import { addToUiLayer } from "../gfx/sceneUi";
 const TOP_BUTTON_Y = 16;
 const BUTTON_ROW_STEP = 24;
 const BUTTON_HIT_H = 24;
+/** Ink-with-alpha helper for corner-button backgrounds below. */
+const inkA = (a: string) => PALETTE.ink + a;
 
 export function isTouchDevice(scene: Phaser.Scene): boolean {
   return scene.sys.game.device.input.touch;
@@ -45,7 +47,7 @@ export function addFullscreenButton(scene: Phaser.Scene, y = 16): void {
       fontFamily: "monospace",
       fontSize: "12px",
       color: PALETTE.sand,
-      backgroundColor: "#24182799",
+      backgroundColor: inkA("99"),
       padding: { x: 4, y: 2 }
     })
     .setOrigin(1, 0)
@@ -80,7 +82,7 @@ export function addInventoryButton(scene: Phaser.Scene, onTap: () => void, y = i
       fontFamily: "monospace",
       fontSize: "12px",
       color: PALETTE.sand,
-      backgroundColor: "#24182799",
+      backgroundColor: inkA("99"),
       padding: { x: 4, y: 2 }
     })
     .setOrigin(1, 0)

@@ -121,7 +121,7 @@ export class DepthsScene extends ZoneScene {
         fontFamily: "monospace",
         fontSize: "9px",
         color: PALETTE.skyBlue,
-        backgroundColor: "#24182799",
+        backgroundColor: PALETTE.ink + "99",
         padding: { x: 4, y: 2 }
       })
       .setOrigin(0.5)

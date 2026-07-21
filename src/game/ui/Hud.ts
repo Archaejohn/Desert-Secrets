@@ -10,6 +10,9 @@ import { levelForXp, xpToNext, LEVEL_THRESHOLDS } from "../../core/progression";
 import { objectiveFor } from "../../core/objective";
 import { addToUiLayer } from "../gfx/sceneUi";
 
+/** Ink-with-alpha helper for text panel backgrounds below. */
+const inkA = (a: string) => PALETTE.ink + a;
+
 export class Hud {
   private bars: Phaser.GameObjects.Graphics;
   private levelText: Phaser.GameObjects.Text;
@@ -28,7 +31,7 @@ export class Hud {
       fontFamily: "monospace",
       fontSize: "8px",
       color: PALETTE.bone,
-      backgroundColor: "#24182799",
+      backgroundColor: inkA("99"),
       padding: { x: 2, y: 1 }
     });
     this.zoneText = scene.add
@@ -42,7 +45,7 @@ export class Hud {
       fontFamily: "monospace",
       fontSize: "8px",
       color: PALETTE.mint,
-      backgroundColor: "#24182799",
+      backgroundColor: inkA("99"),
       padding: { x: 2, y: 1 }
     });
 
