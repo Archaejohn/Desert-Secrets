@@ -186,13 +186,14 @@ export function floorFill(key: TerrainKey, seed: number): PixelGrid {
         idx = v < 0.5 ? 1 : 2;
         if (h2(x, y, seed + 31) > 0.90) idx = 0; // sparse mint highlight (~10%)
       } else if (key === "groveMoss") {
-        // Darker + MORE spotted than grass, on darkened soil (owner direction):
-        // umber soil base (ramp[2]) showing between generous mottled green moss
-        // clumps (teal ramp[1] / jade ramp[0]); rare ink deep shadow (ramp[3]).
-        const g = fbm(x, y, seed + 5);
-        idx = g > 0.55 ? 1 : 2; // teal moss on fbm highs, umber soil elsewhere
-        if (h2(x, y, seed + 31) > 0.80) idx = 0; // bright jade moss fleck (~20%)
-        else if (h2(x, y, seed + 53) > 0.94) idx = 3; // rare ink shadow (~6%)
+        // Darker + MORE spotted than grass (owner direction). Teal moss (ramp[1])
+        // DOMINATES — a darker green than the grass's jade body — with darkened
+        // groveSoil (umber, ramp[2]) showing THROUGH in spots, bright jade moss
+        // flecks (ramp[0]), and rare ink shadow (ramp[3]).
+        idx = 1; // teal moss body
+        if (fbm(x, y, seed + 5) < 0.42) idx = 2; // umber soil showing through (~30%)
+        if (h2(x, y, seed + 31) > 0.82) idx = 0; // bright jade moss fleck (~18%)
+        else if (h2(x, y, seed + 53) > 0.95) idx = 3; // rare ink shadow (~5%)
       } else if (key === "groveWater") {
         // Spring water — fbm-mottled teal/tealDeep body (ramp[1]/ramp[2]) with
         // sparse skyBlue ripples (ramp[0]).

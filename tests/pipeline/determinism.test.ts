@@ -467,7 +467,13 @@ describe("cliff tileset byte-stability", () => {
     cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
     cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
     cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b",
-    cliffLava: "2921fbad05ff8fde47795eec0e3dadc230238bf9be3842d82574ad7b4ea2e9fb"
+    cliffLava: "2921fbad05ff8fde47795eec0e3dadc230238bf9be3842d82574ad7b4ea2e9fb",
+    // cliffGrove: NEW grove/cave biome sheet (build order ...lava -> grove). Four
+    // grounds all autotiling (groveGrass/groveMoss/groveWater/groveSoil); moss is
+    // teal-dominant with darkened umber soil showing through. Organic seams
+    // (edgeIrregularity 18), tier-2 PLACEHOLDER groveStone wall face (bespoke damp-
+    // cave face is future work). 559 tiles. Additive — desert/ice/reef/lava identical.
+    cliffGrove: "6e35a0097ee3deda6cf0aee025108a140e509effb5b0e9e2d45f7a307363914b"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {
