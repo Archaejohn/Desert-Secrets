@@ -11,8 +11,9 @@ describe("wallMaterials", () => {
     expect(m.R.length).toBe(3);
     expect(m.lo).toBe(0.1); expect(m.hi).toBe(0.5);
   });
-  it("the muted default window sits lower than the prototype's 0.11-0.53", () => {
-    expect(WALL_WIN[0]).toBeLessThanOrEqual(0.11);
-    expect(WALL_WIN[1]).toBeLessThanOrEqual(0.50);
+  it("the muted default window is RAISED past the prototype's [0.11,0.53] so faces read darker", () => {
+    // Shading maps t=(lam-lo)/(hi-lo) up a dark->light ramp, so a HIGHER window pushes a
+    // given face lambert LOWER on the ramp = muted (the reverse of the naive intuition).
+    expect(WALL_WIN[1]).toBeGreaterThan(0.53);
   });
 });
