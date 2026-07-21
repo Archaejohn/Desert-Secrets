@@ -97,33 +97,20 @@ export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: n
     return g;
   }
 
-  // Each higher terrain U's carve mask + its own on() lookup. U carves the cell from
-  // directions where a neighbor of priority >= P[U] sits; retreats toward lower neighbors.
-  // Distinct seed per U so overlapping seams don't align identically.
+  // Each higher terrain U's carve mask. U carves the cell (mask=0) from directions where a
+  // neighbor of priority >= P[U] sits, and retreats (mask=1, field) toward lower/off-map
+  // sides. Distinct seed per U so overlapping seams don't align identically.
   const layers = higher.map((U) => {
     const pu = GROUND_PRIORITY[U];
     const cfg = neighborConfig((dx, dy) => { const n = terrainAt(map, cx + dx, cy + dy); return !n || GROUND_PRIORITY[n] < pu; });
-    const m = overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed + pu, SEAM.pocketRound);
-    const bN = !!(cfg & 1), bNE = !!(cfg & 2), bE = !!(cfg & 4), bSE = !!(cfg & 8),
-          bS = !!(cfg & 16), bSW = !!(cfg & 32), bW = !!(cfg & 64), bNW = !!(cfg & 128);
-    const on = (x: number, y: number): number => {
-      const ox2 = x < 0 ? -1 : x >= T ? 1 : 0, oy2 = y < 0 ? -1 : y >= T ? 1 : 0;
-      if (ox2 === 0 && oy2 === 0) return m[y * T + x];
-      let bit: boolean;
-      if (ox2 === 0) bit = oy2 < 0 ? bN : bS; else if (oy2 === 0) bit = ox2 < 0 ? bW : bE;
-      else bit = ox2 < 0 ? (oy2 < 0 ? bNW : bSW) : (oy2 < 0 ? bNE : bSE);
-      if (!bit) return 0;
-      const cxp = Math.max(0, Math.min(T - 1, x)), cyp = Math.max(0, Math.min(T - 1, y));
-      return m[cyp * T + cxp];
-    };
-    return { U, on };
+    return { U, m: overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed + pu, SEAM.pocketRound) };
   });
 
   // Pass 1: winning terrain per pixel (ascending layers; the highest U that carves wins).
   const win = new Array<TerrainKey>(T * T);
   for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
     let terr = self;
-    for (const L of layers) if (L.on(x, y) === 0) terr = L.U;
+    for (const L of layers) if (L.m[y * T + x] === 0) terr = L.U;
     win[y * T + x] = terr;
   }
 
@@ -145,9 +132,9 @@ export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: n
  *  blitting `compositeCell` for every grid cell. `ox`/`oy` shift the world
  *  sampling origin (kept in sync with `compositeCell`'s own world-position
  *  fills) so a sub-region composited on its own still tiles seamlessly with
- *  the rest of the map. Graceful degradation for 3+-terrain junctions is
- *  inherited from `compositeCell`: each cell only ever seams to its single
- *  highest-priority neighbor, so composition never throws. */
+ *  the rest of the map. 3+-terrain junctions are handled by `compositeCell`'s
+ *  priority-layering (every higher neighbor carves as its own layer), so
+ *  composition never throws and no transition is dropped. */
 export function compositeMap(map: TerrainKey[][], ox = 0, oy = 0): PixelGrid {
   const h = map.length, w = map[0].length;
   const out = new PixelGrid(w * T, h * T);
