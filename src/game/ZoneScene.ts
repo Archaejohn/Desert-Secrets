@@ -503,7 +503,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (!cg) return;
     if (this.compositeGroundView) this.compositeGroundView.destroy(); // defensive: guard against re-entry
     const grid = terrainGrid(this.cfg.map.ground, cg.table, cg.fallback);
-    const blur = new URLSearchParams(location.search).has("groundblur"); // ?groundblur to compare
+    const blur = !new URLSearchParams(location.search).has("noblur"); // texture blur ON by default; ?noblur to compare
     this.compositeGroundView = new CompositeGroundView(this, grid, COMPOSITE_GROUND_DEPTH, { blur });
     this.groundLayer.setVisible(false);
   }

@@ -77,29 +77,33 @@ for (const k of CORE_NAMES) {
  *  version dropped the other transitions and left hard, straight, untransitioned
  *  edges. Then a soft grey seam shadow (SOFT_SHADOW) is applied to the lower side of
  *  each seam — a gentle darkened border, not a hard ink line. */
-export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: number, oy: number): PixelGrid {
-  const g = new PixelGrid(T, T);
+/** Per-pixel sink: (localX, localY, palette name, terrain-priority id, isShadow). */
+type CellSink = (x: number, y: number, name: PaletteName, terrId: number, shadow: boolean) => void;
+
+/** Core per-cell paint (the priority-layering + soft shadow), reporting each pixel to
+ *  `sink`. `compositeCell` and `compositeMapLayers` are thin wrappers over this — the
+ *  latter records the terrain-id + shadow flag so a consumer can blur textures without
+ *  smearing across seams. */
+function paintCell(map: TerrainKey[][], cx: number, cy: number, ox: number, oy: number, sink: CellSink): void {
   const self = map[cy][cx];
   const wx0 = ox + cx * T, wy0 = oy + cy * T;
   const selfPri = GROUND_PRIORITY[self];
 
   // PRIORITY-LAYERING: every neighbor terrain that OUTRANKS self, ascending by priority,
   // carves in as its own mask layer; higher layers overpaint lower. At a 3-4-way junction
-  // all transitions are drawn and overlap correctly — the previous "single highest
-  // neighbor only" shortcut dropped the others and left hard straight untransitioned edges.
+  // all transitions are drawn and overlap correctly.
   const higher = [...new Set<TerrainKey>(
     DIRS.map((d) => terrainAt(map, cx + d.dx, cy + d.dy))
       .filter((n): n is TerrainKey => !!n && GROUND_PRIORITY[n] > selfPri),
   )].sort((a, b) => GROUND_PRIORITY[a] - GROUND_PRIORITY[b]);
 
   if (higher.length === 0) {
-    for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) g.px(x, y, fill(self, wx0 + x, wy0 + y));
-    return g;
+    for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) sink(x, y, fill(self, wx0 + x, wy0 + y), selfPri, false);
+    return;
   }
 
   // Each higher terrain U's carve mask. U carves the cell (mask=0) from directions where a
-  // neighbor of priority >= P[U] sits, and retreats (mask=1, field) toward lower/off-map
-  // sides. Distinct seed per U so overlapping seams don't align identically.
+  // neighbor of priority >= P[U] sits, retreating (mask=1) toward lower/off-map sides.
   const layers = higher.map((U) => {
     const pu = GROUND_PRIORITY[U];
     const cfg = neighborConfig((dx, dy) => { const n = terrainAt(map, cx + dx, cy + dy); return !n || GROUND_PRIORITY[n] < pu; });
@@ -114,32 +118,47 @@ export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: n
     win[y * T + x] = terr;
   }
 
-  // Pass 2: fill + SOFT GREY seam shadow — a pixel on the lower side of a seam (a
-  // higher-priority winner 4-neighbours it) is nudged toward grey via SOFT_SHADOW.
+  // Pass 2: fill + SOFT GREY seam shadow on the lower side of each seam.
   for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
     const w = win[y * T + x];
     let name = fill(w, wx0 + x, wy0 + y);
     const p = GROUND_PRIORITY[w];
     const shadowed = (nx: number, ny: number): boolean =>
       nx >= 0 && nx < T && ny >= 0 && ny < T && GROUND_PRIORITY[win[ny * T + nx]] > p;
-    if (shadowed(x - 1, y) || shadowed(x + 1, y) || shadowed(x, y - 1) || shadowed(x, y + 1)) name = SOFT_SHADOW[name];
-    g.px(x, y, name);
+    const sh = shadowed(x - 1, y) || shadowed(x + 1, y) || shadowed(x, y - 1) || shadowed(x, y + 1);
+    if (sh) name = SOFT_SHADOW[name];
+    sink(x, y, name, p, sh);
   }
+}
+
+export function compositeCell(map: TerrainKey[][], cx: number, cy: number, ox: number, oy: number): PixelGrid {
+  const g = new PixelGrid(T, T);
+  paintCell(map, cx, cy, ox, oy, (x, y, name) => g.px(x, y, name));
   return g;
 }
 
-/** Composite an entire map region into one seamless `(w*16)×(h*16)` texture by
- *  blitting `compositeCell` for every grid cell. `ox`/`oy` shift the world
- *  sampling origin (kept in sync with `compositeCell`'s own world-position
- *  fills) so a sub-region composited on its own still tiles seamlessly with
- *  the rest of the map. 3+-terrain junctions are handled by `compositeCell`'s
- *  priority-layering (every higher neighbor carves as its own layer), so
- *  composition never throws and no transition is dropped. */
-export function compositeMap(map: TerrainKey[][], ox = 0, oy = 0): PixelGrid {
-  const h = map.length, w = map[0].length;
-  const out = new PixelGrid(w * T, h * T);
+/** Composite `grid` plus per-pixel side channels: `terrainId` (the winning terrain's
+ *  `GROUND_PRIORITY`, 0..18) and `shadow` (1 where the soft seam shadow was applied).
+ *  Lets a consumer edge-preservingly blur the fill TEXTURE without smearing across
+ *  terrain boundaries or over the seam shadow. */
+export interface CompositeLayers { grid: PixelGrid; terrainId: Uint8Array; shadow: Uint8Array; }
+export function compositeMapLayers(map: TerrainKey[][], ox = 0, oy = 0): CompositeLayers {
+  const h = map.length, w = map[0].length, W = w * T, H = h * T;
+  const grid = new PixelGrid(W, H);
+  const terrainId = new Uint8Array(W * H);
+  const shadow = new Uint8Array(W * H);
   for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
-    out.blit(compositeCell(map, cx, cy, ox, oy), cx * T, cy * T);
+    paintCell(map, cx, cy, ox, oy, (x, y, name, id, sh) => {
+      const gx = cx * T + x, gy = cy * T + y, i = gy * W + gx;
+      grid.px(gx, gy, name);
+      terrainId[i] = id;
+      shadow[i] = sh ? 1 : 0;
+    });
   }
-  return out;
+  return { grid, terrainId, shadow };
+}
+
+/** The composited ground texture (a seamless `(w*16)×(h*16)` PixelGrid). */
+export function compositeMap(map: TerrainKey[][], ox = 0, oy = 0): PixelGrid {
+  return compositeMapLayers(map, ox, oy).grid;
 }

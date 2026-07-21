@@ -89,3 +89,17 @@ mapping gaps.
   well within.
 - **Two-camera correctness** — the composite ground image must render through `cameras.main`
   only and be ignored by the UI camera (follow `LightMask`'s pattern).
+
+## Addendum (2026-07-21) — blur behavior + a future want (owner review)
+
+Owner reviewed the running reef zone and refined the blur:
+- **Edge-preserving, not whole-image.** The blur softens the fill TEXTURE *inside* each
+  terrain only — it never averages across a terrain boundary or over a seam-shadow pixel, so
+  the mask seams stay crisp. Implemented via `compositeMapLayers` (adds per-pixel `terrainId`
+  + `shadow` side channels) + `src/game/gfx/maskedBlur.ts`.
+- **On by default** (a ~4-box), opt-out with `?noblur` for comparison.
+- **Certain types opt out (stay crisp).** A `skip` set of terrain ids is left unblurred;
+  the default is the liquids (`reefWater`, `groveWater`, `lava`) — they read better sharp.
+- **Future want (backlog):** animate the water/liquid terrains **moving back and forth** (the
+  shoreline/water motion that was dropped from G3). The liquid types are already kept crisp in
+  the composite specifically to leave room for this — it's a G3-follow-up, not in this branch.
