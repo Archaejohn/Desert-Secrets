@@ -285,10 +285,10 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
     }
 
     // ---- AUTHORED SLAB (submerged temple flagstones) ---------------------
-    // 3x2-tile (48x32) slab lattice on the world grid: per-slab flat body tone,
+    // 3x2-tile (48x32) slab lattice on the world grid: per-slab warm body tone,
     // per-slab shading off a top-left light (lit lip + far-edge shade), dark grout
-    // joints at block boundaries, a ridged crack network, sparse wear, and a faint
-    // near-horizontal skyBlue water sheen (the one off-ramp accent).
+    // joints at block boundaries, a ridged crack network, sparse wear, and very
+    // sparse scattered skyBlue wet glints (the one off-ramp accent).
     case "templeSlab": {
       const BW = 48, BH = 32;
       const bx = Math.floor(wx / BW), by = Math.floor(wy / BH);
