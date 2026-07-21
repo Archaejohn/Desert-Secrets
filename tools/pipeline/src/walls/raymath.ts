@@ -18,7 +18,7 @@ export const RAD = Math.PI / 180;
 
 const AZ = 0;
 const EL = 33;
-const ce = Math.cos(EL * RAD);
+export const ce = Math.cos(EL * RAD);
 const se = Math.sin(EL * RAD);
 const ca = Math.cos(AZ * RAD);
 const sa = Math.sin(AZ * RAD);
