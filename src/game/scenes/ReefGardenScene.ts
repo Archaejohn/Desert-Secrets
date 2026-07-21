@@ -17,6 +17,7 @@ import {
 } from "../maps/reefGardenMap";
 import { REEF_D_RETURN_SPAWN } from "../maps/reefDescentMap";
 import { REEF_W_SPAWN } from "../maps/reefWarrenMap";
+import { REEF_GARDEN_GROUND_TO_TERRAIN, REEF_GARDEN_DEFAULT_TERRAIN } from "../maps/groundTerrain";
 import { reefGardenEntryScript } from "../../core/scripts/reefGardenEntry";
 import { reefRestScript } from "../../core/scripts/restPoints";
 import { SlitherFollower } from "../SlitherFollower";
@@ -38,7 +39,8 @@ export class ReefGardenScene extends ZoneScene {
       map: buildReefGardenMap(),
       defaultSpawn: REEF_G_SPAWN,
       encounterZone: "reef",
-      battleBg: "ice"
+      battleBg: "ice",
+      compositeGround: { table: REEF_GARDEN_GROUND_TO_TERRAIN, fallback: REEF_GARDEN_DEFAULT_TERRAIN }
     };
   }
 
