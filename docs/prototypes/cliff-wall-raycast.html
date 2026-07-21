@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Cliff Wall — raycast rock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#0e1014;color:#d6dae0;font-family:ui-sans-serif,system-ui,sans-serif}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+  .surface{background:#161a20;border:1px solid #242a33}
+  .val{color:#8fd9a8;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#4ea87a}
+  select{background:#1c2128;border:1px solid #2c333d;border-radius:.375rem;padding:.25rem .5rem;width:100%;color:#d6dae0;font-size:.75rem}
+  .chk{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:#9aa3ad}
+  button.act{background:#25603f;border:1px solid #348054;border-radius:.375rem;padding:.4rem .6rem;font-size:.78rem}
+  button.act:hover{background:#2f7a50}
+  .st{border:1px solid #2c333d;border-radius:.375rem;padding:.3rem .4rem;font-size:.7rem;background:#1c2128;text-align:left}
+  .st.on{border-color:#4ea87a;background:#1f3329;color:#a8e0b0}
+</style></head>
+<body class="p-4">
+<div class="max-w-[1500px] mx-auto">
+  <h1 class="text-lg mb-1">Cliff Wall</h1>
+  <p class="text-xs text-gray-500 mb-3">A rock face built as 3D solids and ray-cast through the same
+    camera and light as the props. Cracks are gaps between blocks with a dark recess behind, because
+    there is no boolean subtraction — the shadow is real occlusion, not painted.</p>
+
+  <div class="grid grid-cols-[250px_1fr] gap-4">
+    <div class="surface rounded-lg p-3 space-y-3 self-start">
+      <div><label class="block text-xs mb-1 text-gray-400">Rock</label>
+        <div id="styleRow" class="grid grid-cols-2 gap-1"></div></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Wall width · <span id="wwv" class="val"></span></label>
+        <input type="range" id="ww" min="3" max="14" step="1" value="8"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Wall height · <span id="whv" class="val"></span></label>
+        <input type="range" id="wh" min="2" max="9" step="1" value="5"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Course height · <span id="chv" class="val"></span></label>
+        <input type="range" id="ch" min="10" max="90" step="5" value="34"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Block width · <span id="bwv" class="val"></span></label>
+        <input type="range" id="bw" min="15" max="120" step="5" value="48"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Relief · <span id="rlv" class="val"></span></label>
+        <input type="range" id="relief" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Fracture · <span id="frv" class="val"></span></label>
+        <input type="range" id="frac" min="0" max="100" step="5" value="40"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Irregularity · <span id="irv" class="val"></span></label>
+        <input type="range" id="irr" min="0" max="100" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Batter (lean back) · <span id="bav" class="val"></span></label>
+        <input type="range" id="batter" min="0" max="60" step="5" value="15"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Talus · <span id="tav" class="val"></span></label>
+        <input type="range" id="talus" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cap lump size · <span id="lmv" class="val"></span>%</label>
+        <input type="range" id="lump" min="40" max="220" step="10" value="100"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Ramp</label>
+        <select id="rampDir"><option value="none">None</option>
+          <option value="right">Ascends to the right</option>
+          <option value="left">Ascends to the left</option></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Ramp width · <span id="rwv" class="val"></span></label>
+        <input type="range" id="rampW" min="20" max="100" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Ramp type</label>
+        <select id="rampType"><option value="ramp">Smooth ramp</option>
+          <option value="stairs">Stairs</option></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Ramp run · <span id="rrv" class="val"></span>% of width</label>
+        <input type="range" id="rampRun" min="25" max="100" step="5" value="85"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Steps · <span id="rsv" class="val"></span></label>
+        <input type="range" id="rampSteps" min="3" max="24" step="1" value="11"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Path material <span class="text-gray-600">(bare rock)</span></label>
+        <select id="pathMat"><option value="auto">Match rock</option>
+          <option value="pale">Pale worn stone</option><option value="warm">Warm flagstone</option>
+          <option value="dark">Dark basalt</option><option value="clay">Packed clay</option>
+          <option value="gravel">Grey gravel</option></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Wedge texture offset · <span id="wtv" class="val"></span></label>
+        <input type="range" id="wtex" min="-100" max="100" step="1" value="0"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cap density · <span id="dnv" class="val"></span>%</label>
+        <input type="range" id="dens" min="10" max="260" step="10" value="100"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Block tops <span class="text-gray-600">(blocky rocks)</span></label>
+        <select id="btop"><option value="auto">Auto (per rock)</option>
+          <option value="flat">Flat</option><option value="round">Rounded</option>
+          <option value="pitch">Pitched</option><option value="chip">Chipped</option>
+          <option value="slope">Sloped</option><option value="step">Stepped</option>
+          <option value="mixed">Mixed</option></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Crest shape</label>
+        <select id="crest"><option value="flat">Flat table</option>
+          <option value="auto">Auto (per rock)</option><option value="domed">Domed</option>
+          <option value="rolling">Rolling</option><option value="jagged">Jagged</option>
+          <option value="castellated">Castellated</option><option value="terraced">Terraced</option>
+          <option value="dipping">Dipping</option></select></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Crest relief · <span id="crv" class="val"></span></label>
+        <input type="range" id="crestAmt" min="0" max="100" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Cap surface</label>
+        <select id="cap"><option value="none">Bare rock</option><option value="grass">Grass</option>
+          <option value="snow">Snow</option><option value="sand">Sand</option></select></div>
+      <hr class="border-gray-800">
+      <p class="text-[10px] text-gray-600 uppercase tracking-wider">Glacier face only</p>
+      <div><label class="block text-xs mb-1 text-gray-400">Undercut · <span id="unv" class="val"></span></label>
+        <input type="range" id="under" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Serac shear · <span id="shv" class="val"></span></label>
+        <input type="range" id="shear" min="0" max="100" step="5" value="55"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Basal vault · <span id="vav" class="val"></span></label>
+        <input type="range" id="vault" min="0" max="100" step="5" value="45"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Dust bands · <span id="duv" class="val"></span></label>
+        <input type="range" id="dust" min="0" max="100" step="5" value="35"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Fold · <span id="fov" class="val"></span></label>
+        <input type="range" id="fold" min="0" max="100" step="5" value="40"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Meltwater flutes · <span id="flv" class="val"></span></label>
+        <input type="range" id="flute" min="0" max="100" step="5" value="50"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Knobble · <span id="scv" class="val"></span></label>
+        <input type="range" id="scallop" min="0" max="100" step="5" value="40"></div>
+      <hr class="border-gray-800">
+      <div><label class="block text-xs mb-1 text-gray-400">Azimuth · <span id="azv" class="val"></span>°</label>
+        <input type="range" id="az" min="-60" max="60" step="5" value="0"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Elevation · <span id="elv" class="val"></span>°</label>
+        <input type="range" id="elev" min="12" max="70" step="1" value="33"></div>
+      <button class="act w-full" id="resetView">Reset to prop view (0° / 33°)</button>
+      <div><label class="block text-xs mb-1 text-gray-400">Bands · <span id="bnv" class="val"></span></label>
+        <input type="range" id="bands" min="3" max="8" step="1" value="6"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Dither · <span id="ddv" class="val"></span></label>
+        <input type="range" id="dith" min="0" max="100" step="5" value="30"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Occlusion · <span id="aov" class="val"></span></label>
+        <input type="range" id="ao" min="0" max="100" step="5" value="50"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Pixels / unit · <span id="ppv" class="val"></span></label>
+        <input type="range" id="ppu" min="8" max="28" step="2" value="16"></div>
+      <div><label class="block text-xs mb-1 text-gray-400">Zoom · <span id="zmv" class="val"></span>×</label>
+        <input type="range" id="zoom" min="1" max="6" step="1" value="3"></div>
+      <label class="chk"><input type="checkbox" id="outline" class="accent-emerald-400"> Silhouette outline</label>
+      <button class="act w-full" id="reroll">Reroll rock</button>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="act" id="dlPng">Wall PNG</button>
+        <button class="act" id="dlPal">Palette</button>
+      </div>
+      <p id="info" class="text-[11px] text-gray-500 leading-relaxed"></p>
+    </div>
+
+    <div class="space-y-3">
+      <div class="surface rounded-lg p-3 overflow-auto max-h-[760px]"><canvas id="view"></canvas></div>
+      <div class="surface rounded-lg p-3">
+        <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Ramp in use · AAP-64</div>
+        <canvas id="rampView"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), RAD=Math.PI/180;
+
+/* AAP-64 by Adigun A. Polack */
+const AAP=['#060608','#141013','#3b1725','#73172d','#b4202a','#df3e23','#fa6a0a','#f9a31b',
+'#ffd541','#fffc40','#d6f264','#9cdb43','#59c135','#14a02e','#1a7a3e','#24523b',
+'#122020','#143464','#285cc4','#249fde','#20d6c7','#a6fcdb','#ffffff','#fef3c0',
+'#fad6b8','#f5a097','#e86a73','#bc4a9b','#793a80','#403353','#242234','#221c1a',
+'#322b28','#71413b','#bb7547','#dba463','#f4d29c','#dae0ea','#b3b9d1','#8b93af',
+'#6d758d','#4a5462','#333941','#422433','#5b3138','#8e5252','#ba756a','#e9b5a3',
+'#e3e6ff','#b9bffb','#849be4','#588dbe','#477d85','#23674e','#328464','#5daf8d',
+'#92dcba','#cdf7e2','#e4d2aa','#c7b08b','#a08662','#796755','#5a4e44','#423934'];
+const hx=s=>[parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16)];
+const RGB=AAP.map(hx);
+const ramp=ix=>ix.map(i=>RGB[i]);
+// A near-vertical face only ever sees lambert ~0.24-0.50 under this light. Mapping
+// 0..1 onto the ramp buries the whole face in its darkest entries, so each material
+// declares the window it occupies and its ramp is spread across exactly that.
+const MAT=(ix,lo,hi)=>({R:ramp(ix),lo,hi});
+
+/* camera + light. az 0 / el 33 is the prop-generator view; other angles are for
+   inspecting the rock. RX/UY/DIR form an orthonormal frame, so screen x is dot(P,RX),
+   screen y is -dot(P,UY), and the viewing ray runs along DIR. */
+let AZ=0, EL=33, ce=Math.cos(EL*RAD), se=Math.sin(EL*RAD);
+let RX=[1,0,0], UY=[0,ce,-se], DIR=[0,se,ce];
+function setView(az,el){
+  AZ=az; EL=Math.min(78,Math.max(8,el));
+  ce=Math.cos(EL*RAD); se=Math.sin(EL*RAD);
+  const ca=Math.cos(AZ*RAD), sa=Math.sin(AZ*RAD);
+  RX =[ca, 0, -sa];
+  UY =[-sa*se, ce, -ca*se];
+  DIR=[ sa*ce, se,  ca*ce];
+}
+const L=[-0.40,0.84,0.36], LM=Math.hypot(...L);
+let PPU=16;
+const projX=P=>(P[0]*RX[0]+P[1]*RX[1]+P[2]*RX[2])*PPU;
+const projY=P=>-(P[0]*UY[0]+P[1]*UY[1]+P[2]*UY[2])*PPU;
+
+/* primitives */
+const box=(lo,hi,m,ro)=>({t:'box',lo,hi,m,ro:ro||0});
+const ell=(c,rr,m,ro)=>({t:'ell',c,r:Array.isArray(rr)?rr:[rr,rr,rr],m,ro:ro||0});
+const obb=(c,ax,rr,m,ro)=>({t:'obb',c,ax,r:rr,m,ro:ro||0});
+const eol=(c,ax,rr,m,ro)=>({t:'eol',c,ax,r:rr,m,ro:ro||0});
+// a flat oval lying on the ground, spun about Y by t
+const ovalY=(c,rx,ry,rz,t,m,ro)=>eol(c,
+  [[Math.cos(t),0,-Math.sin(t)],[0,1,0],[Math.sin(t),0,Math.cos(t)]],[rx,ry,rz],m,ro);
+// a flat oval lying in the wall plane, spun about Z by t
+const ovalZ=(c,rx,ry,rz,t,m,ro)=>eol(c,
+  [[Math.cos(t),Math.sin(t),0],[-Math.sin(t),Math.cos(t),0],[0,0,1]],[rx,ry,rz],m,ro);
+const nrm=v=>{const m=Math.hypot(...v)||1;return v.map(k=>k/m);};
+const crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const dt=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+// a block rotated slightly about all three axes, so joints are never perfectly square
+function slab(c,r,rx,ry,rz,m,ro){
+  const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry),cz=Math.cos(rz),sz=Math.sin(rz);
+  let U=[cy*cz, cy*sz, -sy];
+  let V=[sx*sy*cz-cx*sz, sx*sy*sz+cx*cz, sx*cy];
+  U=nrm(U); V=nrm([V[0]-U[0]*dt(U,V),V[1]-U[1]*dt(U,V),V[2]-U[2]*dt(U,V)]);
+  const W=nrm(crs(U,V));
+  return obb(c,[U,V,W],r,m,ro);
+}
+function aabb(p){
+  if(p.t==='box') return [p.lo,p.hi];
+  if(p.t==='ell') return [[p.c[0]-p.r[0],p.c[1]-p.r[1],p.c[2]-p.r[2]],[p.c[0]+p.r[0],p.c[1]+p.r[1],p.c[2]+p.r[2]]];
+  if(p.t==='eol'){    // exact ellipsoid bound: sqrt of the summed squared axis contributions
+    const e=[0,1,2].map(j=>Math.hypot(p.r[0]*p.ax[0][j],p.r[1]*p.ax[1][j],p.r[2]*p.ax[2][j]));
+    return [[p.c[0]-e[0],p.c[1]-e[1],p.c[2]-e[2]],[p.c[0]+e[0],p.c[1]+e[1],p.c[2]+e[2]]];
+  }
+  const e=[0,1,2].map(k=>Math.abs(p.r[0]*p.ax[0][k])+Math.abs(p.r[1]*p.ax[1][k])+Math.abs(p.r[2]*p.ax[2][k]));
+  return [[p.c[0]-e[0],p.c[1]-e[1],p.c[2]-e[2]],[p.c[0]+e[0],p.c[1]+e[1],p.c[2]+e[2]]];
+}
+function trace(p,O){
+  const D=DIR;
+  if(p.t==='ell'){
+    const oc=[O[0]-p.c[0],O[1]-p.c[1],O[2]-p.c[2]];
+    const Ol=[oc[0]/p.r[0],oc[1]/p.r[1],oc[2]/p.r[2]];
+    const Dl=[D[0]/p.r[0],D[1]/p.r[1],D[2]/p.r[2]];
+    const a=dt(Dl,Dl),b=dt(Ol,Dl),c2=dt(Ol,Ol)-1,h=b*b-a*c2;
+    if(h<0) return null;
+    const t=(-b+Math.sqrt(h))/a;
+    const P=[Ol[0]+t*Dl[0],Ol[1]+t*Dl[1],Ol[2]+t*Dl[2]];
+    return {t,n:nrm([P[0]/p.r[0],P[1]/p.r[1],P[2]/p.r[2]])};
+  }
+  if(p.t==='eol'){
+    const oc=[O[0]-p.c[0],O[1]-p.c[1],O[2]-p.c[2]];
+    const Ol=[dt(oc,p.ax[0])/p.r[0], dt(oc,p.ax[1])/p.r[1], dt(oc,p.ax[2])/p.r[2]];
+    const Dl=[dt(D,p.ax[0])/p.r[0],  dt(D,p.ax[1])/p.r[1],  dt(D,p.ax[2])/p.r[2]];
+    const a=dt(Dl,Dl), b=dt(Ol,Dl), c2=dt(Ol,Ol)-1, h=b*b-a*c2;
+    if(h<0) return null;
+    const t=(-b+Math.sqrt(h))/a;
+    const Pl=[Ol[0]+t*Dl[0],Ol[1]+t*Dl[1],Ol[2]+t*Dl[2]];
+    // gradient of sum (u_k/r_k)^2 gives the world normal
+    const g=[0,1,2].reduce((acc,k)=>{ const w=Pl[k]/p.r[k];
+      return [acc[0]+w*p.ax[k][0],acc[1]+w*p.ax[k][1],acc[2]+w*p.ax[k][2]]; },[0,0,0]);
+    return {t,n:nrm(g)};
+  }
+  const AX = p.t==='box' ? [[1,0,0],[0,1,0],[0,0,1]] : p.ax;
+  const C  = p.t==='box' ? [(p.lo[0]+p.hi[0])/2,(p.lo[1]+p.hi[1])/2,(p.lo[2]+p.hi[2])/2] : p.c;
+  const R  = p.t==='box' ? [(p.hi[0]-p.lo[0])/2,(p.hi[1]-p.lo[1])/2,(p.hi[2]-p.lo[2])/2] : p.r;
+  const oc=[O[0]-C[0],O[1]-C[1],O[2]-C[2]];
+  let tmin=-1e9,tmax=1e9,ax=-1,sg=1;
+  for(let k=0;k<3;k++){
+    const o=dt(oc,AX[k]), d=dt(D,AX[k]);
+    if(Math.abs(d)<1e-9){ if(o<-R[k]||o>R[k]) return null; continue; }
+    let t1=(-R[k]-o)/d, t2=(R[k]-o)/d, s2=1;
+    if(t1>t2){ const q=t1;t1=t2;t2=q; s2=-1; }
+    if(t1>tmin) tmin=t1;
+    if(t2<tmax){ tmax=t2; ax=k; sg=s2; }
+  }
+  if(tmax<tmin||ax<0) return null;
+  return {t:tmax,n:[AX[ax][0]*sg,AX[ax][1]*sg,AX[ax][2]*sg]};
+}
+let SEED=11;
+function h2(x,y,s){
+  // Every product must stay in int32. The previous form used plain * and the result
+  // ran past 2^53, which silently capped this hash at 0.5 — so all scattered detail
+  // landed in the left half of the wall.
+  let n=(Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul(((s|0)+SEED)|0,2246822519))>>>0;
+  n=(n^(n>>>13))>>>0; n=Math.imul(n,1274126177)>>>0;
+  return ((n^(n>>>16))>>>0)/4294967296;
+}
+const BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+
+/* ---------- rock styles ----------
+   Each returns the blocks of one course. The recess behind is a separate dark plane;
+   gaps between blocks expose it, so a crack is genuine occlusion rather than a drawn line. */
+const STYLES={
+  strata:{ name:'Stratified', face:[31,32,63,62,61,60,59], recess:[1,31,32],
+    cap:[32,63,62,61,60,59], talus:[31,32,63,62,61], crest:'terraced', top:'flat',
+    course(P,y0,y1,W,o){
+      let x=0, k=0;
+      const off=h2(Math.round(y0*97),1,3)*o.bw;
+      while(x<W){
+        const w=o.bw*(0.55+h2(Math.round(y0*97),k,4)*0.9*(0.4+o.irr));
+        const d=o.relief*(0.25+h2(Math.round(y0*97),k,5)*0.95);
+        const g=o.frac*0.09*(0.3+h2(Math.round(y0*97),k,6));
+        const x0=Math.max(0,x-off), x1=Math.min(W,x+w-g-off);
+        if(x1>x0+0.03){
+          const cy=(y0+y1)/2, hh=(y1-y0)/2;
+          shapedSlab(P,[(x0+x1)/2, cy, d/2],
+            [(x1-x0)/2, hh*(0.90+h2(Math.round(y0*97),k,7)*0.12), d/2],
+            (h2(Math.round(y0*97),k,8)-0.5)*0.46*o.irr,
+            (h2(Math.round(y0*97),k,9)-0.5)*0.30*o.irr,
+            (h2(Math.round(y0*97),k,10)-0.5)*0.10*o.irr, o.face, 0.75,
+            o.top, Math.round(y0*97)*31+k, o.irr);
+        }
+        x+=w; k++;
+      }
+    }},
+  granite:{ name:'Blocky granite', face:[1,42,41,40,39,38,37], recess:[0,1,42],
+    cap:[42,41,40,39,38,37], talus:[1,42,41,40,39], crest:'rolling', top:'round',
+    course(P,y0,y1,W,o){
+      let x=0,k=0;
+      const off=h2(Math.round(y0*97),21,3)*o.bw*1.4;
+      while(x<W){
+        const w=o.bw*(0.9+h2(Math.round(y0*97),k,22)*1.5*(0.4+o.irr));
+        const d=o.relief*(0.45+h2(Math.round(y0*97),k,23)*1.1);
+        const g=o.frac*0.10;
+        const x0=Math.max(0,x-off), x1=Math.min(W,x+w-g-off);
+        if(x1>x0+0.05){
+          const cy=(y0+y1)/2, hh=(y1-y0)/2;
+          shapedSlab(P,[(x0+x1)/2,cy,d/2],[(x1-x0)/2,hh*(0.88+h2(Math.round(y0*97),k,24)*0.14),d/2],
+            (h2(Math.round(y0*97),k,25)-0.5)*0.58*o.irr,
+            (h2(Math.round(y0*97),k,26)-0.5)*0.40*o.irr,
+            (h2(Math.round(y0*97),k,27)-0.5)*0.22*o.irr, o.face, 0.6,
+            o.top, Math.round(y0*97)*37+k, o.irr);
+          if(h2(Math.round(y0*97),k,28)<0.30)     // a rounded boss weathered proud
+            P.push(ell([(x0+x1)/2+(h2(y0*97|0,k,29)-0.5)*0.2, cy, d*0.9],
+              [(x1-x0)/2*0.55,hh*0.6,d*0.5], o.face,0.7));
+        }
+        x+=w;k++;
+      }
+    }},
+  columnar:{ name:'Columnar basalt', face:[1,31,42,41,40,39], recess:[0,0,1],
+    cap:[31,42,41,40,39,38], talus:[1,31,42,41], crest:'castellated', top:'chip',
+    course(P,y0,y1,W,o){
+      const n=Math.max(2,Math.round(W/(o.bw*0.55)));
+      for(let k=0;k<n;k++){
+        const cw=W/n, x0=k*cw, jitter=(h2(k,0,31)-0.5)*cw*0.22*o.irr;
+        const d=o.relief*(0.4+h2(k,Math.round(y0*13),32)*0.8);
+        const g=o.frac*0.05;
+        shapedSlab(P,[x0+cw/2+jitter,(y0+y1)/2,d/2],
+          [cw/2-g,(y1-y0)/2*1.02,d/2],
+          (h2(k,Math.round(y0*13),35)-0.5)*0.26*o.irr,
+          (h2(k,Math.round(y0*13),33)-0.5)*0.34*o.irr,
+          (h2(k,0,34)-0.5)*0.07*o.irr, o.face,0.45,
+          o.top, Math.round(y0*13)*41+k, o.irr);
+      }
+    }},
+  sandstone:{ name:'Eroded sandstone', face:[63,62,61,60,59,58,36], recess:[43,63,62],
+    cap:[62,61,60,59,58,36], talus:[63,62,61,60], crest:'domed', top:'round', topFixed:true,
+    course(P,y0,y1,W,o){
+      const n=Math.max(2,Math.round(W/(o.bw*0.8)));
+      for(let k=0;k<n;k++){
+        const cw=W/n, cx=k*cw+cw/2+(h2(k,Math.round(y0*29),41)-0.5)*cw*0.3*o.irr;
+        const d=o.relief*(0.5+h2(k,Math.round(y0*29),42)*0.9);
+        const hh=(y1-y0)/2;
+        P.push(ell([cx,(y0+y1)/2,d*0.55],
+          [cw*(0.62+h2(k,Math.round(y0*29),43)*0.35), hh*(1.0+h2(k,0,44)*0.25), d*0.75],
+          o.face,0.55));
+      }
+      for(let k=0;k<Math.round(n*1.6);k++){            // wind scallops along the bedding
+        const cx=h2(k,Math.round(y0*29),45)*W;
+        P.push(ell([cx,y0+(y1-y0)*h2(k,0,46),o.relief*0.85],
+          [o.bw*0.30,(y1-y0)*0.22,o.relief*0.30], o.face,0.5));
+      }
+    }},
+  shale:{ name:'Flaky shale', face:[1,31,42,41,40,39], recess:[0,1,31],
+    cap:[31,42,41,40,39,38], talus:[1,31,42,41,40], crest:'jagged', top:'flat',
+    course(P,y0,y1,W,o){
+      const layers=Math.max(2,Math.round((y1-y0)/0.05));
+      for(let li=0;li<layers;li++){
+        const ly=y0+(y1-y0)*(li+0.5)/layers, lh=(y1-y0)/layers*0.62;
+        let x=0,k=0;
+        while(x<W){
+          const w=o.bw*(0.35+h2(Math.round(ly*211),k,51)*0.8*(0.4+o.irr));
+          const d=o.relief*(0.2+h2(Math.round(ly*211),k,52)*0.7);
+          const x1=Math.min(W,x+w-o.frac*0.05);
+          if(x1>x+0.02)
+            P.push(slab([(x+x1)/2,ly,d/2],[(x1-x)/2,lh,d/2],
+              (h2(Math.round(ly*211),k,53)-0.5)*0.52*o.irr,
+              (h2(Math.round(ly*211),k,55)-0.5)*0.22*o.irr,
+              (h2(Math.round(ly*211),k,54)-0.5)*0.08*o.irr,o.face,0.9));
+          x+=w;k++;
+        }
+      }
+    }},
+  chalk:{ name:'Chalk', top:'round', topFixed:true, face:[41,40,39,38,37,48,22], recess:[42,41,40],
+    cap:[40,39,38,37,48,22], talus:[41,40,39,38,37], crest:'domed',
+    // Soft, near-white, and weathered round rather than blocky. Rain cuts vertical
+    // runnels down the face, so the ribs between them carry the texture.
+    course(P,y0,y1,W,o){
+      const n=Math.max(2,Math.round(W/(o.bw*0.95)));
+      for(let k=0;k<n;k++){
+        const cw=W/n, cx=k*cw+cw/2+(h2(k,Math.round(y0*31),401)-0.5)*cw*0.26*o.irr;
+        const d=o.relief*(0.40+h2(k,Math.round(y0*31),402)*0.75);
+        P.push(ell([cx,(y0+y1)/2,d*0.55],
+          [cw*0.62,(y1-y0)/2*1.08,d*0.72],o.face,0.35));
+      }
+      const nf=Math.max(2,Math.round(W*2.4));
+      for(let k=0;k<nf;k++){
+        const cx=h2(k,0,403)*W;
+        P.push(ell([cx+(h2(k,Math.round(y0*17),404)-0.5)*0.04,(y0+y1)/2,o.relief*0.92],
+          [0.026+h2(k,1,405)*0.018,(y1-y0)/2*1.12,0.028],o.face,0.22));
+      }
+    }},
+  conglom:{ name:'Conglomerate', top:'round', face:[31,32,63,62,61,60,59], recess:[1,31,32],
+    cap:[32,63,62,61,60,59], talus:[31,32,63,62,61], crest:'jagged',
+    // Rounded cobbles set in a finer matrix. The cobbles weather proud, which is why
+    // the skyline breaks up rather than holding a clean line.
+    course(P,y0,y1,W,o){
+      let x=0,k=0;
+      while(x<W){
+        const w=o.bw*(0.7+h2(Math.round(y0*53),k,411)*0.9);
+        const d=o.relief*(0.22+h2(Math.round(y0*53),k,412)*0.5);
+        const x1=Math.min(W,x+w-o.frac*0.05);
+        if(x1>x+0.03)
+          shapedSlab(P,[(x+x1)/2,(y0+y1)/2,d/2],[(x1-x)/2,(y1-y0)/2*0.98,d/2],
+            (h2(Math.round(y0*53),k,413)-0.5)*0.22*o.irr,0,0,o.face,0.95,
+            o.top, Math.round(y0*53)*43+k, o.irr);
+        x+=w;k++;
+      }
+      const nc=Math.max(3,Math.round(W*(y1-y0)*26));
+      for(let q=0;q<nc;q++){
+        const cx=h2(q,Math.round(y0*53),414)*W, cy=y0+h2(q,1,415)*(y1-y0);
+        const r=0.034+h2(q,2,416)*0.072;
+        P.push(ell([cx,cy,o.relief*(0.55+h2(q,3,417)*0.80)],
+          [r*1.15,r*(0.8+h2(q,4,418)*0.4),r*0.85],o.face,0.45));
+      }
+    }},
+  tuff:{ name:'Volcanic tuff', top:'round', topFixed:true, face:[1,43,44,45,46,47], recess:[0,1,43],
+    cap:[43,44,45,46,47,24], talus:[1,43,44,45,46], crest:'castellated',
+    // Welded ash: bubbly and rounded throughout, and jointed enough that the top
+    // breaks into squared blocks.
+    course(P,y0,y1,W,o){
+      const n=Math.max(4,Math.round(W*(y1-y0)*30));
+      for(let k=0;k<n;k++){
+        const cx=h2(k,Math.round(y0*61),421)*W, cy=y0+h2(k,1,422)*(y1-y0);
+        const r=0.042+h2(k,2,423)*0.080;
+        P.push(ell([cx,cy,o.relief*(0.38+h2(k,3,424)*0.95)],
+          [r,r*(0.78+h2(k,4,425)*0.35),r*0.72],o.face,0.95));
+      }
+      const nv=Math.max(2,Math.round(W*(y1-y0)*10));
+      for(let k=0;k<nv;k++){                              // vesicles pocking the surface
+        const cx=h2(k,Math.round(y0*61),426)*W, cy=y0+h2(k,1,427)*(y1-y0);
+        P.push(ell([cx,cy,o.relief*1.02],[0.020,0.018,0.016],o.face,0.30));
+      }
+    }},
+  schist:{ name:'Schist', face:[16,15,53,54,55,56], recess:[16,16,15],
+    cap:[15,53,54,55,56,57], talus:[16,15,53,54], crest:'dipping', top:'flat',
+    // Foliated and folded: the layers are wavy rather than flat, and the whole
+    // sequence dips, so the crest runs off at an angle. Its layers are far too thin to
+    // take a block-top shape, and do not need one — each slab is already tilted by the
+    // fold it sits on, so the dip is built into the foliation itself.
+    course(P,y0,y1,W,o){
+      const layers=Math.max(2,Math.round((y1-y0)/0.048));
+      for(let li=0;li<layers;li++){
+        const base=y0+(y1-y0)*(li+0.5)/layers, lh=(y1-y0)/layers*0.60;
+        const segs=Math.max(3,Math.round(W/Math.max(0.12,o.bw*0.55)));
+        for(let q=0;q<segs;q++){
+          const sw=W/segs, cx=q*sw+sw/2;
+          const ph=cx*2.3+li*0.85;
+          const wob=Math.sin(ph)*(y1-y0)*0.20*(0.3+o.irr);
+          const d=o.relief*(0.28+h2(li,q,431)*0.72);
+          shapedSlab(P,[cx,base+wob,d/2],[sw*0.56,lh,d/2],
+            Math.cos(ph)*0.34*(0.3+o.irr),0,
+            (h2(li,q,432)-0.5)*0.08*o.irr,o.face,0.85,
+            o.top, li*97+q, o.irr);
+        }
+      }
+    }},
+  prow:{ name:'Faceted quartzite', face:[1,42,41,40,39,38,22], recess:[0,1,42],
+    cap:[42,41,40,39,38,37], talus:[1,42,41,40,39], crest:'flat',
+    top:'flat', topFixed:true, win:[-0.14,0.60],
+    // Blocks yawed 45 degrees about the vertical, so a vertical edge points straight at
+    // the camera. Each block reads as a prow with a lit left facet and a shadowed right
+    // one. A box turned 45 degrees has equal x and z extents, so the depth cannot be set
+    // independently of the width — the block is sunk backwards instead and only the tip
+    // stands proud, which is what the relief slider drives.
+    course(P,y0,y1,W,o){
+      let x=0,k=0;
+      const sd=Math.round(y0*89);
+      const off=h2(sd,21,461)*o.bw*0.8;
+      while(x<W){
+        const w=o.bw*(0.85+h2(sd,k,462)*0.85*(0.4+o.irr));
+        const x0=Math.max(0,x-off), x1=Math.min(W,x+w-o.frac*0.07-off);
+        if(x1>x0+0.05){
+          const hw=(x1-x0)/2, cy=(y0+y1)/2, hh=(y1-y0)/2;
+          const D=o.relief*(0.55+h2(sd,k,463)*0.95);      // how far the tip stands out
+          const e=hw*0.7071;                               // equal edges -> centred prow
+          P.push(slab([(x0+x1)/2, cy, D-hw],
+            [e, hh*(0.92+h2(sd,k,464)*0.12), e],
+            (h2(sd,k,465)-0.5)*0.10*o.irr,
+            Math.PI/4+(h2(sd,k,466)-0.5)*0.13*o.irr,
+            (h2(sd,k,467)-0.5)*0.07*o.irr, o.face, 0.45));
+          if(h2(sd,k,468)<0.22){                           // a chip knocked off the edge
+            const r=hw*(0.18+h2(sd,k,469)*0.16);
+            P.push(ell([(x0+x1)/2+(h2(sd,k,470)-0.5)*hw*0.7, cy+(h2(sd,k,471)-0.5)*hh,
+              D-r*0.4],[r,r*0.85,r*0.8],o.face,0.55));
+          }
+        }
+        x+=w;k++;
+      }
+    }},
+  ice:{ name:'Glacier face', whole:true, top:'pitch', topFixed:true,
+    // Glacial ice reads pale where it is lit and saturated blue only where it is deep,
+    // so the ramp runs blue->white and the lambert window is set low enough that a plain
+    // lit face lands near white. Occlusion is what carries a crevasse down into blue.
+    face:[17,18,19,20,21,57,22], recess:[16,17,18], win:[0.04,0.46], crest:'jagged',
+    cap:[19,20,21,57,22,22], talus:[17,18,51,19,21],
+    // Built to the structure of a real glacier terminus rather than as stacked masonry.
+    // The strata ARE the geometry: each serac is a column of thin banded slabs, so
+    // layering and block structure come from one construction instead of two.
+    build(P,W,H,o){
+      const und=+$('under').value/100, shr=+$('shear').value/100;
+      const vlt=+$('vault').value/100, dst=+$('dust').value/100;
+      const fld=+$('fold').value/100, scl=+$('scallop').value/100;
+      const win=[0.04,0.46];
+      // Layers of compressed firn, with darker horizons where dust, rock flour or ash
+      // was trapped during that season.
+      const ICE =[MAT([17,18,19,20,21,57,22],...win), MAT([17,18,51,19,21,57,22],...win)];
+      const FIRN= MAT([18,19,20,21,57,22,22],...win);
+      // debris horizons: dust, rock flour and ash trapped in a past season
+      const DUST=[MAT([16,31,32,63,62,60],...win), MAT([16,17,42,41,40,39],...win),
+                  MAT([1,31,42,41,39,38],...win)];
+      const BASAL=MAT([1,31,42,41,40,39],...win);
+      const RCS = MAT([16,17,18,51],0.05,0.85);
+
+      // Warmer water melts the submerged ice faster than air melts the ice above, so
+      // the profile is concave low down and the upper face overhangs.
+      const setb = y => -und*0.62*Math.pow(1-Math.min(1,y/H),1.8);
+
+      // Subglacial meltwater exits at the terminus, vaulting an arch into the base.
+      const vx=W*(0.26+h2(0,1,201)*0.46);
+      const vr=vlt*Math.min(W*0.30,H*0.34), vh=vr*1.25;
+      const inVault=(x,y)=> vlt>0.03 && vr>0.05 &&
+        (Math.pow((x-vx)/vr,2)+Math.pow(y/vh,2))<1;
+
+      const bandH=Math.max(0.045,(+$('ch').value/100)*0.42);
+      const tw=Math.max(0.16,o.bw*0.80);
+      const nT=Math.max(2,Math.round(W/tw));
+      const gap=o.frac*0.06;
+      const towers=[];
+      for(let t=0;t<nT;t++){
+        const xa=W*t/nT, xb=W*(t+1)/nT;
+        const jit=(h2(t,1,211)-0.5)*(xb-xa)*0.34*o.irr;
+        towers.push({
+          xa:xa+jit+gap*0.5, xb:xb+jit-gap*0.5,
+          z:o.relief*(0.34+h2(t,2,212)*1.00),
+          // crevasses that are not vertical separate the face into leaning towers
+          lean:(h2(t,3,213)-0.5)*0.34*(0.25+o.irr),
+          ys:H*(0.30+h2(t,4,214)*0.45),
+          dz:(h2(t,5,215)-0.5)*o.relief*1.5*shr,
+          fo:(h2(t,6,216)-0.5)*bandH*2.6*fld,
+          top:H-(h2(t,7,217)*0.10*H)*(1-0.0)
+        });
+      }
+      const bandMat=(bi,y)=>{
+        // the basal ice is dirty: it has been dragging over bedrock
+        if(y<H*0.10*(0.4+dst)) return BASAL;
+        const r=h2(bi,0,221);
+        if(r<dst*0.30) return DUST[Math.floor(h2(bi,1,222)*3)%3];
+        if(r<dst*0.30+0.18) return FIRN;
+        return ICE[Math.floor(h2(bi,2,223)*2)%2];
+      };
+      const faceZ=(x,y)=>{                       // where the wall surface sits
+        for(const T of towers) if(x>=T.xa&&x<=T.xb)
+          return Math.max(0.02,T.z+(y>T.ys?T.dz:0)+setb(y));
+        return 0.02;
+      };
+      const foldAt=x=>{ for(const T of towers) if(x>=T.xa&&x<=T.xb) return T.fo; return 0; };
+      const bandAt=(x,y)=>Math.round((y+foldAt(x))/bandH);
+
+      for(const T of towers){
+        const cw=T.xb-T.xa; if(cw<=0.02) continue;
+        for(let y=0;y<T.top;y+=bandH){
+          const bh=Math.min(bandH,T.top-y), cy=y+bh/2;
+          const bi=Math.round((cy+T.fo)/bandH);
+          const M=bandMat(bi,cy);
+          const front=Math.max(0.02,T.z+(cy>T.ys?T.dz:0)+setb(cy));
+          // resolve the arch finely only where it actually cuts the wall
+          const segs = (vlt>0.03 && cy<vh*1.2) ? Math.max(1,Math.round(cw/0.13)) : 1;
+          for(let q=0;q<segs;q++){
+            const sa=T.xa+cw*q/segs, sb=T.xa+cw*(q+1)/segs, sc=(sa+sb)/2;
+            if(inVault(sc,cy)) continue;         // meltwater vault: leave the void
+            P.push(slab([sc,cy,front*0.5],[(sb-sa)*0.5,bh*0.52,front*0.5],
+              (h2(bi,q+T.xa*13|0,224)-0.5)*0.30*o.irr, 0, T.lean, M, 0.30));
+          }
+        }
+      }
+      // arch lining, so the vault reads as a tunnel rather than a hole
+      if(vlt>0.03&&vr>0.05){
+        for(let k=0;k<22;k++){
+          const a=Math.PI*(k+0.5)/22, ax=vx+Math.cos(a)*vr*0.92, ay=Math.sin(a)*vh*0.92;
+          if(ax<-0.1||ax>W+0.1) continue;
+          P.push(slab([ax,ay,-0.02],[vr*0.10,vh*0.10,0.09],0,0,a-Math.PI/2,RCS,0.35));
+        }
+      }
+      // Brittle cleavage: calving leaves flat angular facets, so a few large flat
+      // planes stay — but only at serac scale. The bulk of the surface is not faceted.
+      for(let k=0;k<Math.round(W*1.1);k++){
+        const cx=0.2+h2(k,1,231)*(W-0.4), cy=0.30+h2(k,2,232)*(H-0.55);
+        if(inVault(cx,cy)) continue;
+        const fw=(0.10+h2(k,3,233)*0.24)*W*0.5, fh=(0.12+h2(k,4,234)*0.30)*H*0.45;
+        P.push(slab([cx,cy,faceZ(cx,cy)+o.relief*0.10],[fw*0.5,fh*0.5,o.relief*0.16],
+          (h2(k,5,235)-0.5)*0.5,(h2(k,6,236)-0.5)*0.6,(h2(k,7,237)-0.5)*1.5,
+          ICE[k&1],0.12));
+      }
+      // Knobble: the weathered face is a mass of rounded bulbous forms, not flat plates.
+      // These carry the visible texture; the slabs behind them carry the layering.
+      if(scl>0.03){
+        // Size these in pixels, not world units. At 16 px/unit a radius of 0.05 is
+        // sub-pixel and the slabs behind simply show through — the first attempt at
+        // this covered only a fifth of the visible face.
+        const uPix=1/PPU;
+        const n=Math.round(W*H*(15+26*scl));
+        for(let k=0;k<n;k++){
+          const cx=h2(k,1,241)*W, cy=h2(k,2,242)*H;
+          if(inVault(cx,cy)) continue;
+          const r=(1.5+h2(k,3,243)*2.1)*uPix*(0.7+scl*0.7);
+          P.push(ell([cx,cy,faceZ(cx,cy)+r*0.35],
+            [r*(0.90+h2(k,6,246)*0.55), r*(0.72+h2(k,7,247)*0.60), r*(0.70+h2(k,4,244)*0.55)],
+            bandMat(bandAt(cx,cy),cy), 0.55));
+        }
+        for(let k=0;k<Math.round(n*0.30);k++){        // a coarser lumpy layer over it
+          const cx=h2(k,1,251)*W, cy=h2(k,2,252)*H;
+          if(inVault(cx,cy)) continue;
+          const r=(3.2+h2(k,3,253)*3.6)*uPix*(0.7+scl*0.6);
+          P.push(ell([cx,cy,faceZ(cx,cy)+r*0.26],
+            [r*(0.95+h2(k,4,254)*0.5), r*(0.78+h2(k,5,255)*0.5), r*0.62],
+            bandMat(bandAt(cx,cy),cy), 0.40));
+        }
+      }
+      // Meltwater flutes: long vertical runnels. Built as the ribs between them, so the
+      // untouched face in the gaps reads as the groove.
+      const flu=+$('flute').value/100;
+      if(flu>0.03){
+        const nf=Math.max(2,Math.round(W*3.2*flu));
+        for(let k=0;k<nf;k++){
+          const cx=h2(k,1,261)*W;
+          const y0=H*(0.10+h2(k,2,262)*0.35), y1=Math.min(H,y0+H*(0.25+h2(k,3,263)*0.55));
+          const segs=Math.max(2,Math.round((y1-y0)/0.16));
+          for(let q=0;q<segs;q++){
+            const yy=y0+(y1-y0)*(q+0.5)/segs;
+            if(inVault(cx,yy)) continue;
+            const w=(0.9+h2(k,q+4,264)*1.3)/PPU*(0.7+flu*0.7);
+            P.push(ell([cx+(h2(k,q,265)-0.5)*0.03, yy, faceZ(cx,yy)+o.relief*0.13],
+              [w, (y1-y0)/segs*0.62, w*0.85], ICE[0], 0.30));
+          }
+        }
+      }
+    }},
+};
+let style='strata';
+
+
+// Build the wedge surface from the style's OWN geometry rather than a flat plane.
+// The style generates into a scratch list over the wedge's own extent, the result is
+// pushed forward so its deepest block fronts at the wedge face, and anything above the
+// path line is dropped. Courses are generated on the same y grid as the wall, so the
+// strata run continuously from the wall into the wedge instead of restarting.
+function wedgeRock(P,S,o,xFrom,xTo,yMax,underAt,zbW,zfW,ground,W){
+  const wSpan=xTo-xFrom;
+  if(wSpan<=0.02) return;
+  const tmp=[];
+  // Generated at the WALL's full width from the wall's own origin, not at wSpan from
+  // xFrom. Courses lay blocks left-to-right hashing on the block index k, so starting at
+  // xFrom put k=0 in the middle of the face: different widths, different hashes, a
+  // visibly different stone than the wall above. Built full-width and clipped to the
+  // span, every block here is the same block the wall would have put at that x.
+  const gW=W||wSpan;
+  if(S.whole){
+    S.build(tmp,gW,Math.max(0.2,yMax),o);
+  } else {
+    const chh=+$('ch').value/100;
+    let y=0, ci=0;
+    while(y<yMax){
+      const th=chh*(0.6+h2(ci,0,71)*0.9);
+      const y1=Math.min(yMax,y+th);
+      S.course(tmp,y,y1,gW,o);
+      y=y1; ci++;
+    }
+  }
+  if(!tmp.length) return;
+  // maxZ must be measured over the blocks that actually SURVIVE into the wedge, not over
+  // the whole generated width. Measured globally, the deepest block is usually outside
+  // the span, so dz lands that one on zf and everything inside the span falls short of
+  // the face — the filler in front then hides the texture entirely.
+  const keep=[];
+  for(const q of tmp){
+    const b=aabb(q), cx=(b[0][0]+b[1][0])/2;
+    if(cx<xFrom-0.03||cx>xTo+0.03) continue;
+    if(b[1][1]>underAt(cx)+0.02) continue;
+    if(b[1][1]<ground-0.05) continue;
+    keep.push(q);
+  }
+  if(!keep.length) return;
+  let maxZ=0, minFront=Infinity;
+  for(const q of keep){
+    const b=aabb(q);
+    if(b[1][2]>maxZ) maxZ=b[1][2];
+    if(b[1][2]<minFront) minFront=b[1][2];
+  }
+  // Wedge texture offset: shifts the generated rock forward (+) or back (-) along z.
+  // Slider is -100..100 mapping to -0.5..0.5 in world units.
+  const wtex=(+$('wtex').value/200);
+  const dz=zfW-Math.max(0.02,maxZ)+wtex;
+  for(const q of keep){
+    if(q.t==='box'){ q.lo[2]+=dz; q.hi[2]+=dz; }
+    else { q.c[2]+=dz; }
+    q.wedge=1;                        // tag: lets the clip invariant be checked directly
+    P.push(q);
+  }
+  // The SHALLOWEST block's front, in final coordinates. Block depths spread with relief
+  // (roughly relief*0.25 to relief*1.20) while dz only pins the deepest one to zfW, so
+  // this front recedes as relief rises. Anything filled in front of it eats texture.
+  wedgeRock.minFront = minFront+dz;
+  return Math.max(0.02,maxZ);
+}
+
+
+/* ---------- block tops ----------
+   At azimuth 0 / elevation 33 a block's top face is only a few pixels deep, so what
+   actually reads is the top EDGE profile across the block's width. These shape that
+   edge: the body is carved down and a cap of the chosen form is set on it. */
+const TOPS={flat:'Flat',round:'Rounded',pitch:'Pitched',chip:'Chipped',
+            slope:'Sloped',step:'Stepped',mixed:'Mixed'};
+function shapedSlab(P,c,r,rx,ry,rz,mat,ro,kind,sd,irr){
+  let k=kind;
+  if(k==='mixed'){ const q=h2(sd,7,451);
+    k = q<0.28?'round' : q<0.46?'flat' : q<0.64?'chip' : q<0.79?'slope' : q<0.91?'step' : 'pitch'; }
+  // Shaping a block whose top is under ~3px tall on screen buys nothing and costs a
+  // solid per block — schist's foliation alone doubled the scene before this guard.
+  if(k==='flat'||r[1]<Math.max(0.02,1.5/(ce*PPU))){ P.push(slab(c,r,rx,ry,rz,mat,ro)); return; }
+  // amp floored in pixels: below roughly a pixel and a half the shaping is invisible
+  const amp=Math.min(r[1]*0.80,
+    Math.max(1.5/(ce*PPU), r[1]*(0.34+0.34*h2(sd,1,452))*(0.45+irr)));
+  const top=c[1]+r[1], hw=r[0], hd=r[2], cz=c[2];
+  P.push(slab([c[0],c[1]-amp/2,cz],[hw,r[1]-amp/2,hd],rx,ry,rz,mat,ro));
+  const base=top-amp;
+  switch(k){
+    case 'round':
+      P.push(ell([c[0],base,cz],[hw,amp,hd],mat,ro*0.8)); break;
+    case 'pitch': {
+      const a=Math.atan2(amp,hw)*0.85;
+      P.push(slab([c[0]-hw*0.5,base+amp*0.42,cz],[hw*0.56,amp*0.44,hd],0,0, a,mat,ro));
+      P.push(slab([c[0]+hw*0.5,base+amp*0.42,cz],[hw*0.56,amp*0.44,hd],0,0,-a,mat,ro));
+      break; }
+    case 'slope': {
+      const dir=h2(sd,2,453)<0.5?1:-1;
+      P.push(slab([c[0],base+amp*0.5,cz],[hw*1.02,amp*0.52,hd],0,0,
+        dir*Math.atan2(amp,hw*1.9),mat,ro)); break; }
+    case 'chip': {
+      const f=0.42+h2(sd,3,454)*0.30, left=h2(sd,4,455)<0.5;
+      const a=left? c[0]-hw : c[0]+hw-2*hw*f, b=left? c[0]-hw+2*hw*f : c[0]+hw;
+      P.push(box([a,base,cz-hd],[b,top,cz+hd],mat,ro)); break; }
+    case 'step': {
+      const left=h2(sd,5,456)<0.5;
+      const a=left? c[0]-hw : c[0], b=left? c[0] : c[0]+hw;
+      P.push(box([a,base,cz-hd],[b,top,cz+hd],mat,ro)); break; }
+  }
+}
+
+/* ---------- crest profile ----------
+   The shape of the wall's top face. Every style used to share one flat table top;
+   this makes the crest part of a rock's identity, since what a cliff does at its
+   skyline says as much about it as the face texture does. */
+const CRESTS={flat:'Flat table', domed:'Domed', rolling:'Rolling', jagged:'Jagged',
+              castellated:'Castellated', terraced:'Terraced', dipping:'Dipping'};
+function crestOff(kind,x,W,amt){
+  const u=Math.max(0,Math.min(1,x/Math.max(0.001,W)));
+  switch(kind){
+    case 'domed':   return amt*(0.10+0.90*Math.sin(Math.PI*u));
+    case 'rolling': return amt*(0.50+0.34*Math.sin(u*7.4+h2(0,1,441)*6.3)
+                                    +0.20*Math.sin(u*14.9+h2(0,2,441)*6.3));
+    case 'jagged':  { const k=Math.floor(u*W*3.4);
+                      return amt*(0.10+1.05*Math.pow(h2(k,2,442),1.8)); }
+    case 'castellated': { const k=Math.floor(u*W*1.5);
+                      return amt*(h2(k,3,443)<0.45?0.04:0.92); }
+    case 'terraced': { const k=Math.floor(u*3.0);
+                      return amt*(0.12+0.88*(k/2)); }
+    case 'dipping': return amt*(0.05+1.05*u);
+    default: return 0;
+  }
+}
+
+/* ---------- build the wall ---------- */
+function buildWall(){
+  const W=+$('ww').value, H=+$('wh').value;
+  const S=STYLES[style];
+  const o={ bw:+$('bw').value/100, relief:+$('relief').value/100*0.55,
+            frac:+$('frac').value/100, irr:+$('irr').value/100,
+            face:MAT(S.face,...(S.win||[0.11,0.53])),
+            top:($('btop').value==='auto' ? (S.top||'flat') : $('btop').value) };
+  const RECESS=MAT(S.recess,0.08,0.52), TALUS=MAT(S.talus,0.20,0.80),
+        CAPM=MAT(S.cap,0.50,0.98);
+  const batter=+$('batter').value/100*0.5;
+  const P=[];
+  // recess plane: everything the cracks look through onto
+  P.push(box([0,-0.10,-0.26],[W,H-0.03,-0.02],RECESS,0.4));
+  // Lean is applied per solid from its own height, so it works for coursed and
+  // whole-face styles alike.
+  const applyLean=from=>{
+    for(let i=from;i<P.length;i++){
+      const q=P[i];
+      const cy = q.t==='box' ? (q.lo[1]+q.hi[1])/2 : q.c[1];
+      const lean = batter*Math.max(0,Math.min(1,cy/Math.max(0.001,H)));
+      if(q.t==='box'){ q.lo[2]-=lean; q.hi[2]-=lean; } else q.c[2]-=lean;
+    }
+  };
+  if(S.whole){
+    const before=P.length;
+    S.build(P,W,H,o);
+    applyLean(before);
+  } else {
+    const chh=+$('ch').value/100;
+    let y=0, ci=0;
+    while(y<H){
+      const th=chh*(0.6+h2(ci,0,71)*0.9);
+      const y1=Math.min(H,y+th);
+      const before=P.length;
+      S.course(P,y,y1,W,o);
+      applyLean(before);
+      y=y1; ci++;
+    }
+  }
+  const capTop=H+0.10;
+  // Front plane of the upper plateau. Hoisted above the ramp because the ramp's landing
+  // and the wall above it both align to this same edge.
+  const zCapF=0.30-batter*0.4;
+  const crestKind = $('crest').value==='auto' ? (S.crest||'flat') : $('crest').value;
+  const cAmt = (+$('crestAmt').value/100)*H*0.24;
+  const crestY = x => capTop + crestOff(crestKind,x,W,cAmt);
+
+  // A ramp traversing the face. Built as a shelf standing proud of whatever the style
+  // protrudes, because there is no subtraction to cut one in. Its tread is near
+  // horizontal, so under an overhead light it reads bright against the vertical rock.
+  const rdir=$('rampDir').value;
+  if(rdir!=='none'){
+    // The path is the top of a solid wedge of cliff, not a shelf stuck to the face.
+    // The wedge is the path's own footprint extruded straight down to the ground: it
+    // never gets wider or deeper than the tread. Because it tapers to nothing at the
+    // foot, the path emerges from the ground on its own and needs no landing to fake it.
+    const rtype=$('rampType').value;
+    // The pixel floor is a guard against a sub-pixel tread, not a design value. Set at
+    // 5.2px it swallowed the bottom half of the slider — every width below ~55% clamped
+    // to the same number and the control did nothing.
+    const td=Math.max(0.22+(+$('rampW').value/100)*0.78, 2.0/(se*PPU));
+    const run=Math.max(0.22,+$('rampRun').value/100)*W;
+    // The path delivers onto the plateau SURFACE. crestY is the crest profile, which
+    // rides above capTop wherever the crest rises — targeting it floated the top of the
+    // ramp above the ground the walker is supposed to step onto.
+    const rev=(rdir==='left');
+    const xLand=rev? W-run : run;
+    const yBot=0, yTop=Math.min(crestY(xLand),capTop), ground=-0.09;
+    const xAt=t=>rev? W-t*run : t*run;
+    // Linear rise. The tread is drawn by put() as a single rotated slab whose angle comes
+    // from atan2(yTop-yBot, run) — a straight line. Any curve applied here is followed by
+    // the wedge and the columns but NOT by that slab, so the two separate: the wedge
+    // rides above the ramp surface and bends away from it. The landing at the top is a
+    // separate level deck, which is what levels the arrival without curving the climb.
+    const yAt=t=>yBot+t*(yTop-yBot);
+    const zb=o.relief*0.60, zf=zb+td;                 // the footprint, front to back
+    // With cap 'none' the path used to fall through to S.cap — the wall's OWN cap rock —
+    // so the tread was drawn from the same colours as the surrounding stone and barely
+    // separated from it. These give the bare-rock path its own material independent of
+    // the style, so it reads as a made surface laid on the cliff rather than more cliff.
+    const PMAT={pale:[48,22,37,38,39,40], warm:[36,23,58,59,60,61],
+                dark:[0,1,31,42,41,40],  clay:[43,63,62,61,60,59],
+                gravel:[1,42,41,40,39,38]}[$('pathMat').value];
+    const PR={grass:[16,15,14,13,12,11], snow:[40,39,38,37,48,22],
+              sand:[61,60,59,58,36,23], none:(PMAT||S.cap)}[$('cap').value];
+    // Tread and riser windows are pushed apart: the tread takes the top of the ramp and
+    // the riser is driven well down, so the horizontal catches light and the vertical
+    // under each nose goes properly dark instead of both landing mid-ramp.
+    const PATH=MAT(PR,0.62,1.00);                     // horizontal: treads
+    const RISE=MAT(PR,0.04,0.34);                     // vertical: riser strip
+    // The fill behind the wedge blocks plays exactly the role the recess plane plays
+    // behind the wall blocks: the dark gap seen between solids. It must therefore be the
+    // SAME material as RECESS, not the face. With the face palette the gaps between wedge
+    // blocks read as bright stone while the gaps in the wall read as shadow, which makes
+    // the wedge look like a different, flatter material no matter how the depth is tuned.
+    const WEDGE=MAT(S.recess,0.08,0.52);
+    const KERB=MAT(S.talus,0.20,0.82);
+    const tt=Math.max(0.040,1.3/(ce*PPU));            // tread thickness
+
+    if(rtype==='stairs'){
+      const ns=Math.max(3,+$('rampSteps').value);
+      const rh=Math.max(0.05,1.8/(ce*PPU));
+      const stepU=x=>{                                   // underside of the step above x
+        let t=(x-xAt(0))/(xAt(1)-xAt(0));
+        t=Math.max(0,Math.min(1,t));
+        return yAt(Math.ceil(t*ns)/ns)-tt;
+      };
+      const xlo=Math.min(xAt(0),xAt(1)), xhi=Math.max(xAt(0),xAt(1));
+      const dep=wedgeRock(P,S,o,xlo,xhi,yTop,stepU,zb,zf,ground,W)||0.3;
+      // Sit the fill just behind the SHALLOWEST block, not at a fixed fraction of dep.
+      // Tied to dep, the fill front stays put while the block depths spread with relief,
+      // so shallow blocks sink behind it and the texture gets eaten as relief rises.
+      const zBack=Math.min(zf-0.004, (wedgeRock.minFront!=null? wedgeRock.minFront-0.004 : zf-dep*0.55));
+      // Shadow at the two junctions of each step: where the tread runs back into the
+      // cliff, and where it meets the riser of the step above. Rather than painting a
+      // gradient, each junction gets a thin strip set back behind the surfaces meeting
+      // there. The renderer's AO already darkens any pixel whose neighbours within 2px
+      // sit more than 0.06 deeper, so a real recess reads as real contact shadow and
+      // stays consistent with the light — the same way the cracks between blocks work.
+      // The renderer's AO only counts a neighbour as occluding when it sits more than
+      // 0.06 deeper along the view ray, so the recess has to clear that or it does
+      // nothing at all. Sized at 0.10 world units (~0.084 projected) it fires reliably,
+      // with a pixel floor for very zoomed-out renders.
+      const gap=Math.max(0.10,2.2/(ce*PPU));     // recess depth, past the 0.06 AO cutoff
+      for(let i=0;i<ns;i++){
+        const t0=i/ns, t1=(i+1)/ns;
+        const xa=Math.min(xAt(t0),xAt(t1)), xb=Math.max(xAt(t0),xAt(t1));
+        const yt=yAt(t1), yu=yt-tt;
+        if(yu>ground+0.02)
+          P.push(box([xa,ground,zb],[xb,yu,zBack],WEDGE,0.4));       // solid behind the rock
+        // Back of the tread, against the cliff: a sliver dropped behind the tread's own
+        // back face so the inside corner occludes instead of butting flush. Its top stops
+        // AT the tread surface — any higher and the strip pokes up through the walking
+        // surface and reads as a lip floating on the step.
+        P.push(box([xa,yu,zb-0.012-gap],[xb,yt,zb-0.012],WEDGE,0.4));
+        if(yu-rh>ground)
+          P.push(box([xa,yu-rh,zb+0.005],[xb,yu,zf+0.005],RISE,0.35));// riser under the nose
+        P.push(box([xa,yu,zb-0.012],[xb,yt,zf+0.012],PATH,0.14));     // tread
+        // Contact shadow where the riser of the step above lands on this tread. It must
+        // SIT ON the tread — anchored at yt and rising from there. Hanging it off the
+        // next step's underside instead leaves it floating in mid-air well above the
+        // surface, since that underside is a full riser height up.
+        if(i<ns-1){
+          const yNext=yAt((i+2)/ns)-tt;            // underside of the next step up
+          const sTop=Math.min(yt+gap,yNext);       // never punch through the step above
+          if(sTop>yt+0.002)
+            P.push(box([xa,yt,zb-0.012-gap],[xb,sTop,zb-0.012],WEDGE,0.4));
+        }
+      }
+    } else {
+      const dxr=(rev?-1:1)*run, dyr=yTop-yBot;
+      const ang=Math.atan2(dyr,dxr), len=Math.hypot(dxr,dyr);
+      const cxm=(xAt(0)+xAt(1))/2, cym=(yBot+yTop)/2, czm=(zb+zf)/2;
+      const Vx=-Math.sin(ang), Vy=Math.cos(ang);
+      // Landing extent first, so the wedge span covers the column beneath it.
+      const lrun=Math.min(td*1.6,Math.max(0.12,run*0.10));
+      const xe=xAt(1), xfL=rev? xe-lrun : xe+lrun;
+      const la=Math.max(0,Math.min(xe,xfL)), lb=Math.min(W,Math.max(xe,xfL));
+      // Vertical columns approximating the wedge. Separate axis from the offset above:
+      // this is where the wedge ATTACHES to the ramp in Y. With the top face on the line
+      // and the slab offset by -tt along V, the underside sits 2*tt*Vy below the line in
+      // Y. Clipping anywhere shallower attaches the wedge partway up the slab's wide
+      // face — its Y centreline — instead of under its outer edge.
+      const yUnder=2*tt/Math.max(1e-6,Math.abs(Vy));
+      const slopeU=x=>{
+        let t=(x-xAt(0))/(xAt(1)-xAt(0));
+        t=Math.max(0,Math.min(1,t));
+        return yAt(t)-yUnder;
+      };
+      const xlo=Math.min(xAt(0),xAt(1),la), xhi=Math.max(xAt(0),xAt(1),lb);
+      const dep=wedgeRock(P,S,o,xlo,xhi,yTop,slopeU,zb,zf,ground,W)||0.3;
+      // Sit the fill just behind the SHALLOWEST block, not at a fixed fraction of dep.
+      // Tied to dep, the fill front stays put while the block depths spread with relief,
+      // so shallow blocks sink behind it and the texture gets eaten as relief rises.
+      const zBack=Math.min(zf-0.004, (wedgeRock.minFront!=null? wedgeRock.minFront-0.004 : zf-dep*0.55));
+      const cw=Math.max(0.07,2.0/PPU);
+      const nc=Math.max(8,Math.round(run/cw));
+      for(let i=0;i<nc;i++){
+        const t0=i/nc, t1=(i+1)/nc, tc=(t0+t1)/2;
+        const xa=Math.min(xAt(t0),xAt(t1)), xb=Math.max(xAt(t0),xAt(t1));
+        const yu=yAt(tc)-yUnder;
+        if(yu>ground+0.02) P.push(box([xa,ground,zb],[xb,yu,zBack],WEDGE,0.4));
+      }
+      // The slab is overrun past its endpoints so its foot buries into the ground instead
+      // of ending in mid-air. That overrun is only wanted at the FOOT: carried through the
+      // head it continues up the slope past yTop and the top corner pokes above the
+      // plateau. So the slab is lengthened by half the overrun and its centre slid half
+      // an overrun DOWNHILL — foot extended, head left on yTop.
+      // Both this shift and the -tt thin-axis offset must be signed by the basis, not
+      // hardcoded: at ang > 90 (ascending left) slab()'s V flips to a negative Y, so a
+      // fixed -tt RAISES the slab instead of lowering it and the head clears the plateau.
+      // vSgn/uSgn resolve the basis orientation so both directions behave identically.
+      const over=Math.max(0.10,3.5/PPU);
+      const Ux=Math.cos(ang), Uy=Math.sin(ang);
+      const vSgn=Vy>=0?1:-1;                        // +1 when V points up
+      const uSgn=Uy>=0?1:-1;                        // +1 when U points uphill
+      const sx=-uSgn*Ux*over*0.5, sy=-uSgn*Uy*over*0.5;
+      const put=(off,half,mat,ro,dz)=>P.push(slab(
+        [cxm+Vx*off*vSgn+sx, cym+Vy*off*vSgn+sy, czm+(dz||0)],
+        [len*0.5+over*0.5, half, td*0.5],0,0,ang,mat,ro));
+      // put() offsets along V, the slab's THIN axis (half-extent tt; V is in-plane, so
+      // this is the Z-up thin dimension of the ramp). Centred at 0 the centreline of that
+      // thin dimension meets the plateau and the ground, so the walking surface floats
+      // beyond both. -tt lands the top face on the line. Verified: surface meets y=0 at
+      // the foot and the plateau height at the head.
+      put(-tt-tt*1.35, Math.max(0.055,1.9/(ce*PPU)), RISE, 0.30, -0.006);  // riser strip
+      put(-tt,      tt,                           PATH, 0.14,  0);      // tread
+      // The landing continues in the direction of travel, past the top of the climb and
+      // onto the plateau — not backward in depth over the ramp it just came up.
+      if(lb-la>0.02){
+        P.push(box([la,yTop-tt,zb-0.012],[lb,yTop,zf+0.012],PATH,0.14));
+        if(yTop-tt>ground+0.02)
+          P.push(box([la,ground,zb],[lb,yTop-tt,zBack],WEDGE,0.4));
+      }
+      const nk=Math.max(4,Math.round(len/0.34));
+      for(let i=0;i<nk;i++){
+        if(h2(i,2,302)>0.5) continue;
+        const t=(i+0.5)/nk, r=0.030+h2(i,3,303)*0.032;
+        const ky=yAt(t)+tt+r*0.4;
+        if(ky+r>yTop) continue;          // would breach the plateau near the head
+        P.push(ell([xAt(t)+(h2(i,4,304)-0.5)*0.05, ky, zf-0.02],
+          [r*1.2,r,r*0.9],KERB,0.85));
+      }
+    }
+  }
+
+  // cap: the ground surface sitting on top of the wall
+  const capKind=$('cap').value;
+  // The cap is a run of columns following the crest, with the style's own rock filling
+  // in beneath wherever the crest rises above the wall proper.
+  const nCap=Math.max(8,Math.round(W/Math.max(0.09,2.0/PPU)));
+  for(let i=0;i<nCap;i++){
+    const xa=-0.1+(W+0.2)*i/nCap, xb=-0.1+(W+0.2)*(i+1)/nCap;
+    const top=crestY(Math.max(0,Math.min(W,(xa+xb)/2)));
+    if(top>capTop+0.03)
+      P.push(box([xa,H-0.06,-0.45],[xb,top-0.10,zCapF],o.face,0.80));   // rock under the rise
+    P.push(box([xa,Math.min(H-0.05,top-0.14),-0.5],[xb,top,zCapF],CAPM,0.3));
+  }
+  if(capKind!=='none'){
+    const CR={grass:MAT([16,15,14,13,12,11],0.45,0.98),
+              snow:MAT([40,39,38,37,48,22],0.45,0.98),
+              sand:MAT([61,60,59,58,36,23],0.45,0.98)}[capKind];
+    // Larger, rounder lumps rather than blades. Snow reads as smooth drifts, so it gets
+    // the biggest and least noisy; sand stays fine and rippled.
+    // Wide, squished ovaloids lying on the cap: broad in x and z, flat in y, each
+    // spun about Y so they do not read as aligned stripes. Size and density are
+    // separate controls — changing one no longer changes the other.
+    const lump=+$('lump').value/100, dens=+$('dens').value/100;
+    const CFG={grass:{n:15,r0:0.055,r1:0.115,ro:0.80,wx:1.60,wy:0.34,wz:1.30},
+               snow: {n:9, r0:0.095,r1:0.205,ro:0.26,wx:1.85,wy:0.28,wz:1.50},
+               sand: {n:19,r0:0.040,r1:0.082,ro:0.55,wx:2.00,wy:0.24,wz:1.60}}[capKind];
+    const n=Math.max(2,Math.round(W*CFG.n*dens));
+    for(let k=0;k<n;k++){
+      const cx=h2(k,0,81)*(W+0.2)-0.1, cz=-0.5+h2(k,1,82)*0.80-batter*0.4*h2(k,9,88);
+      const r=(CFG.r0+h2(k,2,83)*(CFG.r1-CFG.r0))*lump;
+      const sq=0.80+h2(k,4,89)*0.45;                  // per-lump width variation
+      const rx=r*CFG.wx*sq, ry=r*CFG.wy*(0.8+h2(k,3,84)*0.5), rz=r*CFG.wz/sq;
+      P.push(ovalY([cx,crestY(Math.max(0,Math.min(W,cx)))+ry*0.35,cz],rx,ry,rz,h2(k,5,90)*Math.PI,CR,CFG.ro));
+    }
+    for(let k=0;k<Math.max(2,Math.round(W*5*dens));k++){   // lip overhang
+      const cx=h2(k,0,85)*W, r=(CFG.r0+h2(k,2,87)*(CFG.r1-CFG.r0))*lump*0.85;
+      const rx=r*CFG.wx*0.9, ry=r*CFG.wy*1.15, rz=r*CFG.wz*0.6;
+      P.push(ovalY([cx,crestY(cx)-0.02-h2(k,1,86)*0.09,0.28-batter*0.4],
+                   rx,ry,rz,h2(k,6,92)*Math.PI,CR,CFG.ro));
+    }
+  }
+  // talus at the foot
+  const tal=+$('talus').value/100;
+  if(tal>0){
+    const n=Math.round(W*20*tal);
+    for(let k=0;k<n;k++){
+      const cx=h2(k,0,91)*W;
+      const pile=Math.pow(h2(k,1,92),1.7);
+      const cz=0.05+pile*0.55, cy=-0.02+ (1-pile)*0.55*tal;
+      const r=0.045+h2(k,2,93)*0.085;
+      P.push(ell([cx,cy,cz],[r,r*0.75,r*0.8],TALUS,0.95));
+    }
+  }
+  return {P,W,H,capTop};
+}
+
+/* ---------- render ---------- */
+let wallCv=null, stats=null;
+function renderWall(){
+  const {P,W,H,capTop}=buildWall();
+  const bands=+$('bands').value, dith=+$('dith').value/100, aoAmt=+$('ao').value/100;
+  const bb=P.map(p=>{ const [lo,hi]=aabb(p);
+    let ax=1e9,bx=-1e9,ay=1e9,by=-1e9;
+    for(const X of [lo[0],hi[0]])for(const Y of [lo[1],hi[1]])for(const Z of [lo[2],hi[2]]){
+      const qx=projX([X,Y,Z]), qy=projY([X,Y,Z]);
+      ax=Math.min(ax,qx);bx=Math.max(bx,qx);ay=Math.min(ay,qy);by=Math.max(by,qy); }
+    return [ax,bx,ay,by]; });
+  let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+  bb.forEach(b=>{mnx=Math.min(mnx,b[0]);mxx=Math.max(mxx,b[1]);mny=Math.min(mny,b[2]);mxy=Math.max(mxy,b[3]);});
+  const x0=Math.floor(mnx)-2, y0=Math.floor(mny)-2;
+  const CW=Math.ceil(mxx-mnx)+4, CH=Math.ceil(mxy-mny)+4;
+  const mid=new Int32Array(CW*CH).fill(-1), dep=new Float32Array(CW*CH), lam=new Float32Array(CW*CH);
+  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){
+    const px=x0+x+0.5, py=y0+y+0.5;
+    const a=px/PPU, b=-py/PPU;
+    const O=[RX[0]*a+UY[0]*b, RX[1]*a+UY[1]*b, RX[2]*a+UY[2]*b];
+    let best=null,bi=-1;
+    for(let k=0;k<P.length;k++){
+      const b=bb[k];
+      if(px<b[0]-1||px>b[1]+1||py<b[2]-1||py>b[3]+1) continue;
+      const h=trace(P[k],O);
+      if(h&&(!best||h.t>best.t)){best=h;bi=k;}
+    }
+    if(!best) continue;
+    const i=y*CW+x; mid[i]=bi; dep[i]=best.t; lam[i]=Math.max(0,dt(best.n,L)/LM);
+  }
+  // occlusion from depth discontinuity — this is what makes the cracks read as depth
+  const ao=new Float32Array(CW*CH);
+  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){
+    const i=y*CW+x; if(mid[i]<0) continue;
+    let occ=0,tot=0;
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+      const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=CW||Y>=CH) continue;
+      const j=Y*CW+X; if(mid[j]<0) continue; tot++;
+      if(dep[j]>dep[i]+0.06) occ++;
+    }
+    ao[i]=tot?occ/tot:0;
+  }
+  const img=new Uint8ClampedArray(CW*CH*4);
+  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){
+    const i=y*CW+x, bi=mid[i]; if(bi<0) continue;
+    const p=P[bi], M=p.m, R=M.R, steps=R.length-1;
+    const nz=(h2(x0+x,y0+y,101)-0.5)*p.ro*1.15;
+    const bay=(BAYER[(y0+y)&3][(x0+x)&3]/16-0.5)*dith*1.7;
+    const t=(lam[i]-M.lo)/Math.max(1e-6,M.hi-M.lo);
+    const v=Math.max(0,Math.min(1,t))*steps+nz+bay-ao[i]*aoAmt*1.7;
+    const q=Math.max(0,Math.min(bands-1,Math.round(v/steps*(bands-1))));
+    const c=R[Math.round(q/(bands-1)*steps)];
+    const o=i*4; img[o]=c[0];img[o+1]=c[1];img[o+2]=c[2];img[o+3]=255;
+  }
+  if($('outline').checked){
+    const ink=RGB[0], cp=img.slice();
+    for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){
+      const i=y*CW+x; if(cp[i*4+3]>8) continue;
+      let near=false;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=CW||Y>=CH) continue;
+        if(cp[(Y*CW+X)*4+3]>8) near=true;
+      }
+      if(near){ const o=i*4; img[o]=ink[0];img[o+1]=ink[1];img[o+2]=ink[2];img[o+3]=255; }
+    }
+  }
+  const cv=document.createElement('canvas'); cv.width=CW; cv.height=CH;
+  const c=cv.getContext('2d');
+  const d=c.createImageData(CW,CH); d.data.set(img); c.putImageData(d,0,0);
+  wallCv=cv;
+  stats={prims:P.length,W:CW,H:CH};
+}
+
+/* ---------- ui ---------- */
+function drawRamp(){
+  const S=STYLES[style], cv=$('rampView'), s=16;
+  const rows=[['face',S.face],['recess',S.recess],['cap',S.cap],['talus',S.talus]];
+  cv.width=8*s; cv.height=rows.length*s;
+  const c=cv.getContext('2d');
+  rows.forEach((r,j)=>r[1].forEach((i,k)=>{ c.fillStyle=AAP[i]; c.fillRect(k*s,j*s,s,s); }));
+}
+function render(){
+  PPU=+$('ppu').value;
+  setView(+$('az').value,+$('elev').value);
+  $('azv').textContent=$('az').value; $('elv').textContent=$('elev').value;
+  $('lmv').textContent=$('lump').value; $('dnv').textContent=$('dens').value;
+  $('wtv').textContent=$('wtex').value;
+  $('crv').textContent=$('crestAmt').value;
+  $('rwv').textContent=$('rampW').value; $('rrv').textContent=$('rampRun').value;
+  $('rsv').textContent=$('rampSteps').value;
+  $('unv').textContent=$('under').value; $('shv').textContent=$('shear').value;
+  $('vav').textContent=$('vault').value; $('duv').textContent=$('dust').value;
+  $('fov').textContent=$('fold').value;  $('scv').textContent=$('scallop').value;
+  $('flv').textContent=$('flute').value;
+  $('wwv').textContent=$('ww').value; $('whv').textContent=$('wh').value;
+  $('chv').textContent=$('ch').value; $('bwv').textContent=$('bw').value;
+  $('rlv').textContent=$('relief').value; $('frv').textContent=$('frac').value;
+  $('irv').textContent=$('irr').value; $('bav').textContent=$('batter').value;
+  $('tav').textContent=$('talus').value; $('bnv').textContent=$('bands').value;
+  $('ddv').textContent=$('dith').value; $('aov').textContent=$('ao').value;
+  $('ppv').textContent=$('ppu').value; $('zmv').textContent=$('zoom').value;
+  renderWall();
+  const Z=+$('zoom').value, v=$('view');
+  v.width=wallCv.width*Z; v.height=wallCv.height*Z;
+  const c=v.getContext('2d'); c.imageSmoothingEnabled=false;
+  c.clearRect(0,0,v.width,v.height); c.drawImage(wallCv,0,0,v.width,v.height);
+  drawRamp();
+  $('info').textContent=`${STYLES[style].name} · ${stats.prims} solids · ${stats.W}×${stats.H}px `+
+    `at ${PPU}px/unit · view ${AZ}°/${EL}°`+
+    (AZ===0&&EL===33?' (matches the props)':' — props are 0°/33°')+
+    `. Light is fixed in world space, so rotating the view changes which faces catch it.`;
+}
+function styleRow(){ $('styleRow').innerHTML=Object.entries(STYLES).map(([k,v])=>
+  `<button class="st${k===style?' on':''}" data-s="${k}">${v.name}</button>`).join(''); }
+styleRow();
+$('styleRow').addEventListener('click',e=>{ const b=e.target.closest('[data-s]'); if(!b) return;
+  style=b.dataset.s; styleRow(); render(); });
+['ww','wh','ch','bw','relief','frac','irr','batter','talus','cap','btop','crest','crestAmt','lump','dens','wtex','pathMat','rampDir','rampType','rampW','rampRun','rampSteps','under','shear','vault','dust','fold','scallop','flute','az','elev',
+ 'bands','dith','ao','ppu','zoom','outline']
+  .forEach(id=>$(id).addEventListener('input',render));
+$('resetView').addEventListener('click',()=>{ $('az').value='0'; $('elev').value='33'; render(); });
+$('reroll').addEventListener('click',()=>{ SEED=(SEED*1664525+1013904223)>>>0; render(); });
+const save=(n,u)=>{const a=document.createElement('a');a.download=n;a.href=u;a.click();};
+$('dlPng').addEventListener('click',()=>save(`cliff_${style}.png`,wallCv.toDataURL('image/png')));
+$('dlPal').addEventListener('click',()=>save('aap-64.hex',
+  'data:text/plain;charset=utf-8,'+encodeURIComponent(AAP.map(h=>h.slice(1).toUpperCase()).join('\n'))));
+render();
+</script>
+</body></html>
