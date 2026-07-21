@@ -78,15 +78,30 @@ export const BLOB_INDEX: Map<number, number> = new Map(
  * px), `irreg` (0-20 wobble amplitude knob), `round` (corner rounding
  * radius), and `seed`.
  *
+ * `round` and `pocketRound` are DECOUPLED because they round opposite
+ * corner types and want opposite values (see the two corner blocks below):
+ *  - `round` rounds CONVEX corners of the over-terrain (= the concave/inner
+ *    corners of a base patch). It's a quarter-disc scoop of radius `round`,
+ *    so it only behaves for small radii — past ~inset+2 it over-scoops and
+ *    deletes the whole corner (a hard step, not an arc).
+ *  - `pocketRound` shapes the CONCAVE inner-corner pocket (= the convex/
+ *    outer corners of a base patch): its exponent goes from square (low)
+ *    to a circular quarter-arc (>=5). It never changes the pocket DEPTH
+ *    (always `inset`, for seam agreement), only how square vs round it is,
+ *    so raising it rounds outer corners without touching inner ones.
+ * `pocketRound` defaults to `round` so every existing caller is unchanged.
+ *
  * Ported verbatim from the prototype except that `seed` is an explicit
- * trailing parameter here rather than a closed-over module global.
+ * trailing parameter here rather than a closed-over module global, and the
+ * `pocketRound` decoupling described above.
  */
 export function overlayMask(
   mask: number,
   inset: number,
   irreg: number,
   round: number,
-  seed: number
+  seed: number,
+  pocketRound: number = round
 ): Uint8Array {
   const m = new Uint8Array(T * T), amp = irreg / 10;
   const N = !!(mask & 1), NE = !!(mask & 2), E = !!(mask & 4), SE = !!(mask & 8),
@@ -113,7 +128,7 @@ export function overlayMask(
     // of it; anything else (or any noise here) leaves the spike. `round` only controls
     // how square vs round the pocket is, never how deep.
     if (on && sH && sV && !dg && inset > 0) {
-      const p = 2 + (5 - Math.min(5, round)) * 1.6;
+      const p = 2 + (5 - Math.min(5, pocketRound)) * 1.6;
       if (Math.pow(lx / inset, p) + Math.pow(ly / inset, p) < 1) on = false;
     }
     m[y * T + x] = on ? 1 : 0;
@@ -127,6 +142,9 @@ export interface BlobTileOptions {
   inset: number;
   irreg: number;
   round: number;
+  /** Concave inner-corner pocket roundness (patch OUTER corners), decoupled
+   *  from `round`. Defaults to `round` when omitted. See {@link overlayMask}. */
+  pocketRound?: number;
   outline: boolean;
   shadow: boolean;
   seed: number;
@@ -163,7 +181,7 @@ export function blobTiles(
   const baseRamp = TERRAIN_RAMPS[opts.baseKey];
 
   return CANONICAL_MASKS.map((mask) => {
-    const m = overlayMask(mask, opts.inset, opts.irreg, opts.round, opts.seed);
+    const m = overlayMask(mask, opts.inset, opts.irreg, opts.round, opts.seed, opts.pocketRound ?? opts.round);
     const N = !!(mask & 1), NE = !!(mask & 2), E = !!(mask & 4), SE = !!(mask & 8),
           S = !!(mask & 16), SW = !!(mask & 32), W = !!(mask & 64), NW = !!(mask & 128);
 

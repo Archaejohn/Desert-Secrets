@@ -19,7 +19,46 @@ export type Ramp = readonly PaletteName[];
  *  3=right plane, 5=left plane, 6=gap/mortar. */
 export const ROCK: Ramp = ["stoneLit", "stone", "stoneDark", "stoneDark", "stoneDeep", "stoneDeep", "stoneDeep", "ink"];
 
-export type TerrainKey = "sand" | "frostSand" | "asphalt";
+/** Glacial ice cliff ramp: white lit facets → deep indigo shadow. */
+export const ICE: Ramp = ["white", "skyBlue", "slate", "slate", "indigo", "indigo", "indigo", "ink"];
+
+/** Reef bio-rock FACE ramp (R3b). This is purely the shading round-trip
+ *  ramp for the bespoke `coralRockWallFace` (materials.ts): `cliffFace`
+ *  re-quantizes every wall pixel through `REEF.indexOf(name)` and shifts
+ *  along it, so it must (a) contain every colour the bespoke face emits
+ *  and (b) run light→dark in true brightness order so darken/lighten
+ *  shifts stay physical. mint (biolight, brightest) → skyBlue (lit
+ *  corners) → slate (plates) → mauve (mid-tone) → plum (body) → indigo
+ *  (x2, shadow buffer) → ink (deep shadow), matching tileset7's shipped
+ *  `reefWall` material family. */
+export const REEF: Ramp = ["mint", "skyBlue", "slate", "mauve", "plum", "indigo", "indigo", "ink"];
+// Basalt wall with molten fissures (light molten glow -> dark basalt), for the
+// bespoke basaltRock face (lava biome). Mirrors ROCK/ICE/REEF's 8-slot shape.
+export const LAVA: Ramp = ["atbGold", "amber", "hpRed", "rust", "stoneDark", "stoneDeep", "stoneDeep", "ink"];
+// Damp cave stone with water/moss highlights (light -> dark stone), for the
+// bespoke groveStone face. 8-slot like ROCK/ICE/REEF/LAVA.
+export const GROVE: Ramp = ["mint", "skyBlue", "jade", "teal", "stoneDark", "stoneDeep", "tealDeep", "ink"];
+
+export type TerrainKey =
+  | "sand"
+  | "frostSand"
+  | "asphalt"
+  | "ice"
+  | "reefFloor"
+  | "reefSilt"
+  | "reefWater"
+  | "glowMoss"
+  | "snow"
+  | "frozenLake"
+  | "rimeMoss"
+  | "emberRock"
+  | "ash"
+  | "lava"
+  | "lavaCrust"
+  | "groveGrass"
+  | "groveMoss"
+  | "groveWater"
+  | "groveSoil";
 
 export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   // Calm, low-contrast warm sand — no `amber` (its orange read as busy noise).
@@ -27,6 +66,33 @@ export const TERRAIN_RAMPS: Record<TerrainKey, Ramp> = {
   sand: ["sandLight", "sand", "sandShade", "umber"],
   frostSand: ["bone", "sandLight", "skyBlue", "sandShade"],
   asphalt: ["slate", "indigo", "plum", "ink"],
+  ice: ["white", "skyBlue", "slate", "indigo"],
+  // Dark teal floor (R3a: matches shipped `reefFloor`/reefBase): plateau
+  // top + main reef ground.
+  reefFloor: ["teal", "tealDeep", "indigo", "ink"],
+  // Dark indigo silt (R3a: matches shipped `reefSilt`).
+  reefSilt: ["tealDeep", "indigo", "plum", "ink"],
+  // Reef water, shallow -> deep (R3a: matches shipped `reefWater`).
+  reefWater: ["skyBlue", "teal", "tealDeep", "indigo"],
+  // Bright glowing moss (R3a: matches shipped `glowMoss`).
+  glowMoss: ["mint", "jade", "teal", "tealDeep"],
+  // Frozen biome grounds (light -> dark). Pale packed snow, deep cracked lake
+  // ice, and a frozen glow-moss accent — all in the existing frost family.
+  snow: ["white", "bone", "skyBlue", "slate"],
+  frozenLake: ["skyBlue", "slate", "indigo", "ink"],
+  rimeMoss: ["mint", "jade", "teal", "tealDeep"],
+  // Lava biome grounds (light -> dark). Warm dark basalt, pale ash, vivid molten
+  // flow, and cooling crust with red fissures — on the current warm/stone palette.
+  emberRock: ["clay", "rust", "stoneDeep", "ink"],
+  ash: ["bone", "sandShade", "stone", "stoneDark"],
+  lava: ["atbGold", "amber", "hpRed", "rust"],
+  lavaCrust: ["hpRed", "rust", "stoneDeep", "ink"],
+  // Grove/cave biome grounds (light -> dark). Lush grass, darker spotted moss on
+  // darkened soil (umber), spring water, and bare earth.
+  groveGrass: ["mint", "jade", "teal", "tealDeep"],
+  groveMoss: ["jade", "teal", "umber", "ink"],
+  groveWater: ["skyBlue", "teal", "tealDeep", "indigo"],
+  groveSoil: ["clay", "umber", "stoneDeep", "ink"],
 };
 
 const clampI = (i: number, n: number): number => Math.max(0, Math.min(n - 1, Math.round(i)));

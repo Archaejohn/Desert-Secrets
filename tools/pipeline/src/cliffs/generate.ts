@@ -41,7 +41,7 @@
  * from the prototype's `po = {...o, round: linkCorners ? tround : fround}`.
  */
 import { PixelGrid } from "../grid";
-import type { TerrainKey } from "./palette";
+import { ICE, REEF, LAVA, GROVE, TERRAIN_RAMPS, type TerrainKey } from "./palette";
 import { floorFill } from "./terrains";
 import { blobTiles } from "./blob47";
 import { wallFace, type MaterialKey } from "./materials";
@@ -77,6 +77,15 @@ export type TerrainParams = {
   edgeInset: number;
   edgeIrregularity: number;
   cornerRounding: number;
+  // Concave inner-corner pocket roundness (rounds base patches' OUTER
+  // corners), decoupled from `cornerRounding` (which rounds their inner
+  // corners). Omit to track `cornerRounding` — desert/ice leave it unset.
+  pocketRounding?: number;
+  // Seed for the ground-to-ground pairing (transition) blob set only. Omit to
+  // track the preset `seed` — desert/ice leave it unset. Reef sets it so the
+  // seam wobble can be tuned independently of the (approved) wall face/ramps,
+  // which stay on `seed`.
+  pairingSeed?: number;
   edgeOutline: boolean;
   dropShadow: boolean;
   linkPlateauCorners: boolean;
@@ -130,6 +139,10 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
 
   const cliffGrids = cliffTiles({
     face,
+    // Task 8: the bespoke glacier face lives on the ICE ramp; the reef
+    // placeholder face lives on the REEF ramp; rock omits this (default
+    // ROCK) so desert output is byte-identical.
+    faceRamp: p.material === "glacier" ? ICE : p.material === "coralRock" ? REEF : p.material === "basaltRock" ? LAVA : p.material === "groveStone" ? GROVE : undefined,
     top: fills.get(p.plateauTop)!,
     gnd: fills.get(p.ground)!,
     topKey: p.plateauTop,
@@ -162,6 +175,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
     inset: p.edgeInset,
     irreg: p.edgeIrregularity,
     round: plateauRound,
+    pocketRound: p.pocketRounding,
     outline: p.edgeOutline,
     shadow: p.dropShadow,
     seed: p.seed,
@@ -176,9 +190,10 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
       inset: p.edgeInset,
       irreg: p.edgeIrregularity,
       round: p.cornerRounding,
+      pocketRound: p.pocketRounding,
       outline: p.edgeOutline,
       shadow: p.dropShadow,
-      seed: p.seed,
+      seed: p.pairingSeed ?? p.seed,
       overKey: pr.over,
       baseKey: pr.base,
     });
@@ -207,10 +222,11 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
   // (additive-only); the shallow/steep angles are appended after it.
   if (p.diagonalRamps) {
     const dirs = ["se", "sw"] as const;
+    const groundRamp = TERRAIN_RAMPS[p.plateauTop];
     for (const m of p.ramps) {
       const matName = m === "sandSlope" ? "Sand" : "Steps";
       for (const dir of dirs) {
-        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed });
+        const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, "45", groundRamp, p.material);
         for (const t of tiles) {
           out.push({
             name: `dramp${matName}45_${dir}_${t.piece}`,
@@ -228,7 +244,7 @@ export function generateTerrain(p: TerrainParams): { name: string; grid: PixelGr
       for (const m of p.ramps) {
         const matName = m === "sandSlope" ? "Sand" : "Steps";
         for (const dir of dirs) {
-          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle);
+          const tiles = diagonalFlightTiles(m, dir, { seed: p.seed }, angle, groundRamp, p.material);
           for (const t of tiles) {
             out.push({
               name: `dramp${matName}${tag}_${dir}_${t.piece}`,

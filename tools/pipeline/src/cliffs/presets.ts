@@ -67,3 +67,275 @@ const DESERT_ROCK_CLIFF: TerrainParams = {
 };
 
 export const DESERT_PRESETS: TerrainParams[] = [DESERT_ROCK_CLIFF];
+
+// Ice cliff — mirrors DESERT_ROCK_CLIFF's cliff assembly/floor-edge defaults
+// with ice material/terrain and tier-2 wall params (bigger, lower-mortar
+// blocks read as glacial masonry). The `glacier` wall face is a placeholder
+// recolor of `blockWallFace` (materials.ts) until Task 8's bespoke
+// crystalline face.
+const ICE_CLIFF: TerrainParams = {
+  material: "glacier",
+
+  // Wall structure — tier-2: larger low-mortar blocks.
+  courses: 3,
+  blockSize: 4,
+  blocksPerCourse: 2,
+  stagger: 0.5,
+  tone: 0.12,
+  mortar: 0.15,
+  orderVsRandom: 0.3,
+
+  // Cliff assembly — desert defaults.
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — crisp/faceted default (low edgeIrregularity) to suit
+  // glacial ice, distinct from reef's soft organic fingers. Starting values;
+  // tuned live in the seam-rounding tuner at the review gate.
+  edgeInset: 2,
+  edgeIrregularity: 6,
+  cornerRounding: 2,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // All four frozen grounds autotile with each OTHER, not just ice-over-ice.
+  // Priority ice < snow < frozenLake < rimeMoss; `over` = lower-priority field,
+  // `base` = higher-priority ground carved in. Appended after ice-self so
+  // existing tile order/indices are unchanged (additive). Flip a pair's
+  // over/base to swap which ground owns that seam.
+  pairings: [
+    { over: "ice", base: "ice" },
+    { over: "ice", base: "snow" },
+    { over: "ice", base: "frozenLake" },
+    { over: "ice", base: "rimeMoss" },
+    { over: "snow", base: "frozenLake" },
+    { over: "snow", base: "rimeMoss" },
+    { over: "frozenLake", base: "rimeMoss" },
+  ],
+  plateauTop: "ice",
+  ground: "ice",
+
+  seed: 2026,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const ICE_PRESETS: TerrainParams[] = [ICE_CLIFF];
+
+// Reef cliff — mirrors ICE_CLIFF's cliff-assembly/floor-edge defaults with
+// the reef material/terrains and four ground pairings (reefFloor, reefSilt,
+// reefWater, glowMoss). The `coralRock` wall face is a placeholder recolor
+// of `blockWallFace` (materials.ts) until the next task's bespoke coral
+// face (renamed from `reefStone` in R3a to avoid clashing with tileset7's
+// own unrelated `reefStone` tile).
+const REEF_CLIFF: TerrainParams = {
+  material: "coralRock",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors ICE_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — reef ground-to-ground seams, tuned live by the owner
+  // in the seam-rounding tuner. Wider band than desert/ice (edgeInset 3) with
+  // heavy organic wobble (edgeIrregularity 20). Corner rounding is DECOUPLED
+  // into two knobs (see overlayMask): `cornerRounding` rounds the patches'
+  // INNER (concave) corners via a quarter-disc scoop; `pocketRounding` rounds
+  // their OUTER (convex) corners via the concave-pocket exponent (>=5 ==
+  // circular). Both maxed at 8 here: at this irregularity the edge wobble
+  // dominates the corner geometry, so the seams read as organic reef fingers
+  // rather than the over-scooped hard steps a high cornerRounding produces on
+  // a clean straight edge. `pairingSeed` reseeds ONLY the ground-transition
+  // blobs (7439, owner-tuned wobble) — the base `seed` (7777) still drives the
+  // approved coral wall face / ramps, so those stay byte-identical.
+  edgeInset: 3,
+  edgeIrregularity: 20,
+  cornerRounding: 8,
+  pocketRounding: 8,
+  pairingSeed: 7439,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // Terrain pairings — reef floor plateau/ground, with reefFloor transitioning
+  // into reefSilt, reefWater, and glowMoss blob edges.
+  pairings: [
+    { over: "reefFloor", base: "reefFloor" },
+    { over: "reefFloor", base: "reefSilt" },
+    { over: "reefFloor", base: "reefWater" },
+    { over: "reefFloor", base: "glowMoss" },
+    // All four grounds autotile with each OTHER, not just against reefFloor
+    // (owner requirement). Priority order reefFloor < reefSilt < reefWater <
+    // glowMoss: `over` = the lower-priority "field", `base` = the higher-
+    // priority ground carved into it at the seam. Appended AFTER the reefFloor
+    // pairings so the existing tile order/indices are unchanged (additive).
+    // Flip a pair's over/base to swap which ground owns that seam.
+    { over: "reefSilt", base: "reefWater" },
+    { over: "reefSilt", base: "glowMoss" },
+    { over: "reefWater", base: "glowMoss" },
+  ],
+  plateauTop: "reefFloor",
+  ground: "reefFloor",
+
+  seed: 7777,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const REEF_PRESETS: TerrainParams[] = [REEF_CLIFF];
+
+// Lava cliff — mirrors REEF_CLIFF's cliff-assembly/floor-edge defaults with the
+// basalt material and four volcanic ground pairings (emberRock, ash, lava,
+// lavaCrust). The `basaltRock` wall face is a tier-2 placeholder recolour of
+// `blockWallFace` (materials.ts) until the bespoke Worley-lava face lands.
+const LAVA_CLIFF: TerrainParams = {
+  material: "basaltRock",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors REEF_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — organic/flowing (owner-picked) to suit molten lava/ash.
+  // Starting values; tuned live in the seam-rounding tuner at the review gate.
+  edgeInset: 2,
+  edgeIrregularity: 18,
+  cornerRounding: 8,
+  pocketRounding: 8,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // All four volcanic grounds autotile with each OTHER. Priority emberRock <
+  // ash < lava < lavaCrust; `over` = lower-priority field, `base` = higher-
+  // priority ground carved in. Self first, cross-pairs appended (additive).
+  pairings: [
+    { over: "emberRock", base: "emberRock" },
+    { over: "emberRock", base: "ash" },
+    { over: "emberRock", base: "lava" },
+    { over: "emberRock", base: "lavaCrust" },
+    { over: "ash", base: "lava" },
+    { over: "ash", base: "lavaCrust" },
+    { over: "lava", base: "lavaCrust" },
+  ],
+  plateauTop: "emberRock",
+  ground: "emberRock",
+
+  seed: 8888,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const LAVA_PRESETS: TerrainParams[] = [LAVA_CLIFF];
+
+// Grove/cave cliff — mirrors LAVA_CLIFF's defaults with the grove material and
+// four grounds (groveGrass, groveMoss, groveWater, groveSoil). The `groveStone`
+// wall face is a tier-2 placeholder until the bespoke damp-cave face lands.
+const GROVE_CLIFF: TerrainParams = {
+  material: "groveStone",
+
+  // Wall structure — tier-2 placeholder (bespoke face replaces the look).
+  courses: 3,
+  blockSize: 3,
+  blocksPerCourse: 3,
+  stagger: 0.5,
+  tone: 0.16,
+  mortar: 0.24,
+  orderVsRandom: 0.4,
+
+  // Cliff assembly — mirrors LAVA_CLIFF (== desert defaults).
+  capBand: 4,
+  capRoll: 0.45,
+  capMaterial: "plateau",
+  footer: 6,
+  cliffHeight: 2,
+  baseRounding: 3,
+  topRounding: 3,
+  outerCornerShade: 0.4,
+  innerCornerDepth: 0.6,
+  castShadow: 0.5,
+  scree: true,
+  litLip: true,
+
+  // Floor blob edges — organic/flowing (owner-picked) for the lush grove.
+  // Starting values; tuned live in the seam-rounding tuner at the review gate.
+  edgeInset: 2,
+  edgeIrregularity: 18,
+  cornerRounding: 8,
+  pocketRounding: 8,
+  edgeOutline: true,
+  dropShadow: true,
+  linkPlateauCorners: true,
+
+  // All four grove grounds autotile with each OTHER. Priority groveGrass <
+  // groveMoss < groveWater < groveSoil; `over` = lower-priority field, `base`
+  // = higher-priority ground carved in. Self first, cross-pairs appended.
+  pairings: [
+    { over: "groveGrass", base: "groveGrass" },
+    { over: "groveGrass", base: "groveMoss" },
+    { over: "groveGrass", base: "groveWater" },
+    { over: "groveGrass", base: "groveSoil" },
+    { over: "groveMoss", base: "groveWater" },
+    { over: "groveMoss", base: "groveSoil" },
+    { over: "groveWater", base: "groveSoil" },
+  ],
+  plateauTop: "groveGrass",
+  ground: "groveGrass",
+
+  seed: 9090,
+
+  ramps: ["sandSlope", "stoneSteps"],
+  diagonalRamps: true,
+};
+
+export const GROVE_PRESETS: TerrainParams[] = [GROVE_CLIFF];

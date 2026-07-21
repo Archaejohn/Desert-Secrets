@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { PALETTE } from "../../src/shared/palette";
 import { h2, partition } from "../../tools/pipeline/src/cliffs/noise";
-import { ROCK, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
+import { REEF, ROCK, LAVA, TERRAIN_RAMPS, shade, quantize } from "../../tools/pipeline/src/cliffs/palette";
 import { floorFill, nameToRampIndex } from "../../tools/pipeline/src/cliffs/terrains";
 import { canonical, CANONICAL_MASKS, overlayMask, blobTiles } from "../../tools/pipeline/src/cliffs/blob47";
 import { wallFace, type WallParams } from "../../tools/pipeline/src/cliffs/materials";
 import { cliffTiles } from "../../tools/pipeline/src/cliffs/cliffFace";
 import { generateTerrain } from "../../tools/pipeline/src/cliffs/generate";
-import { DESERT_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
-import { cliffTileNames, cliffSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
+import { DESERT_PRESETS, ICE_PRESETS, REEF_PRESETS, LAVA_PRESETS, GROVE_PRESETS } from "../../tools/pipeline/src/cliffs/presets";
+import { cliffTileNames, cliffSheetFrames, cliffIceTileNames, cliffIceSheetFrames, cliffReefTileNames, cliffReefSheetFrames, cliffLavaTileNames, cliffLavaSheetFrames, cliffGroveTileNames, cliffGroveSheetFrames } from "../../tools/pipeline/src/cliffs/frames";
 import { buildAssets, SHEET_KEYS } from "../../tools/pipeline/src/assets";
 import { buildManifest } from "../../tools/pipeline/src/manifest";
 import { rampTiles } from "../../tools/pipeline/src/cliffs/ramps";
@@ -61,6 +61,34 @@ describe("terrain floor fills", () => {
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[0])).toBe(0);
     expect(nameToRampIndex("sand", TERRAIN_RAMPS.sand[TERRAIN_RAMPS.sand.length-1])).toBe(TERRAIN_RAMPS.sand.length-1);
   });
+  it("ice floorFill is palette-locked to the ice ground ramp and deterministic", () => {
+    const a = floorFill("ice", 1337);
+    const b = floorFill("ice", 1337);
+    const allowed = new Set(TERRAIN_RAMPS.ice);
+    expect(a.width).toBe(16);
+    expect(a.height).toBe(16);
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) {
+        expect(allowed.has(a.get(x, y)!)).toBe(true);
+        expect(a.get(x, y)).toBe(b.get(x, y)); // deterministic
+      }
+  });
+
+  it.each(["reefFloor", "reefSilt", "reefWater", "glowMoss"] as const)(
+    "reef ground %s floorFill is palette-locked to its own ramp and deterministic",
+    (key) => {
+      const a = floorFill(key, 7777);
+      const b = floorFill(key, 7777);
+      const allowed = new Set(TERRAIN_RAMPS[key]);
+      expect(a.width).toBe(16);
+      expect(a.height).toBe(16);
+      for (let y = 0; y < 16; y++)
+        for (let x = 0; x < 16; x++) {
+          expect(allowed.has(a.get(x, y)!)).toBe(true);
+          expect(a.get(x, y)).toBe(b.get(x, y)); // deterministic
+        }
+    }
+  );
 });
 
 describe("47-blob canonical masks + overlayMask geometry", () => {
@@ -166,6 +194,27 @@ describe("wallFace rock material", () => {
   });
 });
 
+describe("wallFace glacier material (Task 8 bespoke crystalline face)", () => {
+  const WP: WallParams = {
+    courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: 0.5,
+    tone: 0.2, mortar: 0.35, orderVsRandom: 0.45,
+  };
+  // The ice family palette glacierWallFace draws from (materials.ts GLACIER_RAMP).
+  const GLACIER_ALLOWED = new Set(["white", "skyBlue", "slate", "indigo", "ink"]);
+
+  it("wallFace glacier is 16x16, palette-locked to the ice family, deterministic, opaque", () => {
+    const a = wallFace("glacier", WP, 7), b = wallFace("glacier", WP, 7);
+    expect(a.width).toBe(16); expect(a.height).toBe(16);
+    expect(a.diff(b)).toBe(0);
+    expect(a.countOpaque()).toBe(256);
+    a.forEach((_x, _y, c) => { if (c !== null) expect(GLACIER_ALLOWED.has(c)).toBe(true); });
+  });
+
+  it("different seeds differ", () => {
+    expect(wallFace("glacier", WP, 1).diff(wallFace("glacier", WP, 2))).toBeGreaterThan(0);
+  });
+});
+
 describe("cliff set (15 tiles)", () => {
   const mk = (over = 0) => cliffTiles({
     face: wallFace("rock", { courses: 3, blockSize: 4, blocksPerCourse: 4, stagger: .5, tone: .2, mortar: .35, orderVsRandom: .45 }, 7),
@@ -238,6 +287,69 @@ describe("generateTerrain + desert presets", () => {
   });
 });
 
+describe("generateTerrain + ice preset (Task 4)", () => {
+  it("ice preset emits its full parity set (4 grounds, all-pairs = 7 pairings), uniquely named", () => {
+    const out = generateTerrain(ICE_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffGlacier_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("icePlateau_")).length).toBe(47);
+    // ice <-> {ice, snow, frozenLake, rimeMoss}
+    expect(out.filter((n) => n.startsWith("iceIce_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceSnow_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceFrozenLake_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("iceRimeMoss_")).length).toBe(47);
+    // the other grounds autotile with each other: snow<->lake, snow<->moss, lake<->moss
+    expect(out.filter((n) => n.startsWith("snowFrozenLake_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("snowRimeMoss_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("frozenLakeRimeMoss_")).length).toBe(47);
+    expect(out.filter((n) => n === "iceFill").length).toBe(1);
+    expect(out.filter((n) => n === "snowFill").length).toBe(1);
+    expect(out.filter((n) => n === "frozenLakeFill").length).toBe(1);
+    expect(out.filter((n) => n === "rimeMossFill").length).toBe(1);
+    expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
+    expect(new Set(out).size).toBe(out.length); // all unique
+    // 274 (1 pairing) + 6x47 pairings + 3 fills = 559.
+    expect(out.length).toBe(559);
+  });
+});
+
+describe("generateTerrain + reef preset (Task R1)", () => {
+  it("reef preset emits its full parity set (4 grounds, all-pairs = 7 pairings), uniquely named", () => {
+    const out = generateTerrain(REEF_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffCoralRock_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("reefFloorPlateau_")).length).toBe(47);
+    // reefFloor <-> {reefFloor, reefSilt, reefWater, glowMoss}
+    expect(out.filter((n) => n.startsWith("reefFloorReefFloor_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorReefSilt_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorReefWater_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefFloorGlowMoss_")).length).toBe(47);
+    // the other grounds autotile with each other (owner req): silt<->water,
+    // silt<->moss, water<->moss.
+    expect(out.filter((n) => n.startsWith("reefSiltReefWater_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefSiltGlowMoss_")).length).toBe(47);
+    expect(out.filter((n) => n.startsWith("reefWaterGlowMoss_")).length).toBe(47);
+    expect(out).toContain("reefFloorFill");
+    expect(out).toContain("reefSiltFill");
+    expect(out).toContain("reefWaterFill");
+    expect(out).toContain("glowMossFill");
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(out.filter((n) => n.startsWith("drampSand2657_")).length).toBe(28);
+    expect(new Set(out).size).toBe(out.length); // all unique
+    // total is preset-dependent (7 pairings): 418 (4 pairings) + 3x47 = 559.
+    expect(out.length).toBe(559);
+  });
+
+  it("generateTerrain is deterministic for the reef preset", () => {
+    const a = generateTerrain(REEF_PRESETS[0]), b = generateTerrain(REEF_PRESETS[0]);
+    a.forEach((o, i) => expect(o.grid.diff(b[i].grid)).toBe(0));
+  });
+
+  it("reef wall-face pixels come from the REEF ramp (faceRamp threaded through)", () => {
+    const out = generateTerrain(REEF_PRESETS[0]);
+    const cliffFace = out.find((o) => o.name === "cliffCoralRock_mid_face")!;
+    cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(REEF).toContain(c); });
+  });
+});
+
 describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
   it("cliffSheetFrames/cliffTileNames are parallel and names cover the 370 real (non-padding) frames", () => {
     const names = cliffTileNames();
@@ -295,6 +407,28 @@ describe("cliff sheet assembly + pipeline wiring (Task 8)", () => {
     // composed sheet dims: 8 columns x 47 rows of 16x16 tiles.
     expect(a.cliff.width).toBe(8 * 16);
     expect(a.cliff.height).toBe(47 * 16);
+  });
+
+  it("cliffIce sheet is 16px frames padded to 8 columns, manifest-consistent (all-pairs = 559)", () => {
+    const names = cliffIceTileNames();
+    const frames = cliffIceSheetFrames();
+    expect(names.length).toBe(559); // 4 grounds, all-pairs
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffIce.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffIce.names).length).toBe(names.length);
+  });
+
+  it("cliffReef sheet is 16px frames padded to 8 columns, manifest-consistent", () => {
+    const names = cliffReefTileNames();
+    const frames = cliffReefSheetFrames();
+    expect(names.length).toBe(559); // 4 grounds, all-pairs (7 pairings)
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffReef.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffReef.names).length).toBe(names.length);
   });
 });
 
@@ -368,5 +502,117 @@ describe("ramps", () => {
         }
       }
     }
+  });
+});
+
+describe("frozen biome ramps", () => {
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});
+
+describe("frozen biome floorFill", () => {
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s fill is palette-locked to its ramp", (key) => {
+    const g = floorFill(key, 2026);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["snow", "frozenLake", "rimeMoss"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 2026).diff(floorFill(key, 2026))).toBe(0);
+  });
+});
+
+describe("lava biome ramps", () => {
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});
+
+describe("lava biome floorFill", () => {
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s fill is palette-locked", (key) => {
+    const g = floorFill(key, 8888);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["emberRock", "ash", "lava", "lavaCrust"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 8888).diff(floorFill(key, 8888))).toBe(0);
+  });
+});
+
+describe("grove biome ramps", () => {
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s has a 4-entry ramp", (key) => {
+    expect(TERRAIN_RAMPS[key]).toBeDefined();
+    expect(TERRAIN_RAMPS[key]).toHaveLength(4);
+  });
+});
+
+describe("grove biome floorFill", () => {
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s fill is palette-locked", (key) => {
+    const g = floorFill(key, 9090);
+    const allowed = new Set<string>(TERRAIN_RAMPS[key]);
+    g.forEach((_x, _y, c) => { if (c !== null) expect(allowed.has(c)).toBe(true); });
+  });
+  it.each(["groveGrass", "groveMoss", "groveWater", "groveSoil"] as const)("%s fill is deterministic", (key) => {
+    expect(floorFill(key, 9090).diff(floorFill(key, 9090))).toBe(0);
+  });
+});
+
+describe("generateTerrain + grove preset", () => {
+  it("grove preset emits its full parity set (4 grounds, all-pairs = 7 pairings)", () => {
+    const out = generateTerrain(GROVE_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffGroveStone_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("groveGrassPlateau_")).length).toBe(47);
+    for (const p of ["groveGrassGroveGrass", "groveGrassGroveMoss", "groveGrassGroveWater", "groveGrassGroveSoil", "groveMossGroveWater", "groveMossGroveSoil", "groveWaterGroveSoil"]) {
+      expect(out.filter((n) => n.startsWith(`${p}_`)).length).toBe(47);
+    }
+    for (const f of ["groveGrassFill", "groveMossFill", "groveWaterFill", "groveSoilFill"]) expect(out).toContain(f);
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(new Set(out).size).toBe(out.length);
+    expect(out.length).toBe(559);
+  });
+});
+
+describe("generateTerrain + lava preset", () => {
+  it("lava preset emits its full parity set (4 grounds, all-pairs = 7 pairings)", () => {
+    const out = generateTerrain(LAVA_PRESETS[0]).map((o) => o.name);
+    expect(out.filter((n) => n.startsWith("cliffBasaltRock_")).length).toBe(15);
+    expect(out.filter((n) => n.startsWith("emberRockPlateau_")).length).toBe(47);
+    for (const p of ["emberRockEmberRock", "emberRockAsh", "emberRockLava", "emberRockLavaCrust", "ashLava", "ashLavaCrust", "lavaLavaCrust"]) {
+      expect(out.filter((n) => n.startsWith(`${p}_`)).length).toBe(47);
+    }
+    for (const f of ["emberRockFill", "ashFill", "lavaFill", "lavaCrustFill"]) expect(out).toContain(f);
+    expect(out.filter((n) => n.endsWith("Fill")).length).toBe(4);
+    expect(new Set(out).size).toBe(out.length);
+    expect(out.length).toBe(559); // 4 fills + 15 cliff + 47 plateau + 7x47 + 32 ramps + 132 diag
+  });
+
+  it("cliffLava sheet is 16px frames padded to 8 columns, manifest-consistent (559)", () => {
+    const names = cliffLavaTileNames();
+    const frames = cliffLavaSheetFrames();
+    expect(names.length).toBe(559);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffLava.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffLava.names).length).toBe(names.length);
+  });
+
+  it("lava wall-face pixels come from the LAVA ramp (bespoke basalt face)", () => {
+    const out = generateTerrain(LAVA_PRESETS[0]);
+    const cliffFace = out.find((o) => o.name === "cliffBasaltRock_mid_face")!;
+    cliffFace.grid.forEach((_x, _y, c) => { if (c !== null) expect(LAVA).toContain(c); });
+  });
+
+  it("cliffGrove sheet is 16px frames padded to 8 columns, manifest-consistent (559)", () => {
+    const names = cliffGroveTileNames();
+    const frames = cliffGroveSheetFrames();
+    expect(names.length).toBe(559);
+    expect(frames.length % 8).toBe(0);
+    frames.forEach((f) => { expect(f.width).toBe(16); expect(f.height).toBe(16); });
+    const a = buildAssets();
+    expect(a.cliffGrove.width).toBe(8 * 16);
+    expect(Object.keys(a.manifest.cliffGrove.names).length).toBe(names.length);
   });
 });

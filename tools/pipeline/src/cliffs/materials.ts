@@ -54,13 +54,13 @@
  * pixel identical to the prototype (`:304-309`, `:318-319`).
  */
 import { PixelGrid } from "../grid";
-import { h2, partition } from "./noise";
-import { ROCK, shade } from "./palette";
+import { clamp, fbm, h2, n1, partition } from "./noise";
+import { ROCK, GROVE, shade, type Ramp } from "./palette";
 import type { PaletteName } from "../../../../src/shared/palette";
 
 const T = 16;
 
-export type MaterialKey = "rock";
+export type MaterialKey = "rock" | "glacier" | "coralRock" | "basaltRock" | "groveStone";
 
 export interface WallParams {
   courses: number;
@@ -116,7 +116,7 @@ function fillPolyScanline(grid: PixelGrid, pts: readonly Point[], color: Palette
 /** Rock ramp role -> base ramp index (see file header for the mapping). */
 const ROCK_TOP = 1, ROCK_RIGHT = 3, ROCK_LEFT = 5, ROCK_GAP = 6;
 
-function rockWallFace(params: WallParams, seed: number): PixelGrid {
+export function blockWallFace(ramp: Ramp, params: WallParams, seed: number): PixelGrid {
   const grid = new PixelGrid(T, T);
   const { courses: C, blockSize: bsize, blocksPerCourse: per, stagger: stag, tone, mortar } = params;
   const chaos = params.orderVsRandom;
@@ -124,7 +124,7 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
 
   // Background / mortar fill: darkens toward `ink` as `mortar` rises
   // (palette-space analogue of the prototype's `scale(gapBase, 1-mortar*0.5)`).
-  grid.rect(0, 0, T, T, shade(ROCK, ROCK_GAP, Math.round(mortar * 2)));
+  grid.rect(0, 0, T, T, shade(ramp, ROCK_GAP, Math.round(mortar * 2)));
 
   const jitter = (i: number, j: number, amt: number): number =>
     Math.round((h2(i, j, seed) - 0.5) * 2 * amt * chaos);
@@ -141,17 +141,17 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
     fillPolyScanline(
       grid,
       [[cx, cy - h], [cx + sz, cy - h + p], [cx, cy - h + p * 2], [cx - sz, cy - h + p]],
-      shade(ROCK, ROCK_TOP, shift)
+      shade(ramp, ROCK_TOP, shift)
     );
     fillPolyScanline(
       grid,
       [[cx, cy - h + p * 2], [cx + sz, cy - h + p], [cx + sz, cy + sz], [cx, cy + sz + p]],
-      shade(ROCK, ROCK_RIGHT, shift)
+      shade(ramp, ROCK_RIGHT, shift)
     );
     fillPolyScanline(
       grid,
       [[cx, cy - h + p * 2], [cx - sz, cy - h + p], [cx - sz, cy + sz], [cx, cy + sz + p]],
-      shade(ROCK, ROCK_LEFT, shift)
+      shade(ramp, ROCK_LEFT, shift)
     );
   };
 
@@ -177,10 +177,278 @@ function rockWallFace(params: WallParams, seed: number): PixelGrid {
   return grid;
 }
 
+/**
+ * Bespoke crystalline glacier face (Task 8) — replaces the `blockWallFace`
+ * ICE-recolor placeholder, which read as flat stacked bricks rather than ice.
+ *
+ * Model: a **toroidal Voronoi facet field**. N deterministic feature points
+ * are scattered on the 16x16 torus (all distances wrap mod 16, so the tile is
+ * seamless in both axes); each pixel belongs to its nearest point's facet.
+ * Where the nearest and second-nearest distances nearly tie, the pixel sits
+ * on a facet boundary — those pixels become the dark fracture lines (`indigo`,
+ * dropping to `ink` at the deepest, most equidistant pixels). Facet interiors
+ * take a per-facet base tone (`skyBlue` for most, `slate` / one `indigo` for
+ * shadowed panes). North light: the first interior row *below* a fracture is
+ * the facet's lit crest (one ramp step lighter — `white` on skyBlue facets);
+ * the row *above* a fracture is the shadowed under-edge (one step darker).
+ * Sparse `white` glints sparkle on bright facet interiors.
+ *
+ * Palette-locked to the ice family only: white / skyBlue / slate / indigo /
+ * ink. Fully opaque, deterministic (`h2` only), and a drop-in for
+ * `blockWallFace`'s call shape — the block-wall `params` don't map onto facet
+ * geometry and are deliberately ignored.
+ */
+const GLACIER_RAMP: readonly PaletteName[] = ["white", "skyBlue", "slate", "indigo", "ink"];
+
+export function glacierWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // facet geometry has no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+
+  // Deterministic facet seeds on the torus: a jittered 3x2 lattice (rather
+  // than fully random points) so sites keep a minimum separation — pure
+  // random placement produced skinny sliver facets and a dominant "X"
+  // crossing motif.
+  const GX = 3, GY = 2;
+  const N = GX * GY;
+  const sx: number[] = [], sy: number[] = [], tone: number[] = [];
+  for (let gy = 0; gy < GY; gy++) {
+    for (let gx = 0; gx < GX; gx++) {
+      sx.push(((gx + 0.2 + 0.6 * h2(gx, gy * 7 + 11, seed)) * T) / GX);
+      sy.push(((gy + 0.2 + 0.6 * h2(gx, gy * 7 + 23, seed)) * T) / GY);
+      tone.push(h2(gx, gy * 7 + 37, seed));
+    }
+  }
+  const wrapD = (d: number): number => {
+    const m = ((d % T) + T) % T;
+    return m > T / 2 ? m - T : m;
+  };
+
+  // Per-pixel: owning facet + boundary closeness (d2 - d1; small = on a
+  // crack) + junction closeness (d3 - d1; small = a triple point where
+  // three facets meet — the crack web's deepest pits).
+  const id = new Int32Array(T * T);
+  const edge = new Float64Array(T * T);
+  const junction = new Float64Array(T * T);
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      let i1 = 0, d1 = Infinity, d2 = Infinity, d3 = Infinity;
+      for (let k = 0; k < N; k++) {
+        const dx = wrapD(x + 0.5 - sx[k]);
+        const dy = wrapD(y + 0.5 - sy[k]);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < d1) { d3 = d2; d2 = d1; d1 = d; i1 = k; }
+        else if (d < d2) { d3 = d2; d2 = d; }
+        else if (d < d3) d3 = d;
+      }
+      id[y * T + x] = i1;
+      edge[y * T + x] = d2 - d1;
+      junction[y * T + x] = d3 - d1;
+    }
+  }
+  const CRACK = 0.75;
+  const crackAt = (x: number, y: number): boolean =>
+    edge[(((y % T) + T) % T) * T + (((x % T) + T) % T)] < CRACK;
+
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      const i = y * T + x;
+      let idx: number;
+      if (edge[i] < CRACK) {
+        // Fracture line between facets: solid indigo, dropping to ink only
+        // at triple points (junction pits) so the lines stay crisp instead
+        // of dithering ink/indigo pixel-by-pixel along diagonals.
+        idx = junction[i] < 0.8 ? 4 : 3;
+      } else {
+        const t = tone[id[i]];
+        const base = t < 0.55 ? 1 : t < 0.93 ? 2 : 3; // skyBlue / slate / rare indigo pane
+        idx = base;
+        if (crackAt(x, y - 1)) idx = base - 1; // north-lit crest under a fracture
+        else if (crackAt(x, y + 1)) idx = base + 1; // shadowed under-edge
+        else if (base === 1 && h2(x, y, seed + 91) > 0.96) idx = 0; // glint
+      }
+      grid.px(x, y, GLACIER_RAMP[clamp(idx, 0, 4)]);
+    }
+  }
+  return grid;
+}
+
+/**
+ * Bespoke reef BIO-ROCK face (Task R3b) — replaces the `blockWallFace`
+ * REEF-recolor placeholder, which read as generic stacked bricks rather
+ * than the shipped reef zone's drowned bio-rock.
+ *
+ * Model: one **course of bio-rock strata per tile**, the same anatomy as
+ * tileset7's `reefWall` so the cliff reads as the very same material:
+ *
+ *   - a dark **plum** body with sparse **mauve** rises at the tiling
+ *     `fbm`'s high extreme (organic rock grain, not brickwork);
+ *   - a lightly broken **slate** lit crest along the top of the course
+ *     (the analogue of `reefWall`'s slate top line);
+ *   - `reefWall`'s four crisp **slate** block plates at their shipped
+ *     spots (x jittered ±1 per seed), each with a single **skyBlue** lit
+ *     top-left corner;
+ *   - a **mauve** mineral vein (`reefWall`'s rust vein, transposed into
+ *     the cool face-ramp family — warm coral colours are decor, not wall);
+ *   - an **ink** shadowed lower band whose upper edge wobbles per column
+ *     (tiling 1D noise) behind an indigo/ink dither — the deep
+ *     under-shadow of each stratum;
+ *   - sparse **mint** and **skyBlue** bio-luminescent beads crusting the
+ *     shadow line and the body cracks.
+ *
+ * Palette-locked to the REEF face-ramp family ONLY — mint / skyBlue /
+ * slate / mauve / plum / indigo / ink — because `cliffFace` re-quantizes
+ * every face pixel through `REEF.indexOf(...)`, and the diagonal flight
+ * bodies reuse this exact grid; any colour outside the ramp would flatten
+ * in the round-trip. Deterministic (`h2`/`fbm`/`n1` only), fully opaque,
+ * and seamless: all geometry wraps mod 16 in BOTH axes (cliff faces tile
+ * side by side, and the flight bodies sample this tile toroidally).
+ */
+export function coralRockWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // organic strata have no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+  const w = (v: number): number => ((v % T) + T) % T;
+  const wpx = (x: number, y: number, c: PaletteName): void => grid.px(w(x), w(y), c);
+
+  // 1) Shadow-band profile: per-column top of the ink under-shadow, 10..12,
+  //    from tiling 1D noise so the left/right edges agree.
+  const bandTop: number[] = [];
+  for (let x = 0; x < T; x++) bandTop.push(10 + Math.round(n1(x, seed + 7) * 2));
+
+  // 2) Body: plum mottled to mauve/indigo by tiling fbm, then the band.
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      // Mostly-plum body (reefWall's is near-flat plum): mauve rises only
+      // at the fbm's high extreme, so the mottle reads as sparse organic
+      // grain instead of a loud repeating blob motif. No indigo mottle —
+      // the low-frequency octave pools it into a fake stratum.
+      const b = fbm(x, y, seed);
+      let c: PaletteName = b > 0.72 ? "mauve" : "plum";
+      if (y >= bandTop[x]) {
+        // Dissolve into the ink under-shadow: the first band row is an
+        // indigo/ink dither so the edge reads eaten, not ruled, then ink.
+        c = y === bandTop[x] ? (h2(x, 1, seed + 13) > 0.55 ? "indigo" : "ink") : "ink";
+      } else if (y === 0 && h2(x, 3, seed + 29) > 0.15) {
+        c = "slate"; // lit crest along the course top (reefWall's slate line)
+      }
+      grid.px(x, y, c);
+    }
+  }
+
+  // 3) Slate block plates — reefWall's facet recipe verbatim: the same four
+  //    crisp rects at the same spots, each with a single skyBlue lit
+  //    top-left corner. Only the x position jitters (±1, per seed) so
+  //    variant seeds shift the facet rhythm without ever merging plates.
+  const PLATES = [
+    { x: 2, y: 2, w: 4, h: 3 },
+    { x: 9, y: 2, w: 4, h: 4 },
+    { x: 3, y: 7, w: 5, h: 3 },
+    { x: 10, y: 8, w: 4, h: 3 },
+  ] as const;
+  PLATES.forEach((pl, i) => {
+    const jx = Math.round((h2(i, 51, seed) - 0.5) * 2); // -1..1
+    for (let dy = 0; dy < pl.h; dy++) {
+      for (let dx = 0; dx < pl.w; dx++) wpx(pl.x + jx + dx, pl.y + dy, "slate");
+    }
+    wpx(pl.x + jx, pl.y, "skyBlue"); // lit corner
+  });
+
+  // 4) Mauve mineral vein — reefWall's rust vein, transposed into the cool
+  //    face-ramp family (warm coral colours are decor, not wall).
+  for (const [vx, vy] of [[7, 3], [8, 4], [12, 6], [5, 10]] as const) {
+    wpx(vx + Math.round((h2(vx, 97, seed) - 0.5) * 2), vy, "mauve");
+  }
+
+  // 5) Bio-luminescent beads crusting the cracks: a few mint/skyBlue points,
+  //    biased into the shadowed lower half where the glow pops.
+  for (let i = 0; i < 4; i++) {
+    const bx = Math.floor(h2(i, 61, seed) * T);
+    const by = i < 2 ? 5 + Math.floor(h2(i, 67, seed) * 5) : 11 + Math.floor(h2(i, 67, seed) * 4);
+    wpx(bx, by, i % 2 === 0 ? "mint" : "skyBlue");
+  }
+  // one 2px glow pair on the shadow line (tileset7's glint motif)
+  {
+    const gx = Math.floor(h2(9, 71, seed) * T);
+    wpx(gx, 12, "skyBlue");
+    wpx(gx + 1, 12, "mint");
+  }
+
+  return grid;
+}
+
+/**
+ * Bespoke lava BASALT face — replaces the `blockWallFace` LAVA-recolor
+ * placeholder, which read as generic stacked bricks rather than fractured
+ * volcanic rock.
+ *
+ * Model: packed dark-basalt **Worley cells** (the same periodic-Worley recipe
+ * the game already uses for lava rock) with **glowing molten fissures** along
+ * the cell boundaries — the inverse of the reef bio-rock face:
+ *  - the fissure core (where the two nearest Worley sites are closest) glows
+ *    hottest: `atbGold` centre -> `amber` -> `hpRed`, with a `rust` cooling rim;
+ *  - the cell bodies are dark basalt (`stoneDark`/`stoneDeep`), undersides
+ *    falling into `ink` shadow, with sparse `ink` vesicles.
+ *
+ * Palette-locked to the LAVA face-ramp family ONLY (atbGold / amber / hpRed /
+ * rust / stoneDark / stoneDeep / ink), because `cliffFace` re-quantizes every
+ * face pixel through `LAVA.indexOf(...)` and the diagonal-flight bodies reuse
+ * this grid. Deterministic (`h2` only), fully opaque, and seamless: the Worley
+ * hash uses WRAPPED cell indices so the fissures tile mod 16 in both axes.
+ */
+export function basaltRockWallFace(params: WallParams, seed: number): PixelGrid {
+  void params; // Worley basalt has no use for the block-wall knobs
+  const grid = new PixelGrid(T, T);
+  const CS = 4, N = T / CS; // 4x4 Worley cells across the tile
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      const i0 = Math.floor(x / CS), j0 = Math.floor(y / CS);
+      let d1 = Infinity, d2 = Infinity, id = 0, siteY = 0;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const ci = i0 + di, cj = j0 + dj;
+          const wi = ((ci % N) + N) % N, wj = ((cj % N) + N) % N; // wrapped -> seamless
+          const sx = (ci + 0.18 + 0.64 * h2(wi, wj, seed + 5)) * CS;
+          const sy = (cj + 0.18 + 0.64 * h2(wi, wj, seed + 6)) * CS;
+          const dd = Math.hypot(x + 0.5 - sx, y + 0.5 - sy);
+          if (dd < d1) { d2 = d1; d1 = dd; id = wj * N + wi; siteY = sy; }
+          else if (dd < d2) d2 = dd;
+        }
+      }
+      const fissure = d2 - d1; // small near a cell boundary
+      // Dark basalt body dominates — fbm-mottled stoneDeep/stoneDark, ink lows.
+      const g = fbm(x, y, seed + 3);
+      let c: PaletteName = g > 0.68 ? "stoneDark" : g < 0.30 ? "ink" : "stoneDeep";
+      // Only ~half the cells run MOLTEN; the rest of the Worley cracks read as
+      // plain dark basalt fractures, so lava stays a minority accent.
+      const molten = h2(id % N, Math.floor(id / N), seed + 11) > 0.52;
+      if (fissure < 0.6) {
+        c = molten
+          ? (fissure < 0.22 ? "atbGold" : fissure < 0.40 ? "amber" : "hpRed") // hot core
+          : "ink"; // dark basalt fracture seam
+      } else if (fissure < 0.9 && molten) {
+        c = "rust"; // thin cooling rim just outside a molten crack
+      } else if (y + 0.5 - siteY > 2.2) {
+        c = "ink"; // cell undersides fall into shadow
+      }
+      if (h2(x, y, seed + 99) > 0.94) c = "ink"; // sparse vesicles
+      grid.px(x, y, c);
+    }
+  }
+  return grid;
+}
+
 /** A fully opaque, palette-locked 16x16 wall-face tile for `material`. */
 export function wallFace(material: MaterialKey, params: WallParams, seed: number): PixelGrid {
   switch (material) {
     case "rock":
-      return rockWallFace(params, seed);
+      return blockWallFace(ROCK, params, seed);
+    case "glacier":
+      return glacierWallFace(params, seed);
+    case "coralRock":
+      return coralRockWallFace(params, seed);
+    case "basaltRock":
+      return basaltRockWallFace(params, seed);
+    case "groveStone":
+      // Placeholder (tier-2) until the bespoke damp-cave face (grove biome T7).
+      return blockWallFace(GROVE, params, seed);
   }
 }

@@ -403,8 +403,77 @@ describe("cliff tileset byte-stability", () => {
   // Updated for Phase 1b (straight ramps, 238 tiles), Phase 1c 45° diagonal (270 tiles),
   // and Phase 1c shallow+steep (26.57° + 63.43° diagonal flights, 370 tiles).
   // 370 named tiles + 6 blank pad (8 columns x 47 rows). Visual look approved before pinning.
+  //
+  // cliffIce re-pinned for M2 Task R2: cliffFace.ts's scree-pebble band was
+  // hardcoded to the ROCK ramp regardless of biome, so ice's scree pebbles
+  // rendered gray instead of ice-colored. R1 fixed it to use the passed
+  // faceRamp; desert (faceRamp -> ROCK) stays byte-identical, but ice's
+  // scree pixels changed, moving this hash. Same 274 named tile slots, no
+  // reordering — only scree pixels changed.
+  //
+  // cliffIce re-pinned again (frozen multi-ground): the frozen biome grew from
+  // one `ice` ground to FOUR that all autotile with each other — `snow`,
+  // `frozenLake`, `rimeMoss` added as grounds + fills, and ICE_CLIFF's pairings
+  // went from ice-over-ice to all 6 cross-pairs (ice<->snow/frozenLake/rimeMoss,
+  // snow<->frozenLake, snow<->rimeMoss, frozenLake<->rimeMoss). Crisp/faceted
+  // seams (edgeIrregularity 14 -> 6). +6x47 pairings +3 fills → 274 -> 559 tiles
+  // (128x1120). Appended after ice-self, so no existing tile reorders. Desert
+  // (`cliff`) and reef (`cliffReef`) are untouched — same hashes.
+  //
+  // cliffReef re-pinned for M2 Task R3a: reef ramps (REEF wall + the four
+  // reefFloor/reefSilt/reefWater/glowMoss ground ramps) recoloured to match
+  // the shipped tileset7 reef zone (plum/skyBlue/indigo bio-rock wall over
+  // a dark teal/indigo floor family), and the four reef ground `floorFill`
+  // recipes were split out of one shared placeholder branch into distinct,
+  // palette-locked recipes per ground. Desert (`cliff`) and ice (`cliffIce`)
+  // are untouched by this change — same hashes as before.
+  //
+  // cliffReef re-pinned again for M2 Task R3c: `coralRockWallFace`
+  // (materials.ts) replaces the tier-2 `blockWallFace` placeholder with a
+  // bespoke plum bio-rock wall face (the REEF face-ramp in palette.ts).
+  // Same 274 named tile slots, no reordering — only the reef wall's face
+  // pixels changed. Desert (`cliff`) and ice (`cliffIce`) are untouched.
+  //
+  // cliffReef re-pinned again for M2 Task R3d: REEF_CLIFF's `cornerRounding`
+  // raised 2 -> 8 (presets.ts) so the reef's ground-to-ground blob seams
+  // (reefFloor<->reefSilt/reefWater/glowMoss/reefFloor) read as larger,
+  // rounder, more organic corners than the cliff/plateau edges, which keep
+  // their own `topRounding` (unchanged, via `linkPlateauCorners`). Same 274
+  // named tile slots, no reordering — only ground-transition blob-mask
+  // corner pixels changed. Desert (`cliff`) and ice (`cliffIce`) are
+  // untouched.
+  //
+  // cliffReef re-pinned again (seam tuning + all-pairs): the reef ground
+  // seams were tuned live by the owner in the seam-rounding tuner —
+  // `edgeInset` 2->3, `edgeIrregularity` 14->20, `cornerRounding` stays 8,
+  // new decoupled `pocketRounding` 8 (rounds patches' OUTER corners
+  // independently of the INNER-corner `cornerRounding`), and a new
+  // `pairingSeed` 7439 that reseeds ONLY the ground-transition blobs (the
+  // coral wall face / ramps keep base seed 7777, so they're byte-identical).
+  // AND the four reef grounds now autotile with EACH OTHER, not just against
+  // reefFloor: three pairings appended — reefSilt<->reefWater,
+  // reefSilt<->glowMoss, reefWater<->glowMoss (+3x47 = 141 tiles, sheet grows
+  // 418 -> 559 tiles, 128x1120). Appended after the reefFloor pairings, so no
+  // existing tile is reordered (additive). Desert (`cliff`) and ice
+  // (`cliffIce`) are untouched — same hashes.
+  //
+  // cliffLava: NEW lava biome sheet (build order ice -> reef -> lava). Four
+  // volcanic grounds all autotiling (emberRock/ash/lava/lavaCrust), organic
+  // seams (edgeIrregularity 18), and a bespoke tier-3 `basaltRock` wall face
+  // (Worley basalt cells with molten fissures glowing through — ~half the
+  // cracks run molten, LAVA face-ramp). 559 tiles (128x1120), same shape as
+  // reef. Purely additive — desert/ice/reef byte-identical.
   const FROZEN = {
-    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd"
+    cliff: "a3fc497935e7407176b668ce07070973d243c0b97421941ed29c348860f0efbd",
+    cliffIce: "d405e55fc45a18df34b5589787fcf8eb22aa86ba9dfb127d2239893069753424",
+    cliffReef: "5e9ae2523b231a6bd64e5abc7124dca8299d53a5315f16bde0524887d462395b",
+    cliffLava: "2921fbad05ff8fde47795eec0e3dadc230238bf9be3842d82574ad7b4ea2e9fb",
+    // cliffGrove: NEW grove/cave biome sheet (build order ...lava -> grove). Four
+    // grounds all autotiling (groveGrass/groveMoss/groveWater/groveSoil); moss is
+    // teal-dominant with darkened umber soil showing through. Organic seams
+    // (edgeIrregularity 18), tier-2 PLACEHOLDER groveStone wall face (bespoke damp-
+    // cave face is future work). 559 tiles. Additive — desert/ice/reef/lava identical.
+    cliffGrove: "6e35a0097ee3deda6cf0aee025108a140e509effb5b0e9e2d45f7a307363914b"
   } as const;
 
   it("cliff.png encodes to its committed bytes", () => {

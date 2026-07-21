@@ -63,7 +63,11 @@ const sheets = [
   // owMountains: mask-based rounded-corner overworld mountain autotile.
   ["owMountains.png", assets.owMountains],
   // cliff: Desert Cliff Tileset generator sheet — appended only, never reordered.
-  ["cliff.png", assets.cliff]
+  ["cliff.png", assets.cliff],
+  ["cliffIce.png", assets.cliffIce],
+  ["cliffReef.png", assets.cliffReef],
+  ["cliffLava.png", assets.cliffLava],
+  ["cliffGrove.png", assets.cliffGrove]
 ] as const;
 
 for (const [name, grid] of sheets) {
