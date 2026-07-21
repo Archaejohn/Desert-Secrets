@@ -15,6 +15,7 @@ import { type ZoneMap, isSolidName, mapSize } from "./maps/types";
 import type { DialogueScript } from "../core/dialogue";
 import type { TerrainKey } from "../../tools/pipeline/src/cliffs/palette";
 import { CompositeGroundView } from "./gfx/CompositeGroundView";
+import { WaterSurfaceView } from "./gfx/WaterSurfaceView";
 import { terrainGrid } from "./maps/groundTerrain";
 import { equipItem, unequipSlot, respawn, type ZoneId } from "../core/gameState";
 import { nextThomasFragment } from "../core/scripts/thomas";
@@ -35,6 +36,8 @@ import {
 export const TILE = 16;
 const PLAYER_SPEED = 72;
 const COMPOSITE_GROUND_DEPTH = -100;
+const WATER_TINT_DEPTH = -90;    // above seabed, below actors — the depth film
+const WATER_CAUSTIC_DEPTH = -80; // above the tint, still below actors
 const TALK_RANGE = 26;
 /** Ink-with-alpha helper for text/panel backgrounds below (keeps them tied to
  *  PALETTE.ink instead of a stale hardcoded hex). */
@@ -54,6 +57,10 @@ export interface ZoneConfig {
   /** Opt-in: render this zone's ground via the runtime composite instead of the tileset.
    *  Carries the zone's own ground-name → TerrainKey table + fallback. */
   compositeGround?: { table: Readonly<Record<string, TerrainKey>>; fallback: TerrainKey };
+  /** Opt-in (needs `compositeGround`): render water as a translucent surface over the
+   *  composited seabed. `table` keeps water as `reefWater` so the footprint mask can be
+   *  derived; names mapping to `reefWater` are also hidden on the decor layer. */
+  water?: { table: Readonly<Record<string, TerrainKey>>; fallback: TerrainKey };
 }
 
 export interface ZoneEntryData {
@@ -102,6 +109,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected decorLayer!: Phaser.Tilemaps.TilemapLayer;
   protected inputLocked = false;
   private compositeGroundView: CompositeGroundView | null = null;
+  private waterSurfaceView: WaterSurfaceView | null = null;
 
   /**
    * Two-camera world/UI split (docs/CONTRACTS.md "v21"). `uiLayer` is an
@@ -212,6 +220,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.activeNpc = null;
     this.encounterClock = null;
     this.compositeGroundView = null;
+    this.waterSurfaceView = null;
   }
 
   create(): void {
@@ -506,6 +515,20 @@ export abstract class ZoneScene extends Phaser.Scene {
     const blur = !new URLSearchParams(location.search).has("noblur"); // texture blur ON by default; ?noblur to compare
     this.compositeGroundView = new CompositeGroundView(this, grid, COMPOSITE_GROUND_DEPTH, { blur });
     this.groundLayer.setVisible(false);
+
+    const water = this.cfg.water;
+    if (water) {
+      if (this.waterSurfaceView) this.waterSurfaceView.destroy();
+      const waterGrid = terrainGrid(this.cfg.map.ground, water.table, water.fallback);
+      this.waterSurfaceView = new WaterSurfaceView(this, waterGrid, WATER_TINT_DEPTH, WATER_CAUSTIC_DEPTH);
+      // Hide the DECOR-layer water tiles (water is duplicated onto decor; they'd draw over
+      // the surface overlay). Any name mapping to `reefWater` in the water table is water.
+      for (const nm of Object.keys(water.table)) {
+        if (water.table[nm] !== "reefWater") continue;
+        const gid = this.tileGid(nm);
+        this.decorLayer.forEachTile((t) => { if (t.index === gid) t.setVisible(false); });
+      }
+    }
   }
 
   /** Animate all tiles of nameA <-> nameB on a timer (e.g. water). */
@@ -1057,6 +1080,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     if (this.inputLocked) {
       this.actionHint?.setVisible(false);
       this.player.setVelocity(0, 0);
+      this.waterSurfaceView?.update(dt);
       this.onUpdate(dt);
       return;
     }
@@ -1134,6 +1158,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     }
 
     this.hud.update(getState(this));
+    this.waterSurfaceView?.update(dt);
     this.onUpdate(dt);
   }
 }

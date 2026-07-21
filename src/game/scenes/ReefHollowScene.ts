@@ -17,6 +17,7 @@ import {
 import { REEF_W_RETURN_SPAWN } from "../maps/reefWarrenMap";
 import { REEF_C_SPAWN } from "../maps/reefCourtMap";
 import { reefHollowEntryScript } from "../../core/scripts/reefHollowEntry";
+import { REEF_HOLLOW_SEABED, REEF_HOLLOW_WATER, REEF_HOLLOW_DEFAULT } from "../maps/groundTerrain";
 import { SlitherFollower } from "../SlitherFollower";
 import { FluffballFollower } from "../FluffballFollower";
 import { getState, setState } from "../state";
@@ -39,7 +40,9 @@ export class ReefHollowScene extends ZoneScene {
       zoneName: "The Glowing Hollow",
       map: buildReefHollowMap(),
       defaultSpawn: REEF_H_SPAWN,
-      battleBg: "ice"
+      battleBg: "ice",
+      compositeGround: { table: REEF_HOLLOW_SEABED, fallback: REEF_HOLLOW_DEFAULT },
+      water: { table: REEF_HOLLOW_WATER, fallback: REEF_HOLLOW_DEFAULT }
     };
   }
 
