@@ -89,3 +89,36 @@ Owner-chosen approach: **de-tile + enrich.** Beyond making the recipe world-posi
 `tsc --noEmit`, `vitest run` (golden crops + conformance + non-tiling green), `npm run
 build` (confirms nothing else broke — no sheet/pin changes expected). Owner review gate at
 the render (§7).
+
+## Addendum (2026-07-21) — what actually shipped
+
+The build pivoted beyond the original "faithful de-tile + uniform grain/macro" plan after
+the owner reviewed it: all 19 grounds read as "recolored versions of the same concept."
+The delivered G1 instead gives each material a **distinct texture STRUCTURE**:
+
+- **`tools/pipeline/src/ground/texture.ts`** — a world-position primitive kit: `worley`
+  (cellular/facets), `ridged` (crack networks), `striate` (ripples / wave bands), `warp`
+  (domain-warp flow / clumps), `cellTone`, and `ditherRamp` (hash-based, non-repeating
+  interleave for smooth transitions). All non-wrapping, reuse the shared `h2`.
+- **Family map** (owner-approved on a 6-ground prototype, then rolled to all 19): ripples →
+  sand/frostSand; flowing → lava; facets → ice/frozenLake; wave bands → reefWater/groveWater;
+  clumps → glowMoss/rimeMoss/groveGrass/groveMoss; grain → groveSoil/ash/reefSilt/asphalt/
+  reefFloor; cracked → emberRock/lavaCrust; soft drift → snow.
+- **"Shaded" low-contrast register** (owner direction): texture modulates within the
+  material's body±1 tone; ramp extremes are rare sparse accents only (exception: `lavaCrust`
+  inverted — dark crust, light fissures). Lava is domain-warp FLOW, not crystalline cells.
+- **Enriched AAP-64 ground ramps** (`tools/pipeline/src/ground/groundRamps.ts`): keep each
+  terrain's 4 identity colors, insert AAP-64 intermediate tones between adjacent IDs
+  (RGB-lerp → nearest-AAP-64 → CORE name), so blending spends the fuller palette. `fill()`
+  blends across these via `ditherRamp`. `GROUND_RAMPS` (5–8 entries) + `GROUND_ID_POS`.
+  Palette-lock now asserts against `GROUND_RAMPS`.
+
+**Deferred (owner: "revisit later if needed"), NOT blocking the G1 merge:**
+- **sand / snow / groveGrass** gained NO intermediates — their two body IDs are already
+  adjacent in AAP-64, so nothing sits between them; they remain 2-color stipple. Truly
+  smoothing them needs a WIDER body-blend window (span 3 IDs) — a follow-up.
+- A few auto-inserted intermediates may read muddy — `groveMoss` (green→grey→brown bridge),
+  `ash` (cool blue-grey bridge), `groveSoil`/`emberRock`/`lavaCrust` (warm→cool rock) —
+  hand-retune per terrain later if wanted.
+- Still upstream of G2 (masks/composite), G3 (game wiring), G4 (authored floors) — `fill()`
+  is not yet consumed by any scene.
