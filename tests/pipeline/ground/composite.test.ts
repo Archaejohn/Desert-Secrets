@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { GROUND_PRIORITY, neighborConfig, compositeCell, compositeMap } from "../../../tools/pipeline/src/ground/composite";
+import { GROUND_PRIORITY, neighborConfig, compositeCell, compositeMap, SEAM } from "../../../tools/pipeline/src/ground/composite";
 import { TERRAIN_RAMPS, TERRAIN_RAMPS as R } from "../../../tools/pipeline/src/cliffs/palette";
 import { GROUND_RAMPS } from "../../../tools/pipeline/src/ground/groundRamps";
+import { overlayMask } from "../../../tools/pipeline/src/cliffs/blob47";
+import { fill } from "../../../tools/pipeline/src/ground/fills";
 
 describe("GROUND_PRIORITY", () => {
   it("ranks every terrain and preserves the per-biome orders", () => {
@@ -77,5 +79,38 @@ describe("compositeMap", () => {
   it("does not throw on a 3-terrain junction cell", () => {
     // center touches reefSilt, glowMoss, reefWater, reefFloor — composites, no off-palette
     expect(() => compositeMap(map)).not.toThrow();
+  });
+});
+
+describe("outline", () => {
+  // 2x2 map: corner reefFloor (self, low) with glowMoss (higher) to the E — moss carves in.
+  const map = [["reefFloor", "glowMoss"], ["reefFloor", "reefFloor"]] as any;
+
+  // NOTE: the literal brief test ("seam column has >1 distinct reefFloor TERRAIN_RAMPS
+  // tone") passes even WITHOUT an outline pass, because fill()'s own per-pixel dithering
+  // (ditherRamp, see fills.ts/texture.ts) already lands on multiple TERRAIN_RAMPS-member
+  // tones within a flat body by chance. That test doesn't discriminate outline-vs-no-outline
+  // (verified: it passes red, before this task's implementation). Instead, reconstruct the
+  // pre-outline flat mask+fill composite (Tasks 1-3 behavior) directly and assert the new
+  // output diverges from it somewhere — a real outline/shadow pass changes pixel values at
+  // the seam that a flat composite would not.
+  it("shades the seam edge, diverging from the flat mask+fill composite", () => {
+    const g = compositeCell(map, 0, 0, 0, 0);
+    const terrainAt = (cx: number, cy: number): "reefFloor" | "glowMoss" | null =>
+      cy >= 0 && cy < map.length && cx >= 0 && cx < map[cy].length ? map[cy][cx] : null;
+    const cfg = neighborConfig((dx, dy) => {
+      const n = terrainAt(dx, dy);
+      return !n || GROUND_PRIORITY[n] <= GROUND_PRIORITY.reefFloor;
+    });
+    const m = overlayMask(cfg, SEAM.inset, SEAM.irreg, SEAM.round, SEAM.seed, SEAM.pocketRound);
+    let differs = false;
+    for (let y = 0; y < 16 && !differs; y++) {
+      for (let x = 0; x < 16; x++) {
+        const terr = m[y * 16 + x] === 1 ? "reefFloor" : "glowMoss";
+        const flat = fill(terr, x, y); // same world coords as compositeCell(map,0,0,0,0)
+        if (g.get(x, y) !== flat) { differs = true; break; }
+      }
+    }
+    expect(differs).toBe(true);
   });
 });
