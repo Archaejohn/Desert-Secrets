@@ -284,6 +284,39 @@ export function fill(key: TerrainKey, wx: number, wy: number): PaletteName {
       break;
     }
 
+    // ---- AUTHORED SLAB (submerged temple flagstones) ---------------------
+    // 3x2-tile (48x32) slab lattice on the world grid: per-slab warm body tone,
+    // per-slab shading off a top-left light (lit lip + far-edge shade), dark grout
+    // joints at block boundaries, a ridged crack network, sparse wear, and very
+    // sparse scattered skyBlue wet glints (the one off-ramp accent).
+    case "templeSlab": {
+      const BW = 48, BH = 32;
+      const bx = Math.floor(wx / BW), by = Math.floor(wy / BH);
+      const lx = wx - bx * BW, ly = wy - by * BH;   // 0..BW-1 / 0..BH-1
+      // per-slab flat body tone: WARM variation between plum (P[1]) and one step
+      // toward mauve (P[1]-1, a tan stone) — never toward indigo, so slabs read as
+      // purple/tan flagstones, not blue. Indigo is reserved for grout/shade/cracks.
+      const tone = h2(bx, by, seed);
+      let i = tone > 0.5 ? P[1] : clampIdx(P[1] - 1, R.length);
+      // per-slab shading off a top-left light.
+      if (lx < 2 || ly < 2) i = P[0];               // lit lip (mauve) inside top/left
+      if (lx >= BW - 1 || ly >= BH - 1) i = P[2];   // shaded far edge (indigo)
+      // grout joints along block boundaries (override the lit lip so joints stay dark).
+      if (lx === 0 || ly === 0) i = (lx === 0 && ly === 0) ? P[3] : P[2];
+      // crack network crossing slabs: creases settle to indigo, rare ink cores.
+      const r = ridged(wx, wy, seed + 5);
+      if (r > 0.90) i = P[2];
+      if (r > 0.965 && h2(ix, iy, seed + 47) > 0.5) i = P[3];
+      // rare wear fleck toward the lit tone.
+      if (h2(ix, iy, seed + 71) > 0.985) i = P[0];
+      // faint water sheen: very sparse SCATTERED skyBlue glints (off-ramp accent) —
+      // a wet sparkle on slab interiors, NOT a banded streak (an earlier striate
+      // sheen concentrated into bright horizontal rivulets along block rows).
+      if (lx > 1 && ly > 1 && h2(ix, iy, seed + 11) > 0.99) return "skyBlue";
+      idx = i;
+      break;
+    }
+
     default: {
       const _never: never = key;
       throw new Error(`unknown terrain ${_never as string}`);

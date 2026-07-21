@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { REEF_GARDEN_GROUND_TO_TERRAIN as TBL, REEF_GARDEN_DEFAULT_TERRAIN as DEF, REEF_HOLLOW_SEABED, REEF_HOLLOW_WATER, REEF_HOLLOW_DEFAULT, groundNameToTerrainKey, terrainGrid } from "../../src/game/maps/groundTerrain";
+import { REEF_GARDEN_GROUND_TO_TERRAIN as TBL, REEF_GARDEN_DEFAULT_TERRAIN as DEF, REEF_HOLLOW_SEABED, REEF_HOLLOW_WATER, REEF_HOLLOW_DEFAULT, groundNameToTerrainKey, terrainGrid, SUNTEMPLE_GROUND_TO_TERRAIN as STT, SUNTEMPLE_DEFAULT_TERRAIN as STDEF } from "../../src/game/maps/groundTerrain";
 
 describe("groundNameToTerrainKey", () => {
   it("maps direct + variant + nearest names via baseName", () => {
@@ -34,5 +34,16 @@ describe("reef hollow tables", () => {
     expect(groundNameToTerrainKey("reefWater", REEF_HOLLOW_WATER)).toBe("reefWater");
     expect(groundNameToTerrainKey("reefWater2", REEF_HOLLOW_WATER)).toBe("reefWater");
     expect(groundNameToTerrainKey("reefSilt", REEF_HOLLOW_WATER)).toBe("reefSilt");
+  });
+});
+
+describe("sun-temple table", () => {
+  it("maps floor + glyph to templeSlab and water phases to reefSilt", () => {
+    expect(groundNameToTerrainKey("templeFloor", STT)).toBe("templeSlab");
+    expect(groundNameToTerrainKey("templeGlyph", STT)).toBe("templeSlab");
+    expect(groundNameToTerrainKey("templeFloorShade", STT)).toBe("templeSlab"); // baseName strips dressing
+    expect(groundNameToTerrainKey("seaWater", STT)).toBe("reefSilt");
+    expect(groundNameToTerrainKey("seaWater2", STT)).toBe("reefSilt");
+    expect(STDEF).toBe("reefSilt");
   });
 });

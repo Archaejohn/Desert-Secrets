@@ -19,6 +19,16 @@ import { getState, setState } from "../state";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import { LightMask } from "../gfx/LightMask";
 import { setupZoneLighting } from "../gfx/zoneLighting";
+import { SUNTEMPLE_GROUND_TO_TERRAIN, SUNTEMPLE_DEFAULT_TERRAIN } from "../maps/groundTerrain";
+import type { GroundFeature } from "../../../tools/pipeline/src/ground/features";
+
+/** Authored ground features: the carved sun-glyph landmark + a couple of
+ *  shattered slabs near the pillars (Task 3 `paintFeatures`). */
+const SUNTEMPLE_FEATURES: readonly GroundFeature[] = [
+  { kind: "sunEmblem", tx: 7, ty: 7 },              // hall-center sun glyph (lore landmark)
+  { kind: "shatter", tx: 6, ty: 5, seed: 3 },       // broken slab by a pillar
+  { kind: "shatter", tx: 8, ty: 10, seed: 7 },
+];
 
 export class SunTempleScene extends ZoneScene {
   private slither = new SlitherFollower(this);
@@ -34,7 +44,12 @@ export class SunTempleScene extends ZoneScene {
       zoneName: "The Ancient Ruins",
       map: buildSunTempleMap(),
       defaultSpawn: SUNTEMPLE_SPAWN,
-      battleBg: "ice"
+      battleBg: "ice",
+      compositeGround: {
+        table: SUNTEMPLE_GROUND_TO_TERRAIN,
+        fallback: SUNTEMPLE_DEFAULT_TERRAIN,
+        features: SUNTEMPLE_FEATURES,
+      },
     };
   }
 
@@ -57,8 +72,9 @@ export class SunTempleScene extends ZoneScene {
       });
     }
 
-    // The carved sun-glyph: inspect for the lore beat.
-    this.addProp("seaSparkle", SUNTEMPLE_GLYPH.x, SUNTEMPLE_GLYPH.y, { depthSort: false });
+    // The carved sun-glyph (the composited gray-stone sun-emblem feature IS the
+    // landmark now — the old seaSparkle prop read as an unclear blue box): inspect
+    // for the lore beat.
     this.addInteractPoint(SUNTEMPLE_GLYPH.x, SUNTEMPLE_GLYPH.y, () => {
       this.openScript(templeLoreScript, () => {
         const s = getState(this);
