@@ -166,7 +166,7 @@ export function crestOff(kind: string, x: number, W: number, amt: number): numbe
 
 /** Cinnabar ore: sparse muted-red ore bodies threading the mine's hewn rock (dark
  *  maroon -> muted red; it is ore in stone, not lava, so it stays low on the ramp). */
-const ORE = MAT([2, 3, 44, 45], 0.15, 0.75);
+const ORE = MAT([2, 3, 4, 5], 0.12, 0.72);
 
 /* ---------- rock styles ----------
    Each returns the blocks of one course. The recess behind is a separate dark plane;
