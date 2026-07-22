@@ -39,10 +39,13 @@ const BAYER = [
   [15, 7, 13, 5],
 ];
 
-export function renderWall(
+/** `renderWall` plus the projected-bounds screen offset (`x0`,`y0`) of the baked grid —
+ *  i.e. grid pixel (0,0) corresponds to screen coords (x0,y0). Consumers that PLACE the
+ *  wall in a scene (WallView) need this to align the foot to a target position. */
+export function renderWallWithBounds(
   params: WallParams,
   opts: { bands?: number; dith?: number; ao?: number } = {},
-): PixelGrid {
+): { grid: PixelGrid; x0: number; y0: number } {
   const { P } = buildWall(params);
   const bands = opts.bands ?? 6;
   const dith = opts.dith ?? 0.3;
@@ -159,5 +162,13 @@ export function renderWall(
       grid.px(x, y, hexToName(c));
     }
 
-  return grid;
+  return { grid, x0, y0 };
+}
+
+/** The wall as a bare `PixelGrid` (drops the placement bounds). */
+export function renderWall(
+  params: WallParams,
+  opts: { bands?: number; dith?: number; ao?: number } = {},
+): PixelGrid {
+  return renderWallWithBounds(params, opts).grid;
 }

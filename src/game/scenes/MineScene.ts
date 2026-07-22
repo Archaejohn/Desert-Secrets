@@ -10,6 +10,7 @@ import {
   MINE_ELEVATOR,
   MINE_FOREMAN,
   MINE_GATE_TILES,
+  MINE_LEDGE_BAND,
   MINE_LEVER,
   MINE_LEVER_PLATE,
   MINE_SOUTH_EXIT,
@@ -71,7 +72,8 @@ export class MineScene extends ZoneScene {
       defaultSpawn: MINE_SPAWN,
       encounterZone: "mine",
       battleBg: "mine",
-      compositeGround: { table: MINE_GROUND_TO_TERRAIN, fallback: MINE_DEFAULT_TERRAIN }
+      compositeGround: { table: MINE_GROUND_TO_TERRAIN, fallback: MINE_DEFAULT_TERRAIN },
+      walls: [{ band: { ...MINE_LEDGE_BAND }, style: "minestone", crest: "jagged", ch: 0.85, talus: 0.22, bw: 0.6 }]
     };
   }
 
