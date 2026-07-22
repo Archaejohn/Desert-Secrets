@@ -35,6 +35,26 @@ export const MINE_ELEVATOR_SPAWN = { x: 24, y: 8 } as const;
 /** The ore cart at the end of the rail siding. */
 export const MINE_CART = { x: 12, y: 11 } as const;
 
+/** W2b Task 1: a raised ledge carved into the entry chamber, north→south —
+ *  plateau (row 15) → solid wall band (rows 16-17, minus a ramp gap) → lower
+ *  floor (rows 18-19, spawn/exit level). Wall/ramp ART lands in later W2b
+ *  tasks; here the band is just solid `mineWall` and the gap is just
+ *  walkable — the tile STRUCTURE a raised ledge needs.
+ *
+ *  The band's x1 is 13, not 12: column x=12 is the PRE-EXISTING west
+ *  corridor threshold (TIMBERS already blocks (12,15) with a support beam,
+ *  so (12,16) is the corridor's only way into the chamber) — solidifying it
+ *  too would sever the entire west half of the mine from the entry chamber.
+ *  It's left untouched, exactly as it worked before this ledge existed.
+ *  The ramp sits at x=14 rather than the band's other end: x=13's plateau
+ *  cell already carries the pre-existing "north wall" lanternPost (see
+ *  MINE_TORCHES below), which would strand a ramp there — it'd reach row 16
+ *  but dead-end without a way up onto the plateau. x=14's plateau cell is
+ *  plain open floor, so the ramp actually connects floor→plateau. */
+export const MINE_LEDGE_PLATEAU = { x1: 12, y1: 15, x2: 16, y2: 15 } as const;
+export const MINE_LEDGE_BAND = { x1: 13, y1: 16, x2: 16, y2: 17 } as const;
+export const MINE_LEDGE_RAMP = { x: 14, y1: 16, y2: 17 } as const;
+
 /** Lantern-post torches mounted at chamber corners/edges (solid decor, all
  *  in wide chambers so none narrows a path — BFS-verified). MineScene hangs a
  *  warm flickering LightMask glow on each. */
@@ -92,6 +112,16 @@ export function buildMineMap(): ZoneMap {
     }
   }
 
+  // W2b Task 1: re-solidify the entry chamber's wall band into a raised
+  // ledge face — CARVES[0] carved the whole chamber walkable, so this puts
+  // rock back everywhere in the band except the ramp gap column.
+  for (let y: number = MINE_LEDGE_BAND.y1; y <= MINE_LEDGE_BAND.y2; y++) {
+    for (let x: number = MINE_LEDGE_BAND.x1; x <= MINE_LEDGE_BAND.x2; x++) {
+      if (x === MINE_LEDGE_RAMP.x) continue; // ramp gap stays walkable
+      decor[y][x] = "mineWall";
+    }
+  }
+
   // Rail siding with an ore cart.
   for (let x = 8; x <= 11; x++) decor[11][x] = "rail";
   decor[MINE_CART.y][MINE_CART.x] = "cart";
@@ -108,8 +138,9 @@ export function buildMineMap(): ZoneMap {
   for (const g of MINE_GATE_TILES) decor[g.y][g.x] = "mineTimber";
   decor[MINE_LEVER.y][MINE_LEVER.x] = "lever";
 
-  // A few bones for flavor in the entry chamber.
-  decor[17][16] = "bones";
+  // A few bones for flavor in the entry chamber — on the lower floor (was
+  // (16,17), which the W2b ledge's wall band now re-solidifies).
+  decor[18][16] = "bones";
 
   // Lantern-post torches (LightMask glows hung on them in MineScene).
   for (const t of MINE_TORCHES) decor[t.y][t.x] = "lanternPost";
