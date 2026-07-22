@@ -11,9 +11,11 @@ const PPU = 16;
 /** Face + talus draw BELOW every actor (actor foot-Y >= 0), so a player in front of the
  *  ledge — or standing on top of it — always draws over the rock. */
 const FACE_DEPTH = -50;
-/** The crest lip draws on/over the overhead layer (depth 5000), so it occludes a player
- *  standing at the plateau's front edge (the "edge of a drop" read). */
-const CREST_DEPTH = 5001;
+/** The crest lip draws above every actor (foot-Y, max ~map-height·16) so it occludes a
+ *  player standing at the plateau's front edge, but BELOW a zone's lighting overlay
+ *  (~4000) so it lamp-dims consistently with the face rather than reading as a bright
+ *  un-lit seam floating over a shadowed wall. */
+const CREST_DEPTH = 3900;
 
 /** A wall recipe placed over a band of tiles (the ledge's front face). Declared per zone
  *  in `ZoneConfig.walls`. The band rect is inclusive tile coords; `rampGapX` (optional)
