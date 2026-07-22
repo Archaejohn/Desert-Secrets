@@ -11,14 +11,14 @@ const HEX_TO_NAME: Record<string, PaletteName> = (() => {
 export const hexToName = (hex: string): PaletteName => HEX_TO_NAME[hex.toLowerCase()];
 export const aapIndexToName = (i: number): PaletteName => hexToName(AAP64[i]);
 
-/** Muted default lambert window (owner: prototype cliffs read too bright). Shading maps
- *  `t=(lam-lo)/(hi-lo)` up the light→dark... no, dark→light ramp, so a HIGHER window (esp.
- *  a higher `hi`) pushes a given face lambert LOWER on the ramp = darker/muted. A near-
- *  vertical face catches ~0.24-0.50 lambert; this window (raised past the prototype's
+/** Muted default lambert window (owner: prototype cliffs read too bright). Ramps run
+ *  dark→light, and shading maps `t=(lam-lo)/(hi-lo)` up the ramp — so a HIGHER window
+ *  (especially a higher `hi`) pushes a given face lambert LOWER on the ramp = darker/muted.
+ *  A near-vertical face catches ~0.24-0.50 lambert; this window (raised past the prototype's
  *  [0.11,0.53]) keeps those faces off the ramp's brightest entries. */
 export const WALL_WIN: [number, number] = [0.14, 0.62];
 
-/** A material = its AAP-64 ramp (hex strings, light->dark) spread across a lambert window. */
+/** A material = its AAP-64 ramp (hex strings, dark->light) spread across a lambert window. */
 export const MAT = (ix: number[], lo: number, hi: number): Material => ({
   R: ix.map((i) => AAP64[i]), lo, hi,
 });
