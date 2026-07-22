@@ -41,4 +41,11 @@ describe("renderWall", () => {
   it("granite renders too", () => {
     expect(renderWall({ ...P0, style: "granite" }).width).toBeGreaterThan(40);
   });
+  it("minestone renders palette-locked and deterministically", () => {
+    const g = renderWall({ ...P0, style: "minestone" });
+    let opaque = 0;
+    g.forEach((_x, _y, c) => { if (c !== null) { opaque++; expect(PALETTE).toHaveProperty(c); } });
+    expect(opaque).toBeGreaterThan(200);
+    expect(g.diff(renderWall({ ...P0, style: "minestone" }))).toBe(0);
+  });
 });
