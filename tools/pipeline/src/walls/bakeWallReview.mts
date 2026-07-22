@@ -9,7 +9,7 @@ const base = { W: 9, H: 5, ch: 0.34, bw: 0.48, relief: 0.45, frac: 0.4, irr: 0.5
   batter: 0.15, talus: 0.45, crest: "auto" as const, crestAmt: 0.55, top: "auto" as const, seed: 11 };
 const outDir = process.argv[2] ?? "tools/pipeline/.bake";
 mkdirSync(outDir, { recursive: true });
-for (const style of ["strata", "granite"] as const) {
+for (const style of ["strata", "granite", "minestone"] as const) {
   const g = renderWall({ ...base, style });
   writeFileSync(`${outDir}/wall-${style}.png`, encodePng(g));
   console.log(`wrote ${outDir}/wall-${style}.png (${g.width}x${g.height})`);
