@@ -33,6 +33,16 @@ export const SUNTEMPLE_GROUND_TO_TERRAIN: Readonly<Record<string, TerrainKey>> =
 };
 export const SUNTEMPLE_DEFAULT_TERRAIN: TerrainKey = "reefSilt";
 
+/** Cinnabar Mine ground tile-names → TerrainKey. Dark stone floor becomes the warm
+ *  emberRock (clay/rust/stoneDeep/ink) to suit the cinnabar mine; the frost patches
+ *  keep their own frostSand key so the composite blends warm stone with frost via
+ *  the shared mask. */
+export const MINE_GROUND_TO_TERRAIN: Readonly<Record<string, TerrainKey>> = {
+  mineFloor: "emberRock",
+  frostSand: "frostSand",
+};
+export const MINE_DEFAULT_TERRAIN: TerrainKey = "emberRock";
+
 /** One (possibly dressed) ground tile-name → TerrainKey via its base name, or null if unmapped. */
 export function groundNameToTerrainKey(name: string | null, table: Readonly<Record<string, TerrainKey>>): TerrainKey | null {
   const b = baseName(name);

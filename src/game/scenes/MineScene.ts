@@ -25,6 +25,7 @@ import { LightMask } from "../gfx/LightMask";
 import { setupZoneLighting } from "../gfx/zoneLighting";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
+import { MINE_GROUND_TO_TERRAIN, MINE_DEFAULT_TERRAIN } from "../maps/groundTerrain";
 
 const leverScript: DialogueScript = {
   start: "ask",
@@ -69,7 +70,8 @@ export class MineScene extends ZoneScene {
       map: buildMineMap(),
       defaultSpawn: MINE_SPAWN,
       encounterZone: "mine",
-      battleBg: "mine"
+      battleBg: "mine",
+      compositeGround: { table: MINE_GROUND_TO_TERRAIN, fallback: MINE_DEFAULT_TERRAIN }
     };
   }
 
