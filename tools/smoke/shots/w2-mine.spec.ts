@@ -10,7 +10,7 @@ test("w2 — mine ledge", async ({ page }, testInfo) => {
   await jumpTo(page, {
     zone: "mine",
     flags: { mineOpen: true, actComplete: true, act2Started: true },
-    hp: 999, settleMs: 1400, stand: { x: 16, y: 19 }, standSettleMs: 500
+    hp: 999, settleMs: 1400, stand: { x: 14, y: 19 }, standSettleMs: 500
   });
   const s = await snapshot(page);
   expect(s.zoneKey, "reached mine").toBe("mine");

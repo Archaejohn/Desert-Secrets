@@ -11,6 +11,7 @@ import {
   MINE_FOREMAN,
   MINE_GATE_TILES,
   MINE_LEDGE_BAND,
+  MINE_LEDGE_RAMP,
   MINE_LEVER,
   MINE_LEVER_PLATE,
   MINE_SOUTH_EXIT,
@@ -73,7 +74,7 @@ export class MineScene extends ZoneScene {
       encounterZone: "mine",
       battleBg: "mine",
       compositeGround: { table: MINE_GROUND_TO_TERRAIN, fallback: MINE_DEFAULT_TERRAIN },
-      walls: [{ band: { ...MINE_LEDGE_BAND }, style: "minestone", crest: "jagged", ch: 0.85, talus: 0.22, bw: 0.6 }]
+      walls: [{ band: { ...MINE_LEDGE_BAND }, rampGapX: MINE_LEDGE_RAMP.x, style: "minestone", crest: "jagged", ch: 0.85, talus: 0.22, bw: 0.6 }]
     };
   }
 
