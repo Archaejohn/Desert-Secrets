@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { REEF_GARDEN_GROUND_TO_TERRAIN as TBL, REEF_GARDEN_DEFAULT_TERRAIN as DEF, REEF_HOLLOW_SEABED, REEF_HOLLOW_WATER, REEF_HOLLOW_DEFAULT, groundNameToTerrainKey, terrainGrid, SUNTEMPLE_GROUND_TO_TERRAIN as STT, SUNTEMPLE_DEFAULT_TERRAIN as STDEF } from "../../src/game/maps/groundTerrain";
+import { REEF_GARDEN_GROUND_TO_TERRAIN as TBL, REEF_GARDEN_DEFAULT_TERRAIN as DEF, REEF_HOLLOW_SEABED, REEF_HOLLOW_WATER, REEF_HOLLOW_DEFAULT, groundNameToTerrainKey, terrainGrid, SUNTEMPLE_GROUND_TO_TERRAIN as STT, SUNTEMPLE_DEFAULT_TERRAIN as STDEF, MINE_GROUND_TO_TERRAIN as MT, MINE_DEFAULT_TERRAIN as MDEF } from "../../src/game/maps/groundTerrain";
 
 describe("groundNameToTerrainKey", () => {
   it("maps direct + variant + nearest names via baseName", () => {
@@ -45,5 +45,13 @@ describe("sun-temple table", () => {
     expect(groundNameToTerrainKey("seaWater", STT)).toBe("reefSilt");
     expect(groundNameToTerrainKey("seaWater2", STT)).toBe("reefSilt");
     expect(STDEF).toBe("reefSilt");
+  });
+});
+
+describe("mine table", () => {
+  it("maps mine floor + frost to terrain keys", () => {
+    expect(groundNameToTerrainKey("mineFloor", MT)).toBe("emberRock");
+    expect(groundNameToTerrainKey("frostSand", MT)).toBe("frostSand");
+    expect(MDEF).toBe("emberRock");
   });
 });

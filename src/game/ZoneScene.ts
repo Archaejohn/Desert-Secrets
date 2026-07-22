@@ -17,6 +17,7 @@ import type { TerrainKey } from "../../tools/pipeline/src/cliffs/palette";
 import type { GroundFeature } from "../../tools/pipeline/src/ground/features";
 import { CompositeGroundView } from "./gfx/CompositeGroundView";
 import { WaterSurfaceView } from "./gfx/WaterSurfaceView";
+import { WallView, type WallSpec } from "./gfx/WallView";
 import { terrainGrid } from "./maps/groundTerrain";
 import { equipItem, unequipSlot, respawn, type ZoneId } from "../core/gameState";
 import { nextThomasFragment } from "../core/scripts/thomas";
@@ -66,6 +67,10 @@ export interface ZoneConfig {
    *  composited seabed. `table` keeps water as `reefWater` so the footprint mask can be
    *  derived; names mapping to `reefWater` are also hidden on the decor layer. */
   water?: { table: Readonly<Record<string, TerrainKey>>; fallback: TerrainKey };
+  /** Opt-in: raycast rock WALLS placed over bands of tiles (ledge faces). Each is baked
+   *  from the wall generator and depth-sorted at its band foot; the band's own decor tiles
+   *  are hidden under it. */
+  walls?: readonly WallSpec[];
 }
 
 export interface ZoneEntryData {
@@ -115,6 +120,7 @@ export abstract class ZoneScene extends Phaser.Scene {
   protected inputLocked = false;
   private compositeGroundView: CompositeGroundView | null = null;
   private waterSurfaceView: WaterSurfaceView | null = null;
+  private wallViews: WallView[] = [];
 
   /**
    * Two-camera world/UI split (docs/CONTRACTS.md "v21"). `uiLayer` is an
@@ -226,6 +232,7 @@ export abstract class ZoneScene extends Phaser.Scene {
     this.encounterClock = null;
     this.compositeGroundView = null;
     this.waterSurfaceView = null;
+    this.wallViews = [];
   }
 
   create(): void {
@@ -513,6 +520,18 @@ export abstract class ZoneScene extends Phaser.Scene {
    *  set. Hiding the ground layer is visual-only — Arcade tile collision on it
    *  (set via `setCollision` above) is unaffected by `setVisible`. */
   private setupCompositeGround(): void {
+    // Raycast rock walls (independent of composite ground). Each bakes + places over its
+    // band; hide the band's own decor tiles (the wall image replaces them — visual only,
+    // collision on those solid tiles is unaffected by setVisible).
+    for (const wv of this.wallViews) wv.destroy(); // defensive: guard against re-entry
+    this.wallViews = [];
+    for (const w of this.cfg.walls ?? []) {
+      this.wallViews.push(new WallView(this, w));
+      for (let ty = w.band.y1; ty <= w.band.y2; ty++)
+        for (let tx = w.band.x1; tx <= w.band.x2; tx++)
+          this.decorLayer.getTileAt(tx, ty)?.setVisible(false);
+    }
+
     const cg = this.cfg.compositeGround;
     if (!cg) return;
     if (this.compositeGroundView) this.compositeGroundView.destroy(); // defensive: guard against re-entry

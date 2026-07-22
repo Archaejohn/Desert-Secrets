@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderWall } from "../../../tools/pipeline/src/walls/renderWall";
+import { renderWall, renderWallWithBounds } from "../../../tools/pipeline/src/walls/renderWall";
 import { PALETTE } from "../../../src/shared/palette";
 
 const P0 = {
@@ -40,5 +40,19 @@ describe("renderWall", () => {
   });
   it("granite renders too", () => {
     expect(renderWall({ ...P0, style: "granite" }).width).toBeGreaterThan(40);
+  });
+  it("renderWallWithBounds returns the grid plus a finite screen offset (for placement)", () => {
+    const { grid, x0, y0 } = renderWallWithBounds(P0);
+    expect(grid.width).toBeGreaterThan(0);
+    expect(Number.isFinite(x0)).toBe(true);
+    expect(Number.isFinite(y0)).toBe(true);
+    expect(grid.diff(renderWall(P0))).toBe(0); // same pixels as the bare renderWall
+  });
+  it("minestone renders palette-locked and deterministically", () => {
+    const g = renderWall({ ...P0, style: "minestone" });
+    let opaque = 0;
+    g.forEach((_x, _y, c) => { if (c !== null) { opaque++; expect(PALETTE).toHaveProperty(c); } });
+    expect(opaque).toBeGreaterThan(200);
+    expect(g.diff(renderWall({ ...P0, style: "minestone" }))).toBe(0);
   });
 });

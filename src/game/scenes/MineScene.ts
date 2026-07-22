@@ -10,6 +10,8 @@ import {
   MINE_ELEVATOR,
   MINE_FOREMAN,
   MINE_GATE_TILES,
+  MINE_LEDGE_BAND,
+  MINE_LEDGE_RAMP,
   MINE_LEVER,
   MINE_LEVER_PLATE,
   MINE_SOUTH_EXIT,
@@ -25,6 +27,7 @@ import { LightMask } from "../gfx/LightMask";
 import { setupZoneLighting } from "../gfx/zoneLighting";
 import { PALETTE, hexToInt } from "../../shared/palette";
 import type { DialogueScript } from "../../core/dialogue";
+import { MINE_GROUND_TO_TERRAIN, MINE_DEFAULT_TERRAIN } from "../maps/groundTerrain";
 
 const leverScript: DialogueScript = {
   start: "ask",
@@ -69,7 +72,9 @@ export class MineScene extends ZoneScene {
       map: buildMineMap(),
       defaultSpawn: MINE_SPAWN,
       encounterZone: "mine",
-      battleBg: "mine"
+      battleBg: "mine",
+      compositeGround: { table: MINE_GROUND_TO_TERRAIN, fallback: MINE_DEFAULT_TERRAIN },
+      walls: [{ band: { ...MINE_LEDGE_BAND }, rampGapX: MINE_LEDGE_RAMP.x, style: "minestone", crest: "jagged", ch: 0.85, talus: 0.22, bw: 0.6 }]
     };
   }
 

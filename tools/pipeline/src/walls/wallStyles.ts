@@ -24,6 +24,7 @@
 import { h2 } from "../cliffs/noise";
 import { box, ell, slab, type Solid, type Material } from "./primitives";
 import { ce, PPU } from "./raymath";
+import { MAT } from "./wallMaterials";
 import type { Vec3 } from "./raymath";
 
 /** Per-course shaping knobs a `course` function reads; built by Task 4's `buildWall`. */
@@ -163,10 +164,14 @@ export function crestOff(kind: string, x: number, W: number, amt: number): numbe
   }
 }
 
+/** Cinnabar ore: sparse muted-red ore bodies threading the mine's hewn rock (dark
+ *  maroon -> muted red; it is ore in stone, not lava, so it stays low on the ramp). */
+const ORE = MAT([2, 3, 4, 5], 0.12, 0.72);
+
 /* ---------- rock styles ----------
    Each returns the blocks of one course. The recess behind is a separate dark plane;
    gaps between blocks expose it, so a crack is genuine occlusion rather than a drawn line. */
-export const STYLES: Record<"strata" | "granite", WallStyle> = {
+export const STYLES: Record<"strata" | "granite" | "minestone", WallStyle> = {
   strata: {
     name: "Stratified",
     face: [31, 32, 63, 62, 61, 60, 59],
@@ -248,6 +253,42 @@ export const STYLES: Record<"strata" | "granite", WallStyle> = {
         }
         x += w;
         k++;
+      }
+    },
+  },
+  minestone: {
+    name: "Hewn minestone",
+    face: [0, 31, 32, 63, 62, 61, 60],   // near-black -> dark warm-grey -> tan (hewn stone)
+    recess: [0, 0, 31], cap: [32, 63, 62, 61, 60, 59], talus: [31, 32, 63, 62, 61],
+    crest: "jagged", top: "chip",
+    // Blocky hewn masonry (granite's course structure, distinct seeds + warm-dark ramp),
+    // threaded with sparse cinnabar ore bodies.
+    course(P, y0, y1, W, o) {
+      let x = 0, k = 0;
+      const sd = Math.round(y0 * 97);
+      const off = h2(sd, 21, 301) * o.bw * 1.4;
+      while (x < W) {
+        const w = o.bw * (0.9 + h2(sd, k, 302) * 1.4 * (0.4 + o.irr));
+        const d = o.relief * (0.45 + h2(sd, k, 303) * 1.05);
+        const g = o.frac * 0.10;
+        const x0 = Math.max(0, x - off), x1 = Math.min(W, x + w - g - off);
+        if (x1 > x0 + 0.05) {
+          const cy = (y0 + y1) / 2, hh = (y1 - y0) / 2;
+          shapedSlab(P, [(x0 + x1) / 2, cy, d / 2],
+            [(x1 - x0) / 2, hh * (0.88 + h2(sd, k, 304) * 0.14), d / 2],
+            (h2(sd, k, 305) - 0.5) * 0.58 * o.irr,
+            (h2(sd, k, 306) - 0.5) * 0.40 * o.irr,
+            (h2(sd, k, 307) - 0.5) * 0.22 * o.irr, o.face, 0.6,
+            o.top, sd * 37 + k, o.irr);
+          // cinnabar ore: sparse red body standing slightly proud of the block face.
+          if (h2(sd, k, 308) < 0.14) {
+            const ox = (x0 + x1) / 2 + (h2(sd, k, 309) - 0.5) * (x1 - x0) * 0.4;
+            const oy = cy + (h2(sd, k, 310) - 0.5) * hh;
+            const r = (x1 - x0) * 0.12 * (0.6 + h2(sd, k, 311) * 0.8);
+            P.push(ell([ox, oy, d * 0.85], [r, r * (0.6 + h2(sd, k, 312) * 0.8), r * 0.7], ORE, 0.5));
+          }
+        }
+        x += w; k++;
       }
     },
   },
